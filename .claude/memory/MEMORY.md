@@ -9,6 +9,17 @@ Index of decisions and conventions. Details live in `docs/adr/` and `README.md`.
 - Event-driven: transactional outbox + RabbitMQ (`agora.events`, quorum queues, retry/DLQ, Redis dedup) → `docs/adr/0004-event-driven-outbox-rabbitmq.md`
 - Zap logging with correlation_id in context → `docs/adr/0005-zap-logging.md`
 
+## Feature ADRs (MVP 1, status: proposed)
+- Auth: phone OTP + argon2id + JWT access / rotating refresh → `docs/adr/0006-authentication-otp-jwt.md`
+- Provider onboarding: status machine, documents on R2 via pre-signed URLs → `docs/adr/0007-provider-onboarding-and-validation.md`
+- Catalogue as data (4 seeded categories), cached in Redis → `docs/adr/0008-service-catalogue.md`
+- Service request state machine, optimistic locking, history table → `docs/adr/0009-service-request-state-machine.md`
+- Matching: Redis GEO for live positions, PostGIS for persistent geo, no ratings → `docs/adr/0010-geospatial-matching-postgis.md`
+- Real time: SSE + per-instance fan-out queue + Redis replay → `docs/adr/0011-real-time-sse.md`
+- Notifications: event consumers, FCM + SMS adapters → `docs/adr/0012-notifications-push-sms.md`
+- Backoffice users/roles + append-only audit log in same transaction → `docs/adr/0013-backoffice-users-and-audit-trail.md`
+- Wallet/payments/settlement/refunds/reconciliation (RF27–RF40 except RF21/RF26): no ADR yet, parked.
+
 ## Conventions
 - Layers: controller → usecase → `domain/repository` interface → `infra/repository` (SQLC). `domain/` never imports `infra/`.
 - Only `infra/rest/containers` receives `*pgxpool.Pool`.
