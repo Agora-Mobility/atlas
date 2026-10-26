@@ -38,6 +38,7 @@ type HTTPConfig struct {
 	IdleTimeout        time.Duration `env:"HTTP_IDLE_TIMEOUT" envDefault:"60s"`
 	ShutdownTimeout    time.Duration `env:"HTTP_SHUTDOWN_TIMEOUT" envDefault:"20s"`
 	CORSAllowedOrigins []string      `env:"CORS_ALLOWED_ORIGINS" envSeparator:"," envDefault:"*"`
+	TrustedProxies     []string      `env:"TRUSTED_PROXIES" envSeparator:","`
 	RateLimitRequests  int           `env:"RATE_LIMIT_REQUESTS" envDefault:"100"`
 	RateLimitWindow    time.Duration `env:"RATE_LIMIT_WINDOW" envDefault:"1m"`
 }
@@ -93,6 +94,8 @@ func Load() (*Config, error) {
 	if err := env.Parse(&cfg); err != nil {
 		return nil, fmt.Errorf("parse environment: %w", err)
 	}
+	cfg.HTTP.CORSAllowedOrigins = compact(cfg.HTTP.CORSAllowedOrigins)
+	cfg.HTTP.TrustedProxies = compact(cfg.HTTP.TrustedProxies)
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
@@ -125,13 +128,24 @@ func (c *Config) validate() error {
 	}
 	if c.App.Env == enums.EnvProduction {
 		for _, o := range c.HTTP.CORSAllowedOrigins {
-			if strings.TrimSpace(o) == "*" {
+			if o == "*" {
 				errs = append(errs, errors.New("CORS_ALLOWED_ORIGINS cannot be * in production"))
 			}
 		}
 	}
 
 	return errors.Join(errs...)
+}
+
+// compact trims entries and drops empty ones, so "" or "a, ,b" parse cleanly.
+func compact(values []string) []string {
+	var out []string
+	for _, v := range values {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // IsProduction reports whether the application runs in production.

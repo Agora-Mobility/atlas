@@ -1,0 +1,248 @@
+basePath: /
+definitions:
+  controllers.LiveResponse:
+    properties:
+      status:
+        example: ok
+        type: string
+      version:
+        example: v1.0.0
+        type: string
+    type: object
+  controllers.ReadyResponse:
+    properties:
+      checks:
+        additionalProperties:
+          type: string
+        type: object
+      status:
+        example: ok
+        type: string
+    type: object
+  customerrors.Code:
+    enum:
+    - VALIDATION_ERROR
+    - BAD_REQUEST
+    - UNAUTHORIZED
+    - FORBIDDEN
+    - NOT_FOUND
+    - CONFLICT
+    - TOO_MANY_REQUESTS
+    - SERVICE_UNAVAILABLE
+    - INTERNAL_ERROR
+    type: string
+    x-enum-varnames:
+    - CodeValidation
+    - CodeBadRequest
+    - CodeUnauthorized
+    - CodeForbidden
+    - CodeNotFound
+    - CodeConflict
+    - CodeTooManyRequests
+    - CodeUnavailable
+    - CodeInternal
+  customerrors.Response:
+    properties:
+      error:
+        $ref: '#/definitions/customerrors.ResponseBody'
+    type: object
+  customerrors.ResponseBody:
+    properties:
+      code:
+        $ref: '#/definitions/customerrors.Code'
+      correlation_id:
+        type: string
+      details:
+        additionalProperties:
+          type: string
+        type: object
+      message:
+        type: string
+    type: object
+  dtos.CreateExampleInput:
+    properties:
+      description:
+        example: Ponto de referência
+        maxLength: 500
+        type: string
+      latitude:
+        example: -8.813
+        maximum: 90
+        minimum: -90
+        type: number
+      longitude:
+        example: 13.2343
+        maximum: 180
+        minimum: -180
+        type: number
+      name:
+        example: Marginal de Luanda
+        maxLength: 120
+        type: string
+    required:
+    - name
+    type: object
+  dtos.ExampleOutput:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dtos.ExamplePageOutput:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.ExampleOutput'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: Core API of the AGORA platform.
+  title: Atlas API
+  version: "1.0"
+paths:
+  /api/v1/examples:
+    get:
+      parameters:
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default 20, max 100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ExamplePageOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/customerrors.Response'
+      summary: List examples
+      tags:
+      - examples
+    post:
+      consumes:
+      - application/json
+      description: Creates an example and emits example.created.v1 through the outbox.
+      parameters:
+      - description: Example
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateExampleInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.ExampleOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/customerrors.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/customerrors.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/customerrors.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/customerrors.Response'
+      security:
+      - BearerAuth: []
+      summary: Create an example
+      tags:
+      - examples
+  /api/v1/examples/{id}:
+    get:
+      parameters:
+      - description: Example ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ExampleOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/customerrors.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/customerrors.Response'
+      summary: Get an example
+      tags:
+      - examples
+  /live:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.LiveResponse'
+      summary: Liveness probe
+      tags:
+      - health
+  /ready:
+    get:
+      description: Checks PostgreSQL, Redis and RabbitMQ.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.ReadyResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/controllers.ReadyResponse'
+      summary: Readiness probe
+      tags:
+      - health
+securityDefinitions:
+  BearerAuth:
+    description: '"Bearer <token>"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -36,8 +37,8 @@ type ConsumerConfig struct {
 }
 
 // Consumer reads from a quorum queue with manual acks. Failed messages go to
-// "<queue>.retry", whose TTL dead-letters them back to the main queue; after
-// MaxRetries they go to "<queue>.dlq" for inspection.
+// "<queue>.retry" with a per-message TTL and dead-letter back to the main
+// queue when it expires; after MaxRetries they go to "<queue>.dlq".
 type Consumer struct {
 	mgr   *Manager
 	dedup *Deduplicator
@@ -77,9 +78,10 @@ func (c *Consumer) declareTopology(ch *amqp.Channel) error {
 	if _, err := ch.QueueDeclare(c.cfg.Queue, true, false, false, false, quorum); err != nil {
 		return fmt.Errorf("declare %s: %w", c.cfg.Queue, err)
 	}
+	// The delay is set per message (Expiration), not as x-message-ttl, so
+	// changing RABBITMQ_RETRY_DELAY never conflicts with the declared queue.
 	if _, err := ch.QueueDeclare(c.retryQueue(), true, false, false, false, amqp.Table{
 		"x-queue-type":              "quorum",
-		"x-message-ttl":             c.cfg.RetryDelay.Milliseconds(),
 		"x-dead-letter-exchange":    "",
 		"x-dead-letter-routing-key": c.cfg.Queue,
 	}); err != nil {
@@ -183,7 +185,7 @@ func (c *Consumer) retryOrDeadLetter(ctx context.Context, ch *amqp.Channel, d am
 
 	logger.Warn(ctx, "event handler failed, scheduling retry",
 		zap.String("queue", c.cfg.Queue), zap.Int("retry", retries+1), zap.Error(cause))
-	if err := c.republish(ctx, ch, d, c.retryQueue(), retries+1, cause); err != nil {
+	if err := c.republish(ctx, ch, d, c.retryQueue(), retries+1, cause, c.cfg.RetryDelay); err != nil {
 		_ = d.Nack(false, true)
 		return
 	}
@@ -192,7 +194,7 @@ func (c *Consumer) retryOrDeadLetter(ctx context.Context, ch *amqp.Channel, d am
 }
 
 func (c *Consumer) deadLetter(ctx context.Context, ch *amqp.Channel, d amqp.Delivery, cause error) {
-	if err := c.republish(ctx, ch, d, c.dlq(), retryCount(d.Headers), cause); err != nil {
+	if err := c.republish(ctx, ch, d, c.dlq(), retryCount(d.Headers), cause, 0); err != nil {
 		_ = d.Nack(false, true)
 		return
 	}
@@ -200,8 +202,9 @@ func (c *Consumer) deadLetter(ctx context.Context, ch *amqp.Channel, d amqp.Deli
 	_ = d.Ack(false)
 }
 
-// republish copies the delivery to queue through the default exchange.
-func (c *Consumer) republish(ctx context.Context, ch *amqp.Channel, d amqp.Delivery, queue string, retries int, cause error) error {
+// republish copies the delivery to queue through the default exchange. A
+// positive ttl makes the message expire (and dead-letter back) after ttl.
+func (c *Consumer) republish(ctx context.Context, ch *amqp.Channel, d amqp.Delivery, queue string, retries int, cause error, ttl time.Duration) error {
 	headers := amqp.Table{}
 	for k, v := range d.Headers {
 		headers[k] = v
@@ -209,7 +212,13 @@ func (c *Consumer) republish(ctx context.Context, ch *amqp.Channel, d amqp.Deliv
 	headers[headerRetryCount] = int32(retries) //nolint:gosec // bounded by MaxRetries
 	headers[headerLastError] = cause.Error()
 
+	var expiration string
+	if ttl > 0 {
+		expiration = strconv.FormatInt(ttl.Milliseconds(), 10)
+	}
+
 	return ch.PublishWithContext(context.WithoutCancel(ctx), "", queue, false, false, amqp.Publishing{
+		Expiration:   expiration,
 		ContentType:  d.ContentType,
 		DeliveryMode: amqp.Persistent,
 		MessageId:    d.MessageId,
