@@ -1,0 +1,31 @@
+# Binaries
+/bin/
+/atlas
+*.exe
+*.test
+*.out
+
+# Coverage
+coverage.*
+*.coverprofile
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Confidential documents (project plans, contracts)
+*.pdf
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Go workspace
+go.work
+go.work.sum
+
+# Local Claude settings (project memory in .claude/memory is versioned)
+.claude/settings.local.json
