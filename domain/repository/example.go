@@ -9,8 +9,6 @@ import (
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 )
 
-//go:generate go tool mockgen -source=example.go -destination=mocks/example_mock.go -package=mocks
-
 // IExampleRepository persists examples. FindByID returns a NotFound AppError
 // when the example does not exist.
 type IExampleRepository interface {
