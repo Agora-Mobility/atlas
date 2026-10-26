@@ -19,6 +19,8 @@ import (
 
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/config/logger"
+	"github.com/Agora-Mobility/atlas/infra/database/postgres"
+	"github.com/Agora-Mobility/atlas/infra/database/postgres/seeders"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -50,9 +52,32 @@ func main() {
 	switch cmd {
 	case "serve":
 		logger.Info(ctx, "atlas starting", zap.String("env", cfg.App.Env.String()), zap.String("version", version))
+	case "migrate":
+		direction := "up"
+		if len(os.Args) > 2 {
+			direction = os.Args[2]
+		}
+		if err := postgres.Migrate(cfg.Database.URL, direction); err != nil {
+			logger.Fatal(ctx, "migration failed", zap.Error(err))
+		}
+		logger.Info(ctx, "migrations applied", zap.String("direction", direction))
+	case "seed":
+		if err := runSeed(ctx, cfg); err != nil {
+			logger.Fatal(ctx, "seed failed", zap.Error(err))
+		}
+		logger.Info(ctx, "seed completed")
 	default:
 		logger.Fatal(ctx, "unknown command", zap.String("command", cmd))
 	}
+}
+
+func runSeed(ctx context.Context, cfg *config.Config) error {
+	pool, err := postgres.Connection(ctx, cfg.Database)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	return seeders.Run(ctx, pool)
 }
 
 func healthcheck() int {
