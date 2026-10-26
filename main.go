@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -167,23 +168,29 @@ func runToken(cfg *config.Config, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(token) //nolint:forbidigo // CLI output
+	fmt.Println(token)
 	return nil
 }
 
 func healthcheck() int {
-	port := os.Getenv("HTTP_PORT")
-	if port == "" {
-		port = "8080"
+	port := 8080
+	if v := os.Getenv("HTTP_PORT"); v != "" {
+		p, err := strconv.Atoi(v)
+		if err != nil || p <= 0 || p > 65535 {
+			return 1
+		}
+		port = p
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%s/live", port), nil)
+	// Always loopback with a numeric port: the target cannot be redirected.
+	url := fmt.Sprintf("http://127.0.0.1:%d/live", port)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody) // #nosec G704 -- fixed loopback host, numeric port
 	if err != nil {
 		return 1
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // #nosec G704 -- fixed loopback host, numeric port
 	if err != nil {
 		return 1
 	}

@@ -22,7 +22,8 @@ FROM gcr.io/distroless/static-debian13:nonroot
 
 COPY --from=build /out/atlas /atlas
 
-USER nonroot:nonroot
+# 65532 is the "nonroot" user of distroless images.
+USER 65532:65532
 EXPOSE 8080
 
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \

@@ -47,7 +47,8 @@ func (m *TxManager) WithinTransaction(ctx context.Context, fn func(ctx context.C
 		}
 	}()
 
-	if err = fn(context.WithValue(ctx, txKey{}, tx)); err != nil {
+	// err is the named result read by the deferred rollback; do not use :=.
+	if err = fn(context.WithValue(ctx, txKey{}, tx)); err != nil { //nolint:gocritic // see above
 		return err
 	}
 	if err = tx.Commit(ctx); err != nil {

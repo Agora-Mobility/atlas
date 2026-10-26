@@ -17,6 +17,9 @@ func TestParams(t *testing.T) {
 	assert.Equal(t, pagination.Params{Page: 1, Size: pagination.DefaultSize}, n)
 
 	assert.Equal(t, pagination.MaxSize, pagination.Params{Size: 999}.Normalize().Size)
+
+	huge := pagination.Params{Page: 1 << 40, Size: pagination.MaxSize}
+	assert.Positive(t, huge.Offset(), "offset must not overflow int32")
 }
 
 func TestNewPage(t *testing.T) {

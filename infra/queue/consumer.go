@@ -52,7 +52,7 @@ func NewConsumer(mgr *Manager, dedup *Deduplicator, cfg ConsumerConfig) *Consume
 func (c *Consumer) retryQueue() string { return c.cfg.Queue + ".retry" }
 func (c *Consumer) dlq() string        { return c.cfg.Queue + ".dlq" }
 
-// Run consumes until ctx is cancelled, reconnecting with backoff when the
+// Run consumes until ctx is canceled, reconnecting with backoff when the
 // channel or connection drops.
 func (c *Consumer) Run(ctx context.Context) {
 	log := logger.FromContext(ctx).With(zap.String("queue", c.cfg.Queue))
@@ -209,7 +209,7 @@ func (c *Consumer) republish(ctx context.Context, ch *amqp.Channel, d amqp.Deliv
 	for k, v := range d.Headers {
 		headers[k] = v
 	}
-	headers[headerRetryCount] = int32(retries) //nolint:gosec // bounded by MaxRetries
+	headers[headerRetryCount] = int32(retries) // #nosec G115 -- bounded by MaxRetries
 	headers[headerLastError] = cause.Error()
 
 	var expiration string

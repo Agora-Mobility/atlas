@@ -33,7 +33,7 @@ func NewRelay(pool *pgxpool.Pool, publisher Publisher, interval time.Duration, b
 	return &Relay{pool: pool, publisher: publisher, interval: interval, batchSize: batchSize}
 }
 
-// Run blocks until ctx is cancelled.
+// Run blocks until ctx is canceled.
 func (r *Relay) Run(ctx context.Context) {
 	logger.Info(ctx, "outbox relay started", zap.Duration("interval", r.interval))
 	ticker := time.NewTicker(r.interval)

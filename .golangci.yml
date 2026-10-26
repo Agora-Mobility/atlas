@@ -1,0 +1,97 @@
+version: "2"
+
+run:
+  timeout: 5m
+  build-tags:
+    - integration
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - contextcheck
+    - errcheck
+    - errorlint
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - noctx
+    - revive
+    - sqlclosecheck
+    - staticcheck # includes the former gosimple and stylecheck
+    - unused
+  settings:
+    errcheck:
+      check-type-assertions: true
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # readability over struct packing
+        - shadow # `err` shadowing is idiomatic
+    gocritic:
+      enabled-tags: [diagnostic, performance, style]
+      disabled-checks:
+        - hugeParam # gin handlers and DTOs pass structs by value on purpose
+        - unnamedResult
+        - whyNoLint
+    gosec:
+      excludes:
+        - G104 # covered by errcheck
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+          disabled: true # usecase/entity names are self-describing
+        - name: increment-decrement
+        - name: var-naming
+          arguments:
+            - [ID, URL, JSON, HTTP, UUID]
+            - []
+            - - skip-package-name-checks: true # package names follow the folder layout (utils, dtos, ...)
+        - name: package-comments
+          disabled: true
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: unreachable-code
+        - name: redefines-builtin-id
+  exclusions:
+    generated: strict
+    presets:
+      - common-false-positives
+      - std-error-handling
+    paths:
+      - infra/database/sqlc/gen
+      - docs/swagger
+      - domain/repository/mocks
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx, errcheck]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/Agora-Mobility/atlas
+  exclusions:
+    generated: strict
+    paths:
+      - infra/database/sqlc/gen
+      - docs/swagger
+      - domain/repository/mocks

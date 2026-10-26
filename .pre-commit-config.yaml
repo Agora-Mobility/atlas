@@ -1,0 +1,65 @@
+# Install with `make pre-commit-install` (after `make tools`).
+# Go hooks use the pinned binaries in ./bin so local runs match CI.
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^docs/swagger/
+      - id: end-of-file-fixer
+        exclude: ^docs/swagger/
+      - id: check-yaml
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: golangci-lint-fmt
+        name: gofmt + goimports
+        entry: bin/golangci-lint fmt
+        language: system
+        types: [go]
+        pass_filenames: false
+
+      - id: golangci-lint
+        name: golangci-lint
+        entry: bin/golangci-lint run --new-from-rev=HEAD --fix=false
+        language: system
+        types: [go]
+        pass_filenames: false
+
+      - id: go-mod-tidy
+        name: go mod tidy (no diff)
+        entry: go mod tidy -diff
+        language: system
+        files: (\.go|go\.mod|go\.sum)$
+        pass_filenames: false
+
+      - id: sqlc
+        name: sqlc diff + vet
+        entry: bash -c 'bin/sqlc diff && bin/sqlc vet'
+        language: system
+        files: ^(migrations/|infra/database/sqlc/|sqlc\.yaml)
+        pass_filenames: false
+
+      - id: gitleaks
+        name: gitleaks (staged changes)
+        entry: bin/gitleaks git --pre-commit --staged --redact --no-banner
+        language: system
+        pass_filenames: false
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.15.1
+    hooks:
+      - id: hadolint-docker
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.19.3
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]

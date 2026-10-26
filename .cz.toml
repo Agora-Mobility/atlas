@@ -1,0 +1,6 @@
+# Commit messages follow Conventional Commits, checked by the commit-msg hook.
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "semver2"
+version_provider = "scm"

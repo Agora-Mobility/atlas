@@ -36,7 +36,7 @@ func New(c *containers.Container, engine *gin.Engine) *Server {
 	}
 }
 
-// Start blocks until ctx is cancelled (signal) or the HTTP server fails, then
+// Start blocks until ctx is canceled (signal) or the HTTP server fails, then
 // shuts down: HTTP first (drain requests), then relay and consumers, then
 // connections.
 func (s *Server) Start(ctx context.Context) error {

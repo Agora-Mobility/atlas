@@ -1,10 +1,14 @@
 // Package pagination provides offset pagination parameters and a generic page.
 package pagination
 
+import "math"
+
 const (
 	DefaultPage = 1
 	DefaultSize = 20
 	MaxSize     = 100
+	// MaxPage keeps (Page-1)*Size within int32 for SQL OFFSET.
+	MaxPage = math.MaxInt32/MaxSize + 1
 )
 
 type Params struct {
@@ -23,16 +27,19 @@ func (p Params) Normalize() Params {
 	if p.Size > MaxSize {
 		p.Size = MaxSize
 	}
+	if p.Page > MaxPage {
+		p.Page = MaxPage
+	}
 	return p
 }
 
 func (p Params) Limit() int32 {
-	return int32(p.Normalize().Size) //nolint:gosec // bounded by MaxSize
+	return int32(p.Normalize().Size) // #nosec G115 -- bounded by MaxSize
 }
 
 func (p Params) Offset() int32 {
 	n := p.Normalize()
-	return int32((n.Page - 1) * n.Size) //nolint:gosec // bounded in practice by Page * MaxSize
+	return int32((n.Page - 1) * n.Size) // #nosec G115 -- bounded by MaxPage * MaxSize
 }
 
 type Page[T any] struct {

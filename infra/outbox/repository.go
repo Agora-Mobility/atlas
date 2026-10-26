@@ -41,7 +41,7 @@ func (r *Repository) Save(ctx context.Context, env events.Envelope) error {
 		AggregateType: env.AggregateType,
 		AggregateID:   env.AggregateID,
 		EventType:     env.EventType,
-		EventVersion:  int32(env.Version), //nolint:gosec // event versions are small
+		EventVersion:  int32(env.Version), // #nosec G115 -- event versions are small
 		RoutingKey:    env.RoutingKey(),
 		Envelope:      raw,
 		CorrelationID: correlationID,
