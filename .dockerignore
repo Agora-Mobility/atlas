@@ -1,0 +1,37 @@
+# VCS and CI
+.git
+.gitignore
+.github
+
+# Secrets and local environment
+.env
+.env.*
+*.pem
+*.key
+
+# Build output, coverage and test artefacts
+bin/
+atlas
+*.exe
+*.test
+*.out
+coverage.*
+*.coverprofile
+
+# Tooling, editors and docs (not needed in the image)
+.claude
+.idea
+.vscode
+.pre-commit-config.yaml
+.golangci.yml
+.editorconfig
+.cz.toml
+docs/adr
+*.md
+*.pdf
+node_modules
+monitoring
+docker-compose*.yml
+Dockerfile
+.dockerignore
+Makefile
