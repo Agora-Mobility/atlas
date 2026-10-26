@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SQLC_VERSION: v1.31.1
+  GOLANGCI_LINT_VERSION: v2.15.0
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+  generated:
+    name: Generated code is up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: go mod tidy
+        run: go mod tidy -diff
+      - name: Install sqlc
+        run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@${SQLC_VERSION}
+      - name: sqlc diff and vet
+        run: |
+          sqlc diff
+          sqlc vet
+      - name: Swagger and mocks
+        run: |
+          go tool swag init -g main.go -o docs/swagger --parseInternal
+          go tool swag fmt
+          go generate ./...
+          git diff --exit-code -- docs/swagger domain/repository/mocks
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6-alpine
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U atlas -d atlas"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:8.8.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      rabbitmq:
+        image: rabbitmq:4.4.0-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: atlas
+          RABBITMQ_DEFAULT_PASS: atlas
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_port_connectivity"
+          --health-interval 10s --health-timeout 10s --health-retries 10
+    env:
+      APP_ENV: test
+      LOG_LEVEL: warn
+      DATABASE_URL: postgres://atlas:atlas@localhost:5432/atlas?sslmode=disable
+      REDIS_ADDR: localhost:6379
+      RABBITMQ_URL: amqp://atlas:atlas@localhost:5672/
+      JWT_SECRET: ci-only-secret-that-is-at-least-32-characters-long
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Unit and integration tests (race, coverage)
+        # Integration tests start their own PostGIS through testcontainers.
+        run: go test -race -tags=integration -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Coverage summary
+        run: go tool cover -func=coverage.out | tail -1 >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: coverage
+          path: coverage.out
+          retention-days: 7
+
+      - name: Smoke test against service containers
+        run: |
+          go build -o atlas .
+          ./atlas migrate up
+          ./atlas seed
+          ./atlas serve &
+          for i in $(seq 1 30); do
+            curl -fsS localhost:8080/ready && exit 0
+            sleep 1
+          done
+          echo "API did not become ready" && exit 1
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, generated, test]
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build binary
+        run: CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${GITHUB_SHA::7}" -o atlas .

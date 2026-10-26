@@ -1,0 +1,48 @@
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      golang-x:
+        patterns: ["golang.org/x/*"]
+      prometheus:
+        patterns: ["github.com/prometheus/*"]
+      testing:
+        patterns: ["github.com/stretchr/testify", "go.uber.org/mock", "github.com/testcontainers/*"]
+
+  - package-ecosystem: docker
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "build(docker)"
+
+  - package-ecosystem: docker-compose
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "build(docker)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns: ["*"]

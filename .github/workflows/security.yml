@@ -1,0 +1,152 @@
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+# CodeQL, SARIF uploads and dependency review need GitHub Advanced Security
+# on private repositories. Set the repository variable GHAS_ENABLED=true once
+# it is available; the other scanners always run and fail the job on findings.
+env:
+  GOSEC_VERSION: v2.30.0
+  GITLEAKS_VERSION: v8.30.1
+  TRIVY_VERSION: v0.76.1
+
+jobs:
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: golang/govulncheck-action@v1.1.0
+        with:
+          go-version-file: go.mod
+
+  gosec:
+    name: gosec (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION}
+      - name: Run gosec
+        run: gosec -exclude-generated -tags=integration -fmt sarif -out gosec.sarif -stdout -verbose=text ./...
+      - name: Upload SARIF
+        if: always() && vars.GHAS_ENABLED == 'true'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: gosec.sarif
+          category: gosec
+
+  codeql:
+    name: CodeQL
+    if: vars.GHAS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: go
+          build-mode: autobuild
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: codeql-go
+
+  gitleaks:
+    name: gitleaks (secrets in history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      # gitleaks-action requires a paid license for organizations; the CLI
+      # does the same scan.
+      - name: Install gitleaks
+        run: go install github.com/zricethezav/gitleaks/v8@${GITLEAKS_VERSION}
+      - name: Scan full history
+        run: gitleaks git --redact --verbose --no-banner .
+
+  trivy:
+    name: Trivy (filesystem and image)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Scan filesystem (dependencies, misconfiguration, secrets)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - uses: docker/setup-buildx-action@v4.4.1
+      - name: Build image
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: .
+          load: true
+          push: false
+          tags: atlas:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Scan image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          scan-type: image
+          image-ref: atlas:scan
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+  hadolint:
+    name: hadolint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: Dockerfile
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/dependency-review-action@v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
