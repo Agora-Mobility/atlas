@@ -10,16 +10,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// Event is implemented by every domain event payload.
 type Event interface {
-	// EventType is "<module>.<event>", e.g. "example.created".
 	EventType() string
 	EventVersion() int
 	AggregateType() string
 	AggregateID() string
 }
 
-// Envelope is the wire format of every event.
 type Envelope struct {
 	EventID       uuid.UUID       `json:"event_id"`
 	EventType     string          `json:"event_type"`
@@ -31,7 +28,6 @@ type Envelope struct {
 	Payload       json.RawMessage `json:"payload"`
 }
 
-// NewEnvelope wraps evt with a fresh event id and timestamp.
 func NewEnvelope(evt Event, correlationID string) (Envelope, error) {
 	payload, err := json.Marshal(evt)
 	if err != nil {
@@ -53,7 +49,6 @@ func NewEnvelope(evt Event, correlationID string) (Envelope, error) {
 	}, nil
 }
 
-// RoutingKey is "<module>.<event>.v<version>", e.g. "example.created.v1".
 func (e Envelope) RoutingKey() string {
 	return RoutingKey(e.EventType, e.Version)
 }
@@ -62,7 +57,6 @@ func RoutingKey(eventType string, version int) string {
 	return fmt.Sprintf("%s.v%d", eventType, version)
 }
 
-// DecodePayload unmarshals the payload into dest.
 func (e Envelope) DecodePayload(dest any) error {
 	if err := json.Unmarshal(e.Payload, dest); err != nil {
 		return fmt.Errorf("decode %s payload: %w", e.EventType, err)
