@@ -52,7 +52,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	serveErr := make(chan error, 1)
 	go func() {
-		logger.Info(ctx, "http server listening", zap.String("addr", s.http.Addr))
+		logger.FromContext(ctx).Info("http server listening", zap.String("addr", s.http.Addr))
 		if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- err
 		}
@@ -62,7 +62,7 @@ func (s *Server) Start(ctx context.Context) error {
 	var runErr error
 	select {
 	case <-ctx.Done():
-		logger.Info(context.WithoutCancel(ctx), "shutdown signal received")
+		logger.FromContext(context.WithoutCancel(ctx)).Info("shutdown signal received")
 	case err := <-serveErr:
 		runErr = fmt.Errorf("http server: %w", err)
 	}
@@ -98,6 +98,6 @@ func (s *Server) shutdown(ctx context.Context, stopWorkers context.CancelFunc, w
 	}
 	s.container.Pool.Close()
 
-	logger.Info(ctx, "shutdown complete")
+	logger.FromContext(ctx).Info("shutdown complete")
 	return errors.Join(errs...)
 }

@@ -17,7 +17,7 @@ func Recovery() gin.HandlerFunc {
 		defer func() {
 			if r := recover(); r != nil {
 				ctx := c.Request.Context()
-				logger.Error(ctx, "panic recovered", zap.Any("panic", r), zap.Stack("stack"))
+				logger.FromContext(ctx).Error("panic recovered", zap.Any("panic", r), zap.Stack("stack"))
 				appErr := customerrors.Internal(fmt.Errorf("panic: %v", r))
 				c.AbortWithStatusJSON(http.StatusInternalServerError,
 					customerrors.NewResponse(appErr, logger.CorrelationID(ctx)))

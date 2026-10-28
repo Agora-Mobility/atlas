@@ -45,7 +45,7 @@ func Connection(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, 
 			pool.Close()
 			return nil, fmt.Errorf("ping postgres: %w", err)
 		}
-		logger.Warn(ctx, "postgres not ready, retrying", zap.Int("attempt", attempt+1), zap.Error(err))
+		logger.FromContext(ctx).Warn("postgres not ready, retrying", zap.Int("attempt", attempt+1), zap.Error(err))
 		if !utils.Sleep(ctx, utils.Backoff(attempt, 500*time.Millisecond, 5*time.Second)) {
 			pool.Close()
 			return nil, ctx.Err()

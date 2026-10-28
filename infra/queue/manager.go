@@ -42,7 +42,7 @@ func NewManager(ctx context.Context, url, exchange string) (*Manager, error) {
 		if err = m.declareExchange(); err == nil {
 			return m, nil
 		}
-		logger.Warn(ctx, "rabbitmq not ready, retrying", zap.Int("attempt", attempt+1), zap.Error(err))
+		logger.FromContext(ctx).Warn("rabbitmq not ready, retrying", zap.Int("attempt", attempt+1), zap.Error(err))
 		if !utils.Sleep(ctx, utils.Backoff(attempt, 500*time.Millisecond, 5*time.Second)) {
 			return nil, ctx.Err()
 		}

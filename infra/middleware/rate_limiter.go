@@ -37,7 +37,7 @@ func RateLimiter(client *goredis.Client, limit int, window time.Duration, skipPa
 
 		count, err := incrWindow(ctx, client, key, window)
 		if err != nil {
-			logger.Warn(ctx, "rate limiter unavailable, allowing request", zap.Error(err))
+			logger.FromContext(ctx).Warn("rate limiter unavailable, allowing request", zap.Error(err))
 			c.Next()
 			return
 		}

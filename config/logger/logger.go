@@ -1,127 +1,212 @@
-// Package logger wraps zap with a process-wide logger and context helpers so
-// every log line carries the request correlation_id.
 package logger
 
 import (
 	"context"
+	"os"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-type ctxKey int
-
 const (
-	loggerKey ctxKey = iota
-	correlationIDKey
+	logOutputEnv = "LOG_OUTPUT"
+	logLevelEnv  = "LOG_LEVEL"
+
+	defaultServiceName = "atlas"
+	defaultEnvironment = "development"
+	CorrelationIDField = "correlation_id"
 )
 
-// CorrelationIDField is the log field and header-independent name of the
-// correlation identifier.
-const CorrelationIDField = "correlation_id"
-
-// skipWrapper makes the package-level helpers report their caller's line.
-var skipWrapper = zap.AddCallerSkip(1)
-
-var (
-	base = zap.NewNop()
-	mu   sync.RWMutex
-)
-
-// MustInit builds the global logger. Production uses JSON output; any other
-// environment uses a colored console encoder. It panics on invalid setup.
-func MustInit(env, level string) {
-	lvl, err := zapcore.ParseLevel(level)
-	if err != nil {
-		lvl = zapcore.InfoLevel
-	}
-
-	var cfg zap.Config
-	if env == "production" || env == "staging" {
-		cfg = zap.NewProductionConfig()
-		cfg.EncoderConfig.TimeKey = "timestamp"
-		cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	} else {
-		cfg = zap.NewDevelopmentConfig()
-		cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	}
-	cfg.Level = zap.NewAtomicLevelAt(lvl)
-
-	l, err := cfg.Build()
-	if err != nil {
-		panic("logger: " + err.Error())
-	}
-
-	mu.Lock()
-	base = l
-	mu.Unlock()
+type Options struct {
+	ServiceName string
+	Environment string
+	Output      string
+	Level       string
 }
 
-// L returns the global logger without context fields.
+type contextKey string
+
+const (
+	loggerContextKey        contextKey = "logger"
+	correlationIDContextKey contextKey = CorrelationIDField
+)
+
+var (
+	once      sync.Once
+	base      *zap.Logger
+	initError error
+)
+
+func MustInit(opts Options) {
+	if err := Init(opts); err != nil {
+		panic("failed to initialize logger: " + err.Error())
+	}
+}
+
+func Init(opts Options) error {
+	once.Do(func() {
+		logConfig := zap.Config{
+			OutputPaths: []string{normalizeOutput(opts.Output)},
+			Level:       zap.NewAtomicLevelAt(parseLevel(opts.Level)),
+			Encoding:    "json",
+			EncoderConfig: zapcore.EncoderConfig{
+				TimeKey:        "timestamp",
+				LevelKey:       "level",
+				MessageKey:     "message",
+				CallerKey:      "caller",
+				StacktraceKey:  "stacktrace",
+				EncodeTime:     zapcore.ISO8601TimeEncoder,
+				EncodeLevel:    zapcore.LowercaseLevelEncoder,
+				EncodeCaller:   zapcore.ShortCallerEncoder,
+				LineEnding:     zapcore.DefaultLineEnding,
+				EncodeDuration: zapcore.MillisDurationEncoder,
+			},
+			DisableStacktrace: true,
+		}
+
+		logger, err := logConfig.Build()
+		if err != nil {
+			initError = err
+			return
+		}
+
+		base = logger.With(
+			zap.String("service_name", normalizeServiceName(opts.ServiceName)),
+			zap.String("environment", normalizeEnvironment(opts.Environment)),
+		)
+	})
+
+	return initError
+}
+
 func L() *zap.Logger {
-	mu.RLock()
-	defer mu.RUnlock()
+	if base == nil {
+		MustInit(Options{
+			ServiceName: os.Getenv("APP_NAME"),
+			Environment: os.Getenv("APP_ENV"),
+			Output:      os.Getenv(logOutputEnv),
+			Level:       os.Getenv(logLevelEnv),
+		})
+	}
+
 	return base
 }
 
-// Sync flushes buffered log entries. Call it before the process exits.
-func Sync() {
-	_ = L().Sync()
+func Sync() error {
+	if base == nil {
+		return nil
+	}
+	return base.Sync()
 }
 
-// WithContext stores a logger in ctx so downstream code logs with its fields.
-func WithContext(ctx context.Context, l *zap.Logger) context.Context {
-	return context.WithValue(ctx, loggerKey, l)
+func IntoContext(ctx context.Context, log *zap.Logger) context.Context {
+	if ctx == nil || log == nil {
+		return ctx
+	}
+
+	return context.WithValue(ctx, loggerContextKey, log)
 }
 
-// WithCorrelationID stores the correlation id in ctx.
 func WithCorrelationID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, correlationIDKey, id)
+	return context.WithValue(ctx, correlationIDContextKey, id)
 }
 
-// CorrelationID returns the correlation id stored in ctx, or "".
 func CorrelationID(ctx context.Context) string {
 	if ctx == nil {
 		return ""
 	}
-	id, _ := ctx.Value(correlationIDKey).(string)
+	id, _ := ctx.Value(correlationIDContextKey).(string)
 	return id
 }
 
-// FromContext returns the logger stored in ctx (or the global one) enriched
-// with the correlation id when present.
 func FromContext(ctx context.Context) *zap.Logger {
-	l := L()
 	if ctx == nil {
-		return l
+		return L()
 	}
-	if cl, ok := ctx.Value(loggerKey).(*zap.Logger); ok && cl != nil {
-		l = cl
+
+	if log, ok := ctx.Value(loggerContextKey).(*zap.Logger); ok && log != nil {
+		return log
 	}
+
+	fields := WithContext(ctx)
+	if len(fields) == 0 {
+		return L()
+	}
+
+	return L().With(fields...)
+}
+
+func With(fields ...zap.Field) *zap.Logger {
+	return L().With(fields...)
+}
+
+func Info(message string, tags ...zap.Field) {
+	wrapped().Info(message, tags...)
+}
+
+func Warn(message string, tags ...zap.Field) {
+	wrapped().Warn(message, tags...)
+}
+
+func Error(message string, err error, tags ...zap.Field) {
+	if err != nil {
+		tags = append(tags, zap.NamedError("error", err))
+	}
+	wrapped().Error(message, tags...)
+}
+
+func WithContext(ctx context.Context) []zap.Field {
+	fields := []zap.Field{}
+	if ctx == nil {
+		return fields
+	}
+
 	if id := CorrelationID(ctx); id != "" {
-		l = l.With(zap.String(CorrelationIDField, id))
+		fields = append(fields, zap.String(CorrelationIDField, id))
 	}
-	return l
+
+	return fields
 }
 
-func Debug(ctx context.Context, msg string, fields ...zap.Field) {
-	FromContext(ctx).WithOptions(skipWrapper).Debug(msg, fields...)
+func wrapped() *zap.Logger {
+	return L().WithOptions(zap.AddCallerSkip(1))
 }
 
-func Info(ctx context.Context, msg string, fields ...zap.Field) {
-	FromContext(ctx).WithOptions(skipWrapper).Info(msg, fields...)
+func normalizeOutput(output string) string {
+	value := strings.ToLower(strings.TrimSpace(output))
+	if value == "" {
+		return "stdout"
+	}
+	return value
 }
 
-func Warn(ctx context.Context, msg string, fields ...zap.Field) {
-	FromContext(ctx).WithOptions(skipWrapper).Warn(msg, fields...)
+func parseLevel(level string) zapcore.Level {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "debug":
+		return zapcore.DebugLevel
+	case "warn":
+		return zapcore.WarnLevel
+	case "error":
+		return zapcore.ErrorLevel
+	default:
+		return zapcore.InfoLevel
+	}
 }
 
-func Error(ctx context.Context, msg string, fields ...zap.Field) {
-	FromContext(ctx).WithOptions(skipWrapper).Error(msg, fields...)
+func normalizeServiceName(name string) string {
+	value := strings.TrimSpace(name)
+	if value == "" {
+		return defaultServiceName
+	}
+	return value
 }
 
-// Fatal logs and exits the process. Use only during startup.
-func Fatal(ctx context.Context, msg string, fields ...zap.Field) {
-	FromContext(ctx).WithOptions(skipWrapper).Fatal(msg, fields...)
+func normalizeEnvironment(env string) string {
+	value := strings.TrimSpace(env)
+	if value == "" {
+		return defaultEnvironment
+	}
+	return value
 }

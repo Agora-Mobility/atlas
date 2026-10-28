@@ -44,7 +44,8 @@ type HTTPConfig struct {
 }
 
 type LogConfig struct {
-	Level string `mapstructure:"LOG_LEVEL"`
+	Level  string `mapstructure:"LOG_LEVEL"`
+	Output string `mapstructure:"LOG_OUTPUT"`
 }
 
 type DatabaseConfig struct {
@@ -94,6 +95,7 @@ var defaults = map[string]any{
 	"RATE_LIMIT_REQUESTS":   100,
 	"RATE_LIMIT_WINDOW":     "1m",
 	"LOG_LEVEL":             "info",
+	"LOG_OUTPUT":            "stdout",
 	"DB_MAX_CONNS":          20,
 	"DB_MIN_CONNS":          2,
 	"DB_MAX_CONN_LIFETIME":  "1h",

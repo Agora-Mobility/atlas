@@ -13,7 +13,7 @@ outbox → RabbitMQ), not network calls.
 |----------------|----------------------------------------------------|
 | Language       | Go 1.27                                            |
 | HTTP           | Gin                                                |
-| Logs           | Zap (JSON in staging/production, console in dev)   |
+| Logs           | Zap (JSON, `LOG_LEVEL` / `LOG_OUTPUT`)             |
 | Database       | PostgreSQL 18 + PostGIS 3.6, pgx/v5 + pgxpool      |
 | Data access    | SQLC (no ORM)                                      |
 | Migrations     | golang-migrate (embedded in the binary)            |

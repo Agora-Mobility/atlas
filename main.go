@@ -61,9 +61,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "configuration error:", err)
 		os.Exit(1)
 	}
-	logger.MustInit(cfg.App.Env.String(), cfg.Log.Level)
-	defer logger.Sync()
-
+	logger.MustInit(logger.Options{
+		ServiceName: cfg.App.Name,
+		Environment: cfg.App.Env.String(),
+		Output:      cfg.Log.Output,
+		Level:       cfg.Log.Level,
+	})
 	ctx := context.Background()
 
 	cmd := "serve"
@@ -80,11 +83,11 @@ func main() {
 			direction = os.Args[2]
 		}
 		if err = postgres.Migrate(cfg.Database.URL, direction); err == nil {
-			logger.Info(ctx, "migrations applied", zap.String("direction", direction))
+			logger.Info("migrations applied", zap.String("direction", direction))
 		}
 	case "seed":
 		if err = runSeed(ctx, cfg); err == nil {
-			logger.Info(ctx, "seed completed")
+			logger.Info("seed completed")
 		}
 	case "token":
 		err = runToken(cfg, os.Args[2:])
@@ -93,15 +96,18 @@ func main() {
 	}
 
 	if err != nil {
-		logger.Fatal(ctx, cmd+" failed", zap.Error(err))
+		logger.Error(cmd+" failed", err)
+		_ = logger.Sync()
+		os.Exit(1)
 	}
+	_ = logger.Sync()
 }
 
 func runServe(ctx context.Context, cfg *config.Config) error {
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info(ctx, "atlas starting", zap.String("env", cfg.App.Env.String()), zap.String("version", version))
+	logger.Info("atlas starting", zap.String("env", cfg.App.Env.String()), zap.String("version", version))
 
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)

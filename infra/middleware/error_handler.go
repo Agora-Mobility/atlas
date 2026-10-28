@@ -21,7 +21,7 @@ func ErrorHandler() gin.HandlerFunc {
 		ctx := c.Request.Context()
 		appErr := customerrors.As(c.Errors.Last().Err)
 		if appErr.Status() >= 500 {
-			logger.Error(ctx, "request failed", zap.Error(appErr))
+			logger.FromContext(ctx).Error("request failed", zap.Error(appErr))
 		}
 		c.JSON(appErr.Status(), customerrors.NewResponse(appErr, logger.CorrelationID(ctx)))
 	}
