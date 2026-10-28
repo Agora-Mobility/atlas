@@ -28,9 +28,12 @@ COPY --from=build /out/atlas /atlas
 COPY --from=build /out/migrate /migrate
 COPY --from=build /out/healthcheck /healthcheck
 
+ENV APP_ENV=production \
+    HTTP_PORT=8700
+
 # 65532 is the "nonroot" user of distroless images.
 USER 65532:65532
-EXPOSE 8080
+EXPOSE 8700
 
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
     CMD ["/healthcheck"]
