@@ -56,16 +56,15 @@ func main() {
 		os.Exit(healthcheck())
 	}
 
-	config.LoadDotEnv()
-	logger.MustInit(os.Getenv("APP_ENV"), os.Getenv("LOG_LEVEL"))
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "configuration error:", err)
+		os.Exit(1)
+	}
+	logger.MustInit(cfg.App.Env.String(), cfg.Log.Level)
 	defer logger.Sync()
 
 	ctx := context.Background()
-
-	cfg, err := config.Load()
-	if err != nil {
-		logger.Fatal(ctx, "configuration error", zap.Error(err))
-	}
 
 	cmd := "serve"
 	if len(os.Args) > 1 {

@@ -1,102 +1,147 @@
 // Package config loads and validates the application configuration from
-// environment variables. Every setting comes from the environment; a .env file
-// is only a convenience for local development.
+// environment variables with Viper. Every setting comes from the environment;
+// a .env file is only a convenience for local development.
 package config
 
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"strings"
 	"time"
 
-	"github.com/caarlos0/env/v11"
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 
 	"github.com/Agora-Mobility/atlas/shared/enums"
 )
 
 type Config struct {
-	App      AppConfig
-	HTTP     HTTPConfig
-	Log      LogConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	RabbitMQ RabbitMQConfig
-	Outbox   OutboxConfig
-	JWT      JWTConfig
+	App      AppConfig      `mapstructure:",squash"`
+	HTTP     HTTPConfig     `mapstructure:",squash"`
+	Log      LogConfig      `mapstructure:",squash"`
+	Database DatabaseConfig `mapstructure:",squash"`
+	Redis    RedisConfig    `mapstructure:",squash"`
+	RabbitMQ RabbitMQConfig `mapstructure:",squash"`
+	Outbox   OutboxConfig   `mapstructure:",squash"`
+	JWT      JWTConfig      `mapstructure:",squash"`
 }
 
 type AppConfig struct {
-	Name string            `env:"APP_NAME" envDefault:"atlas"`
-	Env  enums.Environment `env:"APP_ENV" envDefault:"development"`
+	Name string            `mapstructure:"APP_NAME"`
+	Env  enums.Environment `mapstructure:"APP_ENV"`
 }
 
 type HTTPConfig struct {
-	Port               int           `env:"HTTP_PORT" envDefault:"8080"`
-	ReadTimeout        time.Duration `env:"HTTP_READ_TIMEOUT" envDefault:"15s"`
-	WriteTimeout       time.Duration `env:"HTTP_WRITE_TIMEOUT" envDefault:"15s"`
-	IdleTimeout        time.Duration `env:"HTTP_IDLE_TIMEOUT" envDefault:"60s"`
-	ShutdownTimeout    time.Duration `env:"HTTP_SHUTDOWN_TIMEOUT" envDefault:"20s"`
-	CORSAllowedOrigins []string      `env:"CORS_ALLOWED_ORIGINS" envSeparator:"," envDefault:"*"`
-	TrustedProxies     []string      `env:"TRUSTED_PROXIES" envSeparator:","`
-	RateLimitRequests  int           `env:"RATE_LIMIT_REQUESTS" envDefault:"100"`
-	RateLimitWindow    time.Duration `env:"RATE_LIMIT_WINDOW" envDefault:"1m"`
+	Port               int           `mapstructure:"HTTP_PORT"`
+	ReadTimeout        time.Duration `mapstructure:"HTTP_READ_TIMEOUT"`
+	WriteTimeout       time.Duration `mapstructure:"HTTP_WRITE_TIMEOUT"`
+	IdleTimeout        time.Duration `mapstructure:"HTTP_IDLE_TIMEOUT"`
+	ShutdownTimeout    time.Duration `mapstructure:"HTTP_SHUTDOWN_TIMEOUT"`
+	CORSAllowedOrigins []string      `mapstructure:"CORS_ALLOWED_ORIGINS"`
+	TrustedProxies     []string      `mapstructure:"TRUSTED_PROXIES"`
+	RateLimitRequests  int           `mapstructure:"RATE_LIMIT_REQUESTS"`
+	RateLimitWindow    time.Duration `mapstructure:"RATE_LIMIT_WINDOW"`
 }
 
 type LogConfig struct {
-	Level string `env:"LOG_LEVEL" envDefault:"info"`
+	Level string `mapstructure:"LOG_LEVEL"`
 }
 
 type DatabaseConfig struct {
-	URL             string        `env:"DATABASE_URL,required,notEmpty"`
-	MaxConns        int32         `env:"DB_MAX_CONNS" envDefault:"20"`
-	MinConns        int32         `env:"DB_MIN_CONNS" envDefault:"2"`
-	MaxConnLifetime time.Duration `env:"DB_MAX_CONN_LIFETIME" envDefault:"1h"`
-	MaxConnIdleTime time.Duration `env:"DB_MAX_CONN_IDLE_TIME" envDefault:"15m"`
+	URL             string        `mapstructure:"DATABASE_URL"`
+	MaxConns        int32         `mapstructure:"DB_MAX_CONNS"`
+	MinConns        int32         `mapstructure:"DB_MIN_CONNS"`
+	MaxConnLifetime time.Duration `mapstructure:"DB_MAX_CONN_LIFETIME"`
+	MaxConnIdleTime time.Duration `mapstructure:"DB_MAX_CONN_IDLE_TIME"`
 }
 
 type RedisConfig struct {
-	Addr     string `env:"REDIS_ADDR,required,notEmpty"`
-	Password string `env:"REDIS_PASSWORD"`
-	DB       int    `env:"REDIS_DB" envDefault:"0"`
+	Addr     string `mapstructure:"REDIS_ADDR"`
+	Password string `mapstructure:"REDIS_PASSWORD"`
+	DB       int    `mapstructure:"REDIS_DB"`
 }
 
 type RabbitMQConfig struct {
-	URL        string        `env:"RABBITMQ_URL,required,notEmpty"`
-	Exchange   string        `env:"RABBITMQ_EXCHANGE" envDefault:"agora.events"`
-	Prefetch   int           `env:"RABBITMQ_PREFETCH" envDefault:"10"`
-	MaxRetries int           `env:"RABBITMQ_MAX_RETRIES" envDefault:"5"`
-	RetryDelay time.Duration `env:"RABBITMQ_RETRY_DELAY" envDefault:"10s"`
-	DedupTTL   time.Duration `env:"EVENT_DEDUP_TTL" envDefault:"24h"`
+	URL        string        `mapstructure:"RABBITMQ_URL"`
+	Exchange   string        `mapstructure:"RABBITMQ_EXCHANGE"`
+	Prefetch   int           `mapstructure:"RABBITMQ_PREFETCH"`
+	MaxRetries int           `mapstructure:"RABBITMQ_MAX_RETRIES"`
+	RetryDelay time.Duration `mapstructure:"RABBITMQ_RETRY_DELAY"`
+	DedupTTL   time.Duration `mapstructure:"EVENT_DEDUP_TTL"`
 }
 
 type OutboxConfig struct {
-	PollInterval time.Duration `env:"OUTBOX_POLL_INTERVAL" envDefault:"1s"`
-	BatchSize    int32         `env:"OUTBOX_BATCH_SIZE" envDefault:"100"`
+	PollInterval time.Duration `mapstructure:"OUTBOX_POLL_INTERVAL"`
+	BatchSize    int32         `mapstructure:"OUTBOX_BATCH_SIZE"`
 }
 
 type JWTConfig struct {
-	Secret    string        `env:"JWT_SECRET,required,notEmpty"`
-	Issuer    string        `env:"JWT_ISSUER" envDefault:"atlas"`
-	AccessTTL time.Duration `env:"JWT_ACCESS_TTL" envDefault:"15m"`
+	Secret    string        `mapstructure:"JWT_SECRET"`
+	Issuer    string        `mapstructure:"JWT_ISSUER"`
+	AccessTTL time.Duration `mapstructure:"JWT_ACCESS_TTL"`
 }
 
-// LoadDotEnv loads a .env file when present. A missing file is not an error:
-// in containers the variables come from the environment.
-func LoadDotEnv() {
-	_ = godotenv.Load()
+var defaults = map[string]any{
+	"APP_NAME":              "atlas",
+	"APP_ENV":               "development",
+	"HTTP_PORT":             8080,
+	"HTTP_READ_TIMEOUT":     "15s",
+	"HTTP_WRITE_TIMEOUT":    "15s",
+	"HTTP_IDLE_TIMEOUT":     "60s",
+	"HTTP_SHUTDOWN_TIMEOUT": "20s",
+	"CORS_ALLOWED_ORIGINS":  "*",
+	"TRUSTED_PROXIES":       "",
+	"RATE_LIMIT_REQUESTS":   100,
+	"RATE_LIMIT_WINDOW":     "1m",
+	"LOG_LEVEL":             "info",
+	"DB_MAX_CONNS":          20,
+	"DB_MIN_CONNS":          2,
+	"DB_MAX_CONN_LIFETIME":  "1h",
+	"DB_MAX_CONN_IDLE_TIME": "15m",
+	"REDIS_PASSWORD":        "",
+	"REDIS_DB":              0,
+	"RABBITMQ_EXCHANGE":     "agora.events",
+	"RABBITMQ_PREFETCH":     10,
+	"RABBITMQ_MAX_RETRIES":  5,
+	"RABBITMQ_RETRY_DELAY":  "10s",
+	"EVENT_DEDUP_TTL":       "24h",
+	"OUTBOX_POLL_INTERVAL":  "1s",
+	"OUTBOX_BATCH_SIZE":     100,
+	"JWT_ISSUER":            "atlas",
+	"JWT_ACCESS_TTL":        "15m",
 }
 
-// Load parses the environment into a Config and validates it. It is meant to
-// be called once at startup so the process fails fast on bad configuration.
+var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"}
+
 func Load() (*Config, error) {
+	v := viper.New()
+	v.SetConfigFile(".env")
+	v.SetConfigType("env")
+	if err := v.ReadInConfig(); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("read .env: %w", err)
+	}
+	for key, value := range defaults {
+		v.SetDefault(key, value)
+	}
+	for _, key := range required {
+		_ = v.BindEnv(key)
+	}
+	v.AutomaticEnv()
+
 	var cfg Config
-	if err := env.Parse(&cfg); err != nil {
+	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("parse environment: %w", err)
 	}
 	cfg.HTTP.CORSAllowedOrigins = compact(cfg.HTTP.CORSAllowedOrigins)
 	cfg.HTTP.TrustedProxies = compact(cfg.HTTP.TrustedProxies)
-	if err := cfg.validate(); err != nil {
+
+	var errs []error
+	for _, key := range required {
+		if strings.TrimSpace(v.GetString(key)) == "" {
+			errs = append(errs, fmt.Errorf("%s is required", key))
+		}
+	}
+	if err := errors.Join(append(errs, cfg.validate())...); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 	return &cfg, nil
