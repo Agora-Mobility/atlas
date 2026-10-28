@@ -6,4 +6,6 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/rest/containers"
 )
 
-func SetupRoutes(_ *gin.RouterGroup, _ *containers.Container) {}
+func SetupRoutes(api *gin.RouterGroup, c *containers.Container) {
+	c.Auth.Router.Register(api)
+}

@@ -14,10 +14,15 @@ import (
 	"github.com/Agora-Mobility/atlas/shared"
 )
 
-// RateLimiter is a fixed-window limiter per client IP backed by Redis, so the
-// limit holds across API instances. If Redis fails the request is allowed:
-// availability wins over strict limiting.
 func RateLimiter(client *goredis.Client, limit int, window time.Duration, skipPaths ...string) gin.HandlerFunc {
+	return limitRequests(client, "global", limit, window, skipPaths)
+}
+
+func ScopedRateLimiter(client *goredis.Client, scope string, limit int, window time.Duration) gin.HandlerFunc {
+	return limitRequests(client, scope, limit, window, nil)
+}
+
+func limitRequests(client *goredis.Client, scope string, limit int, window time.Duration, skipPaths []string) gin.HandlerFunc {
 	skip := make(map[string]struct{}, len(skipPaths))
 	for _, p := range skipPaths {
 		skip[p] = struct{}{}
@@ -32,7 +37,7 @@ func RateLimiter(client *goredis.Client, limit int, window time.Duration, skipPa
 		ctx := c.Request.Context()
 		now := time.Now()
 		windowStart := now.Truncate(window)
-		key := fmt.Sprintf("atlas:ratelimit:%s:%d", c.ClientIP(), windowStart.Unix())
+		key := fmt.Sprintf("atlas:ratelimit:%s:%s:%d", scope, c.ClientIP(), windowStart.Unix())
 
 		count, err := incrWindow(ctx, client, key, window)
 		if err != nil {

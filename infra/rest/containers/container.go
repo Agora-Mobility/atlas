@@ -9,11 +9,15 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/Agora-Mobility/atlas/config"
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/cache"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/database/redis"
+	"github.com/Agora-Mobility/atlas/infra/middleware"
+	"github.com/Agora-Mobility/atlas/infra/notification/sms"
 	"github.com/Agora-Mobility/atlas/infra/outbox"
 	"github.com/Agora-Mobility/atlas/infra/queue"
+	"github.com/Agora-Mobility/atlas/infra/repository"
 	authjwt "github.com/Agora-Mobility/atlas/infra/security/auth-jwt"
 	"github.com/Agora-Mobility/atlas/infra/sse"
 )
@@ -26,15 +30,19 @@ type Container struct {
 	Redis *goredis.Client
 	Queue *queue.Manager
 
-	Cache        cache.Cache
-	TxManager    *postgres.TxManager
-	Outbox       *outbox.Repository
-	Publisher    *queue.Publisher
-	Deduplicator *queue.Deduplicator
-	JWT          *authjwt.Service
-	SSE          *sse.Hub
+	Cache            cache.Cache
+	TxManager        *postgres.TxManager
+	Outbox           *outbox.Repository
+	Publisher        *queue.Publisher
+	Deduplicator     *queue.Deduplicator
+	JWT              *authjwt.Service
+	SSE              *sse.Hub
+	Authenticator    *middleware.Authenticator
+	ClientAuthorizer *middleware.ClientAuthorizer
+	SMS              services.ISMSSender
 
 	Health *HealthModule
+	Auth   *AuthModule
 }
 
 type Connections struct {
@@ -65,20 +73,24 @@ func Connect(ctx context.Context, cfg *config.Config) (*Connections, error) {
 func New(cfg *config.Config, version string, conn *Connections) *Container {
 	jwt := authjwt.NewService(cfg.JWT.Secret, cfg.JWT.Issuer, cfg.JWT.AccessTTL)
 	c := &Container{
-		Config:       cfg,
-		Version:      version,
-		Pool:         conn.Pool,
-		Redis:        conn.Redis,
-		Queue:        conn.Queue,
-		Cache:        cache.NewRedisCache(conn.Redis, cfg.App.Name+":cache:"),
-		TxManager:    postgres.NewTxManager(conn.Pool),
-		Outbox:       outbox.NewRepository(conn.Pool),
-		Publisher:    queue.NewPublisher(conn.Queue),
-		Deduplicator: queue.NewDeduplicator(conn.Redis, cfg.RabbitMQ.DedupTTL),
-		JWT:          jwt,
-		SSE:          sse.NewHub(32),
+		Config:           cfg,
+		Version:          version,
+		Pool:             conn.Pool,
+		Redis:            conn.Redis,
+		Queue:            conn.Queue,
+		Cache:            cache.NewRedisCache(conn.Redis, cfg.App.Name+":cache:"),
+		TxManager:        postgres.NewTxManager(conn.Pool),
+		Outbox:           outbox.NewRepository(conn.Pool),
+		Publisher:        queue.NewPublisher(conn.Queue),
+		Deduplicator:     queue.NewDeduplicator(conn.Redis, cfg.RabbitMQ.DedupTTL),
+		JWT:              jwt,
+		SSE:              sse.NewHub(32),
+		Authenticator:    middleware.NewAuthenticator(jwt),
+		ClientAuthorizer: middleware.NewClientAuthorizer(repository.NewClientRepository(conn.Pool)),
+		SMS:              newSMSSender(cfg.SMS),
 	}
 	c.Health = newHealthModule(c)
+	c.Auth = newAuthModule(c)
 	return c
 }
 
@@ -99,6 +111,13 @@ func (c *Container) Consumers() []*queue.Consumer {
 
 func (c *Container) consumerConfigs() []queue.ConsumerConfig {
 	return nil
+}
+
+func newSMSSender(cfg config.SMSConfig) services.ISMSSender {
+	if !cfg.Enabled() {
+		return sms.LogSender{}
+	}
+	return sms.NewCastBrickSender(cfg.APIKey, cfg.BaseURL, cfg.SenderID, cfg.Timeout)
 }
 
 func (c *Container) Close() error {

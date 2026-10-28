@@ -37,19 +37,22 @@ infra/rest/<module>/controllers  →  usecases/<module>  →  domain/repository 
 | Folder | Purpose |
 |---|---|
 | `config/` | Environment loading/validation, logger |
-| `domain/` | Entities, value objects, validators, repository interfaces, event contracts |
+| `domain/` | Entities, repository and service interfaces, event contracts |
 | `usecases/<module>/` | Application logic + DTOs |
 | `infra/rest/` | Server (`server.go`), routes, controllers, routers, DI containers |
 | `infra/repository/` | Repository implementations over SQLC |
 | `infra/database/` | pgxpool, transactions, migrations runner, seeders, SQLC queries/code, Redis |
 | `infra/queue/`, `infra/outbox/` | RabbitMQ manager/publisher/consumer, outbox relay |
-| `infra/middleware/` | Correlation id, logging, recovery, metrics, rate limit, CORS, security headers, errors |
-| `infra/security/auth-jwt/` | JWT issue/verify, auth and role middlewares |
+| `infra/middleware/` | Client (`X-Client-Id`), authentication, correlation id, logging, recovery, metrics, rate limit, CORS, security headers |
+| `infra/security/` | JWT, argon2id, opaque refresh tokens, OTP |
 | `infra/sse/` | SSE hub (skeleton) |
-| `shared/` | Errors, enums, pagination |
+| `shared/` | HTTP error responses, validation errors, enums, pagination |
 | `migrations/` | `.up.sql` / `.down.sql` pairs |
 | `cmd/` | Auxiliary binaries: `migrate`, `seed`, `healthcheck` |
 | `docs/adr/` | Architecture decision records |
+
+The `auth` module is the reference implementation across every layer. Copy
+its shape for new modules.
 
 ## Event flow
 
@@ -90,6 +93,26 @@ make migrate-up seed run
 | RabbitMQ UI | http://localhost:15672 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 |
+
+Every `/api/v1` request needs the `X-Client-Id` header. The client decides
+which roles can sign in and which role a self-registration creates:
+
+| Client id | Type | Roles that sign in | Registration creates |
+|---|---|---|---|
+| `agora-customer-app` | `customer_app` | customer | customer |
+| `agora-provider-app` | `provider_app` | provider | provider |
+| `agora-partner-panel` | `partner_panel` | partner | not allowed |
+| `agora-backoffice` | `backoffice` | operator, admin | not allowed |
+
+Protected routes also need `Authorization: Bearer <access_token>` from
+`POST /api/v1/auth/login`. `make seed` creates one user per role (password
+`Agora@2026`):
+
+```bash
+curl -s localhost:8080/api/v1/auth/login \
+  -H 'X-Client-Id: agora-backoffice' -H 'Content-Type: application/json' \
+  -d '{"identifier":"admin@agora.ao","password":"Agora@2026"}'
+```
 
 ## Make targets
 

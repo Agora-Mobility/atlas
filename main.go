@@ -3,10 +3,15 @@
 //	@description	Core API of the AGORA platform.
 //	@BasePath		/
 
-// @securityDefinitions.apikey	BearerAuth
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Access token (Bearer) returned by /api/v1/auth/login.
+
+// @securityDefinitions.apikey	ClientId
 // @in							header
-// @name						Authorization
-// @description				"Bearer <token>"
+// @name						X-Client-Id
+// @description				Client application: agora-customer-app, agora-provider-app, agora-partner-panel or agora-backoffice. Required on every /api/v1 endpoint.
 package main
 
 import (

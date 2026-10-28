@@ -24,6 +24,7 @@ type Config struct {
 	RabbitMQ RabbitMQConfig `mapstructure:",squash"`
 	Outbox   OutboxConfig   `mapstructure:",squash"`
 	JWT      JWTConfig      `mapstructure:",squash"`
+	OTP      OTPConfig      `mapstructure:",squash"`
 	SMS      SMSConfig      `mapstructure:",squash"`
 }
 
@@ -42,6 +43,8 @@ type HTTPConfig struct {
 	TrustedProxies     []string      `mapstructure:"TRUSTED_PROXIES"`
 	RateLimitRequests  int           `mapstructure:"RATE_LIMIT_REQUESTS"`
 	RateLimitWindow    time.Duration `mapstructure:"RATE_LIMIT_WINDOW"`
+	AuthRateLimit      int           `mapstructure:"AUTH_RATE_LIMIT_REQUESTS"`
+	AuthRateWindow     time.Duration `mapstructure:"AUTH_RATE_LIMIT_WINDOW"`
 }
 
 type LogConfig struct {
@@ -78,9 +81,16 @@ type OutboxConfig struct {
 }
 
 type JWTConfig struct {
-	Secret    string        `mapstructure:"JWT_SECRET"`
-	Issuer    string        `mapstructure:"JWT_ISSUER"`
-	AccessTTL time.Duration `mapstructure:"JWT_ACCESS_TTL"`
+	Secret     string        `mapstructure:"JWT_SECRET"`
+	Issuer     string        `mapstructure:"JWT_ISSUER"`
+	AccessTTL  time.Duration `mapstructure:"JWT_ACCESS_TTL"`
+	RefreshTTL time.Duration `mapstructure:"JWT_REFRESH_TTL"`
+}
+
+type OTPConfig struct {
+	TTL            time.Duration `mapstructure:"OTP_TTL"`
+	MaxAttempts    int           `mapstructure:"OTP_MAX_ATTEMPTS"`
+	ResendCooldown time.Duration `mapstructure:"OTP_RESEND_COOLDOWN"`
 }
 
 type SMSConfig struct {
@@ -95,38 +105,44 @@ func (c SMSConfig) Enabled() bool {
 }
 
 var defaults = map[string]any{
-	"APP_NAME":              "atlas",
-	"APP_ENV":               "development",
-	"HTTP_PORT":             8080,
-	"HTTP_READ_TIMEOUT":     "15s",
-	"HTTP_WRITE_TIMEOUT":    "15s",
-	"HTTP_IDLE_TIMEOUT":     "60s",
-	"HTTP_SHUTDOWN_TIMEOUT": "20s",
-	"CORS_ALLOWED_ORIGINS":  "*",
-	"TRUSTED_PROXIES":       "",
-	"RATE_LIMIT_REQUESTS":   100,
-	"RATE_LIMIT_WINDOW":     "1m",
-	"LOG_LEVEL":             "info",
-	"LOG_OUTPUT":            "stdout",
-	"DB_MAX_CONNS":          20,
-	"DB_MIN_CONNS":          2,
-	"DB_MAX_CONN_LIFETIME":  "1h",
-	"DB_MAX_CONN_IDLE_TIME": "15m",
-	"REDIS_PASSWORD":        "",
-	"REDIS_DB":              0,
-	"RABBITMQ_EXCHANGE":     "agora.events",
-	"RABBITMQ_PREFETCH":     10,
-	"RABBITMQ_MAX_RETRIES":  5,
-	"RABBITMQ_RETRY_DELAY":  "10s",
-	"EVENT_DEDUP_TTL":       "24h",
-	"OUTBOX_POLL_INTERVAL":  "1s",
-	"OUTBOX_BATCH_SIZE":     100,
-	"JWT_ISSUER":            "atlas",
-	"JWT_ACCESS_TTL":        "15m",
-	"CASTBRICK_API_KEY":     "",
-	"CASTBRICK_BASE_URL":    "https://api.castbrick.co/v1",
-	"CASTBRICK_SENDER_ID":   "",
-	"CASTBRICK_TIMEOUT":     "10s",
+	"APP_NAME":                 "atlas",
+	"APP_ENV":                  "development",
+	"HTTP_PORT":                8080,
+	"HTTP_READ_TIMEOUT":        "15s",
+	"HTTP_WRITE_TIMEOUT":       "15s",
+	"HTTP_IDLE_TIMEOUT":        "60s",
+	"HTTP_SHUTDOWN_TIMEOUT":    "20s",
+	"CORS_ALLOWED_ORIGINS":     "*",
+	"TRUSTED_PROXIES":          "",
+	"RATE_LIMIT_REQUESTS":      100,
+	"RATE_LIMIT_WINDOW":        "1m",
+	"AUTH_RATE_LIMIT_REQUESTS": 10,
+	"AUTH_RATE_LIMIT_WINDOW":   "1m",
+	"LOG_LEVEL":                "info",
+	"LOG_OUTPUT":               "stdout",
+	"DB_MAX_CONNS":             20,
+	"DB_MIN_CONNS":             2,
+	"DB_MAX_CONN_LIFETIME":     "1h",
+	"DB_MAX_CONN_IDLE_TIME":    "15m",
+	"REDIS_PASSWORD":           "",
+	"REDIS_DB":                 0,
+	"RABBITMQ_EXCHANGE":        "agora.events",
+	"RABBITMQ_PREFETCH":        10,
+	"RABBITMQ_MAX_RETRIES":     5,
+	"RABBITMQ_RETRY_DELAY":     "10s",
+	"EVENT_DEDUP_TTL":          "24h",
+	"OUTBOX_POLL_INTERVAL":     "1s",
+	"OUTBOX_BATCH_SIZE":        100,
+	"JWT_ISSUER":               "atlas",
+	"JWT_ACCESS_TTL":           "15m",
+	"JWT_REFRESH_TTL":          "720h",
+	"OTP_TTL":                  "5m",
+	"OTP_MAX_ATTEMPTS":         5,
+	"OTP_RESEND_COOLDOWN":      "60s",
+	"CASTBRICK_API_KEY":        "",
+	"CASTBRICK_BASE_URL":       "https://api.castbrick.co/v1",
+	"CASTBRICK_SENDER_ID":      "",
+	"CASTBRICK_TIMEOUT":        "10s",
 }
 
 var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"}
@@ -185,6 +201,15 @@ func (c *Config) validate() error {
 	}
 	if c.Outbox.BatchSize <= 0 || c.Outbox.PollInterval <= 0 {
 		errs = append(errs, errors.New("OUTBOX_BATCH_SIZE and OUTBOX_POLL_INTERVAL must be positive"))
+	}
+	if c.HTTP.AuthRateLimit <= 0 || c.HTTP.AuthRateWindow <= 0 {
+		errs = append(errs, errors.New("AUTH_RATE_LIMIT_REQUESTS and AUTH_RATE_LIMIT_WINDOW must be positive"))
+	}
+	if c.JWT.RefreshTTL <= c.JWT.AccessTTL {
+		errs = append(errs, errors.New("JWT_REFRESH_TTL must be longer than JWT_ACCESS_TTL"))
+	}
+	if c.OTP.TTL <= 0 || c.OTP.MaxAttempts <= 0 || c.OTP.ResendCooldown < 0 {
+		errs = append(errs, errors.New("OTP_TTL and OTP_MAX_ATTEMPTS must be positive and OTP_RESEND_COOLDOWN >= 0"))
 	}
 	if c.SMS.Timeout <= 0 || strings.TrimSpace(c.SMS.BaseURL) == "" {
 		errs = append(errs, errors.New("CASTBRICK_TIMEOUT must be positive and CASTBRICK_BASE_URL cannot be empty"))
