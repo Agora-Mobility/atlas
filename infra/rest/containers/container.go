@@ -41,8 +41,9 @@ type Container struct {
 	ClientAuthorizer *middleware.ClientAuthorizer
 	SMS              services.ISMSSender
 
-	Health *HealthModule
-	Auth   *AuthModule
+	Health        *HealthModule
+	Auth          *AuthModule
+	Notifications *NotificationsModule
 }
 
 type Connections struct {
@@ -91,6 +92,7 @@ func New(cfg *config.Config, version string, conn *Connections) *Container {
 	}
 	c.Health = newHealthModule(c)
 	c.Auth = newAuthModule(c)
+	c.Notifications = newNotificationsModule(c)
 	return c
 }
 
@@ -110,7 +112,7 @@ func (c *Container) Consumers() []*queue.Consumer {
 }
 
 func (c *Container) consumerConfigs() []queue.ConsumerConfig {
-	return nil
+	return c.Notifications.Consumers()
 }
 
 func newSMSSender(cfg config.SMSConfig) services.ISMSSender {

@@ -20,6 +20,14 @@ import (
 // ErrClosed is returned after Close.
 var ErrClosed = errors.New("queue: manager closed")
 
+var ErrExchangeOutdated = errors.New("queue: exchange declared with outdated arguments")
+
+const (
+	unroutedSuffix      = ".unrouted"
+	unroutedRetention   = 7 * 24 * time.Hour
+	unroutedMaxMessages = 100_000
+)
+
 // Manager owns the AMQP connection. When the connection drops, the next call
 // to Channel dials again, so publishers and consumers recover by simply
 // asking for a new channel.
@@ -42,6 +50,9 @@ func NewManager(ctx context.Context, url, exchange string) (*Manager, error) {
 		if err = m.declareExchange(); err == nil {
 			return m, nil
 		}
+		if errors.Is(err, ErrExchangeOutdated) {
+			return nil, err
+		}
 		logger.FromContext(ctx).Warn("rabbitmq not ready, retrying", zap.Int("attempt", attempt+1), zap.Error(err))
 		if !utils.Sleep(ctx, utils.Backoff(attempt, 500*time.Millisecond, 5*time.Second)) {
 			return nil, ctx.Err()
@@ -52,13 +63,44 @@ func NewManager(ctx context.Context, url, exchange string) (*Manager, error) {
 
 func (m *Manager) Exchange() string { return m.exchange }
 
+func (m *Manager) UnroutedQueue() string { return m.exchange + unroutedSuffix }
+
 func (m *Manager) declareExchange() error {
 	ch, err := m.Channel()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = ch.Close() }()
-	return ch.ExchangeDeclare(m.exchange, amqp.ExchangeTopic, true, false, false, false, nil)
+
+	unrouted := m.UnroutedQueue()
+	if err := ch.ExchangeDeclare(unrouted, amqp.ExchangeFanout, true, false, false, false, nil); err != nil {
+		return fmt.Errorf("declare exchange %s: %w", unrouted, err)
+	}
+	if _, err := ch.QueueDeclare(unrouted, true, false, false, false, amqp.Table{
+		"x-queue-type":  "quorum",
+		"x-message-ttl": unroutedRetention.Milliseconds(),
+		"x-max-length":  unroutedMaxMessages,
+		"x-overflow":    "drop-head",
+	}); err != nil {
+		return fmt.Errorf("declare queue %s: %w", unrouted, err)
+	}
+	if err := ch.QueueBind(unrouted, "", unrouted, false, nil); err != nil {
+		return fmt.Errorf("bind queue %s: %w", unrouted, err)
+	}
+
+	err = ch.ExchangeDeclare(m.exchange, amqp.ExchangeTopic, true, false, false, false, amqp.Table{
+		"alternate-exchange": unrouted,
+	})
+	var amqpErr *amqp.Error
+	if errors.As(err, &amqpErr) && amqpErr.Code == amqp.PreconditionFailed {
+		return fmt.Errorf("%w: exchange %s already exists without alternate-exchange %s; delete it once "+
+			"in the RabbitMQ management UI (Exchanges > %s > Delete) and restart the api",
+			ErrExchangeOutdated, m.exchange, unrouted, m.exchange)
+	}
+	if err != nil {
+		return fmt.Errorf("declare exchange %s: %w", m.exchange, err)
+	}
+	return nil
 }
 
 // Channel opens a new channel, reconnecting first if needed.
