@@ -25,31 +25,14 @@ x-api-env: &api-env
   CASTBRICK_TIMEOUT: ${CASTBRICK_TIMEOUT:-10s}
 
 services:
-  migrate:
+  api:
     build:
       context: .
-    image: atlas:dev
-    entrypoint: ["/migrate"]
-    command: ["up"]
-    environment: *api-env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    restart: "no"
-    networks: [atlas]
-
-  api:
     image: atlas:dev
     environment: *api-env
     ports:
       - "${HTTP_PORT:-8080}:8080"
     depends_on:
-      migrate:
-        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

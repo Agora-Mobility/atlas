@@ -134,7 +134,7 @@ swag: ## Generate the OpenAPI spec into docs/swagger
 ##@ Docker
 
 .PHONY: docker-up
-docker-up: ## Start the full stack (builds the api image)
+docker-up: ## Start the full stack (builds the api image; the api applies migrations on start)
 	docker compose up -d --build
 
 .PHONY: docker-down

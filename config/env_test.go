@@ -36,6 +36,7 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, int32(20), cfg.Database.MaxConns)
 	assert.Equal(t, 24*time.Hour, cfg.RabbitMQ.DedupTTL)
 	assert.Equal(t, secret, cfg.JWT.Secret)
+	assert.True(t, cfg.Database.MigrateOnStart)
 	assert.False(t, cfg.SMS.Enabled())
 	assert.Equal(t, "https://api.castbrick.co/v1", cfg.SMS.BaseURL)
 	assert.Equal(t, 10*time.Second, cfg.SMS.Timeout)

@@ -24,6 +24,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/config/logger"
+	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/rest"
 	"github.com/Agora-Mobility/atlas/infra/rest/containers"
 )
@@ -54,6 +55,13 @@ func run() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	if cfg.Database.MigrateOnStart {
+		if err := postgres.Migrate(cfg.Database.URL, "up"); err != nil {
+			return err
+		}
+		logger.Info("migrations applied")
+	}
 
 	connections, err := containers.Connect(ctx, cfg)
 	if err != nil {

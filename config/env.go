@@ -58,6 +58,7 @@ type DatabaseConfig struct {
 	MinConns        int32         `mapstructure:"DB_MIN_CONNS"`
 	MaxConnLifetime time.Duration `mapstructure:"DB_MAX_CONN_LIFETIME"`
 	MaxConnIdleTime time.Duration `mapstructure:"DB_MAX_CONN_IDLE_TIME"`
+	MigrateOnStart  bool          `mapstructure:"DB_MIGRATE_ON_START"`
 }
 
 type RedisConfig struct {
@@ -124,6 +125,7 @@ var defaults = map[string]any{
 	"DB_MIN_CONNS":             2,
 	"DB_MAX_CONN_LIFETIME":     "1h",
 	"DB_MAX_CONN_IDLE_TIME":    "15m",
+	"DB_MIGRATE_ON_START":      true,
 	"REDIS_PASSWORD":           "",
 	"REDIS_DB":                 0,
 	"RABBITMQ_EXCHANGE":        "agora.events",
