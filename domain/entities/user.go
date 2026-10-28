@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/shared/phone"
 )
 
 type User struct {
@@ -12,14 +13,14 @@ type User struct {
 	Name        string           `json:"name" valid:"required~O nome é obrigatório.,runelength(2|120)~O nome deve ter entre 2 e 120 caracteres."`
 	Email       string           `json:"email" valid:"email~O e-mail é inválido.,optional"`
 	Password    string           `json:"-" valid:"required~A palavra-passe é obrigatória."`
-	Phone       string           `json:"phone" valid:"phone~O telefone deve estar no formato internacional (ex: +244923000000).,optional"`
+	Phone       string           `json:"phone" valid:"phone~O número de telefone é inválido (ex: 923000000 ou +244923000000).,optional"`
 	IsVerified  bool             `json:"is_verified" valid:"-"`
 	Status      enums.UserStatus `json:"status" valid:"required~O estado é obrigatório.,user_status~O estado é inválido."`
 	Role        enums.Role       `json:"role" valid:"required~O perfil é obrigatório.,user_role~O perfil é inválido."`
 	LastLoginAt *time.Time       `json:"last_login_at" valid:"-"`
 }
 
-func NewUser(name, email, phone, passwordHash string, role enums.Role) (*User, error) {
+func NewUser(name, email, phoneNumber, passwordHash string, role enums.Role) (*User, error) {
 	base, err := newBase()
 	if err != nil {
 		return nil, err
@@ -29,7 +30,7 @@ func NewUser(name, email, phone, passwordHash string, role enums.Role) (*User, e
 		Name:     strings.TrimSpace(name),
 		Email:    normalizeEmail(email),
 		Password: passwordHash,
-		Phone:    strings.TrimSpace(phone),
+		Phone:    phone.Normalize(phoneNumber),
 		Status:   enums.UserStatusActive,
 		Role:     role,
 	}
@@ -39,11 +40,11 @@ func NewUser(name, email, phone, passwordHash string, role enums.Role) (*User, e
 	return u, nil
 }
 
-func (u *User) UpdateProfile(name, email, phone string) error {
+func (u *User) UpdateProfile(name, email, phoneNumber string) error {
 	updated := *u
 	updated.Name = strings.TrimSpace(name)
 	updated.Email = normalizeEmail(email)
-	updated.Phone = strings.TrimSpace(phone)
+	updated.Phone = phone.Normalize(phoneNumber)
 	if err := updated.isValid(); err != nil {
 		return err
 	}

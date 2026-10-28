@@ -845,6 +845,7 @@
                 },
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }
@@ -857,6 +858,7 @@
             "properties": {
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }
@@ -879,6 +881,7 @@
                 },
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }
@@ -891,6 +894,7 @@
             "properties": {
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }
@@ -931,6 +935,7 @@
                 },
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }

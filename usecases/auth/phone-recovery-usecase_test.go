@@ -35,6 +35,19 @@ func TestConfirmPhone_MarksUserVerifiedAndStartsSession(t *testing.T) {
 	assert.True(t, out.User.IsVerified)
 }
 
+func TestConfirmPhone_AcceptsInternationalDialingPrefix(t *testing.T) {
+	f := newFixture(t)
+	user := newUser(t, enums.RoleCustomer, true)
+	f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeVerifyPhone, phone, "123456").Return(nil)
+	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(user, nil)
+	f.expectSessionStarted(t, user, customerApp)
+
+	_, err := f.phoneVerification.Confirm(context.Background(),
+		dtos.PhoneVerificationConfirmInput{Phone: "00244 923 000 000", Code: "123456"}, customerApp, "", "")
+
+	require.NoError(t, err)
+}
+
 func TestConfirmPhone_WrongCodeStopsTheFlow(t *testing.T) {
 	f := newFixture(t)
 	f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeVerifyPhone, phone, "000000").Return(services.ErrOTPInvalid)

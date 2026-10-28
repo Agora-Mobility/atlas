@@ -852,6 +852,7 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }
@@ -864,6 +865,7 @@ const docTemplate = `{
             "properties": {
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }
@@ -886,6 +888,7 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }
@@ -898,6 +901,7 @@ const docTemplate = `{
             "properties": {
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }
@@ -938,6 +942,7 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string",
+                    "maxLength": 32,
                     "example": "+244923000000"
                 }
             }

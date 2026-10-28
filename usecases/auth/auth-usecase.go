@@ -17,6 +17,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/shared/phone"
 	"github.com/Agora-Mobility/atlas/usecases/auth/dtos"
 )
 
@@ -82,8 +83,8 @@ func (uc *AuthUsecase) Register(ctx context.Context, req dtos.RegisterInput, cli
 	}
 
 	email := normalizeEmail(req.Email)
-	phone := strings.TrimSpace(req.Phone)
-	if err := uc.ensureIdentityIsFree(ctx, email, phone); err != nil {
+	phoneNumber := phone.Normalize(req.Phone)
+	if err := uc.ensureIdentityIsFree(ctx, email, phoneNumber); err != nil {
 		return nil, err
 	}
 
@@ -91,7 +92,7 @@ func (uc *AuthUsecase) Register(ctx context.Context, req dtos.RegisterInput, cli
 	if err != nil {
 		return nil, err
 	}
-	user, err := entities.NewUser(req.Name, email, phone, hash, role)
+	user, err := entities.NewUser(req.Name, email, phoneNumber, hash, role)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +198,7 @@ func (uc *AuthUsecase) Me(ctx context.Context, userID uuid.UUID) (*dtos.UserView
 	return &view, nil
 }
 
-func (uc *AuthUsecase) ensureIdentityIsFree(ctx context.Context, email, phone string) error {
+func (uc *AuthUsecase) ensureIdentityIsFree(ctx context.Context, email, phoneNumber string) error {
 	if email != "" {
 		existing, err := uc.userRepo.FindByEmail(ctx, email)
 		if err != nil {
@@ -208,7 +209,7 @@ func (uc *AuthUsecase) ensureIdentityIsFree(ctx context.Context, email, phone st
 		}
 	}
 
-	existing, err := uc.userRepo.FindByPhone(ctx, phone)
+	existing, err := uc.userRepo.FindByPhone(ctx, phoneNumber)
 	if err != nil {
 		return err
 	}
@@ -223,7 +224,7 @@ func (uc *AuthUsecase) resolveUser(ctx context.Context, identifier string) (*ent
 	if strings.Contains(identifier, "@") {
 		return uc.userRepo.FindByEmail(ctx, normalizeEmail(identifier))
 	}
-	return uc.userRepo.FindByPhone(ctx, identifier)
+	return uc.userRepo.FindByPhone(ctx, phone.Normalize(identifier))
 }
 
 func (uc *AuthUsecase) spendPasswordCheck(password string) {

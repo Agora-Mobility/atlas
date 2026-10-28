@@ -55,6 +55,20 @@ func TestRegister_RoleComesFromTheClient(t *testing.T) {
 	}
 }
 
+func TestRegister_StoresPhoneInInternationalFormat(t *testing.T) {
+	f := newFixture(t)
+	created := f.expectRegistration(t)
+	f.sms.EXPECT().Send(gomock.Any(), phone, gomock.Any()).Return(nil)
+	input := registerInput()
+	input.Phone = "923 000 000"
+
+	out, err := f.auth.Register(context.Background(), input, customerApp)
+
+	require.NoError(t, err)
+	assert.Equal(t, phone, created.Phone)
+	assert.Equal(t, phone, out.Phone)
+}
+
 func TestRegister_StaffClientsCannotRegister(t *testing.T) {
 	for _, client := range []*entities.Client{partnerPanel, backoffice} {
 		t.Run(client.ClientID, func(t *testing.T) {
@@ -104,6 +118,18 @@ func TestRegister_SucceedsEvenWhenSMSIsUnavailable(t *testing.T) {
 	f.sms.EXPECT().Send(gomock.Any(), phone, gomock.Any()).Return(services.ErrSMSUnavailable)
 
 	_, err := f.auth.Register(context.Background(), registerInput(), customerApp)
+
+	require.NoError(t, err)
+}
+
+func TestLogin_AcceptsNationalPhoneFormat(t *testing.T) {
+	f := newFixture(t)
+	user := newUser(t, enums.RoleCustomer, true)
+	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(user, nil)
+	f.hasher.EXPECT().Verify(strongPass, storedHash).Return(true, false, nil)
+	f.expectSessionStarted(t, user, customerApp)
+
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: "923000000", Password: strongPass}, customerApp, "", "")
 
 	require.NoError(t, err)
 }

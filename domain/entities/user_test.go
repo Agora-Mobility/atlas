@@ -26,7 +26,8 @@ func TestNewUser(t *testing.T) {
 		{name: "valid with email", userName: "Rui", email: " Rui@Agora.AO ", password: hash, role: enums.RoleAdmin},
 		{name: "blank name", userName: " ", phone: "+244923000000", password: hash, role: enums.RoleCustomer, wantFields: []string{"name"}},
 		{name: "invalid email", userName: "Ana", email: "nope", password: hash, role: enums.RoleOperator, wantFields: []string{"email"}},
-		{name: "invalid phone", userName: "Ana", phone: "923000000", password: hash, role: enums.RoleProvider, wantFields: []string{"phone"}},
+		{name: "national phone", userName: "Ana", phone: " 923 000 000 ", password: hash, role: enums.RoleProvider},
+		{name: "invalid phone", userName: "Ana", phone: "12345", password: hash, role: enums.RoleProvider, wantFields: []string{"phone"}},
 		{name: "missing password", userName: "Ana", phone: "+244923000000", role: enums.RolePartner, wantFields: []string{"password"}},
 		{name: "unknown role", userName: "Ana", phone: "+244923000000", password: hash, role: "root", wantFields: []string{"role"}},
 		{name: "no email nor phone", userName: "Ana", password: hash, role: enums.RoleCustomer, wantFields: []string{"email"}},
@@ -43,6 +44,9 @@ func TestNewUser(t *testing.T) {
 				assert.True(t, u.CanLogin())
 				if tt.email != "" {
 					assert.Equal(t, "rui@agora.ao", u.Email)
+				}
+				if tt.phone != "" {
+					assert.Equal(t, "+244923000000", u.Phone)
 				}
 				return
 			}
