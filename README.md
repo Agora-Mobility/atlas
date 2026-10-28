@@ -89,7 +89,7 @@ make migrate-up seed run
 | Service | URL |
 |---|---|
 | API | http://localhost:8080 (`/live`, `/ready`, `/metrics`) |
-| Swagger (non-production) | http://localhost:8080/swagger/index.html |
+| API docs – Scalar (only `APP_ENV=development`) | http://localhost:8080/docs (spec: `/docs/openapi.json`) |
 | RabbitMQ UI | http://localhost:15672 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 |

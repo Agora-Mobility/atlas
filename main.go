@@ -24,7 +24,6 @@ import (
 
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/config/logger"
-	_ "github.com/Agora-Mobility/atlas/docs/swagger"
 	"github.com/Agora-Mobility/atlas/infra/rest"
 	"github.com/Agora-Mobility/atlas/infra/rest/containers"
 )

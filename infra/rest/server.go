@@ -9,12 +9,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 
+	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
+	"github.com/Agora-Mobility/atlas/infra/rest/apidocs"
 	"github.com/Agora-Mobility/atlas/infra/rest/binding"
 	"github.com/Agora-Mobility/atlas/infra/rest/containers"
 	healthrouter "github.com/Agora-Mobility/atlas/infra/rest/health/router"
@@ -57,9 +57,7 @@ func NewServer(c *containers.Container, basePath string, registerRoutes func(api
 
 	healthrouter.Register(r, c.Health.Controller)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	if !cfg.IsProduction() {
-		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	}
+	registerAPIDocs(r, cfg)
 
 	registerRoutes(r.Group(basePath))
 
@@ -74,6 +72,12 @@ func NewServer(c *containers.Container, basePath string, registerRoutes func(api
 			IdleTimeout:       cfg.HTTP.IdleTimeout,
 		},
 	}, nil
+}
+
+func registerAPIDocs(r gin.IRoutes, cfg *config.Config) {
+	if cfg.IsDevelopment() {
+		apidocs.Register(r)
+	}
 }
 
 func (s *Server) Start(ctx context.Context) error {

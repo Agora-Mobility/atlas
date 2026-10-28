@@ -246,3 +246,7 @@ func compact(values []string) []string {
 func (c *Config) IsProduction() bool {
 	return c.App.Env == enums.EnvProduction
 }
+
+func (c *Config) IsDevelopment() bool {
+	return c.App.Env == enums.EnvDevelopment
+}
