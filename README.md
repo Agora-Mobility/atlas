@@ -157,6 +157,12 @@ Flow:
 4. Merge `main` back into `develop` after a release so the CHANGELOG and the
    manifest stay in sync.
 
+Rollback: Actions → **Rollback** → choose the environment and a previous tag
+(`1.4.1` for production, `1.4.1` or `sha-…` for staging). The workflow checks
+that the image was signed by `cd.yml` on `main`, moves the environment tag to it
+and redeploys. Nothing is rebuilt, so the rollback is the exact bytes that ran
+before.
+
 ## Conventions
 
 - Commits follow Conventional Commits (enforced by the commit-msg hook).
