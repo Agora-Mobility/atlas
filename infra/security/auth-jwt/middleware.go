@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Agora-Mobility/atlas/shared/customerrors"
+	"github.com/Agora-Mobility/atlas/shared"
 	"github.com/Agora-Mobility/atlas/shared/enums"
 )
 
@@ -18,14 +18,12 @@ func RequireAuth(svc *Service) gin.HandlerFunc {
 		header := c.GetHeader("Authorization")
 		token, found := strings.CutPrefix(header, "Bearer ")
 		if !found || token == "" {
-			_ = c.Error(customerrors.Unauthorized("missing bearer token"))
-			c.Abort()
+			shared.Unauthorized(c, shared.CodeUnauthorized, "Authentication required.")
 			return
 		}
 		claims, err := svc.Verify(token)
 		if err != nil {
-			_ = c.Error(customerrors.New(customerrors.CodeUnauthorized, "invalid or expired token", err))
-			c.Abort()
+			shared.Unauthorized(c, "INVALID_TOKEN", "Invalid or expired access token.")
 			return
 		}
 		c.Set(claimsKey, claims)
@@ -38,8 +36,7 @@ func RequireRole(roles ...enums.Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims, ok := ClaimsFrom(c)
 		if !ok {
-			_ = c.Error(customerrors.Unauthorized("authentication required"))
-			c.Abort()
+			shared.Unauthorized(c, shared.CodeUnauthorized, "Authentication required.")
 			return
 		}
 		for _, r := range roles {
@@ -48,8 +45,7 @@ func RequireRole(roles ...enums.Role) gin.HandlerFunc {
 				return
 			}
 		}
-		_ = c.Error(customerrors.Forbidden("insufficient role"))
-		c.Abort()
+		shared.Forbidden(c, "INSUFFICIENT_ROLE", "You do not have permission to perform this action.")
 	}
 }
 

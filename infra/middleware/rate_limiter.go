@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Agora-Mobility/atlas/config/logger"
-	"github.com/Agora-Mobility/atlas/shared/customerrors"
+	"github.com/Agora-Mobility/atlas/shared"
 )
 
 // RateLimiter is a fixed-window limiter per client IP backed by Redis, so the
@@ -49,9 +48,7 @@ func RateLimiter(client *goredis.Client, limit int, window time.Duration, skipPa
 		if int(count) > limit {
 			retryAfter := int(windowStart.Add(window).Sub(now).Seconds()) + 1
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
-			appErr := customerrors.New(customerrors.CodeTooManyRequests, "too many requests", nil)
-			c.AbortWithStatusJSON(http.StatusTooManyRequests,
-				customerrors.NewResponse(appErr, logger.CorrelationID(ctx)))
+			shared.TooManyRequests(c, shared.CodeTooManyRequests, "Too many requests. Try again later.")
 			return
 		}
 		c.Next()

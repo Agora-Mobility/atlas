@@ -3,6 +3,8 @@
 package router
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerFiles "github.com/swaggo/files"
@@ -13,7 +15,7 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/rest/binding"
 	"github.com/Agora-Mobility/atlas/infra/rest/containers"
 	healthrouter "github.com/Agora-Mobility/atlas/infra/rest/health/router"
-	"github.com/Agora-Mobility/atlas/shared/customerrors"
+	"github.com/Agora-Mobility/atlas/shared"
 )
 
 var probePaths = []string{"/live", "/ready", "/health", "/metrics"}
@@ -37,12 +39,11 @@ func New(c *containers.Container) (*gin.Engine, error) {
 		middleware.RequestLogger(probePaths...),
 		middleware.Prometheus(probePaths...),
 		middleware.RateLimiter(c.Redis, cfg.HTTP.RateLimitRequests, cfg.HTTP.RateLimitWindow, probePaths...),
-		middleware.ErrorHandler(),
 	)
 
-	r.NoRoute(func(ctx *gin.Context) { _ = ctx.Error(customerrors.NotFound("route")) })
+	r.NoRoute(func(ctx *gin.Context) { shared.NotFound(ctx, shared.CodeNotFound, "Route not found.") })
 	r.NoMethod(func(ctx *gin.Context) {
-		_ = ctx.Error(customerrors.New(customerrors.CodeBadRequest, "method not allowed", nil))
+		shared.RespondError(ctx, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed.")
 	})
 
 	healthrouter.Register(r, c.Health.Controller)
