@@ -26,12 +26,14 @@ jobs:
       - id: release
         uses: googleapis/release-please-action@v5.0.0
         with:
+          target-branch: main
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
   image:
     name: Build, sign and push image
     needs: release-please
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
