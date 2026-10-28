@@ -43,7 +43,7 @@ help: ## Show this help
 
 .PHONY: run
 run: ## Run the API locally (needs `make docker-up` for dependencies)
-	go run . serve
+	go run .
 
 .PHONY: build
 build: ## Build the binary into ./bin/atlas
@@ -109,11 +109,11 @@ sqlc-check: $(SQLC) ## Fail if generated SQLC code is stale; vet queries
 
 .PHONY: migrate-up
 migrate-up: ## Apply all migrations
-	go run . migrate up
+	go run ./cmd/migrate up
 
 .PHONY: migrate-down
 migrate-down: ## Roll back the last migration
-	go run . migrate down
+	go run ./cmd/migrate down
 
 .PHONY: migrate-create
 migrate-create: $(MIGRATE) ## Create a migration pair: make migrate-create name=add_users
@@ -122,7 +122,7 @@ migrate-create: $(MIGRATE) ## Create a migration pair: make migrate-create name=
 
 .PHONY: seed
 seed: ## Insert development seed data
-	go run . seed
+	go run ./cmd/seed
 
 ##@ API docs
 

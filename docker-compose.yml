@@ -25,7 +25,8 @@ services:
     build:
       context: .
     image: atlas:dev
-    command: ["migrate", "up"]
+    entrypoint: ["/migrate"]
+    command: ["up"]
     environment: *api-env
     depends_on:
       postgres:
@@ -39,7 +40,6 @@ services:
 
   api:
     image: atlas:dev
-    command: ["serve"]
     environment: *api-env
     ports:
       - "${HTTP_PORT:-8080}:8080"
@@ -53,7 +53,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/atlas", "healthcheck"]
+      test: ["CMD", "/healthcheck"]
       interval: 10s
       timeout: 3s
       retries: 5

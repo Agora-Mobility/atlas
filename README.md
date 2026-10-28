@@ -16,7 +16,7 @@ outbox → RabbitMQ), not network calls.
 | Logs           | Zap (JSON, `LOG_LEVEL` / `LOG_OUTPUT`)             |
 | Database       | PostgreSQL 18 + PostGIS 3.6, pgx/v5 + pgxpool      |
 | Data access    | SQLC (no ORM)                                      |
-| Migrations     | golang-migrate (embedded in the binary)            |
+| Migrations     | golang-migrate (embedded, `cmd/migrate` binary)    |
 | Cache          | Redis (go-redis v9)                                |
 | Messaging      | RabbitMQ 4 (amqp091-go), quorum queues             |
 | Observability  | Prometheus + Grafana                               |
@@ -39,7 +39,7 @@ infra/rest/<module>/controllers  →  usecases/<module>  →  domain/repository 
 | `config/` | Environment loading/validation, logger |
 | `domain/` | Entities, value objects, validators, repository interfaces, event contracts |
 | `usecases/<module>/` | Application logic + DTOs |
-| `infra/rest/` | Controllers, routers, DI containers, server |
+| `infra/rest/` | Server (`server.go`), routes, controllers, routers, DI containers |
 | `infra/repository/` | Repository implementations over SQLC |
 | `infra/database/` | pgxpool, transactions, migrations runner, seeders, SQLC queries/code, Redis |
 | `infra/queue/`, `infra/outbox/` | RabbitMQ manager/publisher/consumer, outbox relay |
@@ -48,6 +48,7 @@ infra/rest/<module>/controllers  →  usecases/<module>  →  domain/repository 
 | `infra/sse/` | SSE hub (skeleton) |
 | `shared/` | Errors, enums, pagination |
 | `migrations/` | `.up.sql` / `.down.sql` pairs |
+| `cmd/` | Auxiliary binaries: `migrate`, `seed`, `healthcheck` |
 | `docs/adr/` | Architecture decision records |
 
 ## Event flow
@@ -89,12 +90,6 @@ make migrate-up seed run
 | RabbitMQ UI | http://localhost:15672 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 |
-
-Protected routes need a token. In development:
-
-```bash
-go run . token admin    # or: docker compose exec api /atlas token admin
-```
 
 ## Make targets
 
