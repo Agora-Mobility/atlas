@@ -12,7 +12,6 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/rest/binding"
 	"github.com/Agora-Mobility/atlas/infra/rest/containers"
-	examplerouter "github.com/Agora-Mobility/atlas/infra/rest/example/router"
 	healthrouter "github.com/Agora-Mobility/atlas/infra/rest/health/router"
 	"github.com/Agora-Mobility/atlas/shared/customerrors"
 )
@@ -52,9 +51,6 @@ func New(c *containers.Container) (*gin.Engine, error) {
 	if !cfg.IsProduction() {
 		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
-
-	api := r.Group("/api/v1")
-	examplerouter.Register(api, c.Example.Controller, c.JWT)
 
 	return r, nil
 }

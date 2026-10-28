@@ -30,8 +30,7 @@ type Container struct {
 	JWT          *authjwt.Service
 	SSE          *sse.Hub
 
-	Health  *HealthModule
-	Example *ExampleModule
+	Health *HealthModule
 }
 
 func New(cfg *config.Config, version string, pool *pgxpool.Pool, rdb *goredis.Client, mgr *queue.Manager) *Container {
@@ -49,7 +48,6 @@ func New(cfg *config.Config, version string, pool *pgxpool.Pool, rdb *goredis.Cl
 		SSE:          sse.NewHub(32),
 	}
 	c.Health = newHealthModule(c, version)
-	c.Example = newExampleModule(c)
 	return c
 }
 
@@ -60,15 +58,16 @@ func (c *Container) OutboxRelay() *outbox.Relay {
 
 // Consumers returns every RabbitMQ consumer of every module.
 func (c *Container) Consumers() []*queue.Consumer {
-	var cfgs []queue.ConsumerConfig
-	cfgs = append(cfgs, c.Example.Consumers()...)
-
-	consumers := make([]*queue.Consumer, len(cfgs))
-	for i, cc := range cfgs {
+	consumers := make([]*queue.Consumer, 0)
+	for _, cc := range c.consumerConfigs() {
 		cc.Prefetch = c.Config.RabbitMQ.Prefetch
 		cc.MaxRetries = c.Config.RabbitMQ.MaxRetries
 		cc.RetryDelay = c.Config.RabbitMQ.RetryDelay
-		consumers[i] = queue.NewConsumer(c.Queue, c.Deduplicator, cc)
+		consumers = append(consumers, queue.NewConsumer(c.Queue, c.Deduplicator, cc))
 	}
 	return consumers
+}
+
+func (c *Container) consumerConfigs() []queue.ConsumerConfig {
+	return nil
 }

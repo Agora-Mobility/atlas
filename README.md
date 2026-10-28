@@ -50,9 +50,6 @@ infra/rest/<module>/controllers  →  usecases/<module>  →  domain/repository 
 | `migrations/` | `.up.sql` / `.down.sql` pairs |
 | `docs/adr/` | Architecture decision records |
 
-The `example` module is a reference implementation across every layer. Copy
-its shape for new modules, then delete it.
-
 ## Event flow
 
 1. A usecase writes the state change **and** the event to the `outbox` table
