@@ -74,8 +74,6 @@ func message(fe validator.FieldError) string {
 		return fmt.Sprintf("must be less than or equal to %s", fe.Param())
 	case "oneof":
 		return fmt.Sprintf("must be one of: %s", fe.Param())
-	case "e164":
-		return "must be in international format (e.g. +244923000000)"
 	case "email":
 		return "must be a valid e-mail"
 	case "len":

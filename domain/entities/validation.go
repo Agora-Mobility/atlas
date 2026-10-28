@@ -2,7 +2,6 @@ package entities
 
 import (
 	"errors"
-	"regexp"
 	"strings"
 	"unicode"
 
@@ -10,15 +9,14 @@ import (
 
 	"github.com/Agora-Mobility/atlas/shared/customerrors"
 	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/shared/phone"
 )
-
-var phonePattern = regexp.MustCompile(`^\+[1-9]\d{7,14}$`)
 
 func init() {
 	govalidator.SetFieldsRequiredByDefault(true)
 
 	govalidator.TagMap["user_role"] = func(s string) bool { return enums.Role(s).IsValid() }
-	govalidator.TagMap["phone"] = phonePattern.MatchString
+	govalidator.TagMap["phone"] = phone.IsValid
 	govalidator.TagMap["user_status"] = func(s string) bool { return enums.UserStatus(s).IsValid() }
 }
 

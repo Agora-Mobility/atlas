@@ -11,7 +11,7 @@ import (
 
 type RegisterInput struct {
 	Name     string `json:"name" binding:"required,max=120" example:"Ana Domingos"`
-	Phone    string `json:"phone" binding:"required,e164" example:"+244923000000"`
+	Phone    string `json:"phone" binding:"required,max=32" example:"+244923000000"`
 	Email    string `json:"email" binding:"omitempty,email,max=254" example:"ana@exemplo.ao"`
 	Password string `json:"password" binding:"required" example:"S3gredo!forte"`
 }
@@ -26,20 +26,20 @@ type RefreshRequest struct {
 }
 
 type PhoneVerificationRequestInput struct {
-	Phone string `json:"phone" binding:"required,e164" example:"+244923000000"`
+	Phone string `json:"phone" binding:"required,max=32" example:"+244923000000"`
 }
 
 type PhoneVerificationConfirmInput struct {
-	Phone string `json:"phone" binding:"required,e164" example:"+244923000000"`
+	Phone string `json:"phone" binding:"required,max=32" example:"+244923000000"`
 	Code  string `json:"code" binding:"required,len=6,numeric" example:"123456"`
 }
 
 type RecoveryRequestInput struct {
-	Phone string `json:"phone" binding:"required,e164" example:"+244923000000"`
+	Phone string `json:"phone" binding:"required,max=32" example:"+244923000000"`
 }
 
 type RecoveryConfirmInput struct {
-	Phone       string `json:"phone" binding:"required,e164" example:"+244923000000"`
+	Phone       string `json:"phone" binding:"required,max=32" example:"+244923000000"`
 	Code        string `json:"code" binding:"required,len=6,numeric" example:"123456"`
 	NewPassword string `json:"new_password" binding:"required" example:"N0vo!segredo"`
 }

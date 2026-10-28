@@ -2,12 +2,12 @@ package usecases
 
 import (
 	"context"
-	"strings"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/shared/phone"
 	"github.com/Agora-Mobility/atlas/usecases/auth/dtos"
 )
 
@@ -38,7 +38,7 @@ func NewRecoveryUsecase(
 }
 
 func (uc *RecoveryUsecase) RequestRecovery(ctx context.Context, req dtos.RecoveryRequestInput, client *entities.Client) error {
-	user, err := uc.userRepo.FindByPhone(ctx, strings.TrimSpace(req.Phone))
+	user, err := uc.userRepo.FindByPhone(ctx, phone.Normalize(req.Phone))
 	if err != nil {
 		return err
 	}
@@ -53,12 +53,12 @@ func (uc *RecoveryUsecase) ConfirmRecovery(ctx context.Context, req dtos.Recover
 		return err
 	}
 
-	phone := strings.TrimSpace(req.Phone)
-	if err := uc.otp.Verify(ctx, enums.OTPPurposeResetPassword, phone, req.Code); err != nil {
+	phoneNumber := phone.Normalize(req.Phone)
+	if err := uc.otp.Verify(ctx, enums.OTPPurposeResetPassword, phoneNumber, req.Code); err != nil {
 		return err
 	}
 
-	user, err := uc.userRepo.FindByPhone(ctx, phone)
+	user, err := uc.userRepo.FindByPhone(ctx, phoneNumber)
 	if err != nil {
 		return err
 	}

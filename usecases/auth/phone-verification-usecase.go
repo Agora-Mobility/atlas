@@ -3,7 +3,6 @@ package usecases
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Agora-Mobility/atlas/config/logger"
@@ -12,6 +11,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/shared/phone"
 	"github.com/Agora-Mobility/atlas/usecases/auth/dtos"
 )
 
@@ -49,7 +49,7 @@ func NewPhoneVerificationUsecase(
 }
 
 func (uc *PhoneVerificationUsecase) RequestCode(ctx context.Context, req dtos.PhoneVerificationRequestInput, client *entities.Client) error {
-	user, err := uc.userRepo.FindByPhone(ctx, strings.TrimSpace(req.Phone))
+	user, err := uc.userRepo.FindByPhone(ctx, phone.Normalize(req.Phone))
 	if err != nil {
 		return err
 	}
@@ -60,12 +60,12 @@ func (uc *PhoneVerificationUsecase) RequestCode(ctx context.Context, req dtos.Ph
 }
 
 func (uc *PhoneVerificationUsecase) Confirm(ctx context.Context, req dtos.PhoneVerificationConfirmInput, client *entities.Client, ip, userAgent string) (*dtos.SessionOutput, error) {
-	phone := strings.TrimSpace(req.Phone)
-	if err := uc.otp.Verify(ctx, enums.OTPPurposeVerifyPhone, phone, req.Code); err != nil {
+	phoneNumber := phone.Normalize(req.Phone)
+	if err := uc.otp.Verify(ctx, enums.OTPPurposeVerifyPhone, phoneNumber, req.Code); err != nil {
 		return nil, err
 	}
 
-	user, err := uc.userRepo.FindByPhone(ctx, phone)
+	user, err := uc.userRepo.FindByPhone(ctx, phoneNumber)
 	if err != nil {
 		return nil, err
 	}
