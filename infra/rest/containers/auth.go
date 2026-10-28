@@ -30,7 +30,7 @@ func newAuthModule(c *Container) *AuthModule {
 		ResendCooldown: cfg.OTP.ResendCooldown,
 	})
 
-	codeSender := usecases.NewVerificationCodeSender(otpService, c.SMS)
+	codeSender := usecases.NewVerificationCodeSender(otpService, c.SMS, cfg.OTP.TTL)
 	sessions := usecases.NewSessionIssuer(userRepo, refreshTokenRepo, c.TxManager, c.JWT, opaqueTokens, cfg.JWT.RefreshTTL)
 
 	controller := controllers.NewAuthController(

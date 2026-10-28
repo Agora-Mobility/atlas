@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -13,17 +15,18 @@ import (
 )
 
 var smsTemplateByPurpose = map[enums.OTPPurpose]string{
-	enums.OTPPurposeVerifyPhone:   "AGORA: o seu código de verificação é %s. Não o partilhe com ninguém.",
-	enums.OTPPurposeResetPassword: "AGORA: o seu código para redefinir a palavra-passe é %s. Não o partilhe com ninguém.",
+	enums.OTPPurposeVerifyPhone:   "Código de verificação: %s. Válido por %d min. Não o partilhe.",
+	enums.OTPPurposeResetPassword: "Código de recuperação: %s. Válido por %d min. Não o partilhe.",
 }
 
 type VerificationCodeSender struct {
-	otp services.IOTPService
-	sms services.ISMSSender
+	otp     services.IOTPService
+	sms     services.ISMSSender
+	codeTTL time.Duration
 }
 
-func NewVerificationCodeSender(otp services.IOTPService, sms services.ISMSSender) *VerificationCodeSender {
-	return &VerificationCodeSender{otp: otp, sms: sms}
+func NewVerificationCodeSender(otp services.IOTPService, sms services.ISMSSender, codeTTL time.Duration) *VerificationCodeSender {
+	return &VerificationCodeSender{otp: otp, sms: sms, codeTTL: codeTTL}
 }
 
 func (s *VerificationCodeSender) Send(ctx context.Context, purpose enums.OTPPurpose, phone string) error {
@@ -31,7 +34,7 @@ func (s *VerificationCodeSender) Send(ctx context.Context, purpose enums.OTPPurp
 	if err != nil {
 		return err
 	}
-	return s.sms.Send(ctx, phone, fmt.Sprintf(smsTemplateByPurpose[purpose], code))
+	return s.sms.Send(ctx, phone, fmt.Sprintf(smsTemplateByPurpose[purpose], code, s.validityMinutes()))
 }
 
 func (s *VerificationCodeSender) SendSilently(ctx context.Context, purpose enums.OTPPurpose, phone string) error {
@@ -48,4 +51,8 @@ func (s *VerificationCodeSender) SendSilently(ctx context.Context, purpose enums
 	default:
 		return err
 	}
+}
+
+func (s *VerificationCodeSender) validityMinutes() int {
+	return max(1, int(math.Ceil(s.codeTTL.Minutes())))
 }

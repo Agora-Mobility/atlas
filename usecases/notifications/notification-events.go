@@ -13,7 +13,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/services"
 )
 
-const welcomeTemplate = "AGORA: bem-vindo(a), %s! A sua conta foi confirmada e já pode usar a aplicação."
+const welcomeTemplate = "Bem-vindo(a), %s! A sua conta está confirmada."
 
 type NotificationEventsHandler struct {
 	userRepo repository.IUserRepository

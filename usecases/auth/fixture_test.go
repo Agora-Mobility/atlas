@@ -24,6 +24,7 @@ const (
 	refreshTTL  = 30 * 24 * time.Hour
 	rawRefresh  = "raw-refresh"
 	hashRefresh = "hash-refresh"
+	otpTTL      = 5 * time.Minute
 )
 
 var (
@@ -67,7 +68,7 @@ func newFixture(t *testing.T) fixture {
 	f.tx.EXPECT().WithinTransaction(gomock.Any(), gomock.Any()).AnyTimes().
 		DoAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) })
 
-	codeSender := usecases.NewVerificationCodeSender(f.otp, f.sms)
+	codeSender := usecases.NewVerificationCodeSender(f.otp, f.sms, otpTTL)
 	sessions := usecases.NewSessionIssuer(f.users, f.refreshTokens, f.tx, f.accessTokens, f.opaqueTokens, refreshTTL)
 	f.auth = usecases.NewAuthUsecase(f.users, f.refreshTokens, f.outbox, f.tx, f.hasher, codeSender, sessions)
 	f.refresh = usecases.NewRefreshUsecase(f.refreshTokens, f.users, f.tx, f.opaqueTokens, sessions, refreshTTL)

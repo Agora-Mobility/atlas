@@ -78,7 +78,7 @@ func TestRequestRecovery_SendsCodeOnlyForAccountsOfTheClient(t *testing.T) {
 		f := newFixture(t)
 		f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, enums.RoleCustomer, true), nil)
 		f.otp.EXPECT().Issue(gomock.Any(), enums.OTPPurposeResetPassword, phone).Return("123456", nil)
-		f.sms.EXPECT().Send(gomock.Any(), phone, gomock.Any()).Return(nil)
+		f.sms.EXPECT().Send(gomock.Any(), phone, "Código de recuperação: 123456. Válido por 5 min. Não o partilhe.").Return(nil)
 
 		require.NoError(t, f.recovery.RequestRecovery(context.Background(), dtos.RecoveryRequestInput{Phone: phone}, customerApp))
 	})
