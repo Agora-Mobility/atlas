@@ -152,8 +152,8 @@ Flow:
    CHANGELOG, computed from the Conventional Commits (`feat` → minor,
    `fix` → patch, `!` → major; minor while on `0.x`).
 3. Merging the release PR tags `vX.Y.Z`, publishes the GitHub release with the
-   image digest and SBOM, and deploys that image to `production` after the
-   environment approval.
+   image digest and SBOM, and deploys that image to `production`. Merging the
+   release PR is the production approval.
 4. Merge `main` back into `develop` after a release so the CHANGELOG and the
    manifest stay in sync.
 
