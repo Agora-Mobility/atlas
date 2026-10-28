@@ -5,6 +5,7 @@ go 1.27
 toolchain go1.27.3
 
 require (
+	github.com/IldySilva/castbrick-go v0.2.0
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-playground/validator/v10 v10.30.5

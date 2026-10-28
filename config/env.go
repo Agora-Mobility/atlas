@@ -24,6 +24,7 @@ type Config struct {
 	RabbitMQ RabbitMQConfig `mapstructure:",squash"`
 	Outbox   OutboxConfig   `mapstructure:",squash"`
 	JWT      JWTConfig      `mapstructure:",squash"`
+	SMS      SMSConfig      `mapstructure:",squash"`
 }
 
 type AppConfig struct {
@@ -82,6 +83,17 @@ type JWTConfig struct {
 	AccessTTL time.Duration `mapstructure:"JWT_ACCESS_TTL"`
 }
 
+type SMSConfig struct {
+	APIKey   string        `mapstructure:"CASTBRICK_API_KEY"`
+	BaseURL  string        `mapstructure:"CASTBRICK_BASE_URL"`
+	SenderID string        `mapstructure:"CASTBRICK_SENDER_ID"`
+	Timeout  time.Duration `mapstructure:"CASTBRICK_TIMEOUT"`
+}
+
+func (c SMSConfig) Enabled() bool {
+	return strings.TrimSpace(c.APIKey) != ""
+}
+
 var defaults = map[string]any{
 	"APP_NAME":              "atlas",
 	"APP_ENV":               "development",
@@ -111,6 +123,10 @@ var defaults = map[string]any{
 	"OUTBOX_BATCH_SIZE":     100,
 	"JWT_ISSUER":            "atlas",
 	"JWT_ACCESS_TTL":        "15m",
+	"CASTBRICK_API_KEY":     "",
+	"CASTBRICK_BASE_URL":    "https://api.castbrick.co/v1",
+	"CASTBRICK_SENDER_ID":   "",
+	"CASTBRICK_TIMEOUT":     "10s",
 }
 
 var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"}
@@ -170,10 +186,16 @@ func (c *Config) validate() error {
 	if c.Outbox.BatchSize <= 0 || c.Outbox.PollInterval <= 0 {
 		errs = append(errs, errors.New("OUTBOX_BATCH_SIZE and OUTBOX_POLL_INTERVAL must be positive"))
 	}
+	if c.SMS.Timeout <= 0 || strings.TrimSpace(c.SMS.BaseURL) == "" {
+		errs = append(errs, errors.New("CASTBRICK_TIMEOUT must be positive and CASTBRICK_BASE_URL cannot be empty"))
+	}
 	if len(c.JWT.Secret) < 32 {
 		errs = append(errs, errors.New("JWT_SECRET must be at least 32 characters"))
 	}
 	if c.App.Env == enums.EnvProduction {
+		if !c.SMS.Enabled() {
+			errs = append(errs, errors.New("CASTBRICK_API_KEY is required in production"))
+		}
 		for _, o := range c.HTTP.CORSAllowedOrigins {
 			if o == "*" {
 				errs = append(errs, errors.New("CORS_ALLOWED_ORIGINS cannot be * in production"))

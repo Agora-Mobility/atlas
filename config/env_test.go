@@ -36,6 +36,26 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, int32(20), cfg.Database.MaxConns)
 	assert.Equal(t, 24*time.Hour, cfg.RabbitMQ.DedupTTL)
 	assert.Equal(t, secret, cfg.JWT.Secret)
+	assert.False(t, cfg.SMS.Enabled())
+	assert.Equal(t, "https://api.castbrick.co/v1", cfg.SMS.BaseURL)
+	assert.Equal(t, 10*time.Second, cfg.SMS.Timeout)
+}
+
+func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
+	t.Chdir(t.TempDir())
+	setRequired(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://agora.ao")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "CASTBRICK_API_KEY is required in production")
+
+	t.Setenv("CASTBRICK_API_KEY", "cb_live_key")
+	t.Setenv("CASTBRICK_SENDER_ID", "AGORA")
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.True(t, cfg.SMS.Enabled())
+	assert.Equal(t, "AGORA", cfg.SMS.SenderID)
 }
 
 func TestLoadEnvOverridesDotEnv(t *testing.T) {
