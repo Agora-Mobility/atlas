@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +15,16 @@ import (
 
 const secret = "test-secret-with-at-least-32-characters"
 
+func isolateEnv(t *testing.T) {
+	t.Helper()
+	t.Chdir(t.TempDir())
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		t.Setenv(key, "")
+		require.NoError(t, os.Unsetenv(key))
+	}
+}
+
 func setRequired(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost/atlas")
 	t.Setenv("REDIS_ADDR", "localhost:6379")
@@ -22,7 +33,7 @@ func setRequired(t *testing.T) {
 }
 
 func TestLoadDefaults(t *testing.T) {
-	t.Chdir(t.TempDir())
+	isolateEnv(t)
 	setRequired(t)
 
 	cfg, err := config.Load()
@@ -43,7 +54,7 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
-	t.Chdir(t.TempDir())
+	isolateEnv(t)
 	setRequired(t)
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://agora.ao")
@@ -60,7 +71,7 @@ func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 }
 
 func TestLoadEnvOverridesDotEnv(t *testing.T) {
-	t.Chdir(t.TempDir())
+	isolateEnv(t)
 	dotEnv := "HTTP_PORT=9000\nLOG_LEVEL=debug\nCORS_ALLOWED_ORIGINS=https://a.ao, ,https://b.ao\n"
 	require.NoError(t, os.WriteFile(".env", []byte(dotEnv), 0o600))
 	setRequired(t)
@@ -75,7 +86,7 @@ func TestLoadEnvOverridesDotEnv(t *testing.T) {
 }
 
 func TestLoadMissingRequired(t *testing.T) {
-	t.Chdir(t.TempDir())
+	isolateEnv(t)
 
 	_, err := config.Load()
 
