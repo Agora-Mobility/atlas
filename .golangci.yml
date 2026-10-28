@@ -41,6 +41,8 @@ linters:
         - G104 # covered by errcheck
     misspell:
       locale: US
+      ignore-rules:
+        - internacional
     revive:
       rules:
         - name: blank-imports

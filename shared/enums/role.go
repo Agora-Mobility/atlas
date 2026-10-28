@@ -8,11 +8,12 @@ const (
 	RoleProvider Role = "provider"
 	RoleOperator Role = "operator"
 	RoleAdmin    Role = "admin"
+	RolePartner  Role = "partner"
 )
 
 func (r Role) IsValid() bool {
 	switch r {
-	case RoleCustomer, RoleProvider, RoleOperator, RoleAdmin:
+	case RoleCustomer, RoleProvider, RoleOperator, RoleAdmin, RolePartner:
 		return true
 	}
 	return false

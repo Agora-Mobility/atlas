@@ -31,6 +31,12 @@ sql:
               import: time
               type: Time
               pointer: true
+          - db_type: user_role
+            go_type: github.com/Agora-Mobility/atlas/shared/enums.Role
+          - db_type: user_status
+            go_type: github.com/Agora-Mobility/atlas/shared/enums.UserStatus
+          - db_type: client_type
+            go_type: github.com/Agora-Mobility/atlas/shared/enums.ClientType
           - db_type: jsonb
             go_type: encoding/json.RawMessage
           # PostGIS columns are read through ST_X/ST_Y or ST_AsText in queries;

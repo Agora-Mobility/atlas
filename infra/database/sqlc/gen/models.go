@@ -5,11 +5,156 @@
 package gen
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 
+	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/google/uuid"
 )
+
+type ClientType string
+
+const (
+	ClientTypeCustomerApp  ClientType = "customer_app"
+	ClientTypeProviderApp  ClientType = "provider_app"
+	ClientTypePartnerPanel ClientType = "partner_panel"
+	ClientTypeBackoffice   ClientType = "backoffice"
+)
+
+func (e *ClientType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ClientType(s)
+	case string:
+		*e = ClientType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ClientType: %T", src)
+	}
+	return nil
+}
+
+type NullClientType struct {
+	ClientType ClientType `json:"client_type"`
+	Valid      bool       `json:"valid"` // Valid is true if ClientType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullClientType) Scan(value interface{}) error {
+	if value == nil {
+		ns.ClientType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ClientType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullClientType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ClientType), nil
+}
+
+type UserRole string
+
+const (
+	UserRoleCustomer UserRole = "customer"
+	UserRoleProvider UserRole = "provider"
+	UserRoleOperator UserRole = "operator"
+	UserRoleAdmin    UserRole = "admin"
+	UserRolePartner  UserRole = "partner"
+)
+
+func (e *UserRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UserRole(s)
+	case string:
+		*e = UserRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UserRole: %T", src)
+	}
+	return nil
+}
+
+type NullUserRole struct {
+	UserRole UserRole `json:"user_role"`
+	Valid    bool     `json:"valid"` // Valid is true if UserRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUserRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.UserRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UserRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUserRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UserRole), nil
+}
+
+type UserStatus string
+
+const (
+	UserStatusActive   UserStatus = "active"
+	UserStatusInactive UserStatus = "inactive"
+	UserStatusBlocked  UserStatus = "blocked"
+)
+
+func (e *UserStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UserStatus(s)
+	case string:
+		*e = UserStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UserStatus: %T", src)
+	}
+	return nil
+}
+
+type NullUserStatus struct {
+	UserStatus UserStatus `json:"user_status"`
+	Valid      bool       `json:"valid"` // Valid is true if UserStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUserStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.UserStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UserStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUserStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UserStatus), nil
+}
+
+type Client struct {
+	ID        uuid.UUID        `json:"id"`
+	ClientID  string           `json:"client_id"`
+	Name      string           `json:"name"`
+	Type      enums.ClientType `json:"type"`
+	IsActive  bool             `json:"is_active"`
+	CreatedAt time.Time        `json:"created_at"`
+	UpdatedAt time.Time        `json:"updated_at"`
+}
 
 type Outbox struct {
 	ID            uuid.UUID       `json:"id"`
@@ -25,4 +170,33 @@ type Outbox struct {
 	PublishedAt   *time.Time      `json:"published_at"`
 	Attempts      int32           `json:"attempts"`
 	LastError     *string         `json:"last_error"`
+}
+
+type RefreshToken struct {
+	ID           uuid.UUID  `json:"id"`
+	UserID       uuid.UUID  `json:"user_id"`
+	ClientID     uuid.UUID  `json:"client_id"`
+	FamilyID     uuid.UUID  `json:"family_id"`
+	TokenHash    string     `json:"token_hash"`
+	ExpiresAt    time.Time  `json:"expires_at"`
+	RevokedAt    *time.Time `json:"revoked_at"`
+	ReplacedByID *uuid.UUID `json:"replaced_by_id"`
+	UserAgent    string     `json:"user_agent"`
+	IpAddress    string     `json:"ip_address"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+type User struct {
+	ID          uuid.UUID        `json:"id"`
+	Name        string           `json:"name"`
+	Email       *string          `json:"email"`
+	Password    string           `json:"password"`
+	Phone       *string          `json:"phone"`
+	IsVerified  bool             `json:"is_verified"`
+	Status      enums.UserStatus `json:"status"`
+	Role        enums.Role       `json:"role"`
+	LastLoginAt *time.Time       `json:"last_login_at"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
+	DeletedAt   *time.Time       `json:"deleted_at"`
 }
