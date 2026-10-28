@@ -76,7 +76,7 @@ Envelope: `event_id`, `event_type`, `version`, `occurred_at`,
 ```bash
 cp .env.example .env
 make tools            # pinned dev tools into ./bin
-make docker-up        # postgres, redis, rabbitmq, prometheus, grafana, api (migrates on start)
+make docker-up        # postgres, redis, rabbitmq, prometheus, grafana, api (Dockerfile.dev, hot reload with air, migrates on start)
 ```
 
 Or run the API on the host against the compose dependencies:

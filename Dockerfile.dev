@@ -1,0 +1,22 @@
+FROM golang:1.27.3-alpine
+
+# hadolint ignore=DL3018
+RUN apk add --no-cache ca-certificates git make curl bash postgresql-client
+
+ENV GOPROXY=https://proxy.golang.org,direct \
+    GOSUMDB=sum.golang.org \
+    GOTOOLCHAIN=local \
+    CGO_ENABLED=0
+
+RUN go install github.com/air-verse/air@v1.67.4
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+EXPOSE 8700
+
+CMD ["air", "-c", ".air.toml"]
