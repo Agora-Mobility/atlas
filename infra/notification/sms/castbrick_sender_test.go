@@ -40,11 +40,11 @@ func TestCastBrickSenderSendsToTheRecipient(t *testing.T) {
 	server := fakeCastBrick(t, http.StatusOK, `{"messageId":"msg-1","status":"queued","recipientCount":1}`, &received)
 	sender := sms.NewCastBrickSender("test-key", server.URL, "AGORA", time.Second)
 
-	err := sender.Send(context.Background(), "+244923000000", "AGORA: o seu código é 123456")
+	err := sender.Send(context.Background(), "+244923000000", "Código de verificação: 123456.")
 
 	require.NoError(t, err)
 	assert.Equal(t, []any{"+244923000000"}, received.body["recipients"])
-	assert.Equal(t, "AGORA: o seu código é 123456", received.body["content"])
+	assert.Equal(t, "Código de verificação: 123456.", received.body["content"])
 	assert.Equal(t, "AGORA", received.body["senderId"])
 }
 

@@ -44,7 +44,7 @@ func TestOnPhoneVerified_SendsWelcomeSMSWithFirstName(t *testing.T) {
 	user := newUser(t)
 	users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
 	sms.EXPECT().Send(gomock.Any(), "+244923000000",
-		"AGORA: bem-vindo(a), Ana! A sua conta foi confirmada e já pode usar a aplicação.").Return(nil)
+		"Bem-vindo(a), Ana! A sua conta está confirmada.").Return(nil)
 
 	require.NoError(t, handler.OnPhoneVerified(context.Background(), phoneVerified(t, user)))
 }

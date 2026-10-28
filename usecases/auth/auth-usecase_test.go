@@ -42,7 +42,7 @@ func TestRegister_RoleComesFromTheClient(t *testing.T) {
 		t.Run(client.ClientID, func(t *testing.T) {
 			f := newFixture(t)
 			created := f.expectRegistration(t)
-			f.sms.EXPECT().Send(gomock.Any(), phone, gomock.Any()).Return(nil)
+			f.sms.EXPECT().Send(gomock.Any(), phone, "Código de verificação: 123456. Válido por 5 min. Não o partilhe.").Return(nil)
 
 			out, err := f.auth.Register(context.Background(), registerInput(), client)
 
