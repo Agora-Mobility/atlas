@@ -1,11 +1,11 @@
 root = "."
-tmp_dir = "tmp"
+tmp_dir = "/tmp/air"
 
 [build]
-  cmd = "go build -buildvcs=false -o ./tmp/atlas ."
-  entrypoint = ["./tmp/atlas"]
+  cmd = "go build -buildvcs=false -o /tmp/air/atlas ."
+  entrypoint = ["/tmp/air/atlas"]
   include_ext = ["go", "sql", "html", "js", "json", "yaml"]
-  exclude_dir = ["tmp", "bin", ".git", "monitoring", "docs/adr"]
+  exclude_dir = ["bin", ".git", "monitoring", "docs/adr"]
   exclude_regex = ["_test\\.go$"]
   delay = 500
   kill_delay = "2s"

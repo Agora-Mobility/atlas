@@ -1,23 +1,33 @@
 FROM golang:1.27.3-alpine
 
+ARG UID=1000
+ARG GID=1000
+
 # hadolint ignore=DL3018
-RUN apk add --no-cache ca-certificates git make curl bash postgresql-client
+RUN apk add --no-cache ca-certificates git make curl bash postgresql-client \
+    && addgroup -g "${GID}" atlas \
+    && adduser -D -u "${UID}" -G atlas atlas \
+    && mkdir -p /app /go/pkg/mod /home/atlas/.cache/go-build \
+    && chown -R atlas:atlas /app /go /home/atlas/.cache
 
 ENV GOPROXY=https://proxy.golang.org,direct \
     GOSUMDB=sum.golang.org \
     GOTOOLCHAIN=local \
+    GOCACHE=/home/atlas/.cache/go-build \
     CGO_ENABLED=0
+
+COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
+
+USER ${UID}:${GID}
 
 RUN go install github.com/air-verse/air@v1.67.4
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY --chown=atlas:atlas go.mod go.sum ./
 RUN go mod download
 
-COPY . .
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY --chown=atlas:atlas . .
 
 EXPOSE 8700
 

@@ -29,6 +29,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+      args:
+        UID: ${LOCAL_UID:-1000}
+        GID: ${LOCAL_GID:-1000}
     image: atlas:dev
     environment:
       <<: *api-env
@@ -38,7 +41,7 @@ services:
     volumes:
       - .:/app
       - go-mod-cache:/go/pkg/mod
-      - go-build-cache:/root/.cache/go-build
+      - go-build-cache:/home/atlas/.cache/go-build
     depends_on:
       postgres:
         condition: service_healthy
