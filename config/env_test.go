@@ -29,7 +29,7 @@ func TestLoadDefaults(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, enums.EnvDevelopment, cfg.App.Env)
-	assert.Equal(t, 8080, cfg.HTTP.Port)
+	assert.Equal(t, 8700, cfg.HTTP.Port)
 	assert.Equal(t, 15*time.Second, cfg.HTTP.ReadTimeout)
 	assert.Equal(t, []string{"*"}, cfg.HTTP.CORSAllowedOrigins)
 	assert.Empty(t, cfg.HTTP.TrustedProxies)

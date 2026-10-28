@@ -114,7 +114,7 @@ jobs:
           go run ./cmd/seed
           ./atlas &
           for i in $(seq 1 30); do
-            curl -fsS localhost:8080/ready && exit 0
+            curl -fsS localhost:8700/ready && exit 0
             sleep 1
           done
           echo "API did not become ready" && exit 1

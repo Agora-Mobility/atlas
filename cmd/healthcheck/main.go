@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultPort  = 8080
+	defaultPort  = 8700
 	probeTimeout = 2 * time.Second
 )
 

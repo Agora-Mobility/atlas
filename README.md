@@ -88,8 +88,8 @@ make migrate-up seed run
 
 | Service | URL |
 |---|---|
-| API | http://localhost:8080 (`/live`, `/ready`, `/metrics`) |
-| API docs – Scalar (only `APP_ENV=development`) | http://localhost:8080/docs (spec: `/docs/openapi.json`) |
+| API | http://localhost:8700 (`/live`, `/ready`, `/metrics`) |
+| API docs – Scalar (only `APP_ENV=development`) | http://localhost:8700/docs (spec: `/docs/openapi.json`) |
 | RabbitMQ UI | http://localhost:15672 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 |
@@ -109,7 +109,7 @@ Protected routes also need `Authorization: Bearer <access_token>` from
 `Agora@2026`):
 
 ```bash
-curl -s localhost:8080/api/v1/auth/login \
+curl -s localhost:8700/api/v1/auth/login \
   -H 'X-Client-Id: agora-backoffice' -H 'Content-Type: application/json' \
   -d '{"identifier":"admin@agora.ao","password":"Agora@2026"}'
 ```

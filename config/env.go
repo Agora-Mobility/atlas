@@ -108,7 +108,7 @@ func (c SMSConfig) Enabled() bool {
 var defaults = map[string]any{
 	"APP_NAME":                 "atlas",
 	"APP_ENV":                  "development",
-	"HTTP_PORT":                8080,
+	"HTTP_PORT":                8700,
 	"HTTP_READ_TIMEOUT":        "15s",
 	"HTTP_WRITE_TIMEOUT":       "15s",
 	"HTTP_IDLE_TIMEOUT":        "60s",
