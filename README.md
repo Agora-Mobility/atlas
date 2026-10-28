@@ -131,9 +131,35 @@ Run `make help` for the full list. Main ones:
 | `security` | gosec, govulncheck, gitleaks |
 | `tools`, `pre-commit-install` | Dev tools and git hooks |
 
+## Releases and images
+
+Images live in the private GHCR package `ghcr.io/agora-mobility/atlas` and are
+built only by `.github/workflows/cd.yml`, once per commit on `main`. The same
+image (same digest) is promoted from staging to production; nothing is rebuilt.
+
+| Tag | Meaning | Mutable |
+|---|---|---|
+| `sha-1a2b3c4` | Build of that commit on `main` | no |
+| `1.4.2`, `1.4` | Release `v1.4.2` (`1.4` follows the latest patch) | `1.4.2` no |
+| `staging` | What staging runs | yes |
+| `production`, `latest` | What production runs | yes |
+
+Flow:
+
+1. Merging `develop` into `main` builds `sha-…`, signs it (cosign keyless),
+   attests the SBOM and deploys it to the `staging` environment.
+2. release-please keeps a release PR open with the next version and the
+   CHANGELOG, computed from the Conventional Commits (`feat` → minor,
+   `fix` → patch, `!` → major; minor while on `0.x`).
+3. Merging the release PR tags `vX.Y.Z`, publishes the GitHub release with the
+   image digest and SBOM, and deploys that image to `production` after the
+   environment approval.
+4. Merge `main` back into `develop` after a release so the CHANGELOG and the
+   manifest stay in sync.
+
 ## Conventions
 
 - Commits follow Conventional Commits (enforced by the commit-msg hook).
-- Branches: work on `develop`, release from `main`, tags `vX.Y.Z`.
+- Branches: work on `develop`, release from `main`, tags `vX.Y.Z` (created by release-please, never by hand).
 - Configuration comes only from environment variables, validated at startup.
 - Never commit `.env` or confidential documents (`*.pdf` is ignored).

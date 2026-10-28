@@ -3,34 +3,50 @@ name: CD
 on:
   push:
     branches: [main]
-    tags: ["v*.*.*"]
 
 permissions:
   contents: read
 
 concurrency:
-  group: cd-${{ github.ref }}
+  group: cd-main
   cancel-in-progress: false
 
 jobs:
+  release-please:
+    name: Release please
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
   image:
     name: Build, sign and push image
+    needs: release-please
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      id-token: write # keyless cosign signing (OIDC)
+      id-token: write
     outputs:
       image: ${{ steps.image.outputs.name }}
       digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v7.0.1
 
-      - name: Image name (GHCR requires lowercase)
+      - name: Image name
         id: image
         run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-qemu-action@v4.4.0
       - uses: docker/setup-buildx-action@v4.4.1
 
       - uses: docker/login-action@v4.7.0
@@ -45,10 +61,9 @@ jobs:
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |
-            type=sha,format=short
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short,prefix=sha-
+            type=semver,pattern={{version}},value=${{ needs.release-please.outputs.tag }},enable=${{ needs.release-please.outputs.created == 'true' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-please.outputs.tag }},enable=${{ needs.release-please.outputs.created == 'true' }}
 
       - name: Build and push
         id: build
@@ -59,7 +74,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: VERSION=${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+          build-args: VERSION=${{ needs.release-please.outputs.created == 'true' && needs.release-please.outputs.version || github.sha }}
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -70,7 +86,7 @@ jobs:
           REF: ${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}
         run: cosign sign --yes "$REF"
 
-      - name: Generate SBOM (syft)
+      - name: Generate SBOM
         uses: anchore/sbom-action@v0.24.3
         with:
           image: ${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}
@@ -88,10 +104,10 @@ jobs:
           name: sbom
           path: sbom.spdx.json
 
-  release:
-    name: GitHub release
-    if: github.ref_type == 'tag'
-    needs: image
+  release-assets:
+    name: Attach image to GitHub release
+    if: needs.release-please.outputs.created == 'true'
+    needs: [release-please, image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -99,39 +115,90 @@ jobs:
       - uses: actions/download-artifact@v8.0.2
         with:
           name: sbom
-      - uses: softprops/action-gh-release@v3.0.3
-        with:
-          generate_release_notes: true
-          files: sbom.spdx.json
-          body: |
-            Image: `${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }}`
 
-            Verify the signature:
-            ```
-            cosign verify ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }} \
-              --certificate-identity-regexp 'https://github.com/${{ github.repository }}/' \
-              --certificate-oidc-issuer https://token.actions.githubusercontent.com
-            ```
+      - name: Upload SBOM and image reference
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+          VERSION: ${{ needs.release-please.outputs.version }}
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: |
+          gh release upload "$TAG" sbom.spdx.json --clobber
+          gh release view "$TAG" --json body --jq .body > notes.md
+          cat >> notes.md <<EOF
 
-  # Deploy placeholders: no infrastructure yet. Configure required reviewers
-  # on the "staging" and "production" environments in the repository settings
-  # to get manual approval before these jobs run.
+          ### Image
+
+          \`$IMAGE:$VERSION\`
+
+          \`$IMAGE@$DIGEST\`
+
+          \`\`\`
+          cosign verify $IMAGE@$DIGEST \\
+            --certificate-identity https://github.com/$GH_REPO/.github/workflows/cd.yml@refs/heads/main \\
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          \`\`\`
+          EOF
+          gh release edit "$TAG" --notes-file notes.md
+
   deploy-staging:
     name: Deploy to staging
-    if: github.ref == 'refs/heads/main'
     needs: image
     runs-on: ubuntu-latest
     environment: staging
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Placeholder
-        run: echo "Deploy ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }} to staging (not configured yet)"
+      - uses: docker/setup-buildx-action@v4.4.1
+
+      - uses: docker/login-action@v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Point the staging tag at this build
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: docker buildx imagetools create --tag "$IMAGE:staging" "$IMAGE@$DIGEST"
+
+      - name: Deploy
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: echo "Deploy $IMAGE@$DIGEST to staging (not configured yet)"
 
   deploy-production:
     name: Deploy to production
-    if: github.ref_type == 'tag'
-    needs: [image, release]
+    if: needs.release-please.outputs.created == 'true'
+    needs: [release-please, image, deploy-staging]
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Placeholder
-        run: echo "Deploy ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }} to production (not configured yet)"
+      - uses: docker/setup-buildx-action@v4.4.1
+
+      - uses: docker/login-action@v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Point the production and latest tags at this release
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: docker buildx imagetools create --tag "$IMAGE:production" --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
+
+      - name: Deploy
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          VERSION: ${{ needs.release-please.outputs.version }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: echo "Deploy $IMAGE:$VERSION ($DIGEST) to production (not configured yet)"
