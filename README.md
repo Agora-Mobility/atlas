@@ -133,8 +133,10 @@ Run `make help` for the full list. Main ones:
 
 ## Releases and images
 
-Images live in the private GHCR package `ghcr.io/agora-mobility/atlas` and are
-built only by `.github/workflows/cd.yml`, once per commit on `main`. The same
+Images live in the public Docker Hub repository `docker.io/agoramobility/atlas`
+and are built only by `.github/workflows/cd.yml`, once per commit on `main`.
+The workflows log in with the repository variable `DOCKERHUB_USERNAME` and the
+repository secret `DOCKERHUB_TOKEN` (Settings → Secrets and variables → Actions). The same
 image (same digest) is promoted from staging to production; nothing is rebuilt.
 
 | Tag | Meaning | Mutable |
