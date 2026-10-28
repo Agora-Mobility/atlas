@@ -1,0 +1,97 @@
+package config_test
+
+import (
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/Agora-Mobility/atlas/config"
+	"github.com/Agora-Mobility/atlas/shared/enums"
+)
+
+const secret = "test-secret-with-at-least-32-characters"
+
+func isolateEnv(t *testing.T) {
+	t.Helper()
+	t.Chdir(t.TempDir())
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		t.Setenv(key, "")
+		require.NoError(t, os.Unsetenv(key))
+	}
+}
+
+func setRequired(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/atlas")
+	t.Setenv("REDIS_ADDR", "localhost:6379")
+	t.Setenv("RABBITMQ_URL", "amqp://localhost/")
+	t.Setenv("JWT_SECRET", secret)
+}
+
+func TestLoadDefaults(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+
+	cfg, err := config.Load()
+
+	require.NoError(t, err)
+	assert.Equal(t, enums.EnvDevelopment, cfg.App.Env)
+	assert.Equal(t, 8700, cfg.HTTP.Port)
+	assert.Equal(t, 15*time.Second, cfg.HTTP.ReadTimeout)
+	assert.Equal(t, []string{"*"}, cfg.HTTP.CORSAllowedOrigins)
+	assert.Empty(t, cfg.HTTP.TrustedProxies)
+	assert.Equal(t, int32(20), cfg.Database.MaxConns)
+	assert.Equal(t, 24*time.Hour, cfg.RabbitMQ.DedupTTL)
+	assert.Equal(t, secret, cfg.JWT.Secret)
+	assert.True(t, cfg.Database.MigrateOnStart)
+	assert.False(t, cfg.SMS.Enabled())
+	assert.Equal(t, "https://api.castbrick.co/v1", cfg.SMS.BaseURL)
+	assert.Equal(t, 10*time.Second, cfg.SMS.Timeout)
+}
+
+func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://agora.ao")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "CASTBRICK_API_KEY is required in production")
+
+	t.Setenv("CASTBRICK_API_KEY", "cb_live_key")
+	t.Setenv("CASTBRICK_SENDER_ID", "AGORA")
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.True(t, cfg.SMS.Enabled())
+	assert.Equal(t, "AGORA", cfg.SMS.SenderID)
+}
+
+func TestLoadEnvOverridesDotEnv(t *testing.T) {
+	isolateEnv(t)
+	dotEnv := "HTTP_PORT=9000\nLOG_LEVEL=debug\nCORS_ALLOWED_ORIGINS=https://a.ao, ,https://b.ao\n"
+	require.NoError(t, os.WriteFile(".env", []byte(dotEnv), 0o600))
+	setRequired(t)
+	t.Setenv("HTTP_PORT", "7000")
+
+	cfg, err := config.Load()
+
+	require.NoError(t, err)
+	assert.Equal(t, 7000, cfg.HTTP.Port)
+	assert.Equal(t, "debug", cfg.Log.Level)
+	assert.Equal(t, []string{"https://a.ao", "https://b.ao"}, cfg.HTTP.CORSAllowedOrigins)
+}
+
+func TestLoadMissingRequired(t *testing.T) {
+	isolateEnv(t)
+
+	_, err := config.Load()
+
+	require.Error(t, err)
+	for _, key := range []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"} {
+		assert.ErrorContains(t, err, key)
+	}
+}

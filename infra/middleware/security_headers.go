@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"strings"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,10 +14,7 @@ func SecurityHeaders(production bool) gin.HandlerFunc {
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
-		// Swagger UI needs scripts and styles; everything else serves JSON only.
-		if !strings.HasPrefix(c.Request.URL.Path, "/swagger") {
-			h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
-		}
+		h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
 		if production {
 			h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 		}

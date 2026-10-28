@@ -13,10 +13,10 @@ outbox → RabbitMQ), not network calls.
 |----------------|----------------------------------------------------|
 | Language       | Go 1.27                                            |
 | HTTP           | Gin                                                |
-| Logs           | Zap (JSON in staging/production, console in dev)   |
+| Logs           | Zap (JSON, `LOG_LEVEL` / `LOG_OUTPUT`)             |
 | Database       | PostgreSQL 18 + PostGIS 3.6, pgx/v5 + pgxpool      |
 | Data access    | SQLC (no ORM)                                      |
-| Migrations     | golang-migrate (embedded in the binary)            |
+| Migrations     | golang-migrate (embedded, `cmd/migrate` binary)    |
 | Cache          | Redis (go-redis v9)                                |
 | Messaging      | RabbitMQ 4 (amqp091-go), quorum queues             |
 | Observability  | Prometheus + Grafana                               |
@@ -37,21 +37,22 @@ infra/rest/<module>/controllers  →  usecases/<module>  →  domain/repository 
 | Folder | Purpose |
 |---|---|
 | `config/` | Environment loading/validation, logger |
-| `domain/` | Entities, value objects, validators, repository interfaces, event contracts |
+| `domain/` | Entities, repository and service interfaces, event contracts |
 | `usecases/<module>/` | Application logic + DTOs |
-| `infra/rest/` | Controllers, routers, DI containers, server |
+| `infra/rest/` | Server (`server.go`), routes, controllers, routers, DI containers |
 | `infra/repository/` | Repository implementations over SQLC |
 | `infra/database/` | pgxpool, transactions, migrations runner, seeders, SQLC queries/code, Redis |
 | `infra/queue/`, `infra/outbox/` | RabbitMQ manager/publisher/consumer, outbox relay |
-| `infra/middleware/` | Correlation id, logging, recovery, metrics, rate limit, CORS, security headers, errors |
-| `infra/security/auth-jwt/` | JWT issue/verify, auth and role middlewares |
+| `infra/middleware/` | Client (`X-Client-Id`), authentication, correlation id, logging, recovery, metrics, rate limit, CORS, security headers |
+| `infra/security/` | JWT, argon2id, opaque refresh tokens, OTP |
 | `infra/sse/` | SSE hub (skeleton) |
-| `shared/` | Errors, enums, pagination |
+| `shared/` | HTTP error responses, validation errors, enums, pagination |
 | `migrations/` | `.up.sql` / `.down.sql` pairs |
+| `cmd/` | Auxiliary binaries: `migrate`, `seed`, `healthcheck` |
 | `docs/adr/` | Architecture decision records |
 
-The `example` module is a reference implementation across every layer. Copy
-its shape for new modules, then delete it.
+The `auth` module is the reference implementation across every layer. Copy
+its shape for new modules.
 
 ## Event flow
 
@@ -75,7 +76,7 @@ Envelope: `event_id`, `event_type`, `version`, `occurred_at`,
 ```bash
 cp .env.example .env
 make tools            # pinned dev tools into ./bin
-make docker-up        # postgres, redis, rabbitmq, prometheus, grafana, migrate, api
+make docker-up        # postgres, redis, rabbitmq, prometheus, grafana, api (Dockerfile.dev: entrypoint.sh migrates, then air hot reload)
 ```
 
 Or run the API on the host against the compose dependencies:
@@ -87,16 +88,30 @@ make migrate-up seed run
 
 | Service | URL |
 |---|---|
-| API | http://localhost:8080 (`/live`, `/ready`, `/metrics`) |
-| Swagger (non-production) | http://localhost:8080/swagger/index.html |
+| API | http://localhost:8700 (`/live`, `/ready`, `/metrics`) |
+| API docs – Scalar (only `APP_ENV=development`) | http://localhost:8700/docs (spec: `/docs/openapi.json`) |
 | RabbitMQ UI | http://localhost:15672 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 |
 
-Protected routes need a token. In development:
+Every `/api/v1` request needs the `X-Client-Id` header. The client decides
+which roles can sign in and which role a self-registration creates:
+
+| Client id | Type | Roles that sign in | Registration creates |
+|---|---|---|---|
+| `agora-customer-app` | `customer_app` | customer | customer |
+| `agora-provider-app` | `provider_app` | provider | provider |
+| `agora-partner-panel` | `partner_panel` | partner | not allowed |
+| `agora-backoffice` | `backoffice` | operator, admin | not allowed |
+
+Protected routes also need `Authorization: Bearer <access_token>` from
+`POST /api/v1/auth/login`. `make seed` creates one user per role (password
+`Agora@2026`):
 
 ```bash
-go run . token admin    # or: docker compose exec api /atlas token admin
+curl -s localhost:8700/api/v1/auth/login \
+  -H 'X-Client-Id: agora-backoffice' -H 'Content-Type: application/json' \
+  -d '{"identifier":"admin@agora.ao","password":"Agora@2026"}'
 ```
 
 ## Make targets
@@ -116,9 +131,43 @@ Run `make help` for the full list. Main ones:
 | `security` | gosec, govulncheck, gitleaks |
 | `tools`, `pre-commit-install` | Dev tools and git hooks |
 
+## Releases and images
+
+Images live in the public Docker Hub repository `docker.io/agoramobility/atlas`
+and are built only by `.github/workflows/cd.yml`, once per commit on `main`.
+The workflows log in with the repository variable `DOCKERHUB_USERNAME` and the
+repository secret `DOCKERHUB_TOKEN` (Settings → Secrets and variables → Actions). The same
+image (same digest) is promoted from staging to production; nothing is rebuilt.
+
+| Tag | Meaning | Mutable |
+|---|---|---|
+| `sha-1a2b3c4` | Build of that commit on `main` | no |
+| `1.4.2`, `1.4` | Release `v1.4.2` (`1.4` follows the latest patch) | `1.4.2` no |
+| `staging` | What staging runs | yes |
+| `production`, `latest` | What production runs | yes |
+
+Flow:
+
+1. Merging `develop` into `main` builds `sha-…`, signs it (cosign keyless),
+   attests the SBOM and deploys it to the `staging` environment.
+2. release-please keeps a release PR open with the next version and the
+   CHANGELOG, computed from the Conventional Commits (`feat` → minor,
+   `fix` → patch, `!` → major; minor while on `0.x`).
+3. Merging the release PR tags `vX.Y.Z`, publishes the GitHub release with the
+   image digest and SBOM, and deploys that image to `production`. Merging the
+   release PR is the production approval.
+4. Merge `main` back into `develop` after a release so the CHANGELOG and the
+   manifest stay in sync.
+
+Rollback: Actions → **Rollback** → choose the environment and a previous tag
+(`1.4.1` for production, `1.4.1` or `sha-…` for staging). The workflow checks
+that the image was signed by `cd.yml` on `main`, moves the environment tag to it
+and redeploys. Nothing is rebuilt, so the rollback is the exact bytes that ran
+before.
+
 ## Conventions
 
 - Commits follow Conventional Commits (enforced by the commit-msg hook).
-- Branches: work on `develop`, release from `main`, tags `vX.Y.Z`.
+- Branches: work on `develop`, release from `main`, tags `vX.Y.Z` (created by release-please, never by hand).
 - Configuration comes only from environment variables, validated at startup.
 - Never commit `.env` or confidential documents (`*.pdf` is ignored).

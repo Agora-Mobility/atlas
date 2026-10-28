@@ -33,6 +33,10 @@ Cloudflare, a load balancer and Nginx, to several API instances.
 - Authentication: Bearer token on connection. When the token expires the
   server closes the stream and the client reconnects with a fresh token.
 
+- SSE routes use `middleware.Streaming()`, which lifts the HTTP write
+  deadline for that request only. Every other route keeps
+  `HTTP_WRITE_TIMEOUT`.
+
 ## Consequences
 
 - No sticky sessions are needed: any instance can serve any user.

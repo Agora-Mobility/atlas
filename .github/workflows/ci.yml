@@ -110,11 +110,11 @@ jobs:
       - name: Smoke test against service containers
         run: |
           go build -o atlas .
-          ./atlas migrate up
-          ./atlas seed
-          ./atlas serve &
+          go run ./cmd/migrate up
+          go run ./cmd/seed
+          ./atlas &
           for i in $(seq 1 30); do
-            curl -fsS localhost:8080/ready && exit 0
+            curl -fsS localhost:8700/ready && exit 0
             sleep 1
           done
           echo "API did not become ready" && exit 1

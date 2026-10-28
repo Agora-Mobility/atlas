@@ -11,17 +11,28 @@ import (
 )
 
 type Querier interface {
-	CountExamples(ctx context.Context) (int64, error)
 	CountPendingOutboxEvents(ctx context.Context) (int64, error)
-	CreateExample(ctx context.Context, arg CreateExampleParams) (CreateExampleRow, error)
+	CountUsers(ctx context.Context) (int64, error)
+	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
+	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	// Locks a batch of unpublished events. SKIP LOCKED lets several relays run
 	// concurrently without publishing the same event twice.
 	FetchPendingOutboxEvents(ctx context.Context, batchSize int32) ([]FetchPendingOutboxEventsRow, error)
-	GetExampleByID(ctx context.Context, id uuid.UUID) (GetExampleByIDRow, error)
+	GetActiveClientByClientID(ctx context.Context, clientID string) (Client, error)
+	GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash string) (RefreshToken, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	GetUserByPhone(ctx context.Context, phone *string) (User, error)
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
-	ListExamples(ctx context.Context, arg ListExamplesParams) ([]ListExamplesRow, error)
+	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error
 	MarkOutboxEventPublished(ctx context.Context, id uuid.UUID) error
+	RevokeRefreshToken(ctx context.Context, arg RevokeRefreshTokenParams) error
+	RevokeRefreshTokenFamily(ctx context.Context, arg RevokeRefreshTokenFamilyParams) error
+	RevokeUserRefreshTokens(ctx context.Context, arg RevokeUserRefreshTokensParams) error
+	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
+	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
+	UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLoginParams) error
 }
 
 var _ Querier = (*Queries)(nil)

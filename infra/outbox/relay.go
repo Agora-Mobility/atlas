@@ -35,14 +35,14 @@ func NewRelay(pool *pgxpool.Pool, publisher Publisher, interval time.Duration, b
 
 // Run blocks until ctx is canceled.
 func (r *Relay) Run(ctx context.Context) {
-	logger.Info(ctx, "outbox relay started", zap.Duration("interval", r.interval))
+	logger.FromContext(ctx).Info("outbox relay started", zap.Duration("interval", r.interval))
 	ticker := time.NewTicker(r.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Info(context.WithoutCancel(ctx), "outbox relay stopped")
+			logger.FromContext(context.WithoutCancel(ctx)).Info("outbox relay stopped")
 			return
 		case <-ticker.C:
 			// Drain full batches immediately instead of waiting a tick each.
@@ -50,7 +50,7 @@ func (r *Relay) Run(ctx context.Context) {
 				n, err := r.processBatch(ctx)
 				if err != nil {
 					if ctx.Err() == nil {
-						logger.Error(ctx, "outbox relay batch failed", zap.Error(err))
+						logger.FromContext(ctx).Error("outbox relay batch failed", zap.Error(err))
 					}
 					break
 				}
@@ -85,7 +85,7 @@ func (r *Relay) processBatch(ctx context.Context) (int, error) {
 			Body:       row.Envelope,
 		}
 		if pubErr := r.publisher.Publish(ctx, msg); pubErr != nil {
-			logger.Warn(ctx, "outbox publish failed",
+			logger.FromContext(ctx).Warn("outbox publish failed",
 				zap.String("event_id", msg.ID), zap.String("routing_key", msg.RoutingKey), zap.Error(pubErr))
 			errText := pubErr.Error()
 			if err := q.MarkOutboxEventFailed(ctx, gen.MarkOutboxEventFailedParams{ID: row.ID, LastError: &errText}); err != nil {

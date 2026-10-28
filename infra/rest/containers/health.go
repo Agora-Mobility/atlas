@@ -11,7 +11,7 @@ type HealthModule struct {
 	Controller *controllers.HealthController
 }
 
-func newHealthModule(c *Container, version string) *HealthModule {
+func newHealthModule(c *Container) *HealthModule {
 	checks := map[string]controllers.Check{
 		"postgres": func(ctx context.Context) error { return c.Pool.Ping(ctx) },
 		"redis":    func(ctx context.Context) error { return c.Redis.Ping(ctx).Err() },
@@ -22,5 +22,5 @@ func newHealthModule(c *Container, version string) *HealthModule {
 			return nil
 		},
 	}
-	return &HealthModule{Controller: controllers.NewHealthController(version, checks)}
+	return &HealthModule{Controller: controllers.NewHealthController(c.Version, checks)}
 }

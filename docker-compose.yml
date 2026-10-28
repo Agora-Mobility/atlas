@@ -4,7 +4,8 @@ x-api-env: &api-env
   APP_NAME: ${APP_NAME:-atlas}
   APP_ENV: ${APP_ENV:-development}
   LOG_LEVEL: ${LOG_LEVEL:-info}
-  HTTP_PORT: 8080
+  LOG_OUTPUT: ${LOG_OUTPUT:-stdout}
+  HTTP_PORT: 8700
   CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
   TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
   RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-100}
@@ -18,33 +19,30 @@ x-api-env: &api-env
   RABBITMQ_RETRY_DELAY: ${RABBITMQ_RETRY_DELAY:-10s}
   JWT_SECRET: ${JWT_SECRET}
   JWT_ISSUER: ${JWT_ISSUER:-atlas}
+  CASTBRICK_API_KEY: ${CASTBRICK_API_KEY:-}
+  CASTBRICK_BASE_URL: ${CASTBRICK_BASE_URL:-https://api.castbrick.co/v1}
+  CASTBRICK_SENDER_ID: ${CASTBRICK_SENDER_ID:-}
+  CASTBRICK_TIMEOUT: ${CASTBRICK_TIMEOUT:-10s}
 
 services:
-  migrate:
+  api:
     build:
       context: .
+      dockerfile: Dockerfile.dev
+      args:
+        UID: ${LOCAL_UID:-1000}
+        GID: ${LOCAL_GID:-1000}
     image: atlas:dev
-    command: ["migrate", "up"]
-    environment: *api-env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    restart: "no"
-    networks: [atlas]
-
-  api:
-    image: atlas:dev
-    command: ["serve"]
-    environment: *api-env
+    environment:
+      <<: *api-env
+      DB_MIGRATE_ON_START: "false"
     ports:
-      - "${HTTP_PORT:-8080}:8080"
+      - "${HTTP_PORT:-8700}:8700"
+    volumes:
+      - .:/app
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/home/atlas/.cache/go-build
     depends_on:
-      migrate:
-        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -52,11 +50,11 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/atlas", "healthcheck"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8700/live"]
       interval: 10s
       timeout: 3s
-      retries: 5
-      start_period: 10s
+      retries: 10
+      start_period: 60s
     restart: unless-stopped
     networks: [atlas]
 
@@ -160,6 +158,8 @@ services:
     networks: [atlas]
 
 volumes:
+  go-mod-cache:
+  go-build-cache:
   postgres-data:
   redis-data:
   rabbitmq-data:

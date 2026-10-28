@@ -1,5 +1,3 @@
-// Package binding wraps Gin request binding so invalid input always becomes a
-// validation AppError with one message per JSON field.
 package binding
 
 import (
@@ -16,10 +14,11 @@ import (
 	"github.com/Agora-Mobility/atlas/shared/customerrors"
 )
 
-var setupOnce sync.Once
+var (
+	setupOnce         sync.Once
+	ErrMalformedInput = errors.New("malformed request")
+)
 
-// Setup makes validation errors report JSON/form field names instead of Go
-// struct field names. Call it once before serving.
 func Setup() {
 	setupOnce.Do(func() {
 		v, ok := ginbinding.Validator.Engine().(*validator.Validate)
@@ -52,13 +51,13 @@ func toAppError(err error) error {
 	}
 	var verrs validator.ValidationErrors
 	if !errors.As(err, &verrs) {
-		return customerrors.BadRequest("malformed request: " + err.Error())
+		return fmt.Errorf("%w: %w", ErrMalformedInput, err)
 	}
 	details := make(map[string]string, len(verrs))
 	for _, fe := range verrs {
 		details[fe.Field()] = message(fe)
 	}
-	return customerrors.Validation("validation failed", details)
+	return customerrors.NewValidationError(details)
 }
 
 func message(fe validator.FieldError) string {
@@ -75,6 +74,14 @@ func message(fe validator.FieldError) string {
 		return fmt.Sprintf("must be less than or equal to %s", fe.Param())
 	case "oneof":
 		return fmt.Sprintf("must be one of: %s", fe.Param())
+	case "e164":
+		return "must be in international format (e.g. +244923000000)"
+	case "email":
+		return "must be a valid e-mail"
+	case "len":
+		return fmt.Sprintf("must have exactly %s characters", fe.Param())
+	case "numeric":
+		return "must contain only digits"
 	default:
 		return "is invalid (" + fe.Tag() + ")"
 	}

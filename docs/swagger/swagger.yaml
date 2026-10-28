@@ -19,37 +19,179 @@ definitions:
         example: ok
         type: string
     type: object
-  customerrors.Code:
-    enum:
-    - VALIDATION_ERROR
-    - BAD_REQUEST
-    - UNAUTHORIZED
-    - FORBIDDEN
-    - NOT_FOUND
-    - CONFLICT
-    - TOO_MANY_REQUESTS
-    - SERVICE_UNAVAILABLE
-    - INTERNAL_ERROR
-    type: string
-    x-enum-varnames:
-    - CodeValidation
-    - CodeBadRequest
-    - CodeUnauthorized
-    - CodeForbidden
-    - CodeNotFound
-    - CodeConflict
-    - CodeTooManyRequests
-    - CodeUnavailable
-    - CodeInternal
-  customerrors.Response:
+  dtos.ChangePasswordInput:
     properties:
-      error:
-        $ref: '#/definitions/customerrors.ResponseBody'
+      current_password:
+        maxLength: 128
+        type: string
+      new_password:
+        type: string
+    required:
+    - current_password
+    - new_password
     type: object
-  customerrors.ResponseBody:
+  dtos.LoginInput:
+    properties:
+      identifier:
+        example: "+244923000000"
+        maxLength: 254
+        type: string
+      password:
+        example: S3gredo!forte
+        maxLength: 128
+        type: string
+    required:
+    - identifier
+    - password
+    type: object
+  dtos.MessageOutput:
+    properties:
+      message:
+        type: string
+    type: object
+  dtos.PhoneVerificationConfirmInput:
     properties:
       code:
-        $ref: '#/definitions/customerrors.Code'
+        example: "123456"
+        type: string
+      phone:
+        example: "+244923000000"
+        type: string
+    required:
+    - code
+    - phone
+    type: object
+  dtos.PhoneVerificationRequestInput:
+    properties:
+      phone:
+        example: "+244923000000"
+        type: string
+    required:
+    - phone
+    type: object
+  dtos.RecoveryConfirmInput:
+    properties:
+      code:
+        example: "123456"
+        type: string
+      new_password:
+        example: N0vo!segredo
+        type: string
+      phone:
+        example: "+244923000000"
+        type: string
+    required:
+    - code
+    - new_password
+    - phone
+    type: object
+  dtos.RecoveryRequestInput:
+    properties:
+      phone:
+        example: "+244923000000"
+        type: string
+    required:
+    - phone
+    type: object
+  dtos.RefreshRequest:
+    properties:
+      refresh_token:
+        maxLength: 128
+        type: string
+    required:
+    - refresh_token
+    type: object
+  dtos.RegisterInput:
+    properties:
+      email:
+        example: ana@exemplo.ao
+        maxLength: 254
+        type: string
+      name:
+        example: Ana Domingos
+        maxLength: 120
+        type: string
+      password:
+        example: S3gredo!forte
+        type: string
+      phone:
+        example: "+244923000000"
+        type: string
+    required:
+    - name
+    - password
+    - phone
+    type: object
+  dtos.SessionOutput:
+    properties:
+      access_token:
+        type: string
+      client:
+        example: agora-customer-app
+        type: string
+      expires_in:
+        example: 900
+        type: integer
+      refresh_expires_at:
+        type: string
+      refresh_token:
+        type: string
+      token_type:
+        example: Bearer
+        type: string
+      user:
+        $ref: '#/definitions/dtos.UserView'
+    type: object
+  dtos.UserView:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_verified:
+        type: boolean
+      last_login_at:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      role:
+        $ref: '#/definitions/enums.Role'
+      status:
+        $ref: '#/definitions/enums.UserStatus'
+    type: object
+  enums.Role:
+    enum:
+    - customer
+    - provider
+    - operator
+    - admin
+    - partner
+    type: string
+    x-enum-varnames:
+    - RoleCustomer
+    - RoleProvider
+    - RoleOperator
+    - RoleAdmin
+    - RolePartner
+  enums.UserStatus:
+    enum:
+    - active
+    - inactive
+    - blocked
+    type: string
+    x-enum-varnames:
+    - UserStatusActive
+    - UserStatusInactive
+    - UserStatusBlocked
+  shared.ErrorBody:
+    properties:
+      code:
+        example: INVALID_CREDENTIALS
+        type: string
       correlation_id:
         type: string
       details:
@@ -57,62 +199,13 @@ definitions:
           type: string
         type: object
       message:
+        example: Invalid identifier or password.
         type: string
     type: object
-  dtos.CreateExampleInput:
+  shared.ErrorResponse:
     properties:
-      description:
-        example: Ponto de referência
-        maxLength: 500
-        type: string
-      latitude:
-        example: -8.813
-        maximum: 90
-        minimum: -90
-        type: number
-      longitude:
-        example: 13.2343
-        maximum: 180
-        minimum: -180
-        type: number
-      name:
-        example: Marginal de Luanda
-        maxLength: 120
-        type: string
-    required:
-    - name
-    type: object
-  dtos.ExampleOutput:
-    properties:
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      latitude:
-        type: number
-      longitude:
-        type: number
-      name:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  dtos.ExamplePageOutput:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/dtos.ExampleOutput'
-        type: array
-      page:
-        type: integer
-      size:
-        type: integer
-      total:
-        type: integer
-      total_pages:
-        type: integer
+      error:
+        $ref: '#/definitions/shared.ErrorBody'
     type: object
 info:
   contact: {}
@@ -120,96 +213,461 @@ info:
   title: Atlas API
   version: "1.0"
 paths:
-  /api/v1/examples:
-    get:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 'The identifier is an e-mail or a phone number in E.164 format.
+        The account role must be accepted by the client: customers sign in through
+        agora-customer-app, providers through agora-provider-app, partners through
+        agora-partner-panel, operators and admins through agora-backoffice.'
       parameters:
-      - description: Page (default 1)
-        in: query
-        name: page
-        type: integer
-      - description: Page size (default 20, max 100)
-        in: query
-        name: size
-        type: integer
+      - description: Login payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.LoginInput'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ExamplePageOutput'
+            $ref: '#/definitions/dtos.SessionOutput'
         "400":
-          description: Bad Request
+          description: Invalid request or missing client
           schema:
-            $ref: '#/definitions/customerrors.Response'
-      summary: List examples
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Invalid credentials or unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Account blocked, phone not verified or client not allowed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Authenticate a user
       tags:
-      - examples
+      - Auth
+  /api/v1/auth/logout:
+    post:
+      description: Revokes the refresh tokens of the current session.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Token bound to another client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Logout current session
+      tags:
+      - Auth
+  /api/v1/auth/logout-all:
+    post:
+      description: Revokes every refresh token of the authenticated user, in every
+        client.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Token bound to another client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Logout from all sessions
+      tags:
+      - Auth
+  /api/v1/auth/phone/verification-code:
     post:
       consumes:
       - application/json
-      description: Creates an example and emits example.created.v1 through the outbox.
+      description: Always answers 202 so the response does not reveal whether the
+        phone is registered.
       parameters:
-      - description: Example
+      - description: Phone payload
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/dtos.CreateExampleInput'
+          $ref: '#/definitions/dtos.PhoneVerificationRequestInput'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dtos.MessageOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Send a phone verification code
+      tags:
+      - Auth
+  /api/v1/auth/phone/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Phone and code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PhoneVerificationConfirmInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SessionOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Account blocked or client not allowed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid, expired or exhausted code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Verify the phone and start a session
+      tags:
+      - Auth
+  /api/v1/auth/recovery/confirm:
+    post:
+      consumes:
+      - application/json
+      description: Ends every session of the user.
+      parameters:
+      - description: Recovery confirm payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RecoveryConfirmInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MessageOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Client not allowed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid code or password
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Confirm recovery and set a new password
+      tags:
+      - Auth
+  /api/v1/auth/recovery/request:
+    post:
+      consumes:
+      - application/json
+      description: Sends a recovery code by SMS. Always answers 202 so the response
+        does not reveal whether the account exists.
+      parameters:
+      - description: Recovery request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RecoveryRequestInput'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dtos.MessageOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Request password recovery
+      tags:
+      - Auth
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchanges a valid refresh token for a new access token and rotates
+        the refresh token. The refresh token only works with the client that created
+        the session.
+      parameters:
+      - description: Refresh payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SessionOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Invalid, expired, revoked or reused refresh token
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Account blocked or token bound to another client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Refresh access token
+      tags:
+      - Auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 'Creates an unverified account and sends a verification code by
+        SMS. The role comes from the client: agora-customer-app creates a customer,
+        agora-provider-app creates a provider. Other clients cannot register.'
+      parameters:
+      - description: Register payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RegisterInput'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dtos.ExampleOutput'
+            $ref: '#/definitions/dtos.UserView'
         "400":
-          description: Bad Request
+          description: Invalid request or missing client
           schema:
-            $ref: '#/definitions/customerrors.Response'
+            $ref: '#/definitions/shared.ErrorResponse'
         "401":
-          description: Unauthorized
+          description: Unknown client
           schema:
-            $ref: '#/definitions/customerrors.Response'
+            $ref: '#/definitions/shared.ErrorResponse'
         "403":
-          description: Forbidden
+          description: Client does not allow registration
           schema:
-            $ref: '#/definitions/customerrors.Response'
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Email or phone already registered
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
         "422":
-          description: Unprocessable Entity
+          description: Invalid fields
           schema:
-            $ref: '#/definitions/customerrors.Response'
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
       security:
-      - BearerAuth: []
-      summary: Create an example
+      - ClientId: []
+      summary: Register a new user
       tags:
-      - examples
-  /api/v1/examples/{id}:
+      - Auth
+  /api/v1/users/me:
     get:
-      parameters:
-      - description: Example ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ExampleOutput'
-        "400":
-          description: Bad Request
+            $ref: '#/definitions/dtos.UserView'
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/customerrors.Response'
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Token bound to another client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
         "404":
-          description: Not Found
+          description: User not found
           schema:
-            $ref: '#/definitions/customerrors.Response'
-      summary: Get an example
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get the authenticated user
       tags:
-      - examples
+      - Users
+  /api/v1/users/password:
+    put:
+      consumes:
+      - application/json
+      description: Ends every session of the user.
+      parameters:
+      - description: Change password payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ChangePasswordInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Token bound to another client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Wrong current password or invalid new password
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change the password of the authenticated user
+      tags:
+      - Users
   /live:
     get:
       produces:
@@ -241,8 +699,14 @@ paths:
       - health
 securityDefinitions:
   BearerAuth:
-    description: '"Bearer <token>"'
+    description: Access token (Bearer) returned by /api/v1/auth/login.
     in: header
     name: Authorization
+    type: apiKey
+  ClientId:
+    description: 'Client application: agora-customer-app, agora-provider-app, agora-partner-panel
+      or agora-backoffice. Required on every /api/v1 endpoint.'
+    in: header
+    name: X-Client-Id
     type: apiKey
 swagger: "2.0"

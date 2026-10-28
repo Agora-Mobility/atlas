@@ -133,7 +133,7 @@ func (c *Consumer) consume(ctx context.Context) error {
 func (c *Consumer) handle(ctx context.Context, ch *amqp.Channel, d amqp.Delivery) {
 	var env events.Envelope
 	if err := json.Unmarshal(d.Body, &env); err != nil {
-		logger.Error(ctx, "malformed event, sending to DLQ", zap.String("queue", c.cfg.Queue), zap.Error(err))
+		logger.FromContext(ctx).Error("malformed event, sending to DLQ", zap.String("queue", c.cfg.Queue), zap.Error(err))
 		c.deadLetter(ctx, ch, d, err)
 		return
 	}
@@ -177,13 +177,13 @@ func (c *Consumer) handle(ctx context.Context, ch *amqp.Channel, d amqp.Delivery
 func (c *Consumer) retryOrDeadLetter(ctx context.Context, ch *amqp.Channel, d amqp.Delivery, cause error) {
 	retries := retryCount(d.Headers)
 	if retries >= c.cfg.MaxRetries {
-		logger.Error(ctx, "event exhausted retries, sending to DLQ",
+		logger.FromContext(ctx).Error("event exhausted retries, sending to DLQ",
 			zap.String("queue", c.cfg.Queue), zap.Int("retries", retries), zap.Error(cause))
 		c.deadLetter(ctx, ch, d, cause)
 		return
 	}
 
-	logger.Warn(ctx, "event handler failed, scheduling retry",
+	logger.FromContext(ctx).Warn("event handler failed, scheduling retry",
 		zap.String("queue", c.cfg.Queue), zap.Int("retry", retries+1), zap.Error(cause))
 	if err := c.republish(ctx, ch, d, c.retryQueue(), retries+1, cause, c.cfg.RetryDelay); err != nil {
 		_ = d.Nack(false, true)

@@ -29,3 +29,6 @@ go.work.sum
 
 # Local Claude settings (project memory in .claude/memory is versioned)
 .claude/settings.local.json
+
+# Hot reload (air)
+/tmp/
