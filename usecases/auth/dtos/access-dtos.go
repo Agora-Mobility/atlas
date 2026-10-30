@@ -67,10 +67,11 @@ type OrganizationView struct {
 	Name      string                 `json:"name" example:"Transportes Kianda"`
 	NIF       string                 `json:"nif,omitempty" example:"5417123456"`
 	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
 }
 
 func ToOrganizationView(o *entities.Organization) OrganizationView {
-	return OrganizationView{ID: o.ID, Type: o.Type, Name: o.Name, NIF: o.NIF, CreatedAt: o.CreatedAt}
+	return OrganizationView{ID: o.ID, Type: o.Type, Name: o.Name, NIF: o.NIF, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt}
 }
 
 type OrganizationPage struct {
@@ -84,6 +85,11 @@ type OrganizationPage struct {
 type CreatePartnerInput struct {
 	Name string `json:"name" binding:"required,max=120" example:"Transportes Kianda"`
 	NIF  string `json:"nif" binding:"omitempty,max=20" example:"5417123456"`
+}
+
+type UpdatePartnerInput struct {
+	Name *string `json:"name" binding:"omitempty,max=120" example:"Transportes Kianda, Lda"`
+	NIF  *string `json:"nif" binding:"omitempty,max=20" example:"5417123456"`
 }
 
 type PartnerListQuery struct {

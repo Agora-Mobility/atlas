@@ -43,6 +43,28 @@ func TestMembershipRepository(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, orgs.Create(ctx, partner))
 
+	t.Run("a partner is updated, but never the platform", func(t *testing.T) {
+		other, err := entities.NewPartnerOrganization("Parceiro Z", "")
+		require.NoError(t, err)
+		require.NoError(t, orgs.Create(ctx, other))
+
+		_, err = other.UpdateDetails("Parceiro Z, Lda", "5000000001")
+		require.NoError(t, err)
+		require.NoError(t, orgs.Update(ctx, other))
+		stored, err := orgs.FindByID(ctx, other.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "Parceiro Z, Lda", stored.Name)
+		assert.Equal(t, "5000000001", stored.NIF)
+
+		_, err = other.UpdateDetails("Parceiro Z, Lda", "5417123456")
+		require.NoError(t, err)
+		assert.ErrorIs(t, orgs.Update(ctx, other), domainrepository.ErrNIFAlreadyExists)
+
+		_, err = platform.UpdateDetails("Outro nome", "")
+		require.NoError(t, err)
+		assert.ErrorIs(t, orgs.Update(ctx, platform), domainrepository.ErrNotFound)
+	})
+
 	t.Run("the nif is optional and unique", func(t *testing.T) {
 		stored, err := orgs.FindByID(ctx, partner.ID)
 		require.NoError(t, err)

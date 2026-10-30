@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 
@@ -66,6 +67,59 @@ func (uc *OrganizationUsecase) CreatePartner(ctx context.Context, actor StaffAct
 		return nil, err
 	}
 	return &view, nil
+}
+
+func (uc *OrganizationUsecase) UpdatePartner(ctx context.Context, actor StaffActor, organizationID uuid.UUID, req dtos.UpdatePartnerInput) (*dtos.OrganizationView, error) {
+	org, err := uc.orgRepo.FindByID(ctx, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	if org == nil || !org.IsPartner() {
+		return nil, ErrOrganizationNotFound
+	}
+	before := dtos.ToOrganizationView(org)
+	name, nif := org.Name, org.NIF
+	if req.Name != nil {
+		name = *req.Name
+	}
+	if req.NIF != nil {
+		nif = *req.NIF
+	}
+	changed, err := org.UpdateDetails(name, nif)
+	if err != nil {
+		return nil, err
+	}
+	after := dtos.ToOrganizationView(org)
+	if !changed {
+		return &after, nil
+	}
+
+	entry, err := entities.NewAuditEntry(actor.Audit, auditActionPartnerUpdate, auditEntityOrganization, org.ID.String(), before, after, "", logger.CorrelationID(ctx))
+	if err != nil {
+		return nil, err
+	}
+	updated, err := events.NewEnvelope(events.PartnerUpdatedV1{
+		OrganizationID: org.ID, Name: org.Name, NIF: org.NIF, UpdatedBy: actor.Audit.ID, UpdatedAt: org.UpdatedAt,
+	}, logger.CorrelationID(ctx))
+	if err != nil {
+		return nil, err
+	}
+	err = uc.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := uc.orgRepo.Update(ctx, org); err != nil {
+			return err
+		}
+		if err := uc.outboxRepo.Save(ctx, updated); err != nil {
+			return err
+		}
+		return uc.auditRepo.Record(ctx, entry.InOrganization(org.ID))
+	})
+	if errors.Is(err, repository.ErrNotFound) {
+		return nil, ErrOrganizationNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &after, nil
 }
 
 func (uc *OrganizationUsecase) ListPartners(ctx context.Context, query dtos.PartnerListQuery) (*dtos.OrganizationPage, error) {

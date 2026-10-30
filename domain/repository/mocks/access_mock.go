@@ -120,6 +120,20 @@ func (mr *MockIOrganizationRepositoryMockRecorder) Platform(ctx any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Platform", reflect.TypeOf((*MockIOrganizationRepository)(nil).Platform), ctx)
 }
 
+// Update mocks base method.
+func (m *MockIOrganizationRepository) Update(ctx context.Context, org *entities.Organization) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, org)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockIOrganizationRepositoryMockRecorder) Update(ctx, org any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockIOrganizationRepository)(nil).Update), ctx, org)
+}
+
 // MockIRoleRepository is a mock of IRoleRepository interface.
 type MockIRoleRepository struct {
 	ctrl     *gomock.Controller

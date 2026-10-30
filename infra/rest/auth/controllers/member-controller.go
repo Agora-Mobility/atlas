@@ -396,6 +396,42 @@ func (c *PartnerController) Create(ctx *gin.Context) {
 	respond(ctx, http.StatusCreated, resp, err)
 }
 
+// Update godoc
+//
+//	@Summary		Update a partner organization
+//	@Description	Requires partners:manage (AGORA only). Changes only the fields sent; an empty nif removes it. Spaces in the NIF are ignored.
+//	@Tags			Partners
+//	@Accept			json
+//	@Produce		json
+//	@Param			orgId	path		string					true	"Partner organization id"
+//	@Param			body	body		dtos.UpdatePartnerInput	true	"Fields to change"
+//	@Success		200		{object}	dtos.OrganizationView
+//	@Failure		401		{object}	shared.ErrorResponse	"Unauthorized or session ended"
+//	@Failure		403		{object}	shared.ErrorResponse	"Missing permission"
+//	@Failure		404		{object}	shared.ErrorResponse	"Partner not found"
+//	@Failure		409		{object}	shared.ErrorResponse	"NIF already registered"
+//	@Failure		422		{object}	shared.ErrorResponse	"Invalid fields or NIF"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/partners/{orgId} [patch]
+func (c *PartnerController) Update(ctx *gin.Context) {
+	actor, ok := staffActor(ctx)
+	if !ok {
+		return
+	}
+	orgID, ok := organizationIDParam(ctx)
+	if !ok {
+		return
+	}
+	var req dtos.UpdatePartnerInput
+	if err := binding.JSON(ctx, &req); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	resp, err := c.organizations.UpdatePartner(ctx.Request.Context(), actor, orgID, req)
+	respond(ctx, http.StatusOK, resp, err)
+}
+
 // List godoc
 //
 //	@Summary		List partner organizations

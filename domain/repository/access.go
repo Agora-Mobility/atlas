@@ -22,6 +22,7 @@ type IOrganizationRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*entities.Organization, error)
 	Lock(ctx context.Context, id uuid.UUID) error
 	Create(ctx context.Context, org *entities.Organization) error
+	Update(ctx context.Context, org *entities.Organization) error
 	ListPartners(ctx context.Context, search string, page pagination.Params) ([]*entities.Organization, int64, error)
 }
 

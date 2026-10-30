@@ -93,3 +93,24 @@ func TestNewPartnerOrganization_NIF(t *testing.T) {
 		})
 	}
 }
+
+func TestOrganization_UpdateDetails(t *testing.T) {
+	org, err := entities.NewPartnerOrganization("Transportes Kianda", "5417123456")
+	require.NoError(t, err)
+
+	changed, err := org.UpdateDetails(" Transportes Kianda ", "541 712 3456")
+	require.NoError(t, err)
+	assert.False(t, changed, "the same details after normalisation are no change")
+
+	changed, err = org.UpdateDetails("Kianda, Lda", "")
+	require.NoError(t, err)
+	assert.True(t, changed)
+	assert.Equal(t, "Kianda, Lda", org.Name)
+	assert.Empty(t, org.NIF, "an empty nif removes it")
+
+	_, err = org.UpdateDetails("", "5417123456")
+	require.Error(t, err)
+	_, err = org.UpdateDetails("Kianda", "123")
+	require.Error(t, err)
+	assert.Equal(t, "Kianda, Lda", org.Name, "an invalid update changes nothing")
+}

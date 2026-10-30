@@ -143,3 +143,29 @@ func (q *Queries) LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
 }
+
+const updatePartnerOrganization = `-- name: UpdatePartnerOrganization :execrows
+UPDATE organizations
+SET name = $1, nif = $2, updated_at = $3
+WHERE id = $4 AND type = 'partner'
+`
+
+type UpdatePartnerOrganizationParams struct {
+	Name      string    `json:"name"`
+	Nif       *string   `json:"nif"`
+	UpdatedAt time.Time `json:"updated_at"`
+	ID        uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdatePartnerOrganization(ctx context.Context, arg UpdatePartnerOrganizationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updatePartnerOrganization,
+		arg.Name,
+		arg.Nif,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

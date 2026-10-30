@@ -51,6 +51,7 @@ const (
 	auditActionMemberDeactive = "member.deactivate"
 	auditActionMemberMFAReset = "member.mfa-reset"
 	auditActionPartnerCreate  = "partner.create"
+	auditActionPartnerUpdate  = "partner.update"
 	auditActionAdminBootstrap = "member.bootstrap-super-admin"
 	auditEntityOrganization   = "organization"
 	invitationMessageTemplate = "AGORA: foi convidado para %s. Active a conta em %s (válido 48 h)."

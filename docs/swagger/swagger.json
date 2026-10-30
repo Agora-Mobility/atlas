@@ -2080,6 +2080,85 @@
                 }
             }
         },
+        "/api/v1/partners/{orgId}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partners:manage (AGORA only). Changes only the fields sent; an empty nif removes it. Spaces in the NIF are ignored.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partners"
+                ],
+                "summary": "Update a partner organization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner organization id",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdatePartnerInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OrganizationView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Partner not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "NIF already registered",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields or NIF",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/partners/{orgId}/members": {
             "get": {
                 "security": [
@@ -3853,6 +3932,9 @@
                         }
                     ],
                     "example": "partner"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -4188,6 +4270,21 @@
                     "type": "string",
                     "maxLength": 32,
                     "example": "+244923000011"
+                }
+            }
+        },
+        "dtos.UpdatePartnerInput": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Transportes Kianda, Lda"
+                },
+                "nif": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "5417123456"
                 }
             }
         },

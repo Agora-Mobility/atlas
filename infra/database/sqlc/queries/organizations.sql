@@ -26,3 +26,8 @@ LIMIT @page_limit OFFSET @page_offset;
 SELECT count(*) FROM organizations
 WHERE type = 'partner'
   AND (sqlc.narg(search)::text IS NULL OR name ILIKE sqlc.narg(search)::text OR nif ILIKE sqlc.narg(search)::text);
+
+-- name: UpdatePartnerOrganization :execrows
+UPDATE organizations
+SET name = @name, nif = @nif, updated_at = @updated_at
+WHERE id = @id AND type = 'partner';

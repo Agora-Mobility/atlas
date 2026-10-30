@@ -84,6 +84,7 @@ type Querier interface {
 	SavePendingUserMFA(ctx context.Context, arg SavePendingUserMFAParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	UpdateMembership(ctx context.Context, arg UpdateMembershipParams) error
+	UpdatePartnerOrganization(ctx context.Context, arg UpdatePartnerOrganizationParams) (int64, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (int64, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLoginParams) error

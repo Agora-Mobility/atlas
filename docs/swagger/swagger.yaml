@@ -355,6 +355,8 @@ definitions:
         allOf:
         - $ref: '#/definitions/enums.OrganizationType'
         example: partner
+      updated_at:
+        type: string
     type: object
   dtos.PermissionList:
     properties:
@@ -583,6 +585,17 @@ definitions:
       phone:
         example: "+244923000011"
         maxLength: 32
+        type: string
+    type: object
+  dtos.UpdatePartnerInput:
+    properties:
+      name:
+        example: Transportes Kianda, Lda
+        maxLength: 120
+        type: string
+      nif:
+        example: "5417123456"
+        maxLength: 20
         type: string
     type: object
   dtos.UpdateProfileInput:
@@ -2066,6 +2079,57 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Create a partner organization
+      tags:
+      - Partners
+  /api/v1/partners/{orgId}:
+    patch:
+      consumes:
+      - application/json
+      description: Requires partners:manage (AGORA only). Changes only the fields
+        sent; an empty nif removes it. Spaces in the NIF are ignored.
+      parameters:
+      - description: Partner organization id
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdatePartnerInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OrganizationView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Partner not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: NIF already registered
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields or NIF
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update a partner organization
       tags:
       - Partners
   /api/v1/partners/{orgId}/members:

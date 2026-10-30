@@ -22,6 +22,7 @@ const (
 	RoleUpdated        = "access.role-updated"
 	RoleDeleted        = "access.role-deleted"
 	PartnerCreated     = "access.partner-created"
+	PartnerUpdated     = "access.partner-updated"
 )
 
 type MemberChange struct {
@@ -128,6 +129,19 @@ func (PartnerCreatedV1) EventType() string     { return PartnerCreated }
 func (PartnerCreatedV1) EventVersion() int     { return 1 }
 func (PartnerCreatedV1) AggregateType() string { return OrganizationAggregate }
 func (e PartnerCreatedV1) AggregateID() string { return e.OrganizationID.String() }
+
+type PartnerUpdatedV1 struct {
+	OrganizationID uuid.UUID  `json:"organization_id"`
+	Name           string     `json:"name"`
+	NIF            string     `json:"nif,omitempty"`
+	UpdatedBy      *uuid.UUID `json:"updated_by,omitempty"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+func (PartnerUpdatedV1) EventType() string     { return PartnerUpdated }
+func (PartnerUpdatedV1) EventVersion() int     { return 1 }
+func (PartnerUpdatedV1) AggregateType() string { return OrganizationAggregate }
+func (e PartnerUpdatedV1) AggregateID() string { return e.OrganizationID.String() }
 
 func NewMemberChange(membershipID, organizationID, userID uuid.UUID, changedBy *uuid.UUID, permVersion int64) MemberChange {
 	return MemberChange{

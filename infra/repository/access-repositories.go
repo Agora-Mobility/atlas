@@ -64,6 +64,19 @@ func (r *OrganizationRepository) Create(ctx context.Context, org *entities.Organ
 	return nil
 }
 
+func (r *OrganizationRepository) Update(ctx context.Context, org *entities.Organization) error {
+	rows, err := postgres.Queries(ctx, r.pool).UpdatePartnerOrganization(ctx, gen.UpdatePartnerOrganizationParams{
+		ID: org.ID, Name: org.Name, Nif: nullableString(org.NIF), UpdatedAt: org.UpdatedAt,
+	})
+	if err != nil {
+		return userWriteError("update organization", err)
+	}
+	if rows == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
 func (r *OrganizationRepository) ListPartners(ctx context.Context, search string, page pagination.Params) ([]*entities.Organization, int64, error) {
 	q := postgres.Queries(ctx, r.pool)
 	pattern := searchPattern(search)

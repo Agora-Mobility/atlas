@@ -58,7 +58,7 @@ isolated from each other.
 | Q4 | `/api/v1/admin/users` now manages **customer and provider accounts only** (permissions `users:read`, `users:block`, `users:reset-password`). Staff are invited and managed through `/api/v1/members`. Migration 000010 moves `admin` to a Super Admin membership and `operator` to Operações; `partner` users become `staff` without membership (there was no partner organization) and must be invited again. The table keeps the name `audit_log`. |
 | Q5 | The prefix stays `/api/v1`. |
 | Q6 | Client ids stay (`agora-backoffice`, `agora-partner-panel`, …). |
-| Q7 | AGORA creates partner organizations at `POST /api/v1/partners` (`partners:manage`) and invites their first owner at `POST /api/v1/partners/{orgId}/members/invitations`. |
+| Q7 | AGORA creates partner organizations at `POST /api/v1/partners` (`partners:manage`), changes their name or NIF at `PATCH /api/v1/partners/{orgId}` and invites their first owner at `POST /api/v1/partners/{orgId}/members/invitations`. The AGORA organization itself cannot be changed there. |
 | Q8 | A deactivated member cannot be invited again to the same organization (`INVALID_MEMBER_STATE`). |
 | Q9 | The client picks the scope; `organization_id` in the login picks one partner when the person belongs to several, otherwise the oldest active membership is used. Switching needs a new sign-in. |
 | Q10 | Not answered by the plan; no extra targets are set here. |
@@ -127,7 +127,8 @@ isolated from each other.
 Every change is published through the outbox in the same transaction:
 `access.member-invited`, `-activated`, `-roles-changed`, `-suspended`,
 `-reactivated`, `-deactivated`, `-mfa-reset`, `access.role-created`,
-`-updated`, `-deleted` and `access.partner-created` (all `v1`).
+`-updated`, `-deleted`, `access.partner-created` and `access.partner-updated`
+(all `v1`).
 
 ## Consequences
 
