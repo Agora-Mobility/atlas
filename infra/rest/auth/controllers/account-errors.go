@@ -18,6 +18,8 @@ func handleAccountError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, usecases.ErrCurrentPasswordRequired):
 		shared.RespondError(ctx, http.StatusUnprocessableEntity, "CURRENT_PASSWORD_REQUIRED", "Confirm with the current password.")
+	case errors.Is(err, usecases.ErrConfirmationRequired):
+		shared.RespondError(ctx, http.StatusUnprocessableEntity, "CONFIRMATION_REQUIRED", "Confirm with the code sent by SMS to the account phone.")
 	case errors.Is(err, usecases.ErrInvalidCurrentPassword):
 		shared.RespondError(ctx, http.StatusUnprocessableEntity, "INVALID_CURRENT_PASSWORD", "Current password is incorrect.")
 	case errors.Is(err, usecases.ErrEmailAlreadyExists):

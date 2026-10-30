@@ -89,6 +89,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	users.GET("/me", r.controller.Me)
 	users.PATCH("/me", r.profile.UpdateProfile)
 	users.DELETE("/me", r.profile.DeleteAccount)
+	users.POST("/me/verification-code", r.limiters.Phone, r.profile.RequestIdentityCode)
 	users.POST("/me/phone/verification-code", r.limiters.Phone, r.profile.RequestPhoneChange)
 	users.PUT("/me/phone", r.limiters.Phone, r.profile.ConfirmPhoneChange)
 	users.POST("/password", r.controller.SetPassword)

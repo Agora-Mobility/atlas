@@ -42,6 +42,7 @@ var (
 	ErrCodeRecentlySent          = services.ErrOTPCooldown
 	ErrAccountDeletionNotAllowed = errors.New("staff accounts are removed by an admin")
 	ErrPasswordNotSet            = errors.New("account has no password")
+	ErrConfirmationRequired      = errors.New("confirm with the password or an sms code")
 	ErrPasswordAlreadySet        = errors.New("account already has a password")
 )
 

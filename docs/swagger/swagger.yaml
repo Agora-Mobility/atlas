@@ -141,11 +141,12 @@ definitions:
     type: object
   dtos.DeleteAccountInput:
     properties:
+      code:
+        example: "123456"
+        type: string
       password:
         maxLength: 128
         type: string
-    required:
-    - password
     type: object
   dtos.InvitationTokenInput:
     properties:
@@ -586,6 +587,9 @@ definitions:
     type: object
   dtos.UpdateProfileInput:
     properties:
+      code:
+        example: "123456"
+        type: string
       current_password:
         maxLength: 128
         type: string
@@ -2421,10 +2425,11 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Customers and providers only. Ends every session at once; the phone
-        and e-mail can be registered again.
+      description: Customers and providers only. Confirm with password or, without
+        a password, with a code from /users/me/verification-code. Ends every session
+        at once; the phone and e-mail can be registered again.
       parameters:
-      - description: Password confirmation
+      - description: Password or code
         in: body
         name: body
         required: true
@@ -2452,7 +2457,7 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "422":
-          description: Wrong password
+          description: Missing confirmation, wrong password or code
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "500":
@@ -2499,7 +2504,8 @@ paths:
       consumes:
       - application/json
       description: Changes only the fields sent. Changing or removing the e-mail requires
-        current_password. The phone number changes through /users/me/phone.
+        current_password or a code from /users/me/verification-code. The phone number
+        changes through /users/me/phone.
       parameters:
       - description: Profile fields
         in: body
@@ -2527,12 +2533,11 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "409":
-          description: Email already registered, or the account has no password to
-            confirm the change
+          description: Email already registered
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "422":
-          description: Invalid fields or wrong current password
+          description: Invalid fields, missing confirmation, wrong password or code
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "500":
@@ -2703,6 +2708,39 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Send a code to a new phone number
+      tags:
+      - Users
+  /api/v1/users/me/verification-code:
+    post:
+      description: The code confirms an e-mail change or the account deletion when
+        the user has no password. Customers and providers only.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dtos.MessageOutput'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Staff accounts confirm with the password
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Code sent recently or too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "503":
+          description: SMS unavailable
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Send a confirmation code to the account phone
       tags:
       - Users
   /api/v1/users/password:

@@ -268,4 +268,92 @@ func TestDeleteAccount_Rejections(t *testing.T) {
 
 		require.ErrorIs(t, err, usecases.ErrPasswordNotSet)
 	})
+
+	t.Run("account without password and no code", func(t *testing.T) {
+		f := newFixture(t)
+		user := newSignUpUser(t, enums.RoleCustomer)
+		f.users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
+
+		err := f.profile.DeleteAccount(context.Background(), user.ID, dtos.DeleteAccountInput{})
+
+		require.ErrorIs(t, err, usecases.ErrConfirmationRequired)
+	})
+}
+
+func TestRequestIdentityCode_SendsACodeToTheAccountPhone(t *testing.T) {
+	f := newFixture(t)
+	user := newSignUpUser(t, enums.RoleCustomer)
+	f.users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
+	f.otp.EXPECT().Issue(gomock.Any(), enums.OTPPurposeConfirmIdentity, user.ID.String()).Return("654321", nil)
+	f.sms.EXPECT().Send(gomock.Any(), user.Phone, "Código de confirmação: 654321. Válido por 5 min. Não o partilhe.").Return(nil)
+
+	require.NoError(t, f.profile.RequestIdentityCode(context.Background(), user.ID))
+}
+
+func TestRequestIdentityCode_StaffConfirmWithThePassword(t *testing.T) {
+	f := newFixture(t)
+	user := newUser(t, enums.RoleStaff, true)
+	f.users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
+
+	require.ErrorIs(t, f.profile.RequestIdentityCode(context.Background(), user.ID), usecases.ErrClientNotAllowed)
+}
+
+func TestUpdateProfile_AccountWithoutPasswordConfirmsTheEmailWithACode(t *testing.T) {
+	t.Run("with the code", func(t *testing.T) {
+		f := newFixture(t)
+		user := newSignUpUser(t, enums.RoleCustomer)
+		f.users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
+		f.users.EXPECT().FindByEmail(gomock.Any(), "nova@agora.ao").Return(nil, nil)
+		f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeConfirmIdentity, user.ID.String(), "123456").Return(nil)
+		f.users.EXPECT().Update(gomock.Any(), user).Return(nil)
+
+		out, err := f.profile.UpdateProfile(context.Background(), user.ID,
+			dtos.UpdateProfileInput{Name: ptr("Ana Domingos"), Email: ptr("nova@agora.ao"), Code: "123456"})
+
+		require.NoError(t, err)
+		assert.Equal(t, "nova@agora.ao", out.Email)
+	})
+
+	t.Run("without confirmation", func(t *testing.T) {
+		f := newFixture(t)
+		user := newSignUpUser(t, enums.RoleCustomer)
+		f.users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
+
+		_, err := f.profile.UpdateProfile(context.Background(), user.ID, dtos.UpdateProfileInput{Email: ptr("nova@agora.ao")})
+
+		require.ErrorIs(t, err, usecases.ErrConfirmationRequired)
+	})
+
+	t.Run("wrong code keeps the e-mail", func(t *testing.T) {
+		f := newFixture(t)
+		user := newSignUpUser(t, enums.RoleCustomer)
+		f.users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
+		f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeConfirmIdentity, user.ID.String(), "000000").Return(services.ErrOTPInvalid)
+
+		_, err := f.profile.UpdateProfile(context.Background(), user.ID, dtos.UpdateProfileInput{Email: ptr("nova@agora.ao"), Code: "000000"})
+
+		require.ErrorIs(t, err, usecases.ErrInvalidOTPCode)
+	})
+}
+
+func TestUpdateProfile_StaffCannotSwapThePasswordForACode(t *testing.T) {
+	f := newFixture(t)
+	user := newUser(t, enums.RoleStaff, true)
+	f.users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
+
+	_, err := f.profile.UpdateProfile(context.Background(), user.ID, dtos.UpdateProfileInput{Email: ptr("nova@agora.ao"), Code: "123456"})
+
+	require.ErrorIs(t, err, usecases.ErrCurrentPasswordRequired)
+}
+
+func TestDeleteAccount_AccountWithoutPasswordConfirmsWithACode(t *testing.T) {
+	f := newFixture(t)
+	user := newSignUpUser(t, enums.RoleCustomer)
+	f.users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
+	f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeConfirmIdentity, user.ID.String(), "123456").Return(nil)
+	f.users.EXPECT().SoftDelete(gomock.Any(), user.ID, gomock.Any()).Return(nil)
+	f.expectAllSessionsRevoked(t, user.ID)
+	f.outbox.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil)
+
+	require.NoError(t, f.profile.DeleteAccount(context.Background(), user.ID, dtos.DeleteAccountInput{Code: "123456"}))
 }

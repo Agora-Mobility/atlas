@@ -69,7 +69,7 @@ func (uc *ProfileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, r
 	}
 
 	if email != user.Email {
-		if err := uc.confirmPassword(user, req.CurrentPassword); err != nil {
+		if err := uc.confirmIdentity(ctx, user, req.CurrentPassword, req.Code); err != nil {
 			return nil, err
 		}
 		if err := uc.ensureEmailIsFree(ctx, email, user.ID); err != nil {
@@ -86,6 +86,17 @@ func (uc *ProfileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, r
 
 	view := dtos.ToUserView(user)
 	return &view, nil
+}
+
+func (uc *ProfileUsecase) RequestIdentityCode(ctx context.Context, userID uuid.UUID) error {
+	user, err := uc.findUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user.IsStaff() {
+		return ErrClientNotAllowed
+	}
+	return uc.codeSender.SendTo(ctx, enums.OTPPurposeConfirmIdentity, user.ID.String(), user.Phone)
 }
 
 // RequestPhoneChange sends a code to the new number. The code is bound to the
@@ -148,7 +159,7 @@ func (uc *ProfileUsecase) DeleteAccount(ctx context.Context, userID uuid.UUID, r
 	if user.Role != enums.RoleCustomer && user.Role != enums.RoleProvider {
 		return ErrAccountDeletionNotAllowed
 	}
-	if err := uc.confirmPassword(user, req.Password); err != nil {
+	if err := uc.confirmIdentity(ctx, user, req.Password, req.Code); err != nil {
 		return err
 	}
 
@@ -182,6 +193,16 @@ func (uc *ProfileUsecase) findUser(ctx context.Context, userID uuid.UUID) (*enti
 		return nil, ErrUserNotFound
 	}
 	return user, nil
+}
+
+func (uc *ProfileUsecase) confirmIdentity(ctx context.Context, user *entities.User, password, code string) error {
+	if code != "" && !user.IsStaff() {
+		return uc.otp.Verify(ctx, enums.OTPPurposeConfirmIdentity, user.ID.String(), code)
+	}
+	if password == "" && !user.HasPassword() && !user.IsStaff() {
+		return ErrConfirmationRequired
+	}
+	return uc.confirmPassword(user, password)
 }
 
 func (uc *ProfileUsecase) confirmPassword(user *entities.User, password string) error {

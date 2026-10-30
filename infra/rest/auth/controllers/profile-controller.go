@@ -22,7 +22,7 @@ func NewProfileController(profileUsecase *usecases.ProfileUsecase) *ProfileContr
 // UpdateProfile godoc
 //
 //	@Summary		Update the profile of the authenticated user
-//	@Description	Changes only the fields sent. Changing or removing the e-mail requires current_password. The phone number changes through /users/me/phone.
+//	@Description	Changes only the fields sent. Changing or removing the e-mail requires current_password or a code from /users/me/verification-code. The phone number changes through /users/me/phone.
 //	@Tags			Users
 //	@Accept			json
 //	@Produce		json
@@ -31,8 +31,8 @@ func NewProfileController(profileUsecase *usecases.ProfileUsecase) *ProfileContr
 //	@Failure		400		{object}	shared.ErrorResponse	"Invalid request"
 //	@Failure		401		{object}	shared.ErrorResponse	"Unauthorized or session ended"
 //	@Failure		403		{object}	shared.ErrorResponse	"Token bound to another client"
-//	@Failure		409		{object}	shared.ErrorResponse	"Email already registered, or the account has no password to confirm the change"
-//	@Failure		422		{object}	shared.ErrorResponse	"Invalid fields or wrong current password"
+//	@Failure		409		{object}	shared.ErrorResponse	"Email already registered"
+//	@Failure		422		{object}	shared.ErrorResponse	"Invalid fields, missing confirmation, wrong password or code"
 //	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
 //	@Security		BearerAuth
 //	@Security		ClientId
@@ -55,6 +55,34 @@ func (c *ProfileController) UpdateProfile(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, resp)
+}
+
+// RequestIdentityCode godoc
+//
+//	@Summary		Send a confirmation code to the account phone
+//	@Description	The code confirms an e-mail change or the account deletion when the user has no password. Customers and providers only.
+//	@Tags			Users
+//	@Produce		json
+//	@Success		202	{object}	dtos.MessageOutput
+//	@Failure		401	{object}	shared.ErrorResponse	"Unauthorized or session ended"
+//	@Failure		403	{object}	shared.ErrorResponse	"Staff accounts confirm with the password"
+//	@Failure		429	{object}	shared.ErrorResponse	"Code sent recently or too many requests"
+//	@Failure		503	{object}	shared.ErrorResponse	"SMS unavailable"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/users/me/verification-code [post]
+func (c *ProfileController) RequestIdentityCode(ctx *gin.Context) {
+	userID, ok := authenticatedUserID(ctx)
+	if !ok {
+		return
+	}
+
+	if err := c.profileUsecase.RequestIdentityCode(ctx.Request.Context(), userID); err != nil {
+		handleAccountError(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusAccepted, dtos.MessageOutput{Message: "A confirmation code was sent to the account phone."})
 }
 
 // RequestPhoneChange godoc
@@ -134,17 +162,17 @@ func (c *ProfileController) ConfirmPhoneChange(ctx *gin.Context) {
 // DeleteAccount godoc
 //
 //	@Summary		Delete the account of the authenticated user
-//	@Description	Customers and providers only. Ends every session at once; the phone and e-mail can be registered again.
+//	@Description	Customers and providers only. Confirm with password or, without a password, with a code from /users/me/verification-code. Ends every session at once; the phone and e-mail can be registered again.
 //	@Tags			Users
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body	dtos.DeleteAccountInput	true	"Password confirmation"
+//	@Param			body	body	dtos.DeleteAccountInput	true	"Password or code"
 //	@Success		204		"No Content"
 //	@Failure		400		{object}	shared.ErrorResponse	"Invalid request"
 //	@Failure		401		{object}	shared.ErrorResponse	"Unauthorized or session ended"
 //	@Failure		403		{object}	shared.ErrorResponse	"Staff accounts cannot be deleted here"
 //	@Failure		409		{object}	shared.ErrorResponse	"Account has no password"
-//	@Failure		422		{object}	shared.ErrorResponse	"Wrong password"
+//	@Failure		422		{object}	shared.ErrorResponse	"Missing confirmation, wrong password or code"
 //	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
 //	@Security		BearerAuth
 //	@Security		ClientId

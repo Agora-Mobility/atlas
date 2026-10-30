@@ -98,11 +98,13 @@ func ToBlockReasonView(r *entities.BlockReason) BlockReasonView {
 }
 
 // UpdateProfileInput changes only the fields that are present. An empty
-// e-mail removes it; changing or removing the e-mail needs the current password.
+// e-mail removes it; changing or removing the e-mail needs the current password
+// or a code from /users/me/verification-code.
 type UpdateProfileInput struct {
 	Name            *string `json:"name" binding:"omitempty,max=120" example:"Ana Domingos"`
 	Email           *string `json:"email" binding:"omitempty,max=254" example:"ana@exemplo.ao"`
 	CurrentPassword string  `json:"current_password" binding:"max=128"`
+	Code            string  `json:"code" binding:"omitempty,len=6,numeric" example:"123456"`
 }
 
 type PhoneChangeRequestInput struct {
@@ -115,7 +117,8 @@ type PhoneChangeConfirmInput struct {
 }
 
 type DeleteAccountInput struct {
-	Password string `json:"password" binding:"required,max=128"`
+	Password string `json:"password" binding:"max=128"`
+	Code     string `json:"code" binding:"omitempty,len=6,numeric" example:"123456"`
 }
 
 type UserListQuery struct {

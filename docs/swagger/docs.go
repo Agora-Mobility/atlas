@@ -2700,7 +2700,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Customers and providers only. Ends every session at once; the phone and e-mail can be registered again.",
+                "description": "Customers and providers only. Confirm with password or, without a password, with a code from /users/me/verification-code. Ends every session at once; the phone and e-mail can be registered again.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2713,7 +2713,7 @@ const docTemplate = `{
                 "summary": "Delete the account of the authenticated user",
                 "parameters": [
                     {
-                        "description": "Password confirmation",
+                        "description": "Password or code",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2751,7 +2751,7 @@ const docTemplate = `{
                         }
                     },
                     "422": {
-                        "description": "Wrong password",
+                        "description": "Missing confirmation, wrong password or code",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -2773,7 +2773,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Changes only the fields sent. Changing or removing the e-mail requires current_password. The phone number changes through /users/me/phone.",
+                "description": "Changes only the fields sent. Changing or removing the e-mail requires current_password or a code from /users/me/verification-code. The phone number changes through /users/me/phone.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2821,13 +2821,13 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Email already registered, or the account has no password to confirm the change",
+                        "description": "Email already registered",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     },
                     "422": {
-                        "description": "Invalid fields or wrong current password",
+                        "description": "Invalid fields, missing confirmation, wrong password or code",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -3077,6 +3077,58 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Invalid phone or same as the current one",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Code sent recently or too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "SMS unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/verification-code": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The code confirms an e-mail change or the account deletion when the user has no password. Customers and providers only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Send a confirmation code to the account phone",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MessageOutput"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Staff accounts confirm with the password",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -3493,10 +3545,11 @@ const docTemplate = `{
         },
         "dtos.DeleteAccountInput": {
             "type": "object",
-            "required": [
-                "password"
-            ],
             "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
                 "password": {
                     "type": "string",
                     "maxLength": 128
@@ -4148,6 +4201,10 @@ const docTemplate = `{
         "dtos.UpdateProfileInput": {
             "type": "object",
             "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
                 "current_password": {
                     "type": "string",
                     "maxLength": 128

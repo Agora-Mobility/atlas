@@ -15,10 +15,11 @@ import (
 )
 
 var smsTemplateByPurpose = map[enums.OTPPurpose]string{
-	enums.OTPPurposeVerifyPhone:   "Código de verificação: %s. Válido por %d min. Não o partilhe.",
-	enums.OTPPurposeResetPassword: "Código de recuperação: %s. Válido por %d min. Não o partilhe.",
-	enums.OTPPurposeChangePhone:   "Código de novo número: %s. Válido por %d min. Não o partilhe.",
-	enums.OTPPurposeInvitation:    "Código de activação: %s. Válido por %d min. Não o partilhe.",
+	enums.OTPPurposeVerifyPhone:     "Código de verificação: %s. Válido por %d min. Não o partilhe.",
+	enums.OTPPurposeResetPassword:   "Código de recuperação: %s. Válido por %d min. Não o partilhe.",
+	enums.OTPPurposeChangePhone:     "Código de novo número: %s. Válido por %d min. Não o partilhe.",
+	enums.OTPPurposeInvitation:      "Código de activação: %s. Válido por %d min. Não o partilhe.",
+	enums.OTPPurposeConfirmIdentity: "Código de confirmação: %s. Válido por %d min. Não o partilhe.",
 }
 
 type VerificationCodeSender struct {
