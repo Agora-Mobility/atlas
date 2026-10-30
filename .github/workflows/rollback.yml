@@ -21,15 +21,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  rollback:
-    name: Roll back ${{ inputs.environment }} to ${{ inputs.version }}
+  resolve:
+    name: Resolve ${{ inputs.version }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     permissions:
       contents: read
     env:
       TARGET: ${{ inputs.environment }}
       VERSION: ${{ inputs.version }}
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      digest: ${{ steps.digest.outputs.digest }}
     steps:
       - name: Validate version
         run: |
@@ -43,9 +45,10 @@ jobs:
           fi
 
       - name: Image name
+        id: image
         env:
           NAMESPACE: ${{ vars.DOCKERHUB_USERNAME }}
-        run: echo "IMAGE=docker.io/$NAMESPACE/atlas" >> "$GITHUB_ENV"
+        run: echo "name=docker.io/$NAMESPACE/atlas" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v4.4.1
 
@@ -57,24 +60,29 @@ jobs:
       - uses: sigstore/cosign-installer@v4.1.2
 
       - name: Resolve digest
+        id: digest
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
         run: |
           digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
-          echo "DIGEST=$digest" >> "$GITHUB_ENV"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "Restoring $IMAGE:$VERSION ($digest)"
 
       - name: Verify the image was signed by the CD pipeline
+        env:
+          REF: ${{ steps.image.outputs.name }}@${{ steps.digest.outputs.digest }}
         run: |
-          cosign verify "$IMAGE@$DIGEST" \
+          cosign verify "$REF" \
             --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/cd.yml@refs/heads/main" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
 
-      - name: Point the environment tag at the restored image
-        run: |
-          tags=(--tag "$IMAGE:$TARGET")
-          if [[ "$TARGET" == "production" ]]; then
-            tags+=(--tag "$IMAGE:latest")
-          fi
-          docker buildx imagetools create "${tags[@]}" "$IMAGE@$DIGEST"
-
-      - name: Deploy
-        run: echo "Deploy $IMAGE:$VERSION ($DIGEST) to $TARGET (not configured yet)"
+  deploy:
+    name: Roll back ${{ inputs.environment }} to ${{ inputs.version }}
+    needs: resolve
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      image: ${{ needs.resolve.outputs.image }}
+      digest: ${{ needs.resolve.outputs.digest }}
+      version: ${{ inputs.version }}
+    secrets: inherit
