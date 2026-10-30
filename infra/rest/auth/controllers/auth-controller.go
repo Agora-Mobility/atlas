@@ -197,8 +197,8 @@ func (c *AuthController) handleRefreshError(ctx *gin.Context, err error) {
 
 // RequestPhoneVerification godoc
 //
-//	@Summary		Send a phone verification code
-//	@Description	Always answers 202 so the response does not reveal whether the phone is registered.
+//	@Summary		Send a phone code to verify or sign in
+//	@Description	Customer and provider apps only. Serves the first verification and every later sign-in without password. Always answers 202 so the response does not reveal whether the phone is registered.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
@@ -233,20 +233,21 @@ func (c *AuthController) RequestPhoneVerification(ctx *gin.Context) {
 
 // ConfirmPhoneVerification godoc
 //
-//	@Summary	Verify the phone and start a session
-//	@Tags		Auth
-//	@Accept		json
-//	@Produce	json
-//	@Param		body	body		dtos.PhoneVerificationConfirmInput	true	"Phone and code"
-//	@Success	200		{object}	dtos.SessionOutput
-//	@Failure	400		{object}	shared.ErrorResponse	"Invalid request or missing client"
-//	@Failure	401		{object}	shared.ErrorResponse	"Unknown client"
-//	@Failure	403		{object}	shared.ErrorResponse	"Account blocked or client not allowed"
-//	@Failure	422		{object}	shared.ErrorResponse	"Invalid, expired or exhausted code"
-//	@Failure	429		{object}	shared.ErrorResponse	"Too many requests"
-//	@Failure	500		{object}	shared.ErrorResponse	"Internal error"
-//	@Security	ClientId
-//	@Router		/api/v1/auth/phone/verify [post]
+//	@Summary		Verify the phone code and start a session
+//	@Description	Customer and provider apps only. Marks the phone verified on the first use.
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.PhoneVerificationConfirmInput	true	"Phone and code"
+//	@Success		200		{object}	dtos.SessionOutput
+//	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
+//	@Failure		401		{object}	shared.ErrorResponse	"Unknown client"
+//	@Failure		403		{object}	shared.ErrorResponse	"Account blocked or client not allowed"
+//	@Failure		422		{object}	shared.ErrorResponse	"Invalid, expired or exhausted code"
+//	@Failure		429		{object}	shared.ErrorResponse	"Too many requests"
+//	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
+//	@Security		ClientId
+//	@Router			/api/v1/auth/phone/verify [post]
 func (c *AuthController) ConfirmPhoneVerification(ctx *gin.Context) {
 	var req dtos.PhoneVerificationConfirmInput
 	if err := binding.JSON(ctx, &req); err != nil {

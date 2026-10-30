@@ -800,7 +800,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Always answers 202 so the response does not reveal whether the phone is registered.",
+                "description": "Customer and provider apps only. Serves the first verification and every later sign-in without password. Always answers 202 so the response does not reveal whether the phone is registered.",
                 "consumes": [
                     "application/json"
                 ],
@@ -810,7 +810,7 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Send a phone verification code",
+                "summary": "Send a phone code to verify or sign in",
                 "parameters": [
                     {
                         "description": "Phone payload",
@@ -869,6 +869,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
+                "description": "Customer and provider apps only. Marks the phone verified on the first use.",
                 "consumes": [
                     "application/json"
                 ],
@@ -878,7 +879,7 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Verify the phone and start a session",
+                "summary": "Verify the phone code and start a session",
                 "parameters": [
                     {
                         "description": "Phone and code",

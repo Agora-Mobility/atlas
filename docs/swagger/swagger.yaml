@@ -1224,8 +1224,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Always answers 202 so the response does not reveal whether the
-        phone is registered.
+      description: Customer and provider apps only. Serves the first verification
+        and every later sign-in without password. Always answers 202 so the response
+        does not reveal whether the phone is registered.
       parameters:
       - description: Phone payload
         in: body
@@ -1262,13 +1263,15 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Send a phone verification code
+      summary: Send a phone code to verify or sign in
       tags:
       - Auth
   /api/v1/auth/phone/verify:
     post:
       consumes:
       - application/json
+      description: Customer and provider apps only. Marks the phone verified on the
+        first use.
       parameters:
       - description: Phone and code
         in: body
@@ -1309,7 +1312,7 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Verify the phone and start a session
+      summary: Verify the phone code and start a session
       tags:
       - Auth
   /api/v1/auth/recovery/confirm:
