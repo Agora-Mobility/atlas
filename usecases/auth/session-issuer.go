@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
@@ -46,12 +48,16 @@ func NewSessionIssuer(
 	}
 }
 
-func (s *SessionIssuer) Start(ctx context.Context, user *entities.User, client *entities.Client, ip, userAgent string) (*dtos.SessionOutput, error) {
+func (s *SessionIssuer) Start(ctx context.Context, user *entities.User, client *entities.Client, access *entities.Access, ip, userAgent string) (*dtos.SessionOutput, error) {
 	rawRefreshToken, refreshTokenHash, err := s.opaqueTokens.Generate()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrTokenSigning, err)
 	}
-	refreshToken, err := entities.StartRefreshTokenFamily(user.ID, client.ID, refreshTokenHash, s.refreshTTL, sessionMetadata(ip, userAgent))
+	var membershipID *uuid.UUID
+	if access != nil {
+		membershipID = &access.MembershipID
+	}
+	refreshToken, err := entities.StartRefreshTokenFamily(user.ID, client.ID, membershipID, refreshTokenHash, s.refreshTTL, sessionMetadata(ip, userAgent))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSessionCreate, err)
 	}
@@ -67,16 +73,23 @@ func (s *SessionIssuer) Start(ctx context.Context, user *entities.User, client *
 		return nil, fmt.Errorf("%w: %w", ErrSessionCreate, err)
 	}
 
-	return s.Output(user, client, rawRefreshToken, refreshToken)
+	return s.Output(user, client, access, rawRefreshToken, refreshToken)
 }
 
-func (s *SessionIssuer) Output(user *entities.User, client *entities.Client, rawRefreshToken string, refreshToken *entities.RefreshToken) (*dtos.SessionOutput, error) {
-	accessToken, expiresAt, err := s.accessTokens.Generate(services.AccessTokenClaims{
+func (s *SessionIssuer) Output(user *entities.User, client *entities.Client, access *entities.Access, rawRefreshToken string, refreshToken *entities.RefreshToken) (*dtos.SessionOutput, error) {
+	claims := services.AccessTokenClaims{
 		UserID:    user.ID,
 		SessionID: refreshToken.FamilyID,
 		Role:      user.Role,
 		ClientID:  client.ClientID,
-	})
+	}
+	if access != nil {
+		claims.MembershipID = &access.MembershipID
+		claims.OrganizationID = &access.OrganizationID
+		claims.Scope = access.Scope
+		claims.PermVersion = access.PermVersion
+	}
+	accessToken, expiresAt, err := s.accessTokens.Generate(claims)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrTokenSigning, err)
 	}
@@ -89,6 +102,7 @@ func (s *SessionIssuer) Output(user *entities.User, client *entities.Client, raw
 		RefreshExpiresAt: refreshToken.ExpiresAt,
 		Client:           client.ClientID,
 		User:             dtos.ToUserView(user),
+		Access:           dtos.ToAccessView(access),
 	}, nil
 }
 

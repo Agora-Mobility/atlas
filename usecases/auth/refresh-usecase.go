@@ -9,6 +9,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/shared/tenant"
 	"github.com/Agora-Mobility/atlas/usecases/auth/dtos"
 )
 
@@ -23,32 +24,39 @@ var (
 type RefreshUsecase struct {
 	refreshTokenRepo repository.IRefreshTokenRepository
 	userRepo         repository.IUserRepository
+	access           *AccessResolver
 	txManager        repository.ITransactionManager
 	opaqueTokens     services.IOpaqueTokenGenerator
 	sessions         *SessionIssuer
+	revoker          *SessionRevoker
 	refreshTTL       time.Duration
 }
 
 func NewRefreshUsecase(
 	refreshTokenRepo repository.IRefreshTokenRepository,
 	userRepo repository.IUserRepository,
+	access *AccessResolver,
 	txManager repository.ITransactionManager,
 	opaqueTokens services.IOpaqueTokenGenerator,
 	sessions *SessionIssuer,
+	revoker *SessionRevoker,
 	refreshTTL time.Duration,
 ) *RefreshUsecase {
 	return &RefreshUsecase{
 		refreshTokenRepo: refreshTokenRepo,
 		userRepo:         userRepo,
+		access:           access,
 		txManager:        txManager,
 		opaqueTokens:     opaqueTokens,
 		sessions:         sessions,
+		revoker:          revoker,
 		refreshTTL:       refreshTTL,
 	}
 }
 
 type rotation struct {
 	user            *entities.User
+	access          *entities.Access
 	next            *entities.RefreshToken
 	rawRefreshToken string
 	rejection       error
@@ -68,7 +76,7 @@ func (uc *RefreshUsecase) Execute(ctx context.Context, req dtos.RefreshRequest, 
 		return nil, result.rejection
 	}
 
-	return uc.sessions.Output(result.user, client, result.rawRefreshToken, result.next)
+	return uc.sessions.Output(result.user, client, result.access, result.rawRefreshToken, result.next)
 }
 
 func (uc *RefreshUsecase) rotate(ctx context.Context, rawRefreshToken string, client *entities.Client, meta entities.SessionMetadata) (rotation, error) {
@@ -102,6 +110,13 @@ func (uc *RefreshUsecase) rotate(ctx context.Context, rawRefreshToken string, cl
 	if err := ensureCanSignIn(user, client); err != nil {
 		return rotation{rejection: err}, uc.revokeFamily(ctx, current)
 	}
+	access, err := uc.staffAccess(ctx, user, client, current)
+	if err != nil {
+		return rotation{}, err
+	}
+	if user.IsStaff() && access == nil {
+		return rotation{rejection: ErrRefreshTokenRevoked}, uc.revokeFamily(ctx, current)
+	}
 
 	rawNext, nextHash, err := uc.opaqueTokens.Generate()
 	if err != nil {
@@ -118,9 +133,24 @@ func (uc *RefreshUsecase) rotate(ctx context.Context, rawRefreshToken string, cl
 		return rotation{}, err
 	}
 
-	return rotation{user: user, next: next, rawRefreshToken: rawNext}, nil
+	return rotation{user: user, access: access, next: next, rawRefreshToken: rawNext}, nil
+}
+
+func (uc *RefreshUsecase) staffAccess(ctx context.Context, user *entities.User, client *entities.Client, token *entities.RefreshToken) (*entities.Access, error) {
+	if !user.IsStaff() || token.MembershipID == nil {
+		return nil, nil
+	}
+	access, err := uc.access.Fresh(tenant.WithUser(ctx, user.ID), *token.MembershipID)
+	if err != nil || access == nil {
+		return nil, err
+	}
+	scope, ok := client.StaffScope()
+	if !access.IsActive() || access.UserID != user.ID || !ok || scope != access.Scope {
+		return nil, nil
+	}
+	return access, nil
 }
 
 func (uc *RefreshUsecase) revokeFamily(ctx context.Context, token *entities.RefreshToken) error {
-	return uc.refreshTokenRepo.RevokeFamily(ctx, token.FamilyID, time.Now().UTC())
+	return uc.revoker.RevokeSession(ctx, token.FamilyID)
 }

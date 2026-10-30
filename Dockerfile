@@ -20,13 +20,16 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags="-s -w" -o /out/healthcheck ./cmd/healthcheck
+    go build -trimpath -ldflags="-s -w" -o /out/healthcheck ./cmd/healthcheck && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w" -o /out/bootstrap-admin ./cmd/bootstrap-admin
 
 FROM gcr.io/distroless/static-debian13:nonroot
 
 COPY --from=build /out/atlas /atlas
 COPY --from=build /out/migrate /migrate
 COPY --from=build /out/healthcheck /healthcheck
+COPY --from=build /out/bootstrap-admin /bootstrap-admin
 
 ENV APP_ENV=production \
     HTTP_PORT=8700

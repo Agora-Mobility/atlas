@@ -20,9 +20,19 @@ func accessClaims(role enums.Role) services.AccessTokenClaims {
 	return services.AccessTokenClaims{UserID: uuid.New(), SessionID: uuid.New(), Role: role, ClientID: "agora-backoffice"}
 }
 
+func staffClaims() services.AccessTokenClaims {
+	access := accessClaims(enums.RoleStaff)
+	membershipID, organizationID := uuid.New(), uuid.New()
+	access.MembershipID = &membershipID
+	access.OrganizationID = &organizationID
+	access.Scope = enums.OrganizationTypePlatform
+	access.PermVersion = 3
+	return access
+}
+
 func TestGenerateAndVerify(t *testing.T) {
 	svc := authjwt.NewService(secret, "atlas", time.Minute)
-	access := accessClaims(enums.RoleAdmin)
+	access := staffClaims()
 	userID := access.UserID
 
 	token, _, err := svc.Generate(access)
@@ -30,7 +40,11 @@ func TestGenerateAndVerify(t *testing.T) {
 
 	claims, err := svc.Verify(token)
 	require.NoError(t, err)
-	assert.Equal(t, enums.RoleAdmin, claims.Role)
+	assert.Equal(t, enums.RoleStaff, claims.Role)
+	assert.Equal(t, access.MembershipID, claims.MembershipID)
+	assert.Equal(t, access.OrganizationID, claims.OrganizationID)
+	assert.Equal(t, enums.OrganizationTypePlatform, claims.Scope)
+	assert.Equal(t, int64(3), claims.PermVersion)
 	assert.Equal(t, access.SessionID, claims.SessionID)
 	assert.Equal(t, "agora-backoffice", claims.ClientID)
 	got, err := claims.UserID()
@@ -61,14 +75,18 @@ func TestVerify_Rejects(t *testing.T) {
 	noClient, _, err := svc.Generate(withoutClient)
 	require.NoError(t, err)
 
+	staffWithoutMembership, _, err := svc.Generate(accessClaims(enums.RoleStaff))
+	require.NoError(t, err)
+
 	cases := map[string]string{
-		"without client": noClient,
-		"expired":        expired,
-		"wrong issuer":   otherIssuer,
-		"wrong secret":   otherSecret,
-		"alg none":       none,
-		"tampered":       valid + "x",
-		"garbage":        "not-a-token",
+		"without client":           noClient,
+		"staff without membership": staffWithoutMembership,
+		"expired":                  expired,
+		"wrong issuer":             otherIssuer,
+		"wrong secret":             otherSecret,
+		"alg none":                 none,
+		"tampered":                 valid + "x",
+		"garbage":                  "not-a-token",
 	}
 	for name, token := range cases {
 		t.Run(name, func(t *testing.T) {

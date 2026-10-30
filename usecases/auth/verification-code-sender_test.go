@@ -38,6 +38,7 @@ func TestVerificationCodeSender_Texts(t *testing.T) {
 	}{
 		{enums.OTPPurposeVerifyPhone, 5 * time.Minute, "Código de verificação: 726564. Válido por 5 min. Não o partilhe."},
 		{enums.OTPPurposeResetPassword, 10 * time.Minute, "Código de recuperação: 726564. Válido por 10 min. Não o partilhe."},
+		{enums.OTPPurposeChangePhone, 10 * time.Minute, "Código de novo número: 726564. Válido por 10 min. Não o partilhe."},
 		{enums.OTPPurposeVerifyPhone, 90 * time.Second, "Código de verificação: 726564. Válido por 2 min. Não o partilhe."},
 		{enums.OTPPurposeVerifyPhone, 30 * time.Second, "Código de verificação: 726564. Válido por 1 min. Não o partilhe."},
 	}

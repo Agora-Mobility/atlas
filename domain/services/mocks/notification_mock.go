@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	services "github.com/Agora-Mobility/atlas/domain/services"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -52,4 +53,42 @@ func (m *MockISMSSender) Send(ctx context.Context, phone, message string) error 
 func (mr *MockISMSSenderMockRecorder) Send(ctx, phone, message any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockISMSSender)(nil).Send), ctx, phone, message)
+}
+
+// MockIEmailSender is a mock of IEmailSender interface.
+type MockIEmailSender struct {
+	ctrl     *gomock.Controller
+	recorder *MockIEmailSenderMockRecorder
+	isgomock struct{}
+}
+
+// MockIEmailSenderMockRecorder is the mock recorder for MockIEmailSender.
+type MockIEmailSenderMockRecorder struct {
+	mock *MockIEmailSender
+}
+
+// NewMockIEmailSender creates a new mock instance.
+func NewMockIEmailSender(ctrl *gomock.Controller) *MockIEmailSender {
+	mock := &MockIEmailSender{ctrl: ctrl}
+	mock.recorder = &MockIEmailSenderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIEmailSender) EXPECT() *MockIEmailSenderMockRecorder {
+	return m.recorder
+}
+
+// Send mocks base method.
+func (m *MockIEmailSender) Send(ctx context.Context, email services.Email) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", ctx, email)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send.
+func (mr *MockIEmailSenderMockRecorder) Send(ctx, email any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockIEmailSender)(nil).Send), ctx, email)
 }

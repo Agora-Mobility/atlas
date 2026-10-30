@@ -19,6 +19,76 @@ definitions:
         example: ok
         type: string
     type: object
+  dtos.AcceptInvitationInput:
+    properties:
+      code:
+        example: "123456"
+        type: string
+      password:
+        example: S3gredo!forte
+        maxLength: 128
+        type: string
+      token:
+        maxLength: 128
+        type: string
+    required:
+    - code
+    - password
+    - token
+    type: object
+  dtos.AccessView:
+    properties:
+      membership_id:
+        type: string
+      organization_id:
+        type: string
+      permissions:
+        example:
+        - members:read
+        - members:invite
+        items:
+          type: string
+        type: array
+      scope:
+        allOf:
+        - $ref: '#/definitions/enums.OrganizationType'
+        example: platform
+    type: object
+  dtos.BlockReasonList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.BlockReasonView'
+        type: array
+    type: object
+  dtos.BlockReasonView:
+    properties:
+      code:
+        example: fraud
+        type: string
+      id:
+        type: string
+      label:
+        example: Fraude ou actividade suspeita
+        type: string
+    type: object
+  dtos.BlockUserInput:
+    properties:
+      note:
+        example: Fraude reportada pelo cliente
+        maxLength: 500
+        type: string
+      reason_ids:
+        example:
+        - 0192f1d2-7c3a-7b4e-9a10-2f3c4d5e6f70
+        items:
+          type: string
+        maxItems: 20
+        minItems: 1
+        type: array
+    required:
+    - reason_ids
+    type: object
   dtos.ChangePasswordInput:
     properties:
       current_password:
@@ -30,11 +100,95 @@ definitions:
     - current_password
     - new_password
     type: object
+  dtos.CreatePartnerInput:
+    properties:
+      name:
+        example: Transportes Kianda
+        maxLength: 120
+        type: string
+      nif:
+        example: "5417123456"
+        maxLength: 20
+        type: string
+    required:
+    - name
+    type: object
+  dtos.CreateRoleInput:
+    properties:
+      code:
+        example: field_support
+        maxLength: 40
+        type: string
+      name:
+        example: Suporte de campo
+        maxLength: 80
+        type: string
+      permissions:
+        example:
+        - members:read
+        - providers:read
+        items:
+          type: string
+        maxItems: 60
+        minItems: 1
+        type: array
+      requires_mfa:
+        type: boolean
+    required:
+    - code
+    - name
+    - permissions
+    type: object
+  dtos.DeleteAccountInput:
+    properties:
+      code:
+        example: "123456"
+        type: string
+      password:
+        maxLength: 128
+        type: string
+    type: object
+  dtos.InvitationTokenInput:
+    properties:
+      token:
+        maxLength: 128
+        type: string
+    required:
+    - token
+    type: object
+  dtos.InviteMemberInput:
+    properties:
+      email:
+        example: operador@agora.ao
+        maxLength: 254
+        type: string
+      name:
+        example: Operador AGORA
+        maxLength: 120
+        type: string
+      phone:
+        example: "+244923000010"
+        maxLength: 32
+        type: string
+      role_ids:
+        items:
+          type: string
+        maxItems: 20
+        minItems: 1
+        type: array
+    required:
+    - email
+    - name
+    - phone
+    - role_ids
+    type: object
   dtos.LoginInput:
     properties:
       identifier:
         example: "+244923000000"
         maxLength: 254
+        type: string
+      organization_id:
         type: string
       password:
         example: S3gredo!forte
@@ -44,10 +198,206 @@ definitions:
     - identifier
     - password
     type: object
+  dtos.MFAChallengeOutput:
+    properties:
+      expires_in:
+        example: 300
+        type: integer
+      mfa_token:
+        type: string
+      status:
+        enum:
+        - setup_required
+        - code_required
+        example: code_required
+        type: string
+    type: object
+  dtos.MFACodeInput:
+    properties:
+      code:
+        example: "123456"
+        type: string
+    required:
+    - code
+    type: object
+  dtos.MFARecoverInput:
+    properties:
+      mfa_token:
+        maxLength: 128
+        type: string
+      recovery_code:
+        example: 7KQM-2XRT-PL9D
+        maxLength: 32
+        type: string
+    required:
+    - mfa_token
+    - recovery_code
+    type: object
+  dtos.MFASetupOutput:
+    properties:
+      otpauth_uri:
+        example: otpauth://totp/AGORA:ana@agora.ao?secret=JBSWY3DPEHPK3PXP&issuer=AGORA
+        type: string
+      secret:
+        example: JBSWY3DPEHPK3PXP
+        type: string
+    type: object
+  dtos.MFATokenInput:
+    properties:
+      mfa_token:
+        maxLength: 128
+        type: string
+    required:
+    - mfa_token
+    type: object
+  dtos.MFAVerifyInput:
+    properties:
+      code:
+        example: "123456"
+        type: string
+      mfa_token:
+        maxLength: 128
+        type: string
+    required:
+    - code
+    - mfa_token
+    type: object
+  dtos.MemberPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.MemberView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  dtos.MemberView:
+    properties:
+      activated_at:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      last_login_at:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/dtos.RoleSummary'
+        type: array
+      status:
+        allOf:
+        - $ref: '#/definitions/enums.MembershipStatus'
+        example: active
+      user_id:
+        type: string
+    type: object
   dtos.MessageOutput:
     properties:
       message:
         type: string
+    type: object
+  dtos.MyAccessView:
+    properties:
+      membership_id:
+        type: string
+      organization:
+        $ref: '#/definitions/dtos.OrganizationView'
+      permissions:
+        items:
+          type: string
+        type: array
+      roles:
+        items:
+          $ref: '#/definitions/dtos.RoleSummary'
+        type: array
+    type: object
+  dtos.OrganizationPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.OrganizationView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  dtos.OrganizationView:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        example: Transportes Kianda
+        type: string
+      nif:
+        example: "5417123456"
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/enums.OrganizationType'
+        example: partner
+      updated_at:
+        type: string
+    type: object
+  dtos.PermissionList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.PermissionView'
+        type: array
+    type: object
+  dtos.PermissionView:
+    properties:
+      code:
+        example: members:read
+        type: string
+      description:
+        type: string
+      scopes:
+        items:
+          $ref: '#/definitions/enums.OrganizationType'
+        type: array
+    type: object
+  dtos.PhoneChangeConfirmInput:
+    properties:
+      code:
+        example: "123456"
+        type: string
+      phone:
+        example: "+244923111111"
+        maxLength: 32
+        type: string
+    required:
+    - code
+    - phone
+    type: object
+  dtos.PhoneChangeRequestInput:
+    properties:
+      phone:
+        example: "+244923111111"
+        maxLength: 32
+        type: string
+    required:
+    - phone
     type: object
   dtos.PhoneVerificationConfirmInput:
     properties:
@@ -70,6 +420,15 @@ definitions:
         type: string
     required:
     - phone
+    type: object
+  dtos.RecoveryCodesOutput:
+    properties:
+      recovery_codes:
+        example:
+        - 7KQM-2XRT-PL9D
+        items:
+          type: string
+        type: array
     type: object
   dtos.RecoveryConfirmInput:
     properties:
@@ -107,28 +466,77 @@ definitions:
     type: object
   dtos.RegisterInput:
     properties:
-      email:
-        example: ana@exemplo.ao
-        maxLength: 254
-        type: string
-      name:
-        example: Ana Domingos
-        maxLength: 120
-        type: string
-      password:
-        example: S3gredo!forte
-        type: string
       phone:
         example: "+244923000000"
         maxLength: 32
         type: string
     required:
-    - name
-    - password
     - phone
+    type: object
+  dtos.ReplaceRolesInput:
+    properties:
+      role_ids:
+        items:
+          type: string
+        maxItems: 20
+        minItems: 1
+        type: array
+    required:
+    - role_ids
+    type: object
+  dtos.ResetPasswordInput:
+    properties:
+      new_password:
+        example: N0vo!segredo
+        type: string
+    required:
+    - new_password
+    type: object
+  dtos.RoleList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.RoleView'
+        type: array
+    type: object
+  dtos.RoleSummary:
+    properties:
+      code:
+        example: operations
+        type: string
+      id:
+        type: string
+      name:
+        example: Operações
+        type: string
+    type: object
+  dtos.RoleView:
+    properties:
+      code:
+        example: operations
+        type: string
+      id:
+        type: string
+      is_system:
+        type: boolean
+      name:
+        example: Operações
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      requires_mfa:
+        type: boolean
+      scope:
+        allOf:
+        - $ref: '#/definitions/enums.OrganizationType'
+        example: platform
     type: object
   dtos.SessionOutput:
     properties:
+      access:
+        $ref: '#/definitions/dtos.AccessView'
       access_token:
         type: string
       client:
@@ -137,6 +545,12 @@ definitions:
       expires_in:
         example: 900
         type: integer
+      mfa_recovery_codes:
+        example:
+        - 7KQM-2XRT-PL9D
+        items:
+          type: string
+        type: array
       refresh_expires_at:
         type: string
       refresh_token:
@@ -146,6 +560,90 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/dtos.UserView'
+    type: object
+  dtos.SetPasswordInput:
+    properties:
+      password:
+        example: S3gredo!forte
+        type: string
+    required:
+    - password
+    type: object
+  dtos.UnblockUserInput:
+    properties:
+      reason:
+        example: Situação resolvida
+        maxLength: 500
+        type: string
+    type: object
+  dtos.UpdateMemberInput:
+    properties:
+      name:
+        example: Operador AGORA
+        maxLength: 120
+        type: string
+      phone:
+        example: "+244923000011"
+        maxLength: 32
+        type: string
+    type: object
+  dtos.UpdatePartnerInput:
+    properties:
+      name:
+        example: Transportes Kianda, Lda
+        maxLength: 120
+        type: string
+      nif:
+        example: "5417123456"
+        maxLength: 20
+        type: string
+    type: object
+  dtos.UpdateProfileInput:
+    properties:
+      code:
+        example: "123456"
+        type: string
+      current_password:
+        maxLength: 128
+        type: string
+      email:
+        example: ana@exemplo.ao
+        maxLength: 254
+        type: string
+      name:
+        example: Ana Domingos
+        maxLength: 120
+        type: string
+    type: object
+  dtos.UpdateRoleInput:
+    properties:
+      name:
+        example: Suporte de campo
+        maxLength: 80
+        type: string
+      permissions:
+        items:
+          type: string
+        maxItems: 60
+        minItems: 1
+        type: array
+      requires_mfa:
+        type: boolean
+    type: object
+  dtos.UserPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.UserView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
     type: object
   dtos.UserView:
     properties:
@@ -168,20 +666,36 @@ definitions:
       status:
         $ref: '#/definitions/enums.UserStatus'
     type: object
+  enums.MembershipStatus:
+    enum:
+    - invited
+    - active
+    - suspended
+    - deactivated
+    type: string
+    x-enum-varnames:
+    - MembershipStatusInvited
+    - MembershipStatusActive
+    - MembershipStatusSuspended
+    - MembershipStatusDeactivated
+  enums.OrganizationType:
+    enum:
+    - platform
+    - partner
+    type: string
+    x-enum-varnames:
+    - OrganizationTypePlatform
+    - OrganizationTypePartner
   enums.Role:
     enum:
     - customer
     - provider
-    - operator
-    - admin
-    - partner
+    - staff
     type: string
     x-enum-varnames:
     - RoleCustomer
     - RoleProvider
-    - RoleOperator
-    - RoleAdmin
-    - RolePartner
+    - RoleStaff
   enums.UserStatus:
     enum:
     - active
@@ -218,14 +732,307 @@ info:
   title: Atlas API
   version: "1.0"
 paths:
+  /api/v1/admin/block-reasons:
+    get:
+      description: Requires users:block. The active reasons an account can be blocked
+        for. Send their ids in reason_ids when blocking.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BlockReasonList'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List block reasons
+      tags:
+      - Backoffice users
+  /api/v1/admin/users:
+    get:
+      description: Requires users:read. Staff are managed as members.
+      parameters:
+      - description: Role
+        enum:
+        - customer
+        - provider
+        in: query
+        name: role
+        type: string
+      - description: Status
+        enum:
+        - active
+        - inactive
+        - blocked
+        in: query
+        name: status
+        type: string
+      - description: Part of the name, e-mail or phone
+        in: query
+        name: search
+        type: string
+      - description: Page (from 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (max 100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UserPage'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid filters
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List customer and provider accounts
+      tags:
+      - Backoffice users
+  /api/v1/admin/users/{id}:
+    get:
+      description: Requires users:read.
+      parameters:
+      - description: User id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UserView'
+        "400":
+          description: Invalid id
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a customer or provider account
+      tags:
+      - Backoffice users
+  /api/v1/admin/users/{id}/block:
+    post:
+      consumes:
+      - application/json
+      description: Requires users:block. Ends every session of the customer or provider
+        at once.
+      parameters:
+      - description: User id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reasons from GET /api/v1/admin/block-reasons and an optional
+          note
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.BlockUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UserView'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission or own account
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: No reason given or unknown reason
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Block a user
+      tags:
+      - Backoffice users
+  /api/v1/admin/users/{id}/password:
+    put:
+      consumes:
+      - application/json
+      description: Requires users:reset-password, for accounts that cannot use SMS
+        recovery. Ends every session of the user at once.
+      parameters:
+      - description: User id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ResetPasswordInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid password
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Reset the password of a user
+      tags:
+      - Backoffice users
+  /api/v1/admin/users/{id}/unblock:
+    post:
+      consumes:
+      - application/json
+      description: Requires users:block.
+      parameters:
+      - description: User id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Optional reason
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UnblockUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UserView'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission or own account
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Unblock a customer or provider account
+      tags:
+      - Backoffice users
   /api/v1/auth/login:
     post:
       consumes:
       - application/json
       description: 'The identifier is an e-mail or a phone number in E.164 format.
-        The account role must be accepted by the client: customers sign in through
-        agora-customer-app, providers through agora-provider-app, partners through
-        agora-partner-panel, operators and admins through agora-backoffice.'
+        Customers sign in through agora-customer-app and providers through agora-provider-app.
+        Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel
+        (partner membership); organization_id picks one partner when the person belongs
+        to several. When the membership requires MFA, or the person has set it up,
+        the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup
+        and /auth/mfa/verify.'
       parameters:
       - description: Login payload
         in: body
@@ -240,6 +1047,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dtos.SessionOutput'
+        "202":
+          description: MFA step required
+          schema:
+            $ref: '#/definitions/dtos.MFAChallengeOutput'
         "400":
           description: Invalid request or missing client
           schema:
@@ -267,14 +1078,15 @@ paths:
       - Auth
   /api/v1/auth/logout:
     post:
-      description: Revokes the refresh tokens of the current session.
+      description: Revokes the refresh tokens of the current session and denies its
+        access token at once.
       produces:
       - application/json
       responses:
         "204":
           description: No Content
         "401":
-          description: Unauthorized
+          description: Unauthorized or session ended
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "403":
@@ -294,14 +1106,14 @@ paths:
   /api/v1/auth/logout-all:
     post:
       description: Revokes every refresh token of the authenticated user, in every
-        client.
+        client, and denies their access tokens at once.
       produces:
       - application/json
       responses:
         "204":
           description: No Content
         "401":
-          description: Unauthorized
+          description: Unauthorized or session ended
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "403":
@@ -318,12 +1130,120 @@ paths:
       summary: Logout from all sessions
       tags:
       - Auth
+  /api/v1/auth/mfa/recover:
+    post:
+      consumes:
+      - application/json
+      description: For a member who lost the authenticator app. Each recovery code
+        works once; regenerate them afterwards at POST /api/v1/users/me/mfa/recovery-codes.
+      parameters:
+      - description: MFA token and recovery code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.MFARecoverInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SessionOutput'
+        "401":
+          description: MFA step expired or too many attempts
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Setup required
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Wrong or used code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Finish the sign-in with a recovery code
+      tags:
+      - Auth
+  /api/v1/auth/mfa/setup:
+    post:
+      consumes:
+      - application/json
+      description: With the mfa_token of a login answered with setup_required. Returns
+        the secret to scan; confirm it at /auth/mfa/verify.
+      parameters:
+      - description: MFA token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.MFATokenInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MFASetupOutput'
+        "401":
+          description: MFA step expired
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Already set up
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Start the authenticator app setup
+      tags:
+      - Auth
+  /api/v1/auth/mfa/verify:
+    post:
+      consumes:
+      - application/json
+      description: With the mfa_token of the login and the 6-digit code of the app.
+        Confirms a pending setup and starts the session.
+      parameters:
+      - description: MFA token and code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.MFAVerifyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SessionOutput'
+        "401":
+          description: MFA step expired or too many attempts
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Setup required
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Wrong code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Finish the sign-in with an authenticator code
+      tags:
+      - Auth
   /api/v1/auth/phone/verification-code:
     post:
       consumes:
       - application/json
-      description: Always answers 202 so the response does not reveal whether the
-        phone is registered.
+      description: Customer and provider apps only. Serves the first verification
+        and every later sign-in without password. Always answers 202 so the response
+        does not reveal whether the phone is registered.
       parameters:
       - description: Phone payload
         in: body
@@ -360,13 +1280,15 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Send a phone verification code
+      summary: Send a phone code to verify or sign in
       tags:
       - Auth
   /api/v1/auth/phone/verify:
     post:
       consumes:
       - application/json
+      description: Customer and provider apps only. Marks the phone verified on the
+        first use.
       parameters:
       - description: Phone and code
         in: body
@@ -407,14 +1329,15 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Verify the phone and start a session
+      summary: Verify the phone code and start a session
       tags:
       - Auth
   /api/v1/auth/recovery/confirm:
     post:
       consumes:
       - application/json
-      description: Ends every session of the user.
+      description: Ends every session of the user. Accounts without a password get
+        409 PASSWORD_NOT_SET and use POST /users/password instead.
       parameters:
       - description: Recovery confirm payload
         in: body
@@ -549,9 +1472,13 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'Creates an unverified account and sends a verification code by
-        SMS. The role comes from the client: agora-customer-app creates a customer,
-        agora-provider-app creates a provider. Other clients cannot register.'
+      description: 'Creates an unverified account with only the phone number and sends
+        a verification code by SMS. Confirm it with /auth/phone/verify to get the
+        session, then set the name with PATCH /users/me and, optionally, a password
+        with POST /users/password. Calling it again for a number whose registration
+        was not verified resends the code. The role comes from the client: agora-customer-app
+        creates a customer, agora-provider-app creates a provider. Other clients cannot
+        register.'
       parameters:
       - description: Register payload
         in: body
@@ -579,7 +1506,7 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "409":
-          description: Email or phone already registered
+          description: Phone already registered
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "422":
@@ -599,7 +1526,1014 @@ paths:
       summary: Register a new user
       tags:
       - Auth
+  /api/v1/invitations/accept:
+    post:
+      consumes:
+      - application/json
+      description: Sets the password (or confirms the current one when the person
+        already has an account) and activates the membership. Sign in afterwards;
+        roles that require MFA ask to set it up at the first sign-in.
+      parameters:
+      - description: Token, password and SMS code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.AcceptInvitationInput'
+      responses:
+        "204":
+          description: No Content
+        "422":
+          description: Invalid invitation, password or code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Accept an invitation
+      tags:
+      - Invitations
+  /api/v1/invitations/verification-code:
+    post:
+      consumes:
+      - application/json
+      description: Sends an SMS code to the phone of the invited person. Use the client
+        of the invitation (agora-backoffice or agora-partner-panel).
+      parameters:
+      - description: Invitation token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.InvitationTokenInput'
+      responses:
+        "202":
+          description: Accepted
+        "422":
+          description: Invalid invitation
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Code sent recently
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Send the activation code of an invitation
+      tags:
+      - Invitations
+  /api/v1/members:
+    get:
+      description: Requires members:read. The organization is always the one of the
+        session.
+      parameters:
+      - description: Status
+        enum:
+        - invited
+        - active
+        - suspended
+        - deactivated
+        in: query
+        name: status
+        type: string
+      - description: Role id
+        in: query
+        name: role_id
+        type: string
+      - description: Part of the name, e-mail or phone
+        in: query
+        name: search
+        type: string
+      - description: Page (from 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (max 100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MemberPage'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid filters
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the members of the organization
+      tags:
+      - Members
+  /api/v1/members/{id}:
+    get:
+      description: Requires members:read. A member of another organization answers
+        404.
+      parameters:
+      - description: Member (membership) id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MemberView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Member not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a member
+      tags:
+      - Members
+    patch:
+      consumes:
+      - application/json
+      description: Requires members:update.
+      parameters:
+      - description: Member (membership) id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateMemberInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MemberView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission or privilege escalation
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Member not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Phone in use or member deactivated
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change the name or phone of a member
+      tags:
+      - Members
+  /api/v1/members/{id}/deactivate:
+    post:
+      description: 'Requires members:deactivate. Final: the membership cannot be reactivated.
+        Ends sessions and pending invitations.'
+      parameters:
+      - description: Member (membership) id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MemberView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission, privilege escalation or own account
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Member not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Last owner or already deactivated
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Deactivate a member
+      tags:
+      - Members
+  /api/v1/members/{id}/invitations/resend:
+    post:
+      description: Requires members:invite. The previous invitation stops working.
+      parameters:
+      - description: Member (membership) id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Member not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: The member is not invited
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Resend the invitation
+      tags:
+      - Members
+  /api/v1/members/{id}/mfa/reset:
+    post:
+      description: Requires members:mfa-reset, for a member who lost the authenticator
+        app and the recovery codes. Ends every session; the next sign-in asks to set
+        up MFA again. A partner cannot reset someone who also belongs to other organizations.
+      parameters:
+      - description: Member (membership) id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission, privilege escalation, own account or member
+            of other organizations
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Member not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Member deactivated
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Reset the authenticator of a member
+      tags:
+      - Members
+  /api/v1/members/{id}/reactivate:
+    post:
+      description: Requires members:suspend.
+      parameters:
+      - description: Member (membership) id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MemberView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission, privilege escalation or own account
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Member not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Invalid state
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Reactivate a suspended member
+      tags:
+      - Members
+  /api/v1/members/{id}/roles:
+    put:
+      consumes:
+      - application/json
+      description: Requires roles:assign. The list replaces the current roles and
+        takes effect on the next request. You cannot change your own roles, grant
+        permissions you do not hold, or remove the last active owner.
+      parameters:
+      - description: Member (membership) id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Roles
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ReplaceRolesInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MemberView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission, privilege escalation or own account
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Member or role not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Last owner or member deactivated
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Role of another scope
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Replace the roles of a member
+      tags:
+      - Members
+  /api/v1/members/{id}/suspend:
+    post:
+      description: Requires members:suspend. Ends every session of the person at once.
+      parameters:
+      - description: Member (membership) id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MemberView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission, privilege escalation or own account
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Member not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Last owner or invalid state
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Suspend a member
+      tags:
+      - Members
+  /api/v1/members/invitations:
+    post:
+      consumes:
+      - application/json
+      description: Requires members:invite. The invitation goes by SMS, lasts 48 h
+        and is accepted at POST /api/v1/invitations/accept. You can only grant roles
+        whose permissions you hold.
+      parameters:
+      - description: Invitation
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.InviteMemberInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.MemberView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission or privilege escalation
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Already a member, or the identity belongs to a customer or
+            provider
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields or role of another scope
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Invite a member
+      tags:
+      - Members
+  /api/v1/partners:
+    get:
+      description: Requires partners:read (AGORA only).
+      parameters:
+      - description: Part of the name or NIF
+        in: query
+        name: search
+        type: string
+      - description: Page (from 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (max 100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OrganizationPage'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List partner organizations
+      tags:
+      - Partners
+    post:
+      consumes:
+      - application/json
+      description: 'Requires partners:manage (AGORA only). The NIF is optional: 10
+        digits, or the BI number for a sole trader; spaces are ignored. Invite its
+        first owner at POST /api/v1/partners/{orgId}/members/invitations.'
+      parameters:
+      - description: Partner
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreatePartnerInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.OrganizationView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: NIF already registered
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields or NIF
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a partner organization
+      tags:
+      - Partners
+  /api/v1/partners/{orgId}:
+    patch:
+      consumes:
+      - application/json
+      description: Requires partners:manage (AGORA only). Changes only the fields
+        sent; an empty nif removes it. Spaces in the NIF are ignored.
+      parameters:
+      - description: Partner organization id
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdatePartnerInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OrganizationView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Partner not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: NIF already registered
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields or NIF
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update a partner organization
+      tags:
+      - Partners
+  /api/v1/partners/{orgId}/members:
+    get:
+      description: Requires partners:read (AGORA only).
+      parameters:
+      - description: Partner organization id
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Status
+        enum:
+        - invited
+        - active
+        - suspended
+        - deactivated
+        in: query
+        name: status
+        type: string
+      - description: Role id
+        in: query
+        name: role_id
+        type: string
+      - description: Part of the name, e-mail or phone
+        in: query
+        name: search
+        type: string
+      - description: Page (from 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (max 100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MemberPage'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Partner not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the members of a partner
+      tags:
+      - Partners
+  /api/v1/partners/{orgId}/members/invitations:
+    post:
+      consumes:
+      - application/json
+      description: Requires partners:manage (AGORA only), for example to invite the
+        first owner. Roles must be of the partner scope.
+      parameters:
+      - description: Partner organization id
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Invitation
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.InviteMemberInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.MemberView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Partner or role not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Already a member, or the identity belongs to a customer or
+            provider
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields or role of another scope
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Invite a member to a partner
+      tags:
+      - Partners
+  /api/v1/partners/{orgId}/roles:
+    get:
+      description: Requires partners:read (AGORA only). Use them to invite the members
+        of the partner.
+      parameters:
+      - description: Partner organization id
+        in: path
+        name: orgId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RoleList'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Partner not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the roles of a partner
+      tags:
+      - Partners
+  /api/v1/permissions:
+    get:
+      description: Requires roles:read.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PermissionList'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Permission catalog of the scope
+      tags:
+      - Members
+  /api/v1/roles:
+    get:
+      description: Requires roles:read. System roles of the scope and the roles of
+        the organization.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RoleList'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the roles of the organization
+      tags:
+      - Members
+    post:
+      consumes:
+      - application/json
+      description: Requires roles:manage. The role belongs to the organization of
+        the session; it can only hold permissions of its scope that you hold yourself.
+      parameters:
+      - description: Role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateRoleInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.RoleView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission or privilege escalation
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Code already used
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields or unknown permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a custom role
+      tags:
+      - Roles
+  /api/v1/roles/{id}:
+    delete:
+      description: Requires roles:manage. Only roles no member holds.
+      parameters:
+      - description: Role id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission or privilege escalation
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: System role or role in use
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Delete a custom role
+      tags:
+      - Roles
+    get:
+      description: Requires roles:read. A role of another organization answers 404.
+      parameters:
+      - description: Role id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RoleView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a role
+      tags:
+      - Roles
+    patch:
+      consumes:
+      - application/json
+      description: Requires roles:manage. New permissions apply to every member with
+        the role on their next request.
+      parameters:
+      - description: Role id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateRoleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RoleView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission or privilege escalation
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: System role
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields or unknown permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change a custom role
+      tags:
+      - Roles
   /api/v1/users/me:
+    delete:
+      consumes:
+      - application/json
+      description: Customers and providers only. Confirm with password or, without
+        a password, with a code from /users/me/verification-code. Ends every session
+        at once; the phone and e-mail can be registered again.
+      parameters:
+      - description: Password or code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.DeleteAccountInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Staff accounts cannot be deleted here
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Account has no password
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Missing confirmation, wrong password or code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Delete the account of the authenticated user
+      tags:
+      - Users
     get:
       produces:
       - application/json
@@ -609,7 +2543,7 @@ paths:
           schema:
             $ref: '#/definitions/dtos.UserView'
         "401":
-          description: Unauthorized
+          description: Unauthorized or session ended
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "403":
@@ -630,11 +2564,303 @@ paths:
       summary: Get the authenticated user
       tags:
       - Users
-  /api/v1/users/password:
+    patch:
+      consumes:
+      - application/json
+      description: Changes only the fields sent. Changing or removing the e-mail requires
+        current_password or a code from /users/me/verification-code. The phone number
+        changes through /users/me/phone.
+      parameters:
+      - description: Profile fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateProfileInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UserView'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Token bound to another client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Email already registered
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields, missing confirmation, wrong password or code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update the profile of the authenticated user
+      tags:
+      - Users
+  /api/v1/users/me/mfa/recovery-codes:
+    post:
+      consumes:
+      - application/json
+      description: Confirm with a code of the authenticator app. The previous recovery
+        codes stop working.
+      parameters:
+      - description: Authenticator code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.MFACodeInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RecoveryCodesOutput'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: MFA not set up
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Wrong code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Generate new MFA recovery codes
+      tags:
+      - Auth
+  /api/v1/users/me/permissions:
+    get:
+      description: 'For the UI only: every endpoint checks its own permission.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MyAccessView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Not a staff session
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Effective permissions of the signed-in member
+      tags:
+      - Members
+  /api/v1/users/me/phone:
     put:
       consumes:
       - application/json
-      description: Ends every session of the user.
+      parameters:
+      - description: New phone and code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PhoneChangeConfirmInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UserView'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Phone already registered
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid, expired or exhausted code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Confirm the new phone number with the code
+      tags:
+      - Users
+  /api/v1/users/me/phone/verification-code:
+    post:
+      consumes:
+      - application/json
+      description: Sends an SMS code to the new number. Only the signed-in user who
+        asked for it can use the code.
+      parameters:
+      - description: New phone
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PhoneChangeRequestInput'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dtos.MessageOutput'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Phone already registered
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid phone or same as the current one
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Code sent recently or too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "503":
+          description: SMS unavailable
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Send a code to a new phone number
+      tags:
+      - Users
+  /api/v1/users/me/verification-code:
+    post:
+      description: The code confirms an e-mail change or the account deletion when
+        the user has no password. Customers and providers only.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dtos.MessageOutput'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Staff accounts confirm with the password
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Code sent recently or too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "503":
+          description: SMS unavailable
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Send a confirmation code to the account phone
+      tags:
+      - Users
+  /api/v1/users/password:
+    post:
+      consumes:
+      - application/json
+      description: Accounts created by phone have no password and sign in with an
+        SMS code. This sets the first password and keeps the current sessions. Use
+        PUT /users/password to change an existing one.
+      parameters:
+      - description: Set password payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SetPasswordInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Token bound to another client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Account already has a password
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid password
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set a password on an account that has none
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Ends every session of the user. Accounts without a password get
+        409 PASSWORD_NOT_SET and use POST /users/password instead.
       parameters:
       - description: Change password payload
         in: body
@@ -652,11 +2878,15 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "401":
-          description: Unauthorized
+          description: Unauthorized or session ended
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "403":
           description: Token bound to another client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Account has no password
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "422":

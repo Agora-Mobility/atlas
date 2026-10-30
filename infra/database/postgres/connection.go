@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
@@ -17,9 +18,23 @@ import (
 
 const connectAttempts = 5
 
-// Connection creates a pgx pool and waits until the database answers a ping,
-// retrying with backoff so the API survives a database that starts slowly.
+const AppRole = "atlas_app"
+
+// Connection creates the pool of the API. Every connection switches to
+// AppRole, which owns nothing and is subject to row-level security, and waits
+// until the database answers a ping, retrying with backoff so the API
+// survives a database that starts slowly.
 func Connection(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
+	return connect(ctx, cfg, true)
+}
+
+// OwnerConnection keeps the role of DATABASE_URL, for tools that maintain
+// the data (seed) rather than serve requests.
+func OwnerConnection(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
+	return connect(ctx, cfg, false)
+}
+
+func connect(ctx context.Context, cfg config.DatabaseConfig, asApp bool) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.URL)
 	if err != nil {
 		return nil, fmt.Errorf("parse DATABASE_URL: %w", err)
@@ -28,6 +43,16 @@ func Connection(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, 
 	poolCfg.MinConns = cfg.MinConns
 	poolCfg.MaxConnLifetime = cfg.MaxConnLifetime
 	poolCfg.MaxConnIdleTime = cfg.MaxConnIdleTime
+	// Every connection resolves our objects in Schema, whatever the URL says.
+	poolCfg.ConnConfig.RuntimeParams["search_path"] = searchPath
+	if asApp {
+		poolCfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+			if _, err := conn.Exec(ctx, "SET ROLE "+pgx.Identifier{AppRole}.Sanitize()); err != nil {
+				return fmt.Errorf("switch to role %s (run the migrations first): %w", AppRole, err)
+			}
+			return nil
+		}
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {

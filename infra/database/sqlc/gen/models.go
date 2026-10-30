@@ -58,6 +58,92 @@ func (ns NullClientType) Value() (driver.Value, error) {
 	return string(ns.ClientType), nil
 }
 
+type MembershipStatus string
+
+const (
+	MembershipStatusInvited     MembershipStatus = "invited"
+	MembershipStatusActive      MembershipStatus = "active"
+	MembershipStatusSuspended   MembershipStatus = "suspended"
+	MembershipStatusDeactivated MembershipStatus = "deactivated"
+)
+
+func (e *MembershipStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MembershipStatus(s)
+	case string:
+		*e = MembershipStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MembershipStatus: %T", src)
+	}
+	return nil
+}
+
+type NullMembershipStatus struct {
+	MembershipStatus MembershipStatus `json:"membership_status"`
+	Valid            bool             `json:"valid"` // Valid is true if MembershipStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMembershipStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.MembershipStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MembershipStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMembershipStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MembershipStatus), nil
+}
+
+type OrganizationType string
+
+const (
+	OrganizationTypePlatform OrganizationType = "platform"
+	OrganizationTypePartner  OrganizationType = "partner"
+)
+
+func (e *OrganizationType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OrganizationType(s)
+	case string:
+		*e = OrganizationType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OrganizationType: %T", src)
+	}
+	return nil
+}
+
+type NullOrganizationType struct {
+	OrganizationType OrganizationType `json:"organization_type"`
+	Valid            bool             `json:"valid"` // Valid is true if OrganizationType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOrganizationType) Scan(value interface{}) error {
+	if value == nil {
+		ns.OrganizationType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OrganizationType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOrganizationType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OrganizationType), nil
+}
+
 type UserRole string
 
 const (
@@ -66,6 +152,7 @@ const (
 	UserRoleOperator UserRole = "operator"
 	UserRoleAdmin    UserRole = "admin"
 	UserRolePartner  UserRole = "partner"
+	UserRoleStaff    UserRole = "staff"
 )
 
 func (e *UserRole) Scan(src interface{}) error {
@@ -146,6 +233,32 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 	return string(ns.UserStatus), nil
 }
 
+type AuditLog struct {
+	ID             uuid.UUID       `json:"id"`
+	ActorID        *uuid.UUID      `json:"actor_id"`
+	ActorRole      *enums.Role     `json:"actor_role"`
+	Action         string          `json:"action"`
+	EntityType     string          `json:"entity_type"`
+	EntityID       string          `json:"entity_id"`
+	Before         json.RawMessage `json:"before"`
+	After          json.RawMessage `json:"after"`
+	Reason         string          `json:"reason"`
+	CorrelationID  string          `json:"correlation_id"`
+	IpAddress      string          `json:"ip_address"`
+	UserAgent      string          `json:"user_agent"`
+	CreatedAt      time.Time       `json:"created_at"`
+	OrganizationID *uuid.UUID      `json:"organization_id"`
+}
+
+type BlockReason struct {
+	ID        uuid.UUID `json:"id"`
+	Code      string    `json:"code"`
+	Label     string    `json:"label"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type Client struct {
 	ID        uuid.UUID        `json:"id"`
 	ClientID  string           `json:"client_id"`
@@ -154,6 +267,51 @@ type Client struct {
 	IsActive  bool             `json:"is_active"`
 	CreatedAt time.Time        `json:"created_at"`
 	UpdatedAt time.Time        `json:"updated_at"`
+}
+
+type Invitation struct {
+	ID           uuid.UUID  `json:"id"`
+	MembershipID uuid.UUID  `json:"membership_id"`
+	TokenHash    string     `json:"token_hash"`
+	CreatedBy    *uuid.UUID `json:"created_by"`
+	ExpiresAt    time.Time  `json:"expires_at"`
+	AcceptedAt   *time.Time `json:"accepted_at"`
+	RevokedAt    *time.Time `json:"revoked_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+type Membership struct {
+	ID             uuid.UUID              `json:"id"`
+	UserID         uuid.UUID              `json:"user_id"`
+	OrganizationID uuid.UUID              `json:"organization_id"`
+	Status         enums.MembershipStatus `json:"status"`
+	PermVersion    int64                  `json:"perm_version"`
+	InvitedBy      *uuid.UUID             `json:"invited_by"`
+	ActivatedAt    *time.Time             `json:"activated_at"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+}
+
+type MembershipRole struct {
+	MembershipID uuid.UUID `json:"membership_id"`
+	RoleID       uuid.UUID `json:"role_id"`
+}
+
+type MfaRecoveryCode struct {
+	ID        uuid.UUID  `json:"id"`
+	UserID    uuid.UUID  `json:"user_id"`
+	CodeHash  string     `json:"code_hash"`
+	UsedAt    *time.Time `json:"used_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+type Organization struct {
+	ID        uuid.UUID              `json:"id"`
+	Type      enums.OrganizationType `json:"type"`
+	Name      string                 `json:"name"`
+	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
+	Nif       *string                `json:"nif"`
 }
 
 type Outbox struct {
@@ -172,6 +330,12 @@ type Outbox struct {
 	LastError     *string         `json:"last_error"`
 }
 
+type Permission struct {
+	Code        string                   `json:"code"`
+	Description string                   `json:"description"`
+	Scopes      []enums.OrganizationType `json:"scopes"`
+}
+
 type RefreshToken struct {
 	ID           uuid.UUID  `json:"id"`
 	UserID       uuid.UUID  `json:"user_id"`
@@ -184,6 +348,24 @@ type RefreshToken struct {
 	UserAgent    string     `json:"user_agent"`
 	IpAddress    string     `json:"ip_address"`
 	CreatedAt    time.Time  `json:"created_at"`
+	MembershipID *uuid.UUID `json:"membership_id"`
+}
+
+type Role struct {
+	ID             uuid.UUID              `json:"id"`
+	OrganizationID *uuid.UUID             `json:"organization_id"`
+	Scope          enums.OrganizationType `json:"scope"`
+	Code           string                 `json:"code"`
+	Name           string                 `json:"name"`
+	RequiresMfa    bool                   `json:"requires_mfa"`
+	IsSystem       bool                   `json:"is_system"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+}
+
+type RolePermission struct {
+	RoleID         uuid.UUID `json:"role_id"`
+	PermissionCode string    `json:"permission_code"`
 }
 
 type User struct {
@@ -199,4 +381,26 @@ type User struct {
 	CreatedAt   time.Time        `json:"created_at"`
 	UpdatedAt   time.Time        `json:"updated_at"`
 	DeletedAt   *time.Time       `json:"deleted_at"`
+}
+
+type UserBlock struct {
+	ID        uuid.UUID  `json:"id"`
+	UserID    uuid.UUID  `json:"user_id"`
+	BlockedBy *uuid.UUID `json:"blocked_by"`
+	Note      string     `json:"note"`
+	BlockedAt time.Time  `json:"blocked_at"`
+}
+
+type UserBlockReason struct {
+	UserBlockID   uuid.UUID `json:"user_block_id"`
+	BlockReasonID uuid.UUID `json:"block_reason_id"`
+}
+
+type UserMfa struct {
+	UserID       uuid.UUID  `json:"user_id"`
+	Secret       string     `json:"secret"`
+	ConfirmedAt  *time.Time `json:"confirmed_at"`
+	LastUsedStep int64      `json:"last_used_step"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }

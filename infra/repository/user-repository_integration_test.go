@@ -115,7 +115,7 @@ func TestRefreshTokenRepository(t *testing.T) {
 	require.NoError(t, err)
 	tokens := repository.NewRefreshTokenRepository(pool)
 
-	current, err := entities.StartRefreshTokenFamily(user.ID, client.ID, "hash-1", time.Hour, entities.SessionMetadata{UserAgent: "app", IPAddress: "10.0.0.1"})
+	current, err := entities.StartRefreshTokenFamily(user.ID, client.ID, nil, "hash-1", time.Hour, entities.SessionMetadata{UserAgent: "app", IPAddress: "10.0.0.1"})
 	require.NoError(t, err)
 	require.NoError(t, tokens.Create(ctx, current))
 

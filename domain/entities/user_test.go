@@ -23,12 +23,13 @@ func TestNewUser(t *testing.T) {
 		wantFields   []string
 	}{
 		{name: "valid with phone", userName: "Ana", phone: "+244923000000", password: hash, role: enums.RoleCustomer},
-		{name: "valid with email", userName: "Rui", email: " Rui@Agora.AO ", password: hash, role: enums.RoleAdmin},
-		{name: "blank name", userName: " ", phone: "+244923000000", password: hash, role: enums.RoleCustomer, wantFields: []string{"name"}},
-		{name: "invalid email", userName: "Ana", email: "nope", password: hash, role: enums.RoleOperator, wantFields: []string{"email"}},
+		{name: "valid with email", userName: "Rui", email: " Rui@Agora.AO ", password: hash, role: enums.RoleStaff},
+		{name: "without name", phone: "+244923000000", password: hash, role: enums.RoleCustomer},
+		{name: "short name", userName: "A", phone: "+244923000000", password: hash, role: enums.RoleCustomer, wantFields: []string{"name"}},
+		{name: "invalid email", userName: "Ana", email: "nope", password: hash, role: enums.RoleStaff, wantFields: []string{"email"}},
 		{name: "national phone", userName: "Ana", phone: " 923 000 000 ", password: hash, role: enums.RoleProvider},
 		{name: "invalid phone", userName: "Ana", phone: "12345", password: hash, role: enums.RoleProvider, wantFields: []string{"phone"}},
-		{name: "missing password", userName: "Ana", phone: "+244923000000", role: enums.RolePartner, wantFields: []string{"password"}},
+		{name: "missing password", userName: "Ana", phone: "+244923000000", role: enums.RoleStaff, wantFields: []string{"password"}},
 		{name: "unknown role", userName: "Ana", phone: "+244923000000", password: hash, role: "root", wantFields: []string{"role"}},
 		{name: "no email nor phone", userName: "Ana", password: hash, role: enums.RoleCustomer, wantFields: []string{"email"}},
 	}
@@ -59,6 +60,17 @@ func TestNewUser(t *testing.T) {
 	}
 }
 
+func TestNewSignUpUser_HasOnlyThePhone(t *testing.T) {
+	u, err := entities.NewSignUpUser(" 923 000 000 ", enums.RoleCustomer)
+
+	require.NoError(t, err)
+	assert.Equal(t, "+244923000000", u.Phone)
+	assert.Empty(t, u.Name)
+	assert.Empty(t, u.Email)
+	assert.False(t, u.HasPassword())
+	assert.False(t, u.IsVerified)
+}
+
 func TestUserLifecycle(t *testing.T) {
 	u, err := entities.NewUser("Ana", "", "+244923000000", hash, enums.RoleCustomer)
 	require.NoError(t, err)
@@ -79,4 +91,14 @@ func TestUserLifecycle(t *testing.T) {
 	u.SoftDelete()
 	assert.True(t, u.IsDeleted())
 	assert.False(t, u.CanLogin())
+}
+
+func TestInvitedStaffUserHasNoUsablePassword(t *testing.T) {
+	u, err := entities.NewInvitedStaffUser("Ana", "ana@agora.ao", "+244923000000")
+	require.NoError(t, err)
+
+	assert.Equal(t, enums.RoleStaff, u.Role)
+	assert.True(t, u.IsStaff())
+	assert.False(t, u.HasPassword())
+	assert.False(t, u.IsVerified)
 }

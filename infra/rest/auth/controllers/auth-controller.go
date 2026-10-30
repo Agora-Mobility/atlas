@@ -42,7 +42,7 @@ func NewAuthController(
 // Register godoc
 //
 //	@Summary		Register a new user
-//	@Description	Creates an unverified account and sends a verification code by SMS. The role comes from the client: agora-customer-app creates a customer, agora-provider-app creates a provider. Other clients cannot register.
+//	@Description	Creates an unverified account with only the phone number and sends a verification code by SMS. Confirm it with /auth/phone/verify to get the session, then set the name with PATCH /users/me and, optionally, a password with POST /users/password. Calling it again for a number whose registration was not verified resends the code. The role comes from the client: agora-customer-app creates a customer, agora-provider-app creates a provider. Other clients cannot register.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
@@ -51,7 +51,7 @@ func NewAuthController(
 //	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
 //	@Failure		401		{object}	shared.ErrorResponse	"Unknown client"
 //	@Failure		403		{object}	shared.ErrorResponse	"Client does not allow registration"
-//	@Failure		409		{object}	shared.ErrorResponse	"Email or phone already registered"
+//	@Failure		409		{object}	shared.ErrorResponse	"Phone already registered"
 //	@Failure		422		{object}	shared.ErrorResponse	"Invalid fields"
 //	@Failure		429		{object}	shared.ErrorResponse	"Too many requests"
 //	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
@@ -82,8 +82,6 @@ func (c *AuthController) handleRegisterError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, usecases.ErrRegistrationNotAllowed):
 		shared.Forbidden(ctx, "REGISTRATION_NOT_ALLOWED", "This client does not allow self registration.")
-	case errors.Is(err, usecases.ErrEmailAlreadyExists):
-		shared.Conflict(ctx, "EMAIL_ALREADY_EXISTS", "Email already registered.")
 	case errors.Is(err, usecases.ErrPhoneAlreadyExists):
 		shared.Conflict(ctx, "PHONE_ALREADY_EXISTS", "Phone already registered.")
 	default:
@@ -94,12 +92,13 @@ func (c *AuthController) handleRegisterError(ctx *gin.Context, err error) {
 // Login godoc
 //
 //	@Summary		Authenticate a user
-//	@Description	The identifier is an e-mail or a phone number in E.164 format. The account role must be accepted by the client: customers sign in through agora-customer-app, providers through agora-provider-app, partners through agora-partner-panel, operators and admins through agora-backoffice.
+//	@Description	The identifier is an e-mail or a phone number in E.164 format. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership); organization_id picks one partner when the person belongs to several. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.LoginInput	true	"Login payload"
 //	@Success		200		{object}	dtos.SessionOutput
+//	@Success		202		{object}	dtos.MFAChallengeOutput	"MFA step required"
 //	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
 //	@Failure		401		{object}	shared.ErrorResponse	"Invalid credentials or unknown client"
 //	@Failure		403		{object}	shared.ErrorResponse	"Account blocked, phone not verified or client not allowed"
@@ -124,8 +123,12 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		c.handleLoginError(ctx, err)
 		return
 	}
+	if resp.MFA != nil {
+		ctx.JSON(http.StatusAccepted, resp.MFA)
+		return
+	}
 
-	ctx.JSON(http.StatusOK, resp)
+	ctx.JSON(http.StatusOK, resp.Session)
 }
 
 func (c *AuthController) handleLoginError(ctx *gin.Context, err error) {
@@ -194,8 +197,8 @@ func (c *AuthController) handleRefreshError(ctx *gin.Context, err error) {
 
 // RequestPhoneVerification godoc
 //
-//	@Summary		Send a phone verification code
-//	@Description	Always answers 202 so the response does not reveal whether the phone is registered.
+//	@Summary		Send a phone code to verify or sign in
+//	@Description	Customer and provider apps only. Serves the first verification and every later sign-in without password. Always answers 202 so the response does not reveal whether the phone is registered.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
@@ -230,20 +233,21 @@ func (c *AuthController) RequestPhoneVerification(ctx *gin.Context) {
 
 // ConfirmPhoneVerification godoc
 //
-//	@Summary	Verify the phone and start a session
-//	@Tags		Auth
-//	@Accept		json
-//	@Produce	json
-//	@Param		body	body		dtos.PhoneVerificationConfirmInput	true	"Phone and code"
-//	@Success	200		{object}	dtos.SessionOutput
-//	@Failure	400		{object}	shared.ErrorResponse	"Invalid request or missing client"
-//	@Failure	401		{object}	shared.ErrorResponse	"Unknown client"
-//	@Failure	403		{object}	shared.ErrorResponse	"Account blocked or client not allowed"
-//	@Failure	422		{object}	shared.ErrorResponse	"Invalid, expired or exhausted code"
-//	@Failure	429		{object}	shared.ErrorResponse	"Too many requests"
-//	@Failure	500		{object}	shared.ErrorResponse	"Internal error"
-//	@Security	ClientId
-//	@Router		/api/v1/auth/phone/verify [post]
+//	@Summary		Verify the phone code and start a session
+//	@Description	Customer and provider apps only. Marks the phone verified on the first use.
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.PhoneVerificationConfirmInput	true	"Phone and code"
+//	@Success		200		{object}	dtos.SessionOutput
+//	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
+//	@Failure		401		{object}	shared.ErrorResponse	"Unknown client"
+//	@Failure		403		{object}	shared.ErrorResponse	"Account blocked or client not allowed"
+//	@Failure		422		{object}	shared.ErrorResponse	"Invalid, expired or exhausted code"
+//	@Failure		429		{object}	shared.ErrorResponse	"Too many requests"
+//	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
+//	@Security		ClientId
+//	@Router			/api/v1/auth/phone/verify [post]
 func (c *AuthController) ConfirmPhoneVerification(ctx *gin.Context) {
 	var req dtos.PhoneVerificationConfirmInput
 	if err := binding.JSON(ctx, &req); err != nil {
@@ -304,7 +308,7 @@ func (c *AuthController) RequestRecovery(ctx *gin.Context) {
 // ConfirmRecovery godoc
 //
 //	@Summary		Confirm recovery and set a new password
-//	@Description	Ends every session of the user.
+//	@Description	Ends every session of the user. Accounts without a password get 409 PASSWORD_NOT_SET and use POST /users/password instead.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
@@ -341,11 +345,11 @@ func (c *AuthController) ConfirmRecovery(ctx *gin.Context) {
 // Logout godoc
 //
 //	@Summary		Logout current session
-//	@Description	Revokes the refresh tokens of the current session.
+//	@Description	Revokes the refresh tokens of the current session and denies its access token at once.
 //	@Tags			Auth
 //	@Produce		json
 //	@Success		204	"No Content"
-//	@Failure		401	{object}	shared.ErrorResponse	"Unauthorized"
+//	@Failure		401	{object}	shared.ErrorResponse	"Unauthorized or session ended"
 //	@Failure		403	{object}	shared.ErrorResponse	"Token bound to another client"
 //	@Failure		500	{object}	shared.ErrorResponse	"Internal error"
 //	@Security		BearerAuth
@@ -369,11 +373,11 @@ func (c *AuthController) Logout(ctx *gin.Context) {
 // LogoutAll godoc
 //
 //	@Summary		Logout from all sessions
-//	@Description	Revokes every refresh token of the authenticated user, in every client.
+//	@Description	Revokes every refresh token of the authenticated user, in every client, and denies their access tokens at once.
 //	@Tags			Auth
 //	@Produce		json
 //	@Success		204	"No Content"
-//	@Failure		401	{object}	shared.ErrorResponse	"Unauthorized"
+//	@Failure		401	{object}	shared.ErrorResponse	"Unauthorized or session ended"
 //	@Failure		403	{object}	shared.ErrorResponse	"Token bound to another client"
 //	@Failure		500	{object}	shared.ErrorResponse	"Internal error"
 //	@Security		BearerAuth
@@ -400,7 +404,7 @@ func (c *AuthController) LogoutAll(ctx *gin.Context) {
 //	@Tags		Users
 //	@Produce	json
 //	@Success	200	{object}	dtos.UserView
-//	@Failure	401	{object}	shared.ErrorResponse	"Unauthorized"
+//	@Failure	401	{object}	shared.ErrorResponse	"Unauthorized or session ended"
 //	@Failure	403	{object}	shared.ErrorResponse	"Token bound to another client"
 //	@Failure	404	{object}	shared.ErrorResponse	"User not found"
 //	@Failure	500	{object}	shared.ErrorResponse	"Internal error"
@@ -426,15 +430,16 @@ func (c *AuthController) Me(ctx *gin.Context) {
 // ChangePassword godoc
 //
 //	@Summary		Change the password of the authenticated user
-//	@Description	Ends every session of the user.
+//	@Description	Ends every session of the user. Accounts without a password get 409 PASSWORD_NOT_SET and use POST /users/password instead.
 //	@Tags			Users
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body	dtos.ChangePasswordInput	true	"Change password payload"
 //	@Success		204		"No Content"
 //	@Failure		400		{object}	shared.ErrorResponse	"Invalid request"
-//	@Failure		401		{object}	shared.ErrorResponse	"Unauthorized"
+//	@Failure		401		{object}	shared.ErrorResponse	"Unauthorized or session ended"
 //	@Failure		403		{object}	shared.ErrorResponse	"Token bound to another client"
+//	@Failure		409		{object}	shared.ErrorResponse	"Account has no password"
 //	@Failure		422		{object}	shared.ErrorResponse	"Wrong current password or invalid new password"
 //	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
 //	@Security		BearerAuth
@@ -460,6 +465,44 @@ func (c *AuthController) ChangePassword(ctx *gin.Context) {
 		default:
 			handleCommonError(ctx, err)
 		}
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
+// SetPassword godoc
+//
+//	@Summary		Set a password on an account that has none
+//	@Description	Accounts created by phone have no password and sign in with an SMS code. This sets the first password and keeps the current sessions. Use PUT /users/password to change an existing one.
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body	dtos.SetPasswordInput	true	"Set password payload"
+//	@Success		204		"No Content"
+//	@Failure		400		{object}	shared.ErrorResponse	"Invalid request"
+//	@Failure		401		{object}	shared.ErrorResponse	"Unauthorized or session ended"
+//	@Failure		403		{object}	shared.ErrorResponse	"Token bound to another client"
+//	@Failure		409		{object}	shared.ErrorResponse	"Account already has a password"
+//	@Failure		422		{object}	shared.ErrorResponse	"Invalid password"
+//	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/users/password [post]
+func (c *AuthController) SetPassword(ctx *gin.Context) {
+	userID, ok := authenticatedUserID(ctx)
+	if !ok {
+		return
+	}
+
+	var req dtos.SetPasswordInput
+	if err := binding.JSON(ctx, &req); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+
+	if err := c.authUsecase.SetPassword(ctx.Request.Context(), userID, req.Password); err != nil {
+		handleCommonError(ctx, err)
 		return
 	}
 
@@ -508,6 +551,10 @@ func handleCommonError(ctx *gin.Context, err error) {
 		shared.RespondError(ctx, http.StatusUnprocessableEntity, "INVALID_PASSWORD", "Password must be at most 128 characters.")
 	case errors.Is(err, usecases.ErrUserNotFound):
 		shared.NotFound(ctx, "USER_NOT_FOUND", "User not found.")
+	case errors.Is(err, usecases.ErrPasswordNotSet):
+		shared.Conflict(ctx, "PASSWORD_NOT_SET", "The account has no password yet.")
+	case errors.Is(err, usecases.ErrPasswordAlreadySet):
+		shared.Conflict(ctx, "PASSWORD_ALREADY_SET", "The account already has a password.")
 	case errors.Is(err, services.ErrSMSUnavailable):
 		shared.ServiceUnavailable(ctx, "SMS_UNAVAILABLE", "SMS is temporarily unavailable.")
 	default:

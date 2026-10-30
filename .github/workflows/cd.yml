@@ -148,55 +148,22 @@ jobs:
   deploy-staging:
     name: Deploy to staging
     needs: image
-    runs-on: ubuntu-latest
-    environment: staging
-    permissions:
-      contents: read
-    steps:
-      - uses: docker/setup-buildx-action@v4.4.1
-
-      - uses: docker/login-action@v4.7.0
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Point the staging tag at this build
-        env:
-          IMAGE: ${{ needs.image.outputs.image }}
-          DIGEST: ${{ needs.image.outputs.digest }}
-        run: docker buildx imagetools create --tag "$IMAGE:staging" "$IMAGE@$DIGEST"
-
-      - name: Deploy
-        env:
-          IMAGE: ${{ needs.image.outputs.image }}
-          DIGEST: ${{ needs.image.outputs.digest }}
-        run: echo "Deploy $IMAGE@$DIGEST to staging (not configured yet)"
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+      image: ${{ needs.image.outputs.image }}
+      digest: ${{ needs.image.outputs.digest }}
+      version: ${{ github.sha }}
+    secrets: inherit
 
   deploy-production:
     name: Deploy to production
     if: needs.release-please.outputs.created == 'true'
     needs: [release-please, image, deploy-staging]
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      contents: read
-    steps:
-      - uses: docker/setup-buildx-action@v4.4.1
-
-      - uses: docker/login-action@v4.7.0
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Point the production and latest tags at this release
-        env:
-          IMAGE: ${{ needs.image.outputs.image }}
-          DIGEST: ${{ needs.image.outputs.digest }}
-        run: docker buildx imagetools create --tag "$IMAGE:production" --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
-
-      - name: Deploy
-        env:
-          IMAGE: ${{ needs.image.outputs.image }}
-          VERSION: ${{ needs.release-please.outputs.version }}
-          DIGEST: ${{ needs.image.outputs.digest }}
-        run: echo "Deploy $IMAGE:$VERSION ($DIGEST) to production (not configured yet)"
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      image: ${{ needs.image.outputs.image }}
+      digest: ${{ needs.image.outputs.digest }}
+      version: ${{ needs.release-please.outputs.version }}
+    secrets: inherit

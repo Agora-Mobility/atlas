@@ -9,11 +9,14 @@ import (
 
 type NotificationsModule struct {
 	Events *notifications.NotificationEventsHandler
+	Emails *notifications.EmailEventsHandler
 }
 
 func newNotificationsModule(c *Container) *NotificationsModule {
+	users := repository.NewUserRepository(c.Pool)
 	return &NotificationsModule{
-		Events: notifications.NewNotificationEventsHandler(repository.NewUserRepository(c.Pool), c.SMS),
+		Events: notifications.NewNotificationEventsHandler(users, c.SMS),
+		Emails: notifications.NewEmailEventsHandler(users, repository.NewOrganizationRepository(c.Pool), c.Email),
 	}
 }
 
@@ -24,5 +27,19 @@ func (m *NotificationsModule) Consumers() []queue.ConsumerConfig {
 			BindingKeys: []string{events.RoutingKey(events.UserPhoneVerified, 1)},
 			Handler:     m.Events.OnPhoneVerified,
 		},
+		{
+			Queue:       "notifications.email",
+			BindingKeys: emailBindingKeys(),
+			Handler:     m.Emails.OnEvent,
+		},
 	}
+}
+
+func emailBindingKeys() []string {
+	types := notifications.EmailEventTypes()
+	keys := make([]string, 0, len(types))
+	for _, eventType := range types {
+		keys = append(keys, events.RoutingKey(eventType, 1))
+	}
+	return keys
 }

@@ -15,10 +15,10 @@ func TestClientAllowsOnlyItsRoles(t *testing.T) {
 		allowed    []enums.Role
 		denied     []enums.Role
 	}{
-		{enums.ClientTypeCustomerApp, []enums.Role{enums.RoleCustomer}, []enums.Role{enums.RoleProvider, enums.RoleAdmin}},
-		{enums.ClientTypeProviderApp, []enums.Role{enums.RoleProvider}, []enums.Role{enums.RoleCustomer, enums.RoleOperator}},
-		{enums.ClientTypePartnerPanel, []enums.Role{enums.RolePartner}, []enums.Role{enums.RoleAdmin}},
-		{enums.ClientTypeBackoffice, []enums.Role{enums.RoleOperator, enums.RoleAdmin}, []enums.Role{enums.RoleCustomer, enums.RolePartner}},
+		{enums.ClientTypeCustomerApp, []enums.Role{enums.RoleCustomer}, []enums.Role{enums.RoleProvider, enums.RoleStaff}},
+		{enums.ClientTypeProviderApp, []enums.Role{enums.RoleProvider}, []enums.Role{enums.RoleCustomer, enums.RoleStaff}},
+		{enums.ClientTypePartnerPanel, []enums.Role{enums.RoleStaff}, []enums.Role{enums.RoleCustomer, enums.RoleProvider}},
+		{enums.ClientTypeBackoffice, []enums.Role{enums.RoleStaff}, []enums.Role{enums.RoleCustomer, enums.RoleProvider}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.clientType.String(), func(t *testing.T) {
@@ -46,4 +46,17 @@ func TestClientSignUpRoleComesFromClientType(t *testing.T) {
 		_, ok := (&entities.Client{Type: staff}).SignUpRole()
 		assert.False(t, ok, staff)
 	}
+}
+
+func TestClientStaffScope(t *testing.T) {
+	scope, ok := (&entities.Client{Type: enums.ClientTypeBackoffice}).StaffScope()
+	assert.True(t, ok)
+	assert.Equal(t, enums.OrganizationTypePlatform, scope)
+
+	scope, ok = (&entities.Client{Type: enums.ClientTypePartnerPanel}).StaffScope()
+	assert.True(t, ok)
+	assert.Equal(t, enums.OrganizationTypePartner, scope)
+
+	_, ok = (&entities.Client{Type: enums.ClientTypeCustomerApp}).StaffScope()
+	assert.False(t, ok)
 }
