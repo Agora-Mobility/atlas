@@ -28,6 +28,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/domain/entities"
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/outbox"
@@ -87,6 +88,27 @@ func (s *smsInbox) code(t *testing.T, phone string) string {
 	require.NotEmpty(t, code, "no code sent to %s", phone)
 	delete(s.last, phone)
 	return code
+}
+
+type emailOutbox struct {
+	mu   sync.Mutex
+	last map[string]services.Email
+}
+
+func (o *emailOutbox) Send(_ context.Context, email services.Email) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.last[email.To] = email
+	return nil
+}
+
+func (o *emailOutbox) to(t *testing.T, address string) services.Email {
+	t.Helper()
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	email, ok := o.last[address]
+	require.True(t, ok, "no email sent to %s", address)
+	return email
 }
 
 type api struct {
@@ -204,7 +226,8 @@ func permissionCatalog() []string {
 func TestAuthFlow(t *testing.T) {
 	pool, owner, rdb := setupStores(t)
 	sms := &smsInbox{last: map[string]string{}}
-	a := api{t: t, engine: newTestEngine(t, pool, rdb, sms)}
+	mail := &emailOutbox{last: map[string]services.Email{}}
+	a := api{t: t, engine: newTestEngine(t, pool, rdb, sms, mail)}
 	ctx := context.Background()
 
 	var access, refresh, adminSecret string
@@ -406,6 +429,8 @@ func TestAuthFlow(t *testing.T) {
 		operatorMemberID = res.body["id"].(string)
 
 		token := sms.invitationToken(t, operatorPhone)
+		invitation := mail.to(t, "op@agora.ao")
+		assert.Contains(t, invitation.HTML, "token="+token, "the e-mail carries the same link as the SMS")
 		var stored string
 		require.NoError(t, owner.QueryRow(ctx, "SELECT token_hash FROM invitations WHERE membership_id = $1", operatorMemberID).Scan(&stored))
 		assert.NotEqual(t, token, stored, "CA08.5 only the hash is stored")
@@ -667,7 +692,7 @@ func TestAuthFlow(t *testing.T) {
 	})
 }
 
-func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *smsInbox) *gin.Engine {
+func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *smsInbox, mail *emailOutbox) *gin.Engine {
 	t.Helper()
 	cfg := &config.Config{
 		App:  config.AppConfig{Name: "atlas-test"},
@@ -692,6 +717,7 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 		Authenticator:      middleware.NewAuthenticator(jwt, revocations),
 		ClientAuthorizer:   middleware.NewClientAuthorizer(repository.NewClientRepository(pool)),
 		SMS:                sms,
+		Email:              mail,
 	}
 	auth, err := newAuthModule(c)
 	require.NoError(t, err)

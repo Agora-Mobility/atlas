@@ -21,6 +21,7 @@ import (
 	"github.com/Agora-Mobility/atlas/shared/phone"
 	"github.com/Agora-Mobility/atlas/shared/tenant"
 	"github.com/Agora-Mobility/atlas/usecases/auth/dtos"
+	"github.com/Agora-Mobility/atlas/usecases/emails"
 )
 
 var (
@@ -88,6 +89,7 @@ type MemberUsecase struct {
 	txManager      repository.ITransactionManager
 	opaqueTokens   services.IOpaqueTokenGenerator
 	sms            services.ISMSSender
+	email          services.IEmailSender
 	revoker        *SessionRevoker
 	access         *AccessResolver
 	links          InvitationLinks
@@ -109,6 +111,7 @@ func NewMemberUsecase(
 	stores MemberStores,
 	opaqueTokens services.IOpaqueTokenGenerator,
 	sms services.ISMSSender,
+	email services.IEmailSender,
 	revoker *SessionRevoker,
 	access *AccessResolver,
 	links InvitationLinks,
@@ -125,6 +128,7 @@ func NewMemberUsecase(
 		txManager:      stores.Tx,
 		opaqueTokens:   opaqueTokens,
 		sms:            sms,
+		email:          email,
 		revoker:        revoker,
 		access:         access,
 		links:          links,
@@ -192,7 +196,7 @@ func (uc *MemberUsecase) ResendInvitation(ctx context.Context, actor StaffActor,
 	}
 
 	var user *entities.User
-	var token string
+	var invitation issuedInvitation
 	err = uc.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
 		target, err := uc.lockMember(ctx, org, memberID)
 		if err != nil {
@@ -210,7 +214,7 @@ func (uc *MemberUsecase) ResendInvitation(ctx context.Context, actor StaffActor,
 		if err := uc.invitationRepo.RevokePending(ctx, target.ID, time.Now().UTC()); err != nil {
 			return err
 		}
-		if token, err = uc.createInvitation(ctx, target, actor.Audit.ID); err != nil {
+		if invitation, err = uc.createInvitation(ctx, target, actor.Audit.ID); err != nil {
 			return err
 		}
 		return uc.audit(ctx, actor.Audit, org, auditActionMemberResend, target.ID, nil, nil)
@@ -218,7 +222,7 @@ func (uc *MemberUsecase) ResendInvitation(ctx context.Context, actor StaffActor,
 	if err != nil {
 		return err
 	}
-	uc.sendInvitation(ctx, org, user, token)
+	uc.sendInvitation(ctx, org, user, invitation)
 	return nil
 }
 
@@ -485,7 +489,7 @@ func (uc *MemberUsecase) invite(ctx context.Context, actor StaffActor, org *enti
 
 	var user *entities.User
 	var membership *entities.Membership
-	var token string
+	var invitation issuedInvitation
 	err = uc.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
 		if user, err = uc.staffIdentity(ctx, req.Name, email, phoneNumber); err != nil {
 			return err
@@ -506,7 +510,7 @@ func (uc *MemberUsecase) invite(ctx context.Context, actor StaffActor, org *enti
 		if err := uc.membershipRepo.Create(ctx, membership); err != nil {
 			return err
 		}
-		if token, err = uc.createInvitation(ctx, membership, actor.Audit.ID); err != nil {
+		if invitation, err = uc.createInvitation(ctx, membership, actor.Audit.ID); err != nil {
 			return err
 		}
 		codes := roleCodes(membership.RoleIDs, rolesByID(requested))
@@ -519,7 +523,7 @@ func (uc *MemberUsecase) invite(ctx context.Context, actor StaffActor, org *enti
 	if err != nil {
 		return nil, err
 	}
-	uc.sendInvitation(ctx, org, user, token)
+	uc.sendInvitation(ctx, org, user, invitation)
 	return uc.memberView(ctx, org, membership.ID, roles)
 }
 
@@ -556,29 +560,53 @@ func (uc *MemberUsecase) staffIdentity(ctx context.Context, name, email, phoneNu
 	return user, nil
 }
 
-func (uc *MemberUsecase) createInvitation(ctx context.Context, membership *entities.Membership, createdBy *uuid.UUID) (string, error) {
+type issuedInvitation struct {
+	ID    uuid.UUID
+	Token string
+}
+
+func (uc *MemberUsecase) createInvitation(ctx context.Context, membership *entities.Membership, createdBy *uuid.UUID) (issuedInvitation, error) {
 	token, hash, err := uc.opaqueTokens.Generate()
 	if err != nil {
-		return "", err
+		return issuedInvitation{}, err
 	}
 	invitation, err := entities.NewInvitation(membership.ID, hash, createdBy)
 	if err != nil {
-		return "", err
+		return issuedInvitation{}, err
 	}
 	if err := uc.invitationRepo.Create(ctx, invitation); err != nil {
-		return "", err
+		return issuedInvitation{}, err
 	}
-	return token, nil
+	return issuedInvitation{ID: invitation.ID, Token: token}, nil
 }
 
-func (uc *MemberUsecase) sendInvitation(ctx context.Context, org *entities.Organization, user *entities.User, token string) {
+func (uc *MemberUsecase) sendInvitation(ctx context.Context, org *entities.Organization, user *entities.User, invitation issuedInvitation) {
+	link := uc.links.For(org.Type, invitation.Token)
+	uc.sendInvitationSMS(ctx, org, user, link)
+	uc.sendInvitationEmail(ctx, org, user, link, invitation.ID)
+}
+
+func (uc *MemberUsecase) sendInvitationSMS(ctx context.Context, org *entities.Organization, user *entities.User, link string) {
 	if user.Phone == "" {
-		logger.FromContext(ctx).Error("invitation not sent: the member has no phone")
+		logger.FromContext(ctx).Error("invitation sms not sent: the member has no phone")
 		return
 	}
-	message := fmt.Sprintf(invitationMessageTemplate, org.Name, uc.links.For(org.Type, token))
-	if err := uc.sms.Send(ctx, user.Phone, message); err != nil {
-		logger.FromContext(ctx).Error("invitation not sent: sms provider failed", zap.Error(err))
+	if err := uc.sms.Send(ctx, user.Phone, fmt.Sprintf(invitationMessageTemplate, org.Name, link)); err != nil {
+		logger.FromContext(ctx).Error("invitation sms not sent: sms provider failed", zap.Error(err))
+	}
+}
+
+func (uc *MemberUsecase) sendInvitationEmail(ctx context.Context, org *entities.Organization, user *entities.User, link string, invitationID uuid.UUID) {
+	if user.Email == "" {
+		return
+	}
+	message, err := emails.Invitation(user.Name, org.Name, link).Render(user.Email, "invitation/"+invitationID.String())
+	if err != nil {
+		logger.FromContext(ctx).Error("invitation email not sent: render failed", zap.Error(err))
+		return
+	}
+	if err := uc.email.Send(ctx, message); err != nil {
+		logger.FromContext(ctx).Error("invitation email not sent: email provider failed", zap.Error(err))
 	}
 }
 

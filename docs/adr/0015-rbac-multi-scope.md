@@ -53,7 +53,7 @@ isolated from each other.
 | Id | Decision |
 |---|---|
 | Q1 | Providers stay outside RBAC for now; partner providers are a later RF22 change. |
-| Q2 | Invitations and activation codes go by **SMS** (the only channel the API has). The SMS holds a link to `INVITATION_URL_BACKOFFICE` or `INVITATION_URL_PARTNER_PANEL` with the token. E-mail can be added behind the same flow. |
+| Q2 | Invitations go by **SMS and e-mail**; the activation code goes by SMS only. Both hold the same link to `INVITATION_URL_BACKOFFICE` or `INVITATION_URL_PARTNER_PANEL` with the token. The e-mail goes through Resend and its idempotency key is the invitation id. |
 | Q3 | Password policy and token lifetimes stay as in ADR 0006 for now. |
 | Q4 | `/api/v1/admin/users` now manages **customer and provider accounts only** (permissions `users:read`, `users:block`, `users:reset-password`). Staff are invited and managed through `/api/v1/members`. Migration 000010 moves `admin` to a Super Admin membership and `operator` to Operações; `partner` users become `staff` without membership (there was no partner organization) and must be invited again. The table keeps the name `audit_log`. |
 | Q5 | The prefix stays `/api/v1`. |
@@ -129,6 +129,12 @@ Every change is published through the outbox in the same transaction:
 `-reactivated`, `-deactivated`, `-mfa-reset`, `access.role-created`,
 `-updated`, `-deleted`, `access.partner-created` and `access.partner-updated`
 (all `v1`).
+
+The `notifications.email` queue turns some of them into e-mails to the person
+concerned, when that person has an e-mail: member activated, roles changed,
+suspended, reactivated, deactivated and MFA reset, plus `identity.user-blocked`
+and `identity.user-unblocked`. The idempotency key is the event id, so a
+redelivered message is not sent twice. Templates live in `usecases/emails`.
 
 ## Consequences
 

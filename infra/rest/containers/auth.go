@@ -66,7 +66,7 @@ func newAuthModule(c *Container) (*AuthModule, error) {
 	members := usecases.NewMemberUsecase(usecases.MemberStores{
 		Users: userRepo, Orgs: orgRepo, Roles: roleRepo, Memberships: membershipRepo, Invitations: invitationRepo,
 		MFA: mfaRepo, Audit: auditRepo, Outbox: c.Outbox, Tx: c.TxManager,
-	}, opaqueTokens, c.SMS, revoker, accessResolver, usecases.InvitationLinks{
+	}, opaqueTokens, c.SMS, c.Email, revoker, accessResolver, usecases.InvitationLinks{
 		Platform: cfg.Access.InvitationBackoffice,
 		Partner:  cfg.Access.InvitationPartner,
 	})

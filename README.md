@@ -129,8 +129,8 @@ migration user needs `CREATEROLE`, or the DBA creates the role first.
 The seed does not run in production. To create the first Super Admin there,
 run `/bootstrap-admin` from the api image once, with `BOOTSTRAP_ADMIN_EMAIL`
 and `BOOTSTRAP_ADMIN_PASSWORD` (12+ characters) set. It does nothing when an
-active Super Admin already exists. Further staff are invited by SMS
-(`POST /api/v1/members/invitations`) and accept at
+active Super Admin already exists. Further staff are invited by SMS and
+e-mail (`POST /api/v1/members/invitations`) and accept at
 `POST /api/v1/invitations/accept`.
 
 ## Make targets

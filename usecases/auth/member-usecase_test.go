@@ -350,7 +350,7 @@ func inviteInput(roles ...*entities.Role) dtos.InviteMemberInput {
 	return dtos.InviteMemberInput{Name: "Operador", Email: "Op@Agora.ao", Phone: "923000010", RoleIDs: ids}
 }
 
-func TestInvite_CreatesInvitedMemberAndSendsTheLinkBySMS(t *testing.T) {
+func TestInvite_CreatesInvitedMemberAndSendsTheLinkBySMSAndEmail(t *testing.T) {
 	r := newRBAC()
 	f := newFixture(t)
 	f.withOrganization(r, r.partner)
@@ -374,6 +374,15 @@ func TestInvite_CreatesInvitedMemberAndSendsTheLinkBySMS(t *testing.T) {
 		DoAndReturn(func(_ context.Context, _ string, message string) error {
 			assert.Contains(t, message, "https://athena.agora.ao/convite?token=raw-invite")
 			assert.Contains(t, message, "Parceiro A")
+			return nil
+		})
+	f.email.EXPECT().Send(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, email services.Email) error {
+			assert.Equal(t, "op@agora.ao", email.To)
+			assert.Equal(t, "Convite para Parceiro A na AGORA", email.Subject)
+			assert.Contains(t, email.HTML, `href="https://athena.agora.ao/convite?token=raw-invite"`)
+			assert.Contains(t, email.Text, "https://athena.agora.ao/convite?token=raw-invite")
+			assert.True(t, strings.HasPrefix(email.IdempotencyKey, "invitation/"))
 			return nil
 		})
 	f.memberships.EXPECT().FindMember(gomock.Any(), r.partner.ID, gomock.Any()).
@@ -446,6 +455,7 @@ func TestInvite_CA12_2_MemberOfAnotherOrganizationIsInvitedLikeANewPerson(t *tes
 	f.expectOutbox(t, events.MemberInvited)
 	f.expectMemberAudit(t, r.partner, "member.invite")
 	f.sms.EXPECT().Send(gomock.Any(), staff.Phone, gomock.Any()).Return(nil)
+	f.email.EXPECT().Send(gomock.Any(), gomock.Any()).Return(nil)
 	f.memberships.EXPECT().FindMember(gomock.Any(), r.partner.ID, gomock.Any()).Return(&entities.Member{}, nil)
 
 	_, err := f.members.Invite(context.Background(), actorWith(r.partner, r.owner), inviteInput(r.operator))
@@ -471,6 +481,7 @@ func TestInviteToPartner_AgoraInvitesTheFirstOwner(t *testing.T) {
 	f.expectOutbox(t, events.MemberInvited)
 	f.expectMemberAudit(t, r.partner, "member.invite")
 	f.sms.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	f.email.EXPECT().Send(gomock.Any(), gomock.Any()).Return(services.ErrEmailUnavailable)
 	f.memberships.EXPECT().FindMember(gomock.Any(), r.partner.ID, gomock.Any()).Return(&entities.Member{}, nil)
 
 	_, err := f.members.InviteToPartner(context.Background(), actorWith(r.platform, r.superAdmin), r.partner.ID, inviteInput(r.owner))

@@ -45,6 +45,7 @@ type fixture struct {
 	opaqueTokens  *servicemocks.MockIOpaqueTokenGenerator
 	otp           *servicemocks.MockIOTPService
 	sms           *servicemocks.MockISMSSender
+	email         *servicemocks.MockIEmailSender
 	revocations   *servicemocks.MockISessionRevocationStore
 	audit         *repomocks.MockIAuditLogRepository
 	blockReasons  *repomocks.MockIBlockReasonRepository
@@ -89,6 +90,7 @@ func newFixture(t *testing.T) fixture {
 		opaqueTokens:  servicemocks.NewMockIOpaqueTokenGenerator(ctrl),
 		otp:           servicemocks.NewMockIOTPService(ctrl),
 		sms:           servicemocks.NewMockISMSSender(ctrl),
+		email:         servicemocks.NewMockIEmailSender(ctrl),
 		revocations:   servicemocks.NewMockISessionRevocationStore(ctrl),
 		audit:         repomocks.NewMockIAuditLogRepository(ctrl),
 		blockReasons:  repomocks.NewMockIBlockReasonRepository(ctrl),
@@ -120,7 +122,7 @@ func newFixture(t *testing.T) fixture {
 	f.members = usecases.NewMemberUsecase(usecases.MemberStores{
 		Users: f.users, Orgs: f.orgs, Roles: f.roles, Memberships: f.memberships, Invitations: f.invitations,
 		MFA: f.mfa, Audit: f.audit, Outbox: f.outbox, Tx: f.tx,
-	}, f.opaqueTokens, f.sms, revoker, access, invitationLinks)
+	}, f.opaqueTokens, f.sms, f.email, revoker, access, invitationLinks)
 	f.invitationFlow = usecases.NewInvitationUsecase(f.users, f.orgs, f.memberships, f.invitations, f.audit, f.outbox, f.tx,
 		f.hasher, f.opaqueTokens, f.otp, codeSender, access)
 	f.organizations = usecases.NewOrganizationUsecase(f.orgs, f.roles, f.memberships, f.audit, f.outbox, f.tx)

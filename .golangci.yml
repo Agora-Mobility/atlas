@@ -43,6 +43,7 @@ linters:
       locale: US
       ignore-rules:
         - internacional
+        - suspenso
     revive:
       rules:
         - name: blank-imports
