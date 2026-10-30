@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -14,14 +15,23 @@ import (
 
 // Migrate applies all pending migrations ("up") or rolls back the most
 // recent one ("down"). Rolling back one step at a time is deliberate: a full
-// "down" would drop every table.
+// "down" would drop every table. Migrations run inside Schema, which is
+// created first, and the migrations table lives there too.
 func Migrate(databaseURL, direction string) error {
+	if err := ensureSchema(context.Background(), databaseURL); err != nil {
+		return err
+	}
+	migrationURL, err := withSearchPath(databaseURL)
+	if err != nil {
+		return err
+	}
+
 	src, err := iofs.New(migrations.FS, ".")
 	if err != nil {
 		return fmt.Errorf("load embedded migrations: %w", err)
 	}
 
-	m, err := migrate.NewWithSourceInstance("iofs", src, toPgx5URL(databaseURL))
+	m, err := migrate.NewWithSourceInstance("iofs", src, toPgx5URL(migrationURL))
 	if err != nil {
 		return fmt.Errorf("init migrate: %w", err)
 	}

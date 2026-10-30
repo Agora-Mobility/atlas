@@ -15,6 +15,458 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/admin/block-reasons": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires users:block. The active reasons an account can be blocked for. Send their ids in reason_ids when blocking.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice users"
+                ],
+                "summary": "List block reasons",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BlockReasonList"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires users:read. Staff are managed as members.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice users"
+                ],
+                "summary": "List customer and provider accounts",
+                "parameters": [
+                    {
+                        "enum": [
+                            "customer",
+                            "provider"
+                        ],
+                        "type": "string",
+                        "description": "Role",
+                        "name": "role",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "active",
+                            "inactive",
+                            "blocked"
+                        ],
+                        "type": "string",
+                        "description": "Status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Part of the name, e-mail or phone",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (from 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserPage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid filters",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires users:read.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice users"
+                ],
+                "summary": "Get a customer or provider account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserView"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid id",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{id}/block": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires users:block. Ends every session of the customer or provider at once.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice users"
+                ],
+                "summary": "Block a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reasons from GET /api/v1/admin/block-reasons and an optional note",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BlockUserInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserView"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission or own account",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "No reason given or unknown reason",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{id}/password": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires users:reset-password, for accounts that cannot use SMS recovery. Ends every session of the user at once.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice users"
+                ],
+                "summary": "Reset the password of a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New password",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ResetPasswordInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid password",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{id}/unblock": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires users:block.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice users"
+                ],
+                "summary": "Unblock a customer or provider account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Optional reason",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UnblockUserInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserView"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission or own account",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "security": [
@@ -22,7 +474,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "The identifier is an e-mail or a phone number in E.164 format. The account role must be accepted by the client: customers sign in through agora-customer-app, providers through agora-provider-app, partners through agora-partner-panel, operators and admins through agora-backoffice.",
+                "description": "The identifier is an e-mail or a phone number in E.164 format. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership); organization_id picks one partner when the person belongs to several. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.",
                 "consumes": [
                     "application/json"
                 ],
@@ -49,6 +501,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.SessionOutput"
+                        }
+                    },
+                    "202": {
+                        "description": "MFA step required",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MFAChallengeOutput"
                         }
                     },
                     "400": {
@@ -94,7 +552,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Revokes the refresh tokens of the current session.",
+                "description": "Revokes the refresh tokens of the current session and denies its access token at once.",
                 "produces": [
                     "application/json"
                 ],
@@ -107,7 +565,7 @@ const docTemplate = `{
                         "description": "No Content"
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized or session ended",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -137,7 +595,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Revokes every refresh token of the authenticated user, in every client.",
+                "description": "Revokes every refresh token of the authenticated user, in every client, and denies their access tokens at once.",
                 "produces": [
                     "application/json"
                 ],
@@ -150,7 +608,7 @@ const docTemplate = `{
                         "description": "No Content"
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized or session ended",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -163,6 +621,171 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/mfa/recover": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "For a member who lost the authenticator app. Each recovery code works once; regenerate them afterwards at POST /api/v1/users/me/mfa/recovery-codes.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Finish the sign-in with a recovery code",
+                "parameters": [
+                    {
+                        "description": "MFA token and recovery code",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MFARecoverInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SessionOutput"
+                        }
+                    },
+                    "401": {
+                        "description": "MFA step expired or too many attempts",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Setup required",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Wrong or used code",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/mfa/setup": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "With the mfa_token of a login answered with setup_required. Returns the secret to scan; confirm it at /auth/mfa/verify.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Start the authenticator app setup",
+                "parameters": [
+                    {
+                        "description": "MFA token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MFATokenInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MFASetupOutput"
+                        }
+                    },
+                    "401": {
+                        "description": "MFA step expired",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Already set up",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/mfa/verify": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "With the mfa_token of the login and the 6-digit code of the app. Confirms a pending setup and starts the session.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Finish the sign-in with an authenticator code",
+                "parameters": [
+                    {
+                        "description": "MFA token and code",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MFAVerifyInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SessionOutput"
+                        }
+                    },
+                    "401": {
+                        "description": "MFA step expired or too many attempts",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Setup required",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Wrong code",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -320,7 +943,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Ends every session of the user.",
+                "description": "Ends every session of the user. Accounts without a password get 409 PASSWORD_NOT_SET and use POST /users/password instead.",
                 "consumes": [
                     "application/json"
                 ],
@@ -527,7 +1150,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Creates an unverified account and sends a verification code by SMS. The role comes from the client: agora-customer-app creates a customer, agora-provider-app creates a provider. Other clients cannot register.",
+                "description": "Creates an unverified account with only the phone number and sends a verification code by SMS. Confirm it with /auth/phone/verify to get the session, then set the name with PATCH /users/me and, optionally, a password with POST /users/password. Calling it again for a number whose registration was not verified resends the code. The role comes from the client: agora-customer-app creates a customer, agora-provider-app creates a provider. Other clients cannot register.",
                 "consumes": [
                     "application/json"
                 ],
@@ -575,7 +1198,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Email or phone already registered",
+                        "description": "Phone already registered",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -594,6 +1217,1422 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/invitations/accept": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Sets the password (or confirms the current one when the person already has an account) and activates the membership. Sign in afterwards; roles that require MFA ask to set it up at the first sign-in.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invitations"
+                ],
+                "summary": "Accept an invitation",
+                "parameters": [
+                    {
+                        "description": "Token, password and SMS code",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AcceptInvitationInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "422": {
+                        "description": "Invalid invitation, password or code",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/invitations/verification-code": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Sends an SMS code to the phone of the invited person. Use the client of the invitation (agora-backoffice or agora-partner-panel).",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invitations"
+                ],
+                "summary": "Send the activation code of an invitation",
+                "parameters": [
+                    {
+                        "description": "Invitation token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.InvitationTokenInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "422": {
+                        "description": "Invalid invitation",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Code sent recently",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/members": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires members:read. The organization is always the one of the session.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "List the members of the organization",
+                "parameters": [
+                    {
+                        "enum": [
+                            "invited",
+                            "active",
+                            "suspended",
+                            "deactivated"
+                        ],
+                        "type": "string",
+                        "description": "Status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role id",
+                        "name": "role_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Part of the name, e-mail or phone",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (from 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberPage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid filters",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/members/invitations": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires members:invite. The invitation goes by SMS, lasts 48 h and is accepted at POST /api/v1/invitations/accept. You can only grant roles whose permissions you hold.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Invite a member",
+                "parameters": [
+                    {
+                        "description": "Invitation",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.InviteMemberInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission or privilege escalation",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Role not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Already a member, or the identity belongs to a customer or provider",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields or role of another scope",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/members/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires members:read. A member of another organization answers 404.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Get a member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Member (membership) id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Member not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires members:update.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Change the name or phone of a member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Member (membership) id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateMemberInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission or privilege escalation",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Member not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Phone in use or member deactivated",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/members/{id}/deactivate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires members:deactivate. Final: the membership cannot be reactivated. Ends sessions and pending invitations.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Deactivate a member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Member (membership) id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission, privilege escalation or own account",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Member not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Last owner or already deactivated",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/members/{id}/invitations/resend": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires members:invite. The previous invitation stops working.",
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Resend the invitation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Member (membership) id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Member not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "The member is not invited",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/members/{id}/mfa/reset": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires members:mfa-reset, for a member who lost the authenticator app and the recovery codes. Ends every session; the next sign-in asks to set up MFA again. A partner cannot reset someone who also belongs to other organizations.",
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Reset the authenticator of a member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Member (membership) id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission, privilege escalation, own account or member of other organizations",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Member not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Member deactivated",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/members/{id}/reactivate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires members:suspend.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Reactivate a suspended member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Member (membership) id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission, privilege escalation or own account",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Member not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Invalid state",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/members/{id}/roles": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires roles:assign. The list replaces the current roles and takes effect on the next request. You cannot change your own roles, grant permissions you do not hold, or remove the last active owner.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Replace the roles of a member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Member (membership) id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Roles",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ReplaceRolesInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission, privilege escalation or own account",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Member or role not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Last owner or member deactivated",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Role of another scope",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/members/{id}/suspend": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires members:suspend. Ends every session of the person at once.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Suspend a member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Member (membership) id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission, privilege escalation or own account",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Member not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Last owner or invalid state",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partners:read (AGORA only).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partners"
+                ],
+                "summary": "List partner organizations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Part of the name or NIF",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (from 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OrganizationPage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partners:manage (AGORA only). The NIF is optional: 10 digits, or the BI number for a sole trader; spaces are ignored. Invite its first owner at POST /api/v1/partners/{orgId}/members/invitations.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partners"
+                ],
+                "summary": "Create a partner organization",
+                "parameters": [
+                    {
+                        "description": "Partner",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CreatePartnerInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OrganizationView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "NIF already registered",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields or NIF",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/members": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partners:read (AGORA only).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partners"
+                ],
+                "summary": "List the members of a partner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner organization id",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "invited",
+                            "active",
+                            "suspended",
+                            "deactivated"
+                        ],
+                        "type": "string",
+                        "description": "Status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role id",
+                        "name": "role_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Part of the name, e-mail or phone",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (from 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberPage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Partner not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/members/invitations": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partners:manage (AGORA only), for example to invite the first owner. Roles must be of the partner scope.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partners"
+                ],
+                "summary": "Invite a member to a partner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner organization id",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Invitation",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.InviteMemberInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MemberView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Partner or role not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Already a member, or the identity belongs to a customer or provider",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields or role of another scope",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/roles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partners:read (AGORA only). Use them to invite the members of the partner.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partners"
+                ],
+                "summary": "List the roles of a partner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner organization id",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RoleList"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Partner not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires roles:read.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Permission catalog of the scope",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PermissionList"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/roles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires roles:read. System roles of the scope and the roles of the organization.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "List the roles of the organization",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RoleList"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires roles:manage. The role belongs to the organization of the session; it can only hold permissions of its scope that you hold yourself.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Roles"
+                ],
+                "summary": "Create a custom role",
+                "parameters": [
+                    {
+                        "description": "Role",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CreateRoleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RoleView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission or privilege escalation",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Code already used",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields or unknown permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/roles/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires roles:read. A role of another organization answers 404.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Roles"
+                ],
+                "summary": "Get a role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Role id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RoleView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Role not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires roles:manage. Only roles no member holds.",
+                "tags": [
+                    "Roles"
+                ],
+                "summary": "Delete a custom role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Role id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission or privilege escalation",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Role not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "System role or role in use",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires roles:manage. New permissions apply to every member with the role on their next request.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Roles"
+                ],
+                "summary": "Change a custom role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Role id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateRoleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RoleView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission or privilege escalation",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Role not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "System role",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields or unknown permission",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -626,7 +2665,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized or session ended",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -650,6 +2689,410 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customers and providers only. Ends every session at once; the phone and e-mail can be registered again.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Delete the account of the authenticated user",
+                "parameters": [
+                    {
+                        "description": "Password confirmation",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DeleteAccountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Staff accounts cannot be deleted here",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Account has no password",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Wrong password",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Changes only the fields sent. Changing or removing the e-mail requires current_password. The phone number changes through /users/me/phone.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update the profile of the authenticated user",
+                "parameters": [
+                    {
+                        "description": "Profile fields",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateProfileInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserView"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Token bound to another client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Email already registered, or the account has no password to confirm the change",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields or wrong current password",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/mfa/recovery-codes": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Confirm with a code of the authenticator app. The previous recovery codes stop working.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Generate new MFA recovery codes",
+                "parameters": [
+                    {
+                        "description": "Authenticator code",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MFACodeInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RecoveryCodesOutput"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "MFA not set up",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Wrong code",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "For the UI only: every endpoint checks its own permission.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Effective permissions of the signed-in member",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MyAccessView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Not a staff session",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/phone": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Confirm the new phone number with the code",
+                "parameters": [
+                    {
+                        "description": "New phone and code",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PhoneChangeConfirmInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserView"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Phone already registered",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid, expired or exhausted code",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/phone/verification-code": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Sends an SMS code to the new number. Only the signed-in user who asked for it can use the code.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Send a code to a new phone number",
+                "parameters": [
+                    {
+                        "description": "New phone",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PhoneChangeRequestInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MessageOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Phone already registered",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid phone or same as the current one",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Code sent recently or too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "SMS unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/users/password": {
@@ -662,7 +3105,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Ends every session of the user.",
+                "description": "Ends every session of the user. Accounts without a password get 409 PASSWORD_NOT_SET and use POST /users/password instead.",
                 "consumes": [
                     "application/json"
                 ],
@@ -695,7 +3138,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized or session ended",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -706,8 +3149,87 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     },
+                    "409": {
+                        "description": "Account has no password",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
                     "422": {
                         "description": "Wrong current password or invalid new password",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Accounts created by phone have no password and sign in with an SMS code. This sets the first password and keeps the current sessions. Use PUT /users/password to change an existing one.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Set a password on an account that has none",
+                "parameters": [
+                    {
+                        "description": "Set password payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SetPasswordInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Token bound to another client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Account already has a password",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid password",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -796,6 +3318,109 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.AcceptInvitationInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "password",
+                "token"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "example": "S3gredo!forte"
+                },
+                "token": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "dtos.AccessView": {
+            "type": "object",
+            "properties": {
+                "membership_id": {
+                    "type": "string"
+                },
+                "organization_id": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "members:read",
+                        "members:invite"
+                    ]
+                },
+                "scope": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enums.OrganizationType"
+                        }
+                    ],
+                    "example": "platform"
+                }
+            }
+        },
+        "dtos.BlockReasonList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.BlockReasonView"
+                    }
+                }
+            }
+        },
+        "dtos.BlockReasonView": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "fraud"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Fraude ou actividade suspeita"
+                }
+            }
+        },
+        "dtos.BlockUserInput": {
+            "type": "object",
+            "required": [
+                "reason_ids"
+            ],
+            "properties": {
+                "note": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Fraude reportada pelo cliente"
+                },
+                "reason_ids": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "0192f1d2-7c3a-7b4e-9a10-2f3c4d5e6f70"
+                    ]
+                }
+            }
+        },
         "dtos.ChangePasswordInput": {
             "type": "object",
             "required": [
@@ -812,6 +3437,117 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CreatePartnerInput": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Transportes Kianda"
+                },
+                "nif": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "5417123456"
+                }
+            }
+        },
+        "dtos.CreateRoleInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "name",
+                "permissions"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "example": "field_support"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "Suporte de campo"
+                },
+                "permissions": {
+                    "type": "array",
+                    "maxItems": 60,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "members:read",
+                        "providers:read"
+                    ]
+                },
+                "requires_mfa": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dtos.DeleteAccountInput": {
+            "type": "object",
+            "required": [
+                "password"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "dtos.InvitationTokenInput": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "dtos.InviteMemberInput": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "phone",
+                "role_ids"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "operador@agora.ao"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Operador AGORA"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000010"
+                },
+                "role_ids": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "dtos.LoginInput": {
             "type": "object",
             "required": [
@@ -824,10 +3560,171 @@ const docTemplate = `{
                     "maxLength": 254,
                     "example": "+244923000000"
                 },
+                "organization_id": {
+                    "type": "string"
+                },
                 "password": {
                     "type": "string",
                     "maxLength": 128,
                     "example": "S3gredo!forte"
+                }
+            }
+        },
+        "dtos.MFAChallengeOutput": {
+            "type": "object",
+            "properties": {
+                "expires_in": {
+                    "type": "integer",
+                    "example": 300
+                },
+                "mfa_token": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "setup_required",
+                        "code_required"
+                    ],
+                    "example": "code_required"
+                }
+            }
+        },
+        "dtos.MFACodeInput": {
+            "type": "object",
+            "required": [
+                "code"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                }
+            }
+        },
+        "dtos.MFARecoverInput": {
+            "type": "object",
+            "required": [
+                "mfa_token",
+                "recovery_code"
+            ],
+            "properties": {
+                "mfa_token": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "recovery_code": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "7KQM-2XRT-PL9D"
+                }
+            }
+        },
+        "dtos.MFASetupOutput": {
+            "type": "object",
+            "properties": {
+                "otpauth_uri": {
+                    "type": "string",
+                    "example": "otpauth://totp/AGORA:ana@agora.ao?secret=JBSWY3DPEHPK3PXP\u0026issuer=AGORA"
+                },
+                "secret": {
+                    "type": "string",
+                    "example": "JBSWY3DPEHPK3PXP"
+                }
+            }
+        },
+        "dtos.MFATokenInput": {
+            "type": "object",
+            "required": [
+                "mfa_token"
+            ],
+            "properties": {
+                "mfa_token": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "dtos.MFAVerifyInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "mfa_token"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
+                "mfa_token": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "dtos.MemberPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.MemberView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.MemberView": {
+            "type": "object",
+            "properties": {
+                "activated_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_login_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RoleSummary"
+                    }
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enums.MembershipStatus"
+                        }
+                    ],
+                    "example": "active"
+                },
+                "user_id": {
+                    "type": "string"
                 }
             }
         },
@@ -836,6 +3733,139 @@ const docTemplate = `{
             "properties": {
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.MyAccessView": {
+            "type": "object",
+            "properties": {
+                "membership_id": {
+                    "type": "string"
+                },
+                "organization": {
+                    "$ref": "#/definitions/dtos.OrganizationView"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RoleSummary"
+                    }
+                }
+            }
+        },
+        "dtos.OrganizationPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.OrganizationView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.OrganizationView": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Transportes Kianda"
+                },
+                "nif": {
+                    "type": "string",
+                    "example": "5417123456"
+                },
+                "type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enums.OrganizationType"
+                        }
+                    ],
+                    "example": "partner"
+                }
+            }
+        },
+        "dtos.PermissionList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.PermissionView"
+                    }
+                }
+            }
+        },
+        "dtos.PermissionView": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "members:read"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/enums.OrganizationType"
+                    }
+                }
+            }
+        },
+        "dtos.PhoneChangeConfirmInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "phone"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923111111"
+                }
+            }
+        },
+        "dtos.PhoneChangeRequestInput": {
+            "type": "object",
+            "required": [
+                "phone"
+            ],
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923111111"
                 }
             }
         },
@@ -867,6 +3897,20 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "example": "+244923000000"
+                }
+            }
+        },
+        "dtos.RecoveryCodesOutput": {
+            "type": "object",
+            "properties": {
+                "recovery_codes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "7KQM-2XRT-PL9D"
+                    ]
                 }
             }
         },
@@ -921,25 +3965,9 @@ const docTemplate = `{
         "dtos.RegisterInput": {
             "type": "object",
             "required": [
-                "name",
-                "password",
                 "phone"
             ],
             "properties": {
-                "email": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "example": "ana@exemplo.ao"
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 120,
-                    "example": "Ana Domingos"
-                },
-                "password": {
-                    "type": "string",
-                    "example": "S3gredo!forte"
-                },
                 "phone": {
                     "type": "string",
                     "maxLength": 32,
@@ -947,9 +3975,103 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ReplaceRolesInput": {
+            "type": "object",
+            "required": [
+                "role_ids"
+            ],
+            "properties": {
+                "role_ids": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dtos.ResetPasswordInput": {
+            "type": "object",
+            "required": [
+                "new_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "example": "N0vo!segredo"
+                }
+            }
+        },
+        "dtos.RoleList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RoleView"
+                    }
+                }
+            }
+        },
+        "dtos.RoleSummary": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "operations"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Operações"
+                }
+            }
+        },
+        "dtos.RoleView": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "operations"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_system": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Operações"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "requires_mfa": {
+                    "type": "boolean"
+                },
+                "scope": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enums.OrganizationType"
+                        }
+                    ],
+                    "example": "platform"
+                }
+            }
+        },
         "dtos.SessionOutput": {
             "type": "object",
             "properties": {
+                "access": {
+                    "$ref": "#/definitions/dtos.AccessView"
+                },
                 "access_token": {
                     "type": "string"
                 },
@@ -960,6 +4082,15 @@ const docTemplate = `{
                 "expires_in": {
                     "type": "integer",
                     "example": 900
+                },
+                "mfa_recovery_codes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "7KQM-2XRT-PL9D"
+                    ]
                 },
                 "refresh_expires_at": {
                     "type": "string"
@@ -973,6 +4104,106 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/dtos.UserView"
+                }
+            }
+        },
+        "dtos.SetPasswordInput": {
+            "type": "object",
+            "required": [
+                "password"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "example": "S3gredo!forte"
+                }
+            }
+        },
+        "dtos.UnblockUserInput": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Situação resolvida"
+                }
+            }
+        },
+        "dtos.UpdateMemberInput": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Operador AGORA"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000011"
+                }
+            }
+        },
+        "dtos.UpdateProfileInput": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "ana@exemplo.ao"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Ana Domingos"
+                }
+            }
+        },
+        "dtos.UpdateRoleInput": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "Suporte de campo"
+                },
+                "permissions": {
+                    "type": "array",
+                    "maxItems": 60,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "requires_mfa": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dtos.UserPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.UserView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
                 }
             }
         },
@@ -1008,21 +4239,43 @@ const docTemplate = `{
                 }
             }
         },
+        "enums.MembershipStatus": {
+            "type": "string",
+            "enum": [
+                "invited",
+                "active",
+                "suspended",
+                "deactivated"
+            ],
+            "x-enum-varnames": [
+                "MembershipStatusInvited",
+                "MembershipStatusActive",
+                "MembershipStatusSuspended",
+                "MembershipStatusDeactivated"
+            ]
+        },
+        "enums.OrganizationType": {
+            "type": "string",
+            "enum": [
+                "platform",
+                "partner"
+            ],
+            "x-enum-varnames": [
+                "OrganizationTypePlatform",
+                "OrganizationTypePartner"
+            ]
+        },
         "enums.Role": {
             "type": "string",
             "enum": [
                 "customer",
                 "provider",
-                "operator",
-                "admin",
-                "partner"
+                "staff"
             ],
             "x-enum-varnames": [
                 "RoleCustomer",
                 "RoleProvider",
-                "RoleOperator",
-                "RoleAdmin",
-                "RolePartner"
+                "RoleStaff"
             ]
         },
         "enums.UserStatus": {

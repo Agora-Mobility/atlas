@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -37,39 +36,51 @@ var (
 	ErrUserNotFound           = errors.New("user not found")
 )
 
+var (
+	ErrCurrentPasswordRequired   = errors.New("current password is required")
+	ErrPhoneUnchanged            = errors.New("phone is the current one")
+	ErrCodeRecentlySent          = services.ErrOTPCooldown
+	ErrAccountDeletionNotAllowed = errors.New("staff accounts are removed by an admin")
+	ErrPasswordNotSet            = errors.New("account has no password")
+	ErrPasswordAlreadySet        = errors.New("account already has a password")
+)
+
 const dummyPassword = "agora-dummy-password-for-constant-time-login"
 
 type AuthUsecase struct {
-	userRepo         repository.IUserRepository
-	refreshTokenRepo repository.IRefreshTokenRepository
-	outboxRepo       repository.IOutboxRepository
-	txManager        repository.ITransactionManager
-	hasher           services.IPasswordHasher
-	codeSender       *VerificationCodeSender
-	sessions         *SessionIssuer
-	passwords        passwordReplacer
-	dummyHashOnce    sync.Once
-	dummyHash        string
+	userRepo      repository.IUserRepository
+	outboxRepo    repository.IOutboxRepository
+	txManager     repository.ITransactionManager
+	hasher        services.IPasswordHasher
+	codeSender    *VerificationCodeSender
+	sessions      *SessionIssuer
+	staff         *StaffSignIn
+	revoker       *SessionRevoker
+	passwords     passwordReplacer
+	dummyHashOnce sync.Once
+	dummyHash     string
 }
 
 func NewAuthUsecase(
 	userRepo repository.IUserRepository,
-	refreshTokenRepo repository.IRefreshTokenRepository,
 	outboxRepo repository.IOutboxRepository,
 	txManager repository.ITransactionManager,
 	hasher services.IPasswordHasher,
 	codeSender *VerificationCodeSender,
 	sessions *SessionIssuer,
+	staff *StaffSignIn,
+	revoker *SessionRevoker,
 ) *AuthUsecase {
 	return &AuthUsecase{
-		userRepo:         userRepo,
-		refreshTokenRepo: refreshTokenRepo,
-		outboxRepo:       outboxRepo,
-		txManager:        txManager,
-		hasher:           hasher,
-		codeSender:       codeSender,
-		sessions:         sessions,
-		passwords:        passwordReplacer{userRepo: userRepo, refreshTokenRepo: refreshTokenRepo, txManager: txManager, hasher: hasher},
+		userRepo:   userRepo,
+		outboxRepo: outboxRepo,
+		txManager:  txManager,
+		hasher:     hasher,
+		codeSender: codeSender,
+		sessions:   sessions,
+		staff:      staff,
+		revoker:    revoker,
+		passwords:  passwordReplacer{userRepo: userRepo, revoker: revoker, txManager: txManager, hasher: hasher},
 	}
 }
 
@@ -78,21 +89,17 @@ func (uc *AuthUsecase) Register(ctx context.Context, req dtos.RegisterInput, cli
 	if !allowed {
 		return nil, ErrRegistrationNotAllowed
 	}
-	if err := validatePassword(req.Password); err != nil {
-		return nil, err
-	}
 
-	email := normalizeEmail(req.Email)
 	phoneNumber := phone.Normalize(req.Phone)
-	if err := uc.ensureIdentityIsFree(ctx, email, phoneNumber); err != nil {
-		return nil, err
-	}
-
-	hash, err := uc.hasher.Hash(req.Password)
+	existing, err := uc.userRepo.FindByPhone(ctx, phoneNumber)
 	if err != nil {
 		return nil, err
 	}
-	user, err := entities.NewUser(req.Name, email, phoneNumber, hash, role)
+	if existing != nil {
+		return uc.resumeRegistration(ctx, existing, role)
+	}
+
+	user, err := entities.NewSignUpUser(phoneNumber, role)
 	if err != nil {
 		return nil, err
 	}
@@ -116,20 +123,32 @@ func (uc *AuthUsecase) Register(ctx context.Context, req dtos.RegisterInput, cli
 		return nil, fmt.Errorf("register user: %w", err)
 	}
 
-	if err := uc.codeSender.SendSilently(ctx, enums.OTPPurposeVerifyPhone, user.Phone); err != nil {
-		logger.FromContext(ctx).Warn("verification code not sent after registration", zap.Error(err))
-	}
-
+	uc.sendVerificationCode(ctx, user)
 	view := dtos.ToUserView(user)
 	return &view, nil
 }
 
-func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *entities.Client, ip, userAgent string) (*dtos.SessionOutput, error) {
+func (uc *AuthUsecase) resumeRegistration(ctx context.Context, user *entities.User, role enums.Role) (*dtos.UserView, error) {
+	if user.IsVerified || user.Role != role {
+		return nil, ErrPhoneAlreadyExists
+	}
+	uc.sendVerificationCode(ctx, user)
+	view := dtos.ToUserView(user)
+	return &view, nil
+}
+
+func (uc *AuthUsecase) sendVerificationCode(ctx context.Context, user *entities.User) {
+	if err := uc.codeSender.SendSilently(ctx, enums.OTPPurposeVerifyPhone, user.Phone); err != nil {
+		logger.FromContext(ctx).Warn("verification code not sent after registration", zap.Error(err))
+	}
+}
+
+func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *entities.Client, ip, userAgent string) (*dtos.LoginOutput, error) {
 	user, err := uc.resolveUser(ctx, req.Identifier)
 	if err != nil {
 		return nil, err
 	}
-	if user == nil {
+	if user == nil || !user.HasPassword() {
 		uc.spendPasswordCheck(req.Password)
 		return nil, ErrInvalidCredentials
 	}
@@ -152,24 +171,31 @@ func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *e
 		uc.upgradePasswordHash(ctx, user, req.Password)
 	}
 
-	return uc.sessions.Start(ctx, user, client, ip, userAgent)
+	if user.IsStaff() {
+		return uc.staff.Begin(ctx, user, client, req.OrganizationID, ip, userAgent)
+	}
+	session, err := uc.sessions.Start(ctx, user, client, nil, ip, userAgent)
+	if err != nil {
+		return nil, err
+	}
+	return &dtos.LoginOutput{Session: session}, nil
 }
 
 func (uc *AuthUsecase) Logout(ctx context.Context, sessionID uuid.UUID) error {
-	return uc.refreshTokenRepo.RevokeFamily(ctx, sessionID, time.Now().UTC())
+	return uc.revoker.RevokeSession(ctx, sessionID)
 }
 
 func (uc *AuthUsecase) LogoutAll(ctx context.Context, userID uuid.UUID) error {
-	return uc.refreshTokenRepo.RevokeAllForUser(ctx, userID, time.Now().UTC())
+	return uc.revoker.RevokeUser(ctx, userID)
 }
 
 func (uc *AuthUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, currentPassword, newPassword string) error {
-	user, err := uc.userRepo.FindByID(ctx, userID)
+	user, err := uc.findUser(ctx, userID)
 	if err != nil {
 		return err
 	}
-	if user == nil {
-		return ErrUserNotFound
+	if !user.HasPassword() {
+		return ErrPasswordNotSet
 	}
 
 	matches, _, err := uc.hasher.Verify(currentPassword, user.Password)
@@ -186,7 +212,32 @@ func (uc *AuthUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, cur
 	return uc.passwords.replace(ctx, user, newPassword, nil)
 }
 
-func (uc *AuthUsecase) Me(ctx context.Context, userID uuid.UUID) (*dtos.UserView, error) {
+func (uc *AuthUsecase) SetPassword(ctx context.Context, userID uuid.UUID, password string) error {
+	user, err := uc.findUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user.HasPassword() {
+		return ErrPasswordAlreadySet
+	}
+	if err := validatePassword(password); err != nil {
+		return err
+	}
+
+	hash, err := uc.hasher.Hash(password)
+	if err != nil {
+		return err
+	}
+	if err := user.ChangePassword(hash); err != nil {
+		return err
+	}
+	if err := uc.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("set password: %w", err)
+	}
+	return nil
+}
+
+func (uc *AuthUsecase) findUser(ctx context.Context, userID uuid.UUID) (*entities.User, error) {
 	user, err := uc.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -194,13 +245,21 @@ func (uc *AuthUsecase) Me(ctx context.Context, userID uuid.UUID) (*dtos.UserView
 	if user == nil {
 		return nil, ErrUserNotFound
 	}
+	return user, nil
+}
+
+func (uc *AuthUsecase) Me(ctx context.Context, userID uuid.UUID) (*dtos.UserView, error) {
+	user, err := uc.findUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	view := dtos.ToUserView(user)
 	return &view, nil
 }
 
-func (uc *AuthUsecase) ensureIdentityIsFree(ctx context.Context, email, phoneNumber string) error {
+func ensureIdentityIsFree(ctx context.Context, userRepo repository.IUserRepository, email, phoneNumber string) error {
 	if email != "" {
-		existing, err := uc.userRepo.FindByEmail(ctx, email)
+		existing, err := userRepo.FindByEmail(ctx, email)
 		if err != nil {
 			return err
 		}
@@ -209,7 +268,10 @@ func (uc *AuthUsecase) ensureIdentityIsFree(ctx context.Context, email, phoneNum
 		}
 	}
 
-	existing, err := uc.userRepo.FindByPhone(ctx, phoneNumber)
+	if phoneNumber == "" {
+		return nil
+	}
+	existing, err := userRepo.FindByPhone(ctx, phoneNumber)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -19,7 +20,7 @@ const rawCurrent = "raw-current"
 
 func activeToken(t *testing.T, user *entities.User, client *entities.Client) *entities.RefreshToken {
 	t.Helper()
-	token, err := entities.StartRefreshTokenFamily(user.ID, client.ID, "hash-current", refreshTTL, entities.SessionMetadata{})
+	token, err := entities.StartRefreshTokenFamily(user.ID, client.ID, nil, "hash-current", refreshTTL, entities.SessionMetadata{})
 	require.NoError(t, err)
 	return token
 }
@@ -73,7 +74,7 @@ func TestRefresh_ReusedTokenRevokesWholeFamily(t *testing.T) {
 	_, err := current.Rotate("hash-other", refreshTTL, entities.SessionMetadata{})
 	require.NoError(t, err)
 	f.expectLookup(current)
-	f.refreshTokens.EXPECT().RevokeFamily(gomock.Any(), current.FamilyID, gomock.Any()).Return(nil)
+	f.expectSessionRevoked(current.FamilyID)
 
 	_, err = f.refresh.Execute(context.Background(), refreshRequest(), customerApp, "", "")
 
@@ -110,7 +111,7 @@ func TestRefresh_BlockedUserLosesSession(t *testing.T) {
 	current := activeToken(t, user, customerApp)
 	f.expectLookup(current)
 	f.users.EXPECT().FindByID(gomock.Any(), user.ID).Return(user, nil)
-	f.refreshTokens.EXPECT().RevokeFamily(gomock.Any(), current.FamilyID, gomock.Any()).Return(nil)
+	f.expectSessionRevoked(current.FamilyID)
 
 	_, err := f.refresh.Execute(context.Background(), refreshRequest(), customerApp, "", "")
 
@@ -124,4 +125,52 @@ func TestRefresh_UnknownToken(t *testing.T) {
 	_, err := f.refresh.Execute(context.Background(), refreshRequest(), customerApp, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrInvalidRefreshToken)
+}
+
+func staffToken(t *testing.T, user *entities.User, client *entities.Client, membershipID uuid.UUID) *entities.RefreshToken {
+	t.Helper()
+	token, err := entities.StartRefreshTokenFamily(user.ID, client.ID, &membershipID, "hash-current", refreshTTL, entities.SessionMetadata{})
+	require.NoError(t, err)
+	return token
+}
+
+func TestRefresh_StaffSessionKeepsTheMembershipAndItsLatestPermissions(t *testing.T) {
+	f := newFixture(t)
+	staff := newUser(t, enums.RoleStaff, true)
+	_, access := staffAccess(staff, enums.OrganizationTypePlatform, false)
+	access.PermVersion = 9
+	current := staffToken(t, staff, backoffice, access.MembershipID)
+	f.expectLookup(current)
+	f.users.EXPECT().FindByID(gomock.Any(), staff.ID).Return(staff, nil)
+	f.memberships.EXPECT().Access(gomock.Any(), access.MembershipID).Return(access, nil)
+	f.opaqueTokens.EXPECT().Generate().Return("raw-next", "hash-next", nil)
+	f.refreshTokens.EXPECT().Create(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, token *entities.RefreshToken) error {
+			assert.Equal(t, access.MembershipID, *token.MembershipID)
+			return nil
+		})
+	f.refreshTokens.EXPECT().MarkRotated(gomock.Any(), current).Return(nil)
+	f.expectAccessTokenFor(t, staff, backoffice, &current.FamilyID, access)
+
+	out, err := f.refresh.Execute(context.Background(), refreshRequest(), backoffice, "", "")
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(9), access.PermVersion)
+	assert.Equal(t, access.MembershipID, out.Access.MembershipID)
+}
+
+func TestRefresh_SuspendedMembershipEndsTheSession(t *testing.T) {
+	f := newFixture(t)
+	staff := newUser(t, enums.RoleStaff, true)
+	_, access := staffAccess(staff, enums.OrganizationTypePlatform, false)
+	access.Status = enums.MembershipStatusSuspended
+	current := staffToken(t, staff, backoffice, access.MembershipID)
+	f.expectLookup(current)
+	f.users.EXPECT().FindByID(gomock.Any(), staff.ID).Return(staff, nil)
+	f.memberships.EXPECT().Access(gomock.Any(), access.MembershipID).Return(access, nil)
+	f.expectSessionRevoked(current.FamilyID)
+
+	_, err := f.refresh.Execute(context.Background(), refreshRequest(), backoffice, "", "")
+
+	require.ErrorIs(t, err, usecases.ErrRefreshTokenRevoked)
 }

@@ -72,6 +72,21 @@ func (mr *MockIRefreshTokenRepositoryMockRecorder) FindByHashForUpdate(ctx, toke
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByHashForUpdate", reflect.TypeOf((*MockIRefreshTokenRepository)(nil).FindByHashForUpdate), ctx, tokenHash)
 }
 
+// ListSessionsIssuedSince mocks base method.
+func (m *MockIRefreshTokenRepository) ListSessionsIssuedSince(ctx context.Context, userID uuid.UUID, since time.Time) ([]uuid.UUID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListSessionsIssuedSince", ctx, userID, since)
+	ret0, _ := ret[0].([]uuid.UUID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListSessionsIssuedSince indicates an expected call of ListSessionsIssuedSince.
+func (mr *MockIRefreshTokenRepositoryMockRecorder) ListSessionsIssuedSince(ctx, userID, since any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSessionsIssuedSince", reflect.TypeOf((*MockIRefreshTokenRepository)(nil).ListSessionsIssuedSince), ctx, userID, since)
+}
+
 // MarkRotated mocks base method.
 func (m *MockIRefreshTokenRepository) MarkRotated(ctx context.Context, token *entities.RefreshToken) error {
 	m.ctrl.T.Helper()

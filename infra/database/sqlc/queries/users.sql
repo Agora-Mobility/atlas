@@ -24,12 +24,28 @@ WHERE phone = @phone AND deleted_at IS NULL;
 -- name: ListUsers :many
 SELECT * FROM users
 WHERE deleted_at IS NULL
+  AND (cardinality(@roles::text[]) = 0 OR role::text = ANY (@roles::text[]))
+  AND (sqlc.narg(status)::user_status IS NULL OR status = sqlc.narg(status)::user_status)
+  AND (
+      sqlc.narg(search)::text IS NULL
+      OR name ILIKE sqlc.narg(search)::text
+      OR email ILIKE sqlc.narg(search)::text
+      OR phone LIKE sqlc.narg(search)::text
+  )
 ORDER BY created_at DESC
 LIMIT @page_limit OFFSET @page_offset;
 
 -- name: CountUsers :one
 SELECT count(*) FROM users
-WHERE deleted_at IS NULL;
+WHERE deleted_at IS NULL
+  AND (cardinality(@roles::text[]) = 0 OR role::text = ANY (@roles::text[]))
+  AND (sqlc.narg(status)::user_status IS NULL OR status = sqlc.narg(status)::user_status)
+  AND (
+      sqlc.narg(search)::text IS NULL
+      OR name ILIKE sqlc.narg(search)::text
+      OR email ILIKE sqlc.narg(search)::text
+      OR phone LIKE sqlc.narg(search)::text
+  );
 
 -- name: UpdateUser :one
 UPDATE users

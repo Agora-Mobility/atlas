@@ -41,14 +41,14 @@ infra/rest/<module>/controllers  →  usecases/<module>  →  domain/repository 
 | `usecases/<module>/` | Application logic + DTOs |
 | `infra/rest/` | Server (`server.go`), routes, controllers, routers, DI containers |
 | `infra/repository/` | Repository implementations over SQLC |
-| `infra/database/` | pgxpool, transactions, migrations runner, seeders, SQLC queries/code, Redis |
+| `infra/database/` | pgxpool, transactions, migrations runner, seeders, SQLC queries/code, Redis. Every object lives in the `atlas` schema (ADR 0014) |
 | `infra/queue/`, `infra/outbox/` | RabbitMQ manager/publisher/consumer, outbox relay |
 | `infra/middleware/` | Client (`X-Client-Id`), authentication, correlation id, logging, recovery, metrics, rate limit, CORS, security headers |
-| `infra/security/` | JWT, argon2id, opaque refresh tokens, OTP |
+| `infra/security/` | JWT, argon2id, opaque refresh tokens, OTP, session revocation |
 | `infra/sse/` | SSE hub (skeleton) |
 | `shared/` | HTTP error responses, validation errors, enums, pagination |
 | `migrations/` | `.up.sql` / `.down.sql` pairs |
-| `cmd/` | Auxiliary binaries: `migrate`, `seed`, `healthcheck` |
+| `cmd/` | Auxiliary binaries: `migrate`, `seed`, `bootstrap-admin`, `healthcheck` |
 | `docs/adr/` | Architecture decision records |
 
 The `auth` module is the reference implementation across every layer. Copy
@@ -101,18 +101,37 @@ which roles can sign in and which role a self-registration creates:
 |---|---|---|---|
 | `agora-customer-app` | `customer_app` | customer | customer |
 | `agora-provider-app` | `provider_app` | provider | provider |
-| `agora-partner-panel` | `partner_panel` | partner | not allowed |
-| `agora-backoffice` | `backoffice` | operator, admin | not allowed |
+| `agora-partner-panel` | `partner_panel` | staff with a partner membership | not allowed |
+| `agora-backoffice` | `backoffice` | staff with an AGORA membership | not allowed |
+
+Staff access is permission based (ADR 0015): each membership has roles, each
+role a set of permissions, and every staff endpoint checks one permission.
+Super Admin, Financeiro and Proprietário must set up an authenticator app: the
+login answers `202` with an `mfa_token`, then `POST /api/v1/auth/mfa/setup` and
+`POST /api/v1/auth/mfa/verify` start the session.
 
 Protected routes also need `Authorization: Bearer <access_token>` from
-`POST /api/v1/auth/login`. `make seed` creates one user per role (password
-`Agora@2026`):
+`POST /api/v1/auth/login`. `make seed` creates a customer, a provider, a Super
+Admin (`admin@agora.ao`, asks for MFA), an Operações member
+(`operador@agora.ao`) and the owner of a test partner (`parceiro@agora.ao`),
+all with password `Agora@2026`:
 
 ```bash
 curl -s localhost:8700/api/v1/auth/login \
   -H 'X-Client-Id: agora-backoffice' -H 'Content-Type: application/json' \
-  -d '{"identifier":"admin@agora.ao","password":"Agora@2026"}'
+  -d '{"identifier":"operador@agora.ao","password":"Agora@2026"}'
 ```
+
+The API runs every query as the `atlas_app` role, which the migrations create
+and which is subject to row-level security (ADR 0015). In production the
+migration user needs `CREATEROLE`, or the DBA creates the role first.
+
+The seed does not run in production. To create the first Super Admin there,
+run `/bootstrap-admin` from the api image once, with `BOOTSTRAP_ADMIN_EMAIL`
+and `BOOTSTRAP_ADMIN_PASSWORD` (12+ characters) set. It does nothing when an
+active Super Admin already exists. Further staff are invited by SMS
+(`POST /api/v1/members/invitations`) and accept at
+`POST /api/v1/invitations/accept`.
 
 ## Make targets
 
@@ -126,6 +145,7 @@ Run `make help` for the full list. Main ones:
 | `sqlc`, `sqlc-check` | Generate / verify SQLC code |
 | `migrate-up`, `migrate-down`, `migrate-create name=...` | Migrations |
 | `seed` | Development seed data |
+| `bootstrap-admin` | Create the first Super Admin when none exists |
 | `swag` | Regenerate the OpenAPI spec |
 | `docker-up`, `docker-down`, `docker-logs` | Compose stack |
 | `security` | gosec, govulncheck, gitleaks |

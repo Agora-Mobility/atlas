@@ -16,10 +16,24 @@ import (
 const countUsers = `-- name: CountUsers :one
 SELECT count(*) FROM users
 WHERE deleted_at IS NULL
+  AND (cardinality($1::text[]) = 0 OR role::text = ANY ($1::text[]))
+  AND ($2::user_status IS NULL OR status = $2::user_status)
+  AND (
+      $3::text IS NULL
+      OR name ILIKE $3::text
+      OR email ILIKE $3::text
+      OR phone LIKE $3::text
+  )
 `
 
-func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countUsers)
+type CountUsersParams struct {
+	Roles  []string          `json:"roles"`
+	Status *enums.UserStatus `json:"status"`
+	Search *string           `json:"search"`
+}
+
+func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers, arg.Roles, arg.Status, arg.Search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -163,17 +177,34 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone *string) (User, erro
 const listUsers = `-- name: ListUsers :many
 SELECT id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at FROM users
 WHERE deleted_at IS NULL
+  AND (cardinality($1::text[]) = 0 OR role::text = ANY ($1::text[]))
+  AND ($2::user_status IS NULL OR status = $2::user_status)
+  AND (
+      $3::text IS NULL
+      OR name ILIKE $3::text
+      OR email ILIKE $3::text
+      OR phone LIKE $3::text
+  )
 ORDER BY created_at DESC
-LIMIT $2 OFFSET $1
+LIMIT $5 OFFSET $4
 `
 
 type ListUsersParams struct {
-	PageOffset int32 `json:"page_offset"`
-	PageLimit  int32 `json:"page_limit"`
+	Roles      []string          `json:"roles"`
+	Status     *enums.UserStatus `json:"status"`
+	Search     *string           `json:"search"`
+	PageOffset int32             `json:"page_offset"`
+	PageLimit  int32             `json:"page_limit"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.PageOffset, arg.PageLimit)
+	rows, err := q.db.Query(ctx, listUsers,
+		arg.Roles,
+		arg.Status,
+		arg.Search,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -27,7 +27,7 @@ func run() error {
 	}
 
 	ctx := context.Background()
-	pool, err := postgres.Connection(ctx, cfg.Database)
+	pool, err := postgres.OwnerConnection(ctx, cfg.Database)
 	if err != nil {
 		return err
 	}

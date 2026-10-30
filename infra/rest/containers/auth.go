@@ -7,50 +7,95 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/repository"
 	"github.com/Agora-Mobility/atlas/infra/rest/auth/controllers"
 	authrouter "github.com/Agora-Mobility/atlas/infra/rest/auth/router"
+	"github.com/Agora-Mobility/atlas/infra/security/accesscache"
+	"github.com/Agora-Mobility/atlas/infra/security/mfachallenge"
 	"github.com/Agora-Mobility/atlas/infra/security/opaque"
 	"github.com/Agora-Mobility/atlas/infra/security/otp"
 	"github.com/Agora-Mobility/atlas/infra/security/password"
+	"github.com/Agora-Mobility/atlas/infra/security/sealer"
+	"github.com/Agora-Mobility/atlas/infra/security/totp"
 	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
 )
+
+const totpIssuer = "AGORA"
 
 type AuthModule struct {
 	Controller *controllers.AuthController
 	Router     *authrouter.Router
 }
 
-func newAuthModule(c *Container) *AuthModule {
+func newAuthModule(c *Container) (*AuthModule, error) {
 	cfg := c.Config
+	namespace := cfg.App.Name + ":"
+	secretSealer, err := sealer.NewAESGCM(cfg.Access.MFAEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
 	userRepo := repository.NewUserRepository(c.Pool)
 	refreshTokenRepo := repository.NewRefreshTokenRepository(c.Pool)
+	auditRepo := repository.NewAuditLogRepository(c.Pool)
+	blockReasonRepo := repository.NewBlockReasonRepository(c.Pool)
+	orgRepo := repository.NewOrganizationRepository(c.Pool)
+	roleRepo := repository.NewRoleRepository(c.Pool)
+	membershipRepo := repository.NewMembershipRepository(c.Pool)
+	invitationRepo := repository.NewInvitationRepository(c.Pool)
+	mfaRepo := repository.NewUserMFARepository(c.Pool)
 	hasher := password.NewArgon2Hasher(password.DefaultParams)
 	opaqueTokens := opaque.TokenGenerator{}
-	otpService := otp.NewRedisOTPService(c.Redis, cfg.App.Name+":", otp.Settings{
+	otpService := otp.NewRedisOTPService(c.Redis, namespace, otp.Settings{
 		TTL:            cfg.OTP.TTL,
 		MaxAttempts:    cfg.OTP.MaxAttempts,
 		ResendCooldown: cfg.OTP.ResendCooldown,
 	})
 
+	accessResolver := usecases.NewAccessResolver(membershipRepo, accesscache.NewRedisCache(c.Redis, namespace, cfg.Access.PermissionCacheTTL))
 	codeSender := usecases.NewVerificationCodeSender(otpService, c.SMS, cfg.OTP.TTL)
 	sessions := usecases.NewSessionIssuer(userRepo, refreshTokenRepo, c.TxManager, c.JWT, opaqueTokens, cfg.JWT.RefreshTTL)
+	revoker := usecases.NewSessionRevoker(refreshTokenRepo, c.SessionRevocations, cfg.JWT.AccessTTL)
+	challenges := mfachallenge.NewRedisStore(c.Redis, opaqueTokens, namespace, cfg.Access.MFAChallengeTTL, cfg.Access.MFAMaxAttempts)
+	staffSignIn := usecases.NewStaffSignIn(userRepo, membershipRepo, mfaRepo, challenges, totp.NewAuthenticator(totpIssuer), secretSealer,
+		opaqueTokens, auditRepo, sessions, cfg.Access.MFAChallengeTTL)
 
 	controller := controllers.NewAuthController(
-		usecases.NewAuthUsecase(userRepo, refreshTokenRepo, c.Outbox, c.TxManager, hasher, codeSender, sessions),
-		usecases.NewRefreshUsecase(refreshTokenRepo, userRepo, c.TxManager, opaqueTokens, sessions, cfg.JWT.RefreshTTL),
+		usecases.NewAuthUsecase(userRepo, c.Outbox, c.TxManager, hasher, codeSender, sessions, staffSignIn, revoker),
+		usecases.NewRefreshUsecase(refreshTokenRepo, userRepo, accessResolver, c.TxManager, opaqueTokens, sessions, revoker, cfg.JWT.RefreshTTL),
 		usecases.NewPhoneVerificationUsecase(userRepo, c.Outbox, c.TxManager, otpService, codeSender, sessions),
-		usecases.NewRecoveryUsecase(userRepo, refreshTokenRepo, c.Outbox, c.TxManager, hasher, otpService, codeSender),
+		usecases.NewRecoveryUsecase(userRepo, c.Outbox, c.TxManager, hasher, otpService, codeSender, revoker),
 	)
+	members := usecases.NewMemberUsecase(usecases.MemberStores{
+		Users: userRepo, Orgs: orgRepo, Roles: roleRepo, Memberships: membershipRepo, Invitations: invitationRepo,
+		MFA: mfaRepo, Audit: auditRepo, Outbox: c.Outbox, Tx: c.TxManager,
+	}, opaqueTokens, c.SMS, revoker, accessResolver, usecases.InvitationLinks{
+		Platform: cfg.Access.InvitationBackoffice,
+		Partner:  cfg.Access.InvitationPartner,
+	})
+	organizations := usecases.NewOrganizationUsecase(orgRepo, roleRepo, membershipRepo, auditRepo, c.Outbox, c.TxManager)
 
 	return &AuthModule{
 		Controller: controller,
-		Router: authrouter.NewRouter(
-			controller,
-			c.Authenticator,
-			c.ClientAuthorizer,
-			authLimiter(c, "register"),
-			authLimiter(c, "login"),
-			authLimiter(c, "recovery"),
-		),
-	}
+		Router: authrouter.NewRouter(authrouter.Controllers{
+			Auth: controller,
+			Profile: controllers.NewProfileController(
+				usecases.NewProfileUsecase(userRepo, c.Outbox, c.TxManager, hasher, otpService, codeSender, revoker),
+			),
+			UserAdmin: controllers.NewUserAdminController(
+				usecases.NewUserAdminUsecase(userRepo, c.Outbox, auditRepo, blockReasonRepo, c.TxManager, hasher, revoker),
+			),
+			Members:  controllers.NewMemberController(members, organizations),
+			Partners: controllers.NewPartnerController(members, organizations),
+			Invitations: controllers.NewInvitationController(usecases.NewInvitationUsecase(
+				userRepo, orgRepo, membershipRepo, invitationRepo, auditRepo, c.Outbox, c.TxManager, hasher, opaqueTokens, otpService, codeSender, accessResolver,
+			)),
+			MFA:   controllers.NewMFAController(staffSignIn),
+			Roles: controllers.NewRoleController(usecases.NewRoleUsecase(roleRepo, auditRepo, c.Outbox, c.TxManager, accessResolver)),
+		}, c.Authenticator, middleware.NewAuthorizer(accessResolver), c.ClientAuthorizer, authrouter.Limiters{
+			Register: authLimiter(c, "register"),
+			Login:    authLimiter(c, "login"),
+			Phone:    authLimiter(c, "phone"),
+			Recovery: authLimiter(c, "recovery"),
+		}),
+	}, nil
 }
 
 func authLimiter(c *Container, scope string) gin.HandlerFunc {

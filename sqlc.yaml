@@ -33,11 +33,36 @@ sql:
               pointer: true
           - db_type: user_role
             go_type: github.com/Agora-Mobility/atlas/shared/enums.Role
+          - db_type: user_role
+            nullable: true
+            go_type:
+              import: github.com/Agora-Mobility/atlas/shared/enums
+              type: Role
+              pointer: true
           - db_type: user_status
             go_type: github.com/Agora-Mobility/atlas/shared/enums.UserStatus
+          - db_type: user_status
+            nullable: true
+            go_type:
+              import: github.com/Agora-Mobility/atlas/shared/enums
+              type: UserStatus
+              pointer: true
+          - db_type: organization_type
+            go_type: github.com/Agora-Mobility/atlas/shared/enums.OrganizationType
+          - db_type: membership_status
+            go_type: github.com/Agora-Mobility/atlas/shared/enums.MembershipStatus
+          - db_type: membership_status
+            nullable: true
+            go_type:
+              import: github.com/Agora-Mobility/atlas/shared/enums
+              type: MembershipStatus
+              pointer: true
           - db_type: client_type
             go_type: github.com/Agora-Mobility/atlas/shared/enums.ClientType
           - db_type: jsonb
+            go_type: encoding/json.RawMessage
+          - db_type: jsonb
+            nullable: true
             go_type: encoding/json.RawMessage
           # PostGIS columns are read through ST_X/ST_Y or ST_AsText in queries;
           # when selected raw they arrive as hex-encoded EWKB text.

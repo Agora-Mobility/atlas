@@ -12,8 +12,13 @@ import (
 var rolesByClientType = map[enums.ClientType][]enums.Role{
 	enums.ClientTypeCustomerApp:  {enums.RoleCustomer},
 	enums.ClientTypeProviderApp:  {enums.RoleProvider},
-	enums.ClientTypePartnerPanel: {enums.RolePartner},
-	enums.ClientTypeBackoffice:   {enums.RoleOperator, enums.RoleAdmin},
+	enums.ClientTypePartnerPanel: {enums.RoleStaff},
+	enums.ClientTypeBackoffice:   {enums.RoleStaff},
+}
+
+var staffScopeByClientType = map[enums.ClientType]enums.OrganizationType{
+	enums.ClientTypeBackoffice:   enums.OrganizationTypePlatform,
+	enums.ClientTypePartnerPanel: enums.OrganizationTypePartner,
 }
 
 var signUpRoleByClientType = map[enums.ClientType]enums.Role{
@@ -33,6 +38,11 @@ type Client struct {
 
 func (c *Client) Allows(role enums.Role) bool {
 	return slices.Contains(rolesByClientType[c.Type], role)
+}
+
+func (c *Client) StaffScope() (enums.OrganizationType, bool) {
+	scope, ok := staffScopeByClientType[c.Type]
+	return scope, ok
 }
 
 func (c *Client) SignUpRole() (enums.Role, bool) {

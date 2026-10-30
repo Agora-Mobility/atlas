@@ -17,6 +17,8 @@ import (
 var smsTemplateByPurpose = map[enums.OTPPurpose]string{
 	enums.OTPPurposeVerifyPhone:   "Código de verificação: %s. Válido por %d min. Não o partilhe.",
 	enums.OTPPurposeResetPassword: "Código de recuperação: %s. Válido por %d min. Não o partilhe.",
+	enums.OTPPurposeChangePhone:   "Código de novo número: %s. Válido por %d min. Não o partilhe.",
+	enums.OTPPurposeInvitation:    "Código de activação: %s. Válido por %d min. Não o partilhe.",
 }
 
 type VerificationCodeSender struct {
@@ -30,7 +32,12 @@ func NewVerificationCodeSender(otp services.IOTPService, sms services.ISMSSender
 }
 
 func (s *VerificationCodeSender) Send(ctx context.Context, purpose enums.OTPPurpose, phone string) error {
-	code, err := s.otp.Issue(ctx, purpose, phone)
+	return s.SendTo(ctx, purpose, phone, phone)
+}
+
+// SendTo issues a code for subject and sends it to phone.
+func (s *VerificationCodeSender) SendTo(ctx context.Context, purpose enums.OTPPurpose, subject, phone string) error {
+	code, err := s.otp.Issue(ctx, purpose, subject)
 	if err != nil {
 		return err
 	}

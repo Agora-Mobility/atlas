@@ -14,8 +14,10 @@ import (
 	reflect "reflect"
 	time "time"
 
+	entities "github.com/Agora-Mobility/atlas/domain/entities"
 	services "github.com/Agora-Mobility/atlas/domain/services"
 	enums "github.com/Agora-Mobility/atlas/shared/enums"
+	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -193,30 +195,404 @@ func (m *MockIOTPService) EXPECT() *MockIOTPServiceMockRecorder {
 }
 
 // Issue mocks base method.
-func (m *MockIOTPService) Issue(ctx context.Context, purpose enums.OTPPurpose, phone string) (string, error) {
+func (m *MockIOTPService) Issue(ctx context.Context, purpose enums.OTPPurpose, subject string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Issue", ctx, purpose, phone)
+	ret := m.ctrl.Call(m, "Issue", ctx, purpose, subject)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Issue indicates an expected call of Issue.
-func (mr *MockIOTPServiceMockRecorder) Issue(ctx, purpose, phone any) *gomock.Call {
+func (mr *MockIOTPServiceMockRecorder) Issue(ctx, purpose, subject any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIOTPService)(nil).Issue), ctx, purpose, phone)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIOTPService)(nil).Issue), ctx, purpose, subject)
 }
 
 // Verify mocks base method.
-func (m *MockIOTPService) Verify(ctx context.Context, purpose enums.OTPPurpose, phone, code string) error {
+func (m *MockIOTPService) Verify(ctx context.Context, purpose enums.OTPPurpose, subject, code string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify", ctx, purpose, phone, code)
+	ret := m.ctrl.Call(m, "Verify", ctx, purpose, subject, code)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockIOTPServiceMockRecorder) Verify(ctx, purpose, phone, code any) *gomock.Call {
+func (mr *MockIOTPServiceMockRecorder) Verify(ctx, purpose, subject, code any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockIOTPService)(nil).Verify), ctx, purpose, phone, code)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockIOTPService)(nil).Verify), ctx, purpose, subject, code)
+}
+
+// MockISessionRevocationStore is a mock of ISessionRevocationStore interface.
+type MockISessionRevocationStore struct {
+	ctrl     *gomock.Controller
+	recorder *MockISessionRevocationStoreMockRecorder
+	isgomock struct{}
+}
+
+// MockISessionRevocationStoreMockRecorder is the mock recorder for MockISessionRevocationStore.
+type MockISessionRevocationStoreMockRecorder struct {
+	mock *MockISessionRevocationStore
+}
+
+// NewMockISessionRevocationStore creates a new mock instance.
+func NewMockISessionRevocationStore(ctrl *gomock.Controller) *MockISessionRevocationStore {
+	mock := &MockISessionRevocationStore{ctrl: ctrl}
+	mock.recorder = &MockISessionRevocationStoreMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockISessionRevocationStore) EXPECT() *MockISessionRevocationStoreMockRecorder {
+	return m.recorder
+}
+
+// IsSessionRevoked mocks base method.
+func (m *MockISessionRevocationStore) IsSessionRevoked(ctx context.Context, sessionID uuid.UUID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsSessionRevoked", ctx, sessionID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsSessionRevoked indicates an expected call of IsSessionRevoked.
+func (mr *MockISessionRevocationStoreMockRecorder) IsSessionRevoked(ctx, sessionID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSessionRevoked", reflect.TypeOf((*MockISessionRevocationStore)(nil).IsSessionRevoked), ctx, sessionID)
+}
+
+// RevokeSessions mocks base method.
+func (m *MockISessionRevocationStore) RevokeSessions(ctx context.Context, sessionIDs ...uuid.UUID) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx}
+	for _, a := range sessionIDs {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "RevokeSessions", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokeSessions indicates an expected call of RevokeSessions.
+func (mr *MockISessionRevocationStoreMockRecorder) RevokeSessions(ctx any, sessionIDs ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx}, sessionIDs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeSessions", reflect.TypeOf((*MockISessionRevocationStore)(nil).RevokeSessions), varargs...)
+}
+
+// MockIAccessCache is a mock of IAccessCache interface.
+type MockIAccessCache struct {
+	ctrl     *gomock.Controller
+	recorder *MockIAccessCacheMockRecorder
+	isgomock struct{}
+}
+
+// MockIAccessCacheMockRecorder is the mock recorder for MockIAccessCache.
+type MockIAccessCacheMockRecorder struct {
+	mock *MockIAccessCache
+}
+
+// NewMockIAccessCache creates a new mock instance.
+func NewMockIAccessCache(ctrl *gomock.Controller) *MockIAccessCache {
+	mock := &MockIAccessCache{ctrl: ctrl}
+	mock.recorder = &MockIAccessCacheMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIAccessCache) EXPECT() *MockIAccessCacheMockRecorder {
+	return m.recorder
+}
+
+// Delete mocks base method.
+func (m *MockIAccessCache) Delete(ctx context.Context, membershipIDs ...uuid.UUID) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx}
+	for _, a := range membershipIDs {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Delete", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockIAccessCacheMockRecorder) Delete(ctx any, membershipIDs ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx}, membershipIDs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockIAccessCache)(nil).Delete), varargs...)
+}
+
+// Get mocks base method.
+func (m *MockIAccessCache) Get(ctx context.Context, membershipID uuid.UUID) (*entities.Access, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", ctx, membershipID)
+	ret0, _ := ret[0].(*entities.Access)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockIAccessCacheMockRecorder) Get(ctx, membershipID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockIAccessCache)(nil).Get), ctx, membershipID)
+}
+
+// Set mocks base method.
+func (m *MockIAccessCache) Set(ctx context.Context, access *entities.Access) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Set", ctx, access)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Set indicates an expected call of Set.
+func (mr *MockIAccessCacheMockRecorder) Set(ctx, access any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockIAccessCache)(nil).Set), ctx, access)
+}
+
+// MockIAccessResolver is a mock of IAccessResolver interface.
+type MockIAccessResolver struct {
+	ctrl     *gomock.Controller
+	recorder *MockIAccessResolverMockRecorder
+	isgomock struct{}
+}
+
+// MockIAccessResolverMockRecorder is the mock recorder for MockIAccessResolver.
+type MockIAccessResolverMockRecorder struct {
+	mock *MockIAccessResolver
+}
+
+// NewMockIAccessResolver creates a new mock instance.
+func NewMockIAccessResolver(ctrl *gomock.Controller) *MockIAccessResolver {
+	mock := &MockIAccessResolver{ctrl: ctrl}
+	mock.recorder = &MockIAccessResolverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIAccessResolver) EXPECT() *MockIAccessResolverMockRecorder {
+	return m.recorder
+}
+
+// Resolve mocks base method.
+func (m *MockIAccessResolver) Resolve(ctx context.Context, membershipID uuid.UUID) (*entities.Access, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolve", ctx, membershipID)
+	ret0, _ := ret[0].(*entities.Access)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Resolve indicates an expected call of Resolve.
+func (mr *MockIAccessResolverMockRecorder) Resolve(ctx, membershipID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockIAccessResolver)(nil).Resolve), ctx, membershipID)
+}
+
+// MockITOTP is a mock of ITOTP interface.
+type MockITOTP struct {
+	ctrl     *gomock.Controller
+	recorder *MockITOTPMockRecorder
+	isgomock struct{}
+}
+
+// MockITOTPMockRecorder is the mock recorder for MockITOTP.
+type MockITOTPMockRecorder struct {
+	mock *MockITOTP
+}
+
+// NewMockITOTP creates a new mock instance.
+func NewMockITOTP(ctrl *gomock.Controller) *MockITOTP {
+	mock := &MockITOTP{ctrl: ctrl}
+	mock.recorder = &MockITOTPMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockITOTP) EXPECT() *MockITOTPMockRecorder {
+	return m.recorder
+}
+
+// Match mocks base method.
+func (m *MockITOTP) Match(secret, code string, at time.Time) (int64, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Match", secret, code, at)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// Match indicates an expected call of Match.
+func (mr *MockITOTPMockRecorder) Match(secret, code, at any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Match", reflect.TypeOf((*MockITOTP)(nil).Match), secret, code, at)
+}
+
+// NewSecret mocks base method.
+func (m *MockITOTP) NewSecret() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewSecret")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewSecret indicates an expected call of NewSecret.
+func (mr *MockITOTPMockRecorder) NewSecret() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewSecret", reflect.TypeOf((*MockITOTP)(nil).NewSecret))
+}
+
+// URI mocks base method.
+func (m *MockITOTP) URI(secret, account string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "URI", secret, account)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// URI indicates an expected call of URI.
+func (mr *MockITOTPMockRecorder) URI(secret, account any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "URI", reflect.TypeOf((*MockITOTP)(nil).URI), secret, account)
+}
+
+// MockISecretSealer is a mock of ISecretSealer interface.
+type MockISecretSealer struct {
+	ctrl     *gomock.Controller
+	recorder *MockISecretSealerMockRecorder
+	isgomock struct{}
+}
+
+// MockISecretSealerMockRecorder is the mock recorder for MockISecretSealer.
+type MockISecretSealerMockRecorder struct {
+	mock *MockISecretSealer
+}
+
+// NewMockISecretSealer creates a new mock instance.
+func NewMockISecretSealer(ctrl *gomock.Controller) *MockISecretSealer {
+	mock := &MockISecretSealer{ctrl: ctrl}
+	mock.recorder = &MockISecretSealerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockISecretSealer) EXPECT() *MockISecretSealerMockRecorder {
+	return m.recorder
+}
+
+// Open mocks base method.
+func (m *MockISecretSealer) Open(sealed string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Open", sealed)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Open indicates an expected call of Open.
+func (mr *MockISecretSealerMockRecorder) Open(sealed any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockISecretSealer)(nil).Open), sealed)
+}
+
+// Seal mocks base method.
+func (m *MockISecretSealer) Seal(plaintext string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Seal", plaintext)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Seal indicates an expected call of Seal.
+func (mr *MockISecretSealerMockRecorder) Seal(plaintext any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Seal", reflect.TypeOf((*MockISecretSealer)(nil).Seal), plaintext)
+}
+
+// MockIMFAChallengeStore is a mock of IMFAChallengeStore interface.
+type MockIMFAChallengeStore struct {
+	ctrl     *gomock.Controller
+	recorder *MockIMFAChallengeStoreMockRecorder
+	isgomock struct{}
+}
+
+// MockIMFAChallengeStoreMockRecorder is the mock recorder for MockIMFAChallengeStore.
+type MockIMFAChallengeStoreMockRecorder struct {
+	mock *MockIMFAChallengeStore
+}
+
+// NewMockIMFAChallengeStore creates a new mock instance.
+func NewMockIMFAChallengeStore(ctrl *gomock.Controller) *MockIMFAChallengeStore {
+	mock := &MockIMFAChallengeStore{ctrl: ctrl}
+	mock.recorder = &MockIMFAChallengeStoreMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIMFAChallengeStore) EXPECT() *MockIMFAChallengeStoreMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockIMFAChallengeStore) Create(ctx context.Context, challenge services.MFAChallenge) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, challenge)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockIMFAChallengeStoreMockRecorder) Create(ctx, challenge any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockIMFAChallengeStore)(nil).Create), ctx, challenge)
+}
+
+// Delete mocks base method.
+func (m *MockIMFAChallengeStore) Delete(ctx context.Context, token string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, token)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockIMFAChallengeStoreMockRecorder) Delete(ctx, token any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockIMFAChallengeStore)(nil).Delete), ctx, token)
+}
+
+// Find mocks base method.
+func (m *MockIMFAChallengeStore) Find(ctx context.Context, token string) (*services.MFAChallenge, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Find", ctx, token)
+	ret0, _ := ret[0].(*services.MFAChallenge)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Find indicates an expected call of Find.
+func (mr *MockIMFAChallengeStoreMockRecorder) Find(ctx, token any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockIMFAChallengeStore)(nil).Find), ctx, token)
+}
+
+// RecordFailure mocks base method.
+func (m *MockIMFAChallengeStore) RecordFailure(ctx context.Context, token string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RecordFailure", ctx, token)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RecordFailure indicates an expected call of RecordFailure.
+func (mr *MockIMFAChallengeStoreMockRecorder) RecordFailure(ctx, token any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecordFailure", reflect.TypeOf((*MockIMFAChallengeStore)(nil).RecordFailure), ctx, token)
 }

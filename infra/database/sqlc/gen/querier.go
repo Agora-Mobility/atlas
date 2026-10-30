@@ -7,32 +7,89 @@ package gen
 import (
 	"context"
 
+	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/google/uuid"
 )
 
 type Querier interface {
+	AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) error
+	AddMembershipRoles(ctx context.Context, arg AddMembershipRolesParams) error
+	AddRolePermissions(ctx context.Context, arg AddRolePermissionsParams) error
+	BumpMembershipsWithRole(ctx context.Context, arg BumpMembershipsWithRoleParams) ([]uuid.UUID, error)
+	CountMembers(ctx context.Context, arg CountMembersParams) (int64, error)
+	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
+	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
 	CountPendingOutboxEvents(ctx context.Context) (int64, error)
-	CountUsers(ctx context.Context) (int64, error)
+	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
+	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
+	CreateInvitation(ctx context.Context, arg CreateInvitationParams) error
+	CreateMembership(ctx context.Context, arg CreateMembershipParams) error
+	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) error
+	CreateRecoveryCodes(ctx context.Context, arg CreateRecoveryCodesParams) error
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
+	CreateRole(ctx context.Context, arg CreateRoleParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	CreateUserBlock(ctx context.Context, arg CreateUserBlockParams) error
+	CreateUserBlockReasons(ctx context.Context, arg CreateUserBlockReasonsParams) error
+	DeleteMembershipRoles(ctx context.Context, membershipID uuid.UUID) error
+	DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error
+	DeleteRole(ctx context.Context, id uuid.UUID) (int64, error)
+	DeleteRolePermissions(ctx context.Context, roleID uuid.UUID) error
+	DeleteUserMFA(ctx context.Context, userID uuid.UUID) error
+	ExistsActiveMemberWithRole(ctx context.Context, arg ExistsActiveMemberWithRoleParams) (bool, error)
 	// Locks a batch of unpublished events. SKIP LOCKED lets several relays run
 	// concurrently without publishing the same event twice.
 	FetchPendingOutboxEvents(ctx context.Context, batchSize int32) ([]FetchPendingOutboxEventsRow, error)
 	GetActiveClientByClientID(ctx context.Context, clientID string) (Client, error)
+	GetInvitationByHash(ctx context.Context, tokenHash string) (Invitation, error)
+	GetInvitationByHashForUpdate(ctx context.Context, tokenHash string) (Invitation, error)
+	GetInvitationScope(ctx context.Context, tokenHash string) (GetInvitationScopeRow, error)
+	GetMembershipAccess(ctx context.Context, id uuid.UUID) (GetMembershipAccessRow, error)
+	GetMembershipByID(ctx context.Context, id uuid.UUID) (Membership, error)
+	GetMembershipByIDForUpdate(ctx context.Context, id uuid.UUID) (Membership, error)
+	GetMembershipByUserAndOrganization(ctx context.Context, arg GetMembershipByUserAndOrganizationParams) (Membership, error)
+	GetMembershipInOrganization(ctx context.Context, arg GetMembershipInOrganizationParams) (Membership, error)
+	GetMembershipInOrganizationForUpdate(ctx context.Context, arg GetMembershipInOrganizationForUpdateParams) (Membership, error)
+	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
+	GetPlatformOrganization(ctx context.Context) (Organization, error)
 	GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash string) (RefreshToken, error)
+	GetRolesByIDs(ctx context.Context, ids []uuid.UUID) ([]Role, error)
+	GetSystemRoleByCode(ctx context.Context, arg GetSystemRoleByCodeParams) (Role, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByPhone(ctx context.Context, phone *string) (User, error)
+	GetUserMFA(ctx context.Context, userID uuid.UUID) (UserMfa, error)
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
+	ListActiveBlockReasons(ctx context.Context) ([]BlockReason, error)
+	ListActiveBlockReasonsByIDs(ctx context.Context, ids []uuid.UUID) ([]BlockReason, error)
+	ListActiveMembershipsForSignIn(ctx context.Context, arg ListActiveMembershipsForSignInParams) ([]Membership, error)
+	ListMembers(ctx context.Context, arg ListMembersParams) ([]ListMembersRow, error)
+	ListMembershipPermissions(ctx context.Context, membershipID uuid.UUID) ([]string, error)
+	ListMembershipRoles(ctx context.Context, membershipIds []uuid.UUID) ([]MembershipRole, error)
+	ListPartnerOrganizations(ctx context.Context, arg ListPartnerOrganizationsParams) ([]Organization, error)
+	ListPermissionsByScope(ctx context.Context, scope enums.OrganizationType) ([]ListPermissionsByScopeRow, error)
+	ListRolePermissions(ctx context.Context, roleIds []uuid.UUID) ([]RolePermission, error)
+	ListRolesForOrganization(ctx context.Context, arg ListRolesForOrganizationParams) ([]Role, error)
+	ListUserSessionsIssuedSince(ctx context.Context, arg ListUserSessionsIssuedSinceParams) ([]uuid.UUID, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error
 	MarkOutboxEventPublished(ctx context.Context, id uuid.UUID) error
+	RevokePendingInvitations(ctx context.Context, arg RevokePendingInvitationsParams) error
 	RevokeRefreshToken(ctx context.Context, arg RevokeRefreshTokenParams) error
 	RevokeRefreshTokenFamily(ctx context.Context, arg RevokeRefreshTokenFamilyParams) error
 	RevokeUserRefreshTokens(ctx context.Context, arg RevokeUserRefreshTokensParams) error
+	RoleIsAssigned(ctx context.Context, roleID uuid.UUID) (bool, error)
+	SavePendingUserMFA(ctx context.Context, arg SavePendingUserMFAParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
+	UpdateMembership(ctx context.Context, arg UpdateMembershipParams) error
+	UpdateRole(ctx context.Context, arg UpdateRoleParams) (int64, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLoginParams) error
+	UseRecoveryCode(ctx context.Context, arg UseRecoveryCodeParams) (int64, error)
+	UseUserMFAStep(ctx context.Context, arg UseUserMFAStepParams) (int64, error)
+	UserHasMembershipOutside(ctx context.Context, arg UserHasMembershipOutsideParams) (bool, error)
 }
 
 var _ Querier = (*Queries)(nil)

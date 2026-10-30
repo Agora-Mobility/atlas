@@ -26,6 +26,16 @@ runs as several stateless instances behind a load balancer.
   **rotating refresh token** (opaque, stored hashed in PostgreSQL, 30 days,
   bound to the client that created it). Reusing a rotated refresh token
   revokes the whole token family.
+- **Ending a session takes effect at once.** Logout, logout-all, password
+  change or recovery, account deletion, refresh-token reuse and a block by
+  the backoffice put the session id (`sid`) in a Redis denylist
+  (`<app>:revoked-session:<sid>`) for as long as an access token lives.
+  `RequireAuth` rejects a denied `sid` with `SESSION_REVOKED` (401). When
+  every session of a user ends, the sessions with a token issued within the
+  access-token lifetime are denied. The denylist is written inside the same
+  transaction as the change, so the change rolls back if Redis fails.
+  `RequireAuth` **fails closed**: if Redis cannot be reached it answers
+  `AUTH_UNAVAILABLE` (503) instead of accepting the token.
 - Roles: `customer`, `provider`, `partner`, `operator`, `admin`
   (`shared/enums.Role`), enforced by `middleware.Authenticator`
   (`RequireAuth` / `RequireRole`).
@@ -51,7 +61,7 @@ runs as several stateless instances behind a load balancer.
 
   | Method | Path | Auth | Purpose |
   |---|---|---|---|
-  | POST | `/api/v1/auth/register` | client | Sign up, sends OTP |
+  | POST | `/api/v1/auth/register` | client | Sign up with the phone only, sends OTP (resends it while unverified) |
   | POST | `/api/v1/auth/login` | client | Returns a session |
   | POST | `/api/v1/auth/refresh` | client | Rotate refresh token |
   | POST | `/api/v1/auth/phone/verification-code` | client | Resend phone OTP (always 202) |
@@ -61,7 +71,22 @@ runs as several stateless instances behind a load balancer.
   | POST | `/api/v1/auth/logout` | client + bearer | Revoke the current session |
   | POST | `/api/v1/auth/logout-all` | client + bearer | Revoke every session |
   | GET | `/api/v1/users/me` | client + bearer | Authenticated user |
+  | PATCH | `/api/v1/users/me` | client + bearer | Update name / e-mail (e-mail needs the current password) |
+  | DELETE | `/api/v1/users/me` | client + bearer | Delete a customer or provider account, revokes all sessions |
+  | POST | `/api/v1/users/me/phone/verification-code` | client + bearer | Send an OTP to a new phone |
+  | PUT | `/api/v1/users/me/phone` | client + bearer | Confirm the new phone with the OTP |
+  | POST | `/api/v1/users/password` | client + bearer | Set the first password of an account that has none, keeps the sessions |
   | PUT | `/api/v1/users/password` | client + bearer | Change password, revokes all sessions |
+
+- **Changing the phone** sends the OTP to the new number with the subject
+  `<user id>:<phone>`, so only the user who asked for it can use the code.
+- **Deleting an account** soft-deletes the user; the phone and e-mail can be
+  registered again. Staff accounts are not deleted this way.
+- **Backoffice user management** (list, create staff, block, unblock, reset
+  password) lives under `/api/v1/admin/users` and is described in ADR 0013.
+- **The first admin** of an environment is created by `cmd/bootstrap-admin`
+  (shipped in the image as `/bootstrap-admin`) from `BOOTSTRAP_ADMIN_*`
+  variables. It does nothing when an admin already exists.
 
 - Login of a user whose phone is not verified fails with
   `PHONE_NOT_VERIFIED` (403), so the app can send the user to the OTP screen.
@@ -69,8 +94,9 @@ runs as several stateless instances behind a load balancer.
   does not reveal which accounts exist. Argon2id runs are bounded by a
   semaphore sized to the CPU count.
 - Hashes use the PHC format; outdated parameters are re-hashed on login.
-- Register, login and OTP/recovery routes each have their own rate limit
-  scope (`AUTH_RATE_LIMIT_*`), stricter than the global limiter.
+- Register, login, phone OTP (verification and phone change) and recovery
+  routes each have their own rate limit scope (`AUTH_RATE_LIMIT_*`),
+  stricter than the global limiter.
 - OTP and recovery requests answer 202 even when no SMS is sent (unknown
   phone, other client, resend cooldown, SMS unavailable), so they do not
   reveal which accounts exist.
@@ -82,19 +108,22 @@ runs as several stateless instances behind a load balancer.
   content.
 - Usecases return sentinel errors (`errors.Is`); controllers map each one to
   an HTTP status and a stable error code.
-- Events: `identity.user-registered.v1`, `identity.phone-verified.v1`.
+- Events: `identity.user-registered.v1`, `identity.phone-verified.v1`,
+  `identity.phone-changed.v1`, `identity.user-blocked.v1`,
+  `identity.user-unblocked.v1`, `identity.user-deleted.v1`.
 
 ## Consequences
 
-- Access tokens are verified without a database hit, which keeps the API
-  stateless. A logout or ban takes effect when the access token expires
-  (at most 15 minutes) unless an explicit denylist is added later.
+- Access tokens are verified without a database hit; each authenticated
+  request costs one Redis `EXISTS` for the session denylist. A logout,
+  block or password change ends the session at once instead of after up to
+  15 minutes. Redis becomes a hard dependency of authenticated routes.
 - `X-Client-Id` is public (it ships inside the apps), so it is a channel
   policy, not a secret: it stops staff accounts from signing in through the
   public apps and tokens from being replayed across clients, but it does not
   authenticate the application itself.
 - Backoffice and partner users without a phone number cannot use SMS
-  recovery; an admin resets their password.
+  recovery; an admin resets their password (`PUT /api/v1/admin/users/{id}/password`).
 - SMS cost and delivery depend on the operator integration (ADR 0012).
 - Refresh-token rotation locks the token row (`FOR UPDATE`). Two concurrent
   refreshes with the same token are treated as reuse and end that session,

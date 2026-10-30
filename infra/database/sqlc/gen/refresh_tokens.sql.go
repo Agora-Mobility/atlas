@@ -14,12 +14,12 @@ import (
 
 const createRefreshToken = `-- name: CreateRefreshToken :exec
 INSERT INTO refresh_tokens (
-    id, user_id, client_id, family_id, token_hash, expires_at, revoked_at,
+    id, user_id, client_id, membership_id, family_id, token_hash, expires_at, revoked_at,
     replaced_by_id, user_agent, ip_address, created_at
 )
 VALUES (
-    $1, $2, $3, $4, $5, $6, $7,
-    $8, $9, $10, $11
+    $1, $2, $3, $4, $5, $6, $7, $8,
+    $9, $10, $11, $12
 )
 `
 
@@ -27,6 +27,7 @@ type CreateRefreshTokenParams struct {
 	ID           uuid.UUID  `json:"id"`
 	UserID       uuid.UUID  `json:"user_id"`
 	ClientID     uuid.UUID  `json:"client_id"`
+	MembershipID *uuid.UUID `json:"membership_id"`
 	FamilyID     uuid.UUID  `json:"family_id"`
 	TokenHash    string     `json:"token_hash"`
 	ExpiresAt    time.Time  `json:"expires_at"`
@@ -42,6 +43,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 		arg.ID,
 		arg.UserID,
 		arg.ClientID,
+		arg.MembershipID,
 		arg.FamilyID,
 		arg.TokenHash,
 		arg.ExpiresAt,
@@ -55,7 +57,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 }
 
 const getRefreshTokenByHashForUpdate = `-- name: GetRefreshTokenByHashForUpdate :one
-SELECT id, user_id, client_id, family_id, token_hash, expires_at, revoked_at, replaced_by_id, user_agent, ip_address, created_at FROM refresh_tokens
+SELECT id, user_id, client_id, family_id, token_hash, expires_at, revoked_at, replaced_by_id, user_agent, ip_address, created_at, membership_id FROM refresh_tokens
 WHERE token_hash = $1
 FOR UPDATE
 `
@@ -75,8 +77,39 @@ func (q *Queries) GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash 
 		&i.UserAgent,
 		&i.IpAddress,
 		&i.CreatedAt,
+		&i.MembershipID,
 	)
 	return i, err
+}
+
+const listUserSessionsIssuedSince = `-- name: ListUserSessionsIssuedSince :many
+SELECT DISTINCT family_id FROM refresh_tokens
+WHERE user_id = $1 AND created_at >= $2
+`
+
+type ListUserSessionsIssuedSinceParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Since  time.Time `json:"since"`
+}
+
+func (q *Queries) ListUserSessionsIssuedSince(ctx context.Context, arg ListUserSessionsIssuedSinceParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listUserSessionsIssuedSince, arg.UserID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var family_id uuid.UUID
+		if err := rows.Scan(&family_id); err != nil {
+			return nil, err
+		}
+		items = append(items, family_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const revokeRefreshToken = `-- name: RevokeRefreshToken :exec

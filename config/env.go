@@ -4,6 +4,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -26,6 +27,7 @@ type Config struct {
 	JWT      JWTConfig      `mapstructure:",squash"`
 	OTP      OTPConfig      `mapstructure:",squash"`
 	SMS      SMSConfig      `mapstructure:",squash"`
+	Access   AccessConfig   `mapstructure:",squash"`
 }
 
 type AppConfig struct {
@@ -101,53 +103,67 @@ type SMSConfig struct {
 	Timeout  time.Duration `mapstructure:"CASTBRICK_TIMEOUT"`
 }
 
+type AccessConfig struct {
+	MFAEncryptionKey     string        `mapstructure:"MFA_ENCRYPTION_KEY"`
+	MFAChallengeTTL      time.Duration `mapstructure:"MFA_CHALLENGE_TTL"`
+	MFAMaxAttempts       int           `mapstructure:"MFA_MAX_ATTEMPTS"`
+	PermissionCacheTTL   time.Duration `mapstructure:"PERMISSION_CACHE_TTL"`
+	InvitationBackoffice string        `mapstructure:"INVITATION_URL_BACKOFFICE"`
+	InvitationPartner    string        `mapstructure:"INVITATION_URL_PARTNER_PANEL"`
+}
+
 func (c SMSConfig) Enabled() bool {
 	return strings.TrimSpace(c.APIKey) != ""
 }
 
 var defaults = map[string]any{
-	"APP_NAME":                 "atlas",
-	"APP_ENV":                  "development",
-	"HTTP_PORT":                8700,
-	"HTTP_READ_TIMEOUT":        "15s",
-	"HTTP_WRITE_TIMEOUT":       "15s",
-	"HTTP_IDLE_TIMEOUT":        "60s",
-	"HTTP_SHUTDOWN_TIMEOUT":    "20s",
-	"CORS_ALLOWED_ORIGINS":     "*",
-	"TRUSTED_PROXIES":          "",
-	"RATE_LIMIT_REQUESTS":      100,
-	"RATE_LIMIT_WINDOW":        "1m",
-	"AUTH_RATE_LIMIT_REQUESTS": 10,
-	"AUTH_RATE_LIMIT_WINDOW":   "1m",
-	"LOG_LEVEL":                "info",
-	"LOG_OUTPUT":               "stdout",
-	"DB_MAX_CONNS":             20,
-	"DB_MIN_CONNS":             2,
-	"DB_MAX_CONN_LIFETIME":     "1h",
-	"DB_MAX_CONN_IDLE_TIME":    "15m",
-	"DB_MIGRATE_ON_START":      true,
-	"REDIS_PASSWORD":           "",
-	"REDIS_DB":                 0,
-	"RABBITMQ_EXCHANGE":        "agora.events",
-	"RABBITMQ_PREFETCH":        10,
-	"RABBITMQ_MAX_RETRIES":     5,
-	"RABBITMQ_RETRY_DELAY":     "10s",
-	"EVENT_DEDUP_TTL":          "24h",
-	"OUTBOX_POLL_INTERVAL":     "1s",
-	"OUTBOX_BATCH_SIZE":        100,
-	"JWT_ISSUER":               "atlas",
-	"JWT_ACCESS_TTL":           "15m",
-	"JWT_REFRESH_TTL":          "720h",
-	"OTP_TTL":                  "5m",
-	"OTP_MAX_ATTEMPTS":         5,
-	"OTP_RESEND_COOLDOWN":      "60s",
-	"CASTBRICK_API_KEY":        "",
-	"CASTBRICK_BASE_URL":       "https://api.castbrick.co/v1",
-	"CASTBRICK_SENDER_ID":      "",
-	"CASTBRICK_TIMEOUT":        "10s",
+	"APP_NAME":                     "atlas",
+	"APP_ENV":                      "development",
+	"HTTP_PORT":                    8700,
+	"HTTP_READ_TIMEOUT":            "15s",
+	"HTTP_WRITE_TIMEOUT":           "15s",
+	"HTTP_IDLE_TIMEOUT":            "60s",
+	"HTTP_SHUTDOWN_TIMEOUT":        "20s",
+	"CORS_ALLOWED_ORIGINS":         "*",
+	"TRUSTED_PROXIES":              "",
+	"RATE_LIMIT_REQUESTS":          100,
+	"RATE_LIMIT_WINDOW":            "1m",
+	"AUTH_RATE_LIMIT_REQUESTS":     10,
+	"AUTH_RATE_LIMIT_WINDOW":       "1m",
+	"LOG_LEVEL":                    "info",
+	"LOG_OUTPUT":                   "stdout",
+	"DB_MAX_CONNS":                 20,
+	"DB_MIN_CONNS":                 2,
+	"DB_MAX_CONN_LIFETIME":         "1h",
+	"DB_MAX_CONN_IDLE_TIME":        "15m",
+	"DB_MIGRATE_ON_START":          true,
+	"REDIS_PASSWORD":               "",
+	"REDIS_DB":                     0,
+	"RABBITMQ_EXCHANGE":            "agora.events",
+	"RABBITMQ_PREFETCH":            10,
+	"RABBITMQ_MAX_RETRIES":         5,
+	"RABBITMQ_RETRY_DELAY":         "10s",
+	"EVENT_DEDUP_TTL":              "24h",
+	"OUTBOX_POLL_INTERVAL":         "1s",
+	"OUTBOX_BATCH_SIZE":            100,
+	"JWT_ISSUER":                   "atlas",
+	"JWT_ACCESS_TTL":               "15m",
+	"JWT_REFRESH_TTL":              "720h",
+	"OTP_TTL":                      "5m",
+	"OTP_MAX_ATTEMPTS":             5,
+	"OTP_RESEND_COOLDOWN":          "60s",
+	"CASTBRICK_API_KEY":            "",
+	"CASTBRICK_BASE_URL":           "https://api.castbrick.co/v1",
+	"CASTBRICK_SENDER_ID":          "",
+	"CASTBRICK_TIMEOUT":            "10s",
+	"MFA_CHALLENGE_TTL":            "5m",
+	"MFA_MAX_ATTEMPTS":             5,
+	"PERMISSION_CACHE_TTL":         "5m",
+	"INVITATION_URL_BACKOFFICE":    "http://localhost:3001/convite",
+	"INVITATION_URL_PARTNER_PANEL": "http://localhost:3002/convite",
 }
 
-var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"}
+var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET", "MFA_ENCRYPTION_KEY"}
 
 func Load() (*Config, error) {
 	v := viper.New()
@@ -218,6 +234,15 @@ func (c *Config) validate() error {
 	}
 	if len(c.JWT.Secret) < 32 {
 		errs = append(errs, errors.New("JWT_SECRET must be at least 32 characters"))
+	}
+	if key, err := base64.StdEncoding.DecodeString(c.Access.MFAEncryptionKey); err != nil || len(key) != 32 {
+		errs = append(errs, errors.New("MFA_ENCRYPTION_KEY must be 32 random bytes encoded in base64 (openssl rand -base64 32)"))
+	}
+	if c.Access.MFAChallengeTTL <= 0 || c.Access.MFAMaxAttempts <= 0 || c.Access.PermissionCacheTTL <= 0 {
+		errs = append(errs, errors.New("MFA_CHALLENGE_TTL, MFA_MAX_ATTEMPTS and PERMISSION_CACHE_TTL must be positive"))
+	}
+	if strings.TrimSpace(c.Access.InvitationBackoffice) == "" || strings.TrimSpace(c.Access.InvitationPartner) == "" {
+		errs = append(errs, errors.New("INVITATION_URL_BACKOFFICE and INVITATION_URL_PARTNER_PANEL cannot be empty"))
 	}
 	if c.App.Env == enums.EnvProduction {
 		if !c.SMS.Enabled() {

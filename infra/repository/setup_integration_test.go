@@ -19,6 +19,12 @@ const postgisImage = "postgis/postgis:18-3.6-alpine"
 
 func setupDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
+	app, _ := setupDBs(t)
+	return app
+}
+
+func setupDBs(t *testing.T) (app, owner *pgxpool.Pool) {
+	t.Helper()
 	ctx := context.Background()
 
 	container, err := tcpostgres.Run(ctx, postgisImage,
@@ -34,10 +40,12 @@ func setupDB(t *testing.T) *pgxpool.Pool {
 	require.NoError(t, err)
 	require.NoError(t, postgres.Migrate(url, "up"))
 
-	pool, err := postgres.Connection(ctx, config.DatabaseConfig{
-		URL: url, MaxConns: 5, MinConns: 1, MaxConnLifetime: time.Hour, MaxConnIdleTime: time.Minute,
-	})
+	cfg := config.DatabaseConfig{URL: url, MaxConns: 5, MinConns: 1, MaxConnLifetime: time.Hour, MaxConnIdleTime: time.Minute}
+	app, err = postgres.Connection(ctx, cfg)
 	require.NoError(t, err)
-	t.Cleanup(pool.Close)
-	return pool
+	t.Cleanup(app.Close)
+	owner, err = postgres.OwnerConnection(ctx, cfg)
+	require.NoError(t, err)
+	t.Cleanup(owner.Close)
+	return app, owner
 }

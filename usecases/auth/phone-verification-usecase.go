@@ -85,7 +85,7 @@ func (uc *PhoneVerificationUsecase) Confirm(ctx context.Context, req dtos.PhoneV
 		}
 	}
 
-	return uc.sessions.Start(ctx, user, client, ip, userAgent)
+	return uc.sessions.Start(ctx, user, client, nil, ip, userAgent)
 }
 
 func markPhoneVerified(ctx context.Context, userRepo repository.IUserRepository, outboxRepo repository.IOutboxRepository, user *entities.User) error {
