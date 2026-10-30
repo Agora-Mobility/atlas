@@ -67,7 +67,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	c := containers.New(cfg, version, connections)
+	c, err := containers.New(cfg, version, connections)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		if err := c.Close(); err != nil {
 			logger.Error("failed to close connections", err)

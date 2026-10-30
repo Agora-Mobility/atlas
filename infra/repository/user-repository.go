@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,13 +16,17 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/database/sqlc/gen"
+	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/shared/pagination"
 )
 
 const uniqueViolation = "23505"
 
 var conflictByConstraint = map[string]error{
-	"users_email_key": repository.ErrEmailAlreadyExists,
-	"users_phone_key": repository.ErrPhoneAlreadyExists,
+	"users_email_key":             repository.ErrEmailAlreadyExists,
+	"users_phone_key":             repository.ErrPhoneAlreadyExists,
+	"organizations_nif_key":       repository.ErrNIFAlreadyExists,
+	"roles_organization_code_key": repository.ErrRoleCodeTaken,
 }
 
 type UserRepository struct {
@@ -98,6 +103,64 @@ func (r *UserRepository) UpdateLastLogin(ctx context.Context, id uuid.UUID, at t
 	}
 	return nil
 }
+
+func (r *UserRepository) SoftDelete(ctx context.Context, id uuid.UUID, at time.Time) error {
+	rows, err := postgres.Queries(ctx, r.pool).SoftDeleteUser(ctx, gen.SoftDeleteUserParams{ID: id, DeletedAt: &at})
+	if err != nil {
+		return fmt.Errorf("soft delete user: %w", err)
+	}
+	if rows == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
+func (r *UserRepository) List(ctx context.Context, filter repository.UserFilter, page pagination.Params) ([]*entities.User, int64, error) {
+	q := postgres.Queries(ctx, r.pool)
+	roles, status, search := filterArgs(filter)
+
+	total, err := q.CountUsers(ctx, gen.CountUsersParams{Roles: roles, Status: status, Search: search})
+	if err != nil {
+		return nil, 0, fmt.Errorf("count users: %w", err)
+	}
+	rows, err := q.ListUsers(ctx, gen.ListUsersParams{
+		Roles: roles, Status: status, Search: search,
+		PageLimit: page.Limit(), PageOffset: page.Offset(),
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("list users: %w", err)
+	}
+
+	users := make([]*entities.User, 0, len(rows))
+	for i := range rows {
+		users = append(users, toUser(rows[i]))
+	}
+	return users, total, nil
+}
+
+func filterArgs(filter repository.UserFilter) ([]string, *enums.UserStatus, *string) {
+	roles := make([]string, 0, len(filter.Roles))
+	for _, role := range filter.Roles {
+		roles = append(roles, role.String())
+	}
+	var status *enums.UserStatus
+	if filter.Status != "" {
+		status = &filter.Status
+	}
+	return roles, status, searchPattern(filter.Search)
+}
+
+func searchPattern(term string) *string {
+	term = strings.TrimSpace(term)
+	if term == "" {
+		return nil
+	}
+	pattern := "%" + likeEscaper.Replace(term) + "%"
+	return &pattern
+}
+
+// likeEscaper keeps user input literal inside a LIKE pattern (default escape \).
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 func userOrNil(row gen.User, err error) (*entities.User, error) {
 	if errors.Is(err, pgx.ErrNoRows) {

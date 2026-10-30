@@ -16,7 +16,15 @@ const (
 	userIDContextKey    authContextKey = "user_id"
 	sessionIDContextKey authContextKey = "session_id"
 	roleContextKey      authContextKey = "role"
+	membershipKey       authContextKey = "membership"
+	accessKey           authContextKey = "access"
 )
+
+type TokenMembership struct {
+	MembershipID   uuid.UUID
+	OrganizationID uuid.UUID
+	Scope          enums.OrganizationType
+}
 
 func WithClient(ctx context.Context, client *entities.Client) context.Context {
 	return context.WithValue(ctx, clientContextKey, client)
@@ -46,4 +54,22 @@ func SessionIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 func RoleFromContext(ctx context.Context) (enums.Role, bool) {
 	role, ok := ctx.Value(roleContextKey).(enums.Role)
 	return role, ok
+}
+
+func WithTokenMembership(ctx context.Context, membership TokenMembership) context.Context {
+	return context.WithValue(ctx, membershipKey, membership)
+}
+
+func TokenMembershipFromContext(ctx context.Context) (TokenMembership, bool) {
+	membership, ok := ctx.Value(membershipKey).(TokenMembership)
+	return membership, ok
+}
+
+func WithAccess(ctx context.Context, access *entities.Access) context.Context {
+	return context.WithValue(ctx, accessKey, access)
+}
+
+func AccessFromContext(ctx context.Context) (*entities.Access, bool) {
+	access, ok := ctx.Value(accessKey).(*entities.Access)
+	return access, ok && access != nil
 }

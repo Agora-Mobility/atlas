@@ -10,7 +10,7 @@ import (
 
 type User struct {
 	Base        `valid:"-"`
-	Name        string           `json:"name" valid:"required~O nome é obrigatório.,runelength(2|120)~O nome deve ter entre 2 e 120 caracteres."`
+	Name        string           `json:"name" valid:"runelength(2|120)~O nome deve ter entre 2 e 120 caracteres.,optional"`
 	Email       string           `json:"email" valid:"email~O e-mail é inválido.,optional"`
 	Password    string           `json:"-" valid:"required~A palavra-passe é obrigatória."`
 	Phone       string           `json:"phone" valid:"phone~O número de telefone é inválido (ex: 923000000 ou +244923000000).,optional"`
@@ -38,6 +38,24 @@ func NewUser(name, email, phoneNumber, passwordHash string, role enums.Role) (*U
 		return nil, err
 	}
 	return u, nil
+}
+
+const UnusablePassword = "!"
+
+func NewInvitedStaffUser(name, email, phoneNumber string) (*User, error) {
+	return NewUser(name, email, phoneNumber, UnusablePassword, enums.RoleStaff)
+}
+
+func NewSignUpUser(phoneNumber string, role enums.Role) (*User, error) {
+	return NewUser("", "", phoneNumber, UnusablePassword, role)
+}
+
+func (u *User) HasPassword() bool {
+	return u.Password != "" && u.Password != UnusablePassword
+}
+
+func (u *User) IsStaff() bool {
+	return u.Role == enums.RoleStaff
 }
 
 func (u *User) UpdateProfile(name, email, phoneNumber string) error {

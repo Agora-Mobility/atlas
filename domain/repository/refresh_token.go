@@ -15,4 +15,7 @@ type IRefreshTokenRepository interface {
 	MarkRotated(ctx context.Context, token *entities.RefreshToken) error
 	RevokeFamily(ctx context.Context, familyID uuid.UUID, at time.Time) error
 	RevokeAllForUser(ctx context.Context, userID uuid.UUID, at time.Time) error
+	// ListSessionsIssuedSince returns the family (session) ids with a token
+	// issued at or after since, revoked or not.
+	ListSessionsIssuedSince(ctx context.Context, userID uuid.UUID, since time.Time) ([]uuid.UUID, error)
 }

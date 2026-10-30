@@ -1,6 +1,8 @@
 package config_test
 
 import (
+	"bytes"
+	"encoding/base64"
 	"os"
 	"strings"
 	"testing"
@@ -14,6 +16,8 @@ import (
 )
 
 const secret = "test-secret-with-at-least-32-characters"
+
+var testMFAKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32))
 
 func isolateEnv(t *testing.T) {
 	t.Helper()
@@ -30,6 +34,7 @@ func setRequired(t *testing.T) {
 	t.Setenv("REDIS_ADDR", "localhost:6379")
 	t.Setenv("RABBITMQ_URL", "amqp://localhost/")
 	t.Setenv("JWT_SECRET", secret)
+	t.Setenv("MFA_ENCRYPTION_KEY", testMFAKey)
 }
 
 func TestLoadDefaults(t *testing.T) {
@@ -51,6 +56,9 @@ func TestLoadDefaults(t *testing.T) {
 	assert.False(t, cfg.SMS.Enabled())
 	assert.Equal(t, "https://api.castbrick.co/v1", cfg.SMS.BaseURL)
 	assert.Equal(t, 10*time.Second, cfg.SMS.Timeout)
+	assert.False(t, cfg.Email.Enabled())
+	assert.Equal(t, "https://api.resend.com", cfg.Email.BaseURL)
+	assert.Equal(t, 10*time.Second, cfg.Email.Timeout)
 }
 
 func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
@@ -64,10 +72,30 @@ func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 
 	t.Setenv("CASTBRICK_API_KEY", "cb_live_key")
 	t.Setenv("CASTBRICK_SENDER_ID", "AGORA")
+	_, err = config.Load()
+	require.ErrorContains(t, err, "RESEND_API_KEY is required in production")
+
+	t.Setenv("RESEND_API_KEY", "re_live_key")
+	t.Setenv("EMAIL_FROM", "Agora <no-reply@agora.ao>")
 	cfg, err := config.Load()
 	require.NoError(t, err)
 	assert.True(t, cfg.SMS.Enabled())
 	assert.Equal(t, "AGORA", cfg.SMS.SenderID)
+}
+
+func TestLoadResendKeyNeedsTheSender(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("RESEND_API_KEY", "re_test_key")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "EMAIL_FROM is required when RESEND_API_KEY is set")
+
+	t.Setenv("EMAIL_FROM", "Agora <no-reply@agora.ao>")
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.True(t, cfg.Email.Enabled())
+	assert.Equal(t, "Agora <no-reply@agora.ao>", cfg.Email.From)
 }
 
 func TestLoadEnvOverridesDotEnv(t *testing.T) {
@@ -91,7 +119,7 @@ func TestLoadMissingRequired(t *testing.T) {
 	_, err := config.Load()
 
 	require.Error(t, err)
-	for _, key := range []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"} {
+	for _, key := range []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET", "MFA_ENCRYPTION_KEY"} {
 		assert.ErrorContains(t, err, key)
 	}
 }

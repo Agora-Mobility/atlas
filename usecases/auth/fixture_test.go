@@ -25,6 +25,7 @@ const (
 	rawRefresh  = "raw-refresh"
 	hashRefresh = "hash-refresh"
 	otpTTL      = 5 * time.Minute
+	accessTTL   = 15 * time.Minute
 )
 
 var (
@@ -44,12 +45,37 @@ type fixture struct {
 	opaqueTokens  *servicemocks.MockIOpaqueTokenGenerator
 	otp           *servicemocks.MockIOTPService
 	sms           *servicemocks.MockISMSSender
+	email         *servicemocks.MockIEmailSender
+	revocations   *servicemocks.MockISessionRevocationStore
+	audit         *repomocks.MockIAuditLogRepository
+	blockReasons  *repomocks.MockIBlockReasonRepository
+	orgs          *repomocks.MockIOrganizationRepository
+	roles         *repomocks.MockIRoleRepository
+	memberships   *repomocks.MockIMembershipRepository
+	invitations   *repomocks.MockIInvitationRepository
+	mfa           *repomocks.MockIUserMFARepository
+	accessCache   *servicemocks.MockIAccessCache
+	challenges    *servicemocks.MockIMFAChallengeStore
+	totp          *servicemocks.MockITOTP
+	sealer        *servicemocks.MockISecretSealer
 
 	auth              *usecases.AuthUsecase
 	refresh           *usecases.RefreshUsecase
 	phoneVerification *usecases.PhoneVerificationUsecase
 	recovery          *usecases.RecoveryUsecase
+	profile           *usecases.ProfileUsecase
+	userAdmin         *usecases.UserAdminUsecase
+	bootstrap         *usecases.AdminBootstrap
+	staff             *usecases.StaffSignIn
+	members           *usecases.MemberUsecase
+	invitationFlow    *usecases.InvitationUsecase
+	organizations     *usecases.OrganizationUsecase
+	roleAdmin         *usecases.RoleUsecase
 }
+
+var invitationLinks = usecases.InvitationLinks{Platform: "https://argus.agora.ao/convite", Partner: "https://athena.agora.ao/convite"}
+
+const mfaChallengeTTL = 5 * time.Minute
 
 func newFixture(t *testing.T) fixture {
 	t.Helper()
@@ -64,20 +90,74 @@ func newFixture(t *testing.T) fixture {
 		opaqueTokens:  servicemocks.NewMockIOpaqueTokenGenerator(ctrl),
 		otp:           servicemocks.NewMockIOTPService(ctrl),
 		sms:           servicemocks.NewMockISMSSender(ctrl),
+		email:         servicemocks.NewMockIEmailSender(ctrl),
+		revocations:   servicemocks.NewMockISessionRevocationStore(ctrl),
+		audit:         repomocks.NewMockIAuditLogRepository(ctrl),
+		blockReasons:  repomocks.NewMockIBlockReasonRepository(ctrl),
+		orgs:          repomocks.NewMockIOrganizationRepository(ctrl),
+		roles:         repomocks.NewMockIRoleRepository(ctrl),
+		memberships:   repomocks.NewMockIMembershipRepository(ctrl),
+		invitations:   repomocks.NewMockIInvitationRepository(ctrl),
+		mfa:           repomocks.NewMockIUserMFARepository(ctrl),
+		accessCache:   servicemocks.NewMockIAccessCache(ctrl),
+		challenges:    servicemocks.NewMockIMFAChallengeStore(ctrl),
+		totp:          servicemocks.NewMockITOTP(ctrl),
+		sealer:        servicemocks.NewMockISecretSealer(ctrl),
 	}
 	f.tx.EXPECT().WithinTransaction(gomock.Any(), gomock.Any()).AnyTimes().
 		DoAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) })
 
 	codeSender := usecases.NewVerificationCodeSender(f.otp, f.sms, otpTTL)
 	sessions := usecases.NewSessionIssuer(f.users, f.refreshTokens, f.tx, f.accessTokens, f.opaqueTokens, refreshTTL)
-	f.auth = usecases.NewAuthUsecase(f.users, f.refreshTokens, f.outbox, f.tx, f.hasher, codeSender, sessions)
-	f.refresh = usecases.NewRefreshUsecase(f.refreshTokens, f.users, f.tx, f.opaqueTokens, sessions, refreshTTL)
+	revoker := usecases.NewSessionRevoker(f.refreshTokens, f.revocations, accessTTL)
+	access := usecases.NewAccessResolver(f.memberships, f.accessCache)
+	f.staff = usecases.NewStaffSignIn(f.users, f.memberships, f.mfa, f.challenges, f.totp, f.sealer, f.opaqueTokens, f.audit, sessions, mfaChallengeTTL)
+	f.auth = usecases.NewAuthUsecase(f.users, f.outbox, f.tx, f.hasher, codeSender, sessions, f.staff, revoker)
+	f.refresh = usecases.NewRefreshUsecase(f.refreshTokens, f.users, access, f.tx, f.opaqueTokens, sessions, revoker, refreshTTL)
 	f.phoneVerification = usecases.NewPhoneVerificationUsecase(f.users, f.outbox, f.tx, f.otp, codeSender, sessions)
-	f.recovery = usecases.NewRecoveryUsecase(f.users, f.refreshTokens, f.outbox, f.tx, f.hasher, f.otp, codeSender)
+	f.recovery = usecases.NewRecoveryUsecase(f.users, f.outbox, f.tx, f.hasher, f.otp, codeSender, revoker)
+	f.profile = usecases.NewProfileUsecase(f.users, f.outbox, f.tx, f.hasher, f.otp, codeSender, revoker)
+	f.userAdmin = usecases.NewUserAdminUsecase(f.users, f.outbox, f.audit, f.blockReasons, f.tx, f.hasher, revoker)
+	f.bootstrap = usecases.NewAdminBootstrap(f.users, f.orgs, f.roles, f.memberships, f.outbox, f.audit, f.tx, f.hasher)
+	f.members = usecases.NewMemberUsecase(usecases.MemberStores{
+		Users: f.users, Orgs: f.orgs, Roles: f.roles, Memberships: f.memberships, Invitations: f.invitations,
+		MFA: f.mfa, Audit: f.audit, Outbox: f.outbox, Tx: f.tx,
+	}, f.opaqueTokens, f.sms, f.email, revoker, access, invitationLinks)
+	f.invitationFlow = usecases.NewInvitationUsecase(f.users, f.orgs, f.memberships, f.invitations, f.audit, f.outbox, f.tx,
+		f.hasher, f.opaqueTokens, f.otp, codeSender, access)
+	f.organizations = usecases.NewOrganizationUsecase(f.orgs, f.roles, f.memberships, f.audit, f.outbox, f.tx)
+	f.roleAdmin = usecases.NewRoleUsecase(f.roles, f.audit, f.outbox, f.tx, access)
 	return f
 }
 
+// expectSessionRevoked expects one session to end and its access tokens to be denied.
+func (f fixture) expectSessionRevoked(sessionID uuid.UUID) {
+	f.refreshTokens.EXPECT().RevokeFamily(gomock.Any(), sessionID, gomock.Any()).Return(nil)
+	f.revocations.EXPECT().RevokeSessions(gomock.Any(), sessionID).Return(nil)
+}
+
+// expectAllSessionsRevoked expects every session of the user to end and the
+// access tokens of recent sessions to be denied. It returns those sessions.
+func (f fixture) expectAllSessionsRevoked(t *testing.T, userID uuid.UUID) []uuid.UUID {
+	t.Helper()
+	recent := []uuid.UUID{uuid.New(), uuid.New()}
+	f.refreshTokens.EXPECT().RevokeAllForUser(gomock.Any(), userID, gomock.Any()).Return(nil)
+	f.refreshTokens.EXPECT().ListSessionsIssuedSince(gomock.Any(), userID, gomock.Any()).
+		DoAndReturn(func(_ context.Context, _ uuid.UUID, since time.Time) ([]uuid.UUID, error) {
+			require.WithinDuration(t, time.Now().Add(-accessTTL), since, 2*time.Minute)
+			require.True(t, since.Before(time.Now().Add(-accessTTL)), "window must cover every live access token")
+			return recent, nil
+		})
+	f.revocations.EXPECT().RevokeSessions(gomock.Any(), recent[0], recent[1]).Return(nil)
+	return recent
+}
+
 func (f fixture) expectSessionStarted(t *testing.T, user *entities.User, client *entities.Client) {
+	t.Helper()
+	f.expectStaffSessionStarted(t, user, client, nil)
+}
+
+func (f fixture) expectStaffSessionStarted(t *testing.T, user *entities.User, client *entities.Client, access *entities.Access) {
 	t.Helper()
 	var family uuid.UUID
 	f.opaqueTokens.EXPECT().Generate().Return(rawRefresh, hashRefresh, nil)
@@ -86,14 +166,24 @@ func (f fixture) expectSessionStarted(t *testing.T, user *entities.User, client 
 			require.Equal(t, user.ID, token.UserID)
 			require.Equal(t, client.ID, token.ClientID)
 			require.Equal(t, hashRefresh, token.TokenHash)
+			if access == nil {
+				require.Nil(t, token.MembershipID)
+			} else {
+				require.Equal(t, access.MembershipID, *token.MembershipID)
+			}
 			family = token.FamilyID
 			return nil
 		})
 	f.users.EXPECT().UpdateLastLogin(gomock.Any(), user.ID, gomock.Any()).Return(nil)
-	f.expectAccessToken(t, user, client, &family)
+	f.expectAccessTokenFor(t, user, client, &family, access)
 }
 
 func (f fixture) expectAccessToken(t *testing.T, user *entities.User, client *entities.Client, family *uuid.UUID) {
+	t.Helper()
+	f.expectAccessTokenFor(t, user, client, family, nil)
+}
+
+func (f fixture) expectAccessTokenFor(t *testing.T, user *entities.User, client *entities.Client, family *uuid.UUID, access *entities.Access) {
 	t.Helper()
 	f.accessTokens.EXPECT().Generate(gomock.Any()).
 		DoAndReturn(func(claims services.AccessTokenClaims) (string, time.Time, error) {
@@ -101,6 +191,14 @@ func (f fixture) expectAccessToken(t *testing.T, user *entities.User, client *en
 			require.Equal(t, user.Role, claims.Role)
 			require.Equal(t, client.ClientID, claims.ClientID)
 			require.Equal(t, *family, claims.SessionID)
+			if access == nil {
+				require.Nil(t, claims.MembershipID)
+			} else {
+				require.Equal(t, access.MembershipID, *claims.MembershipID)
+				require.Equal(t, access.OrganizationID, *claims.OrganizationID)
+				require.Equal(t, access.Scope, claims.Scope)
+				require.Equal(t, access.PermVersion, claims.PermVersion)
+			}
 			return "access", time.Now().Add(15 * time.Minute), nil
 		})
 }

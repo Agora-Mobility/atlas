@@ -49,17 +49,23 @@ func NewPhoneVerificationUsecase(
 }
 
 func (uc *PhoneVerificationUsecase) RequestCode(ctx context.Context, req dtos.PhoneVerificationRequestInput, client *entities.Client) error {
+	if _, ok := client.SignUpRole(); !ok {
+		return nil
+	}
 	user, err := uc.userRepo.FindByPhone(ctx, phone.Normalize(req.Phone))
 	if err != nil {
 		return err
 	}
-	if user == nil || user.IsVerified || !client.Allows(user.Role) {
+	if user == nil || !client.Allows(user.Role) {
 		return nil
 	}
 	return uc.codeSender.SendSilently(ctx, enums.OTPPurposeVerifyPhone, user.Phone)
 }
 
 func (uc *PhoneVerificationUsecase) Confirm(ctx context.Context, req dtos.PhoneVerificationConfirmInput, client *entities.Client, ip, userAgent string) (*dtos.SessionOutput, error) {
+	if _, ok := client.SignUpRole(); !ok {
+		return nil, ErrClientNotAllowed
+	}
 	phoneNumber := phone.Normalize(req.Phone)
 	if err := uc.otp.Verify(ctx, enums.OTPPurposeVerifyPhone, phoneNumber, req.Code); err != nil {
 		return nil, err
@@ -85,7 +91,7 @@ func (uc *PhoneVerificationUsecase) Confirm(ctx context.Context, req dtos.PhoneV
 		}
 	}
 
-	return uc.sessions.Start(ctx, user, client, ip, userAgent)
+	return uc.sessions.Start(ctx, user, client, nil, ip, userAgent)
 }
 
 func markPhoneVerified(ctx context.Context, userRepo repository.IUserRepository, outboxRepo repository.IOutboxRepository, user *entities.User) error {

@@ -31,6 +31,7 @@ func (r *RefreshTokenRepository) Create(ctx context.Context, t *entities.Refresh
 		ID:           t.ID,
 		UserID:       t.UserID,
 		ClientID:     t.ClientID,
+		MembershipID: t.MembershipID,
 		FamilyID:     t.FamilyID,
 		TokenHash:    t.TokenHash,
 		ExpiresAt:    t.ExpiresAt,
@@ -94,6 +95,7 @@ func toRefreshToken(row gen.RefreshToken) *entities.RefreshToken {
 		ID:           row.ID,
 		UserID:       row.UserID,
 		ClientID:     row.ClientID,
+		MembershipID: row.MembershipID,
 		FamilyID:     row.FamilyID,
 		TokenHash:    row.TokenHash,
 		ExpiresAt:    row.ExpiresAt.UTC(),
@@ -103,4 +105,14 @@ func toRefreshToken(row gen.RefreshToken) *entities.RefreshToken {
 		IPAddress:    row.IpAddress,
 		CreatedAt:    row.CreatedAt.UTC(),
 	}
+}
+
+func (r *RefreshTokenRepository) ListSessionsIssuedSince(ctx context.Context, userID uuid.UUID, since time.Time) ([]uuid.UUID, error) {
+	ids, err := postgres.Queries(ctx, r.pool).ListUserSessionsIssuedSince(ctx, gen.ListUserSessionsIssuedSinceParams{
+		UserID: userID, Since: since,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list user sessions: %w", err)
+	}
+	return ids, nil
 }

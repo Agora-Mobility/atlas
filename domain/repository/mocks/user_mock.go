@@ -15,6 +15,8 @@ import (
 	time "time"
 
 	entities "github.com/Agora-Mobility/atlas/domain/entities"
+	repository "github.com/Agora-Mobility/atlas/domain/repository"
+	pagination "github.com/Agora-Mobility/atlas/shared/pagination"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -100,6 +102,36 @@ func (m *MockIUserRepository) FindByPhone(ctx context.Context, phone string) (*e
 func (mr *MockIUserRepositoryMockRecorder) FindByPhone(ctx, phone any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByPhone", reflect.TypeOf((*MockIUserRepository)(nil).FindByPhone), ctx, phone)
+}
+
+// List mocks base method.
+func (m *MockIUserRepository) List(ctx context.Context, filter repository.UserFilter, page pagination.Params) ([]*entities.User, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx, filter, page)
+	ret0, _ := ret[0].([]*entities.User)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// List indicates an expected call of List.
+func (mr *MockIUserRepositoryMockRecorder) List(ctx, filter, page any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockIUserRepository)(nil).List), ctx, filter, page)
+}
+
+// SoftDelete mocks base method.
+func (m *MockIUserRepository) SoftDelete(ctx context.Context, id uuid.UUID, at time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SoftDelete", ctx, id, at)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SoftDelete indicates an expected call of SoftDelete.
+func (mr *MockIUserRepositoryMockRecorder) SoftDelete(ctx, id, at any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SoftDelete", reflect.TypeOf((*MockIUserRepository)(nil).SoftDelete), ctx, id, at)
 }
 
 // Update mocks base method.

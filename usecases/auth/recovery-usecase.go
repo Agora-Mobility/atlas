@@ -21,19 +21,19 @@ type RecoveryUsecase struct {
 
 func NewRecoveryUsecase(
 	userRepo repository.IUserRepository,
-	refreshTokenRepo repository.IRefreshTokenRepository,
 	outboxRepo repository.IOutboxRepository,
 	txManager repository.ITransactionManager,
 	hasher services.IPasswordHasher,
 	otp services.IOTPService,
 	codeSender *VerificationCodeSender,
+	revoker *SessionRevoker,
 ) *RecoveryUsecase {
 	return &RecoveryUsecase{
 		userRepo:   userRepo,
 		outboxRepo: outboxRepo,
 		otp:        otp,
 		codeSender: codeSender,
-		passwords:  passwordReplacer{userRepo: userRepo, refreshTokenRepo: refreshTokenRepo, txManager: txManager, hasher: hasher},
+		passwords:  passwordReplacer{userRepo: userRepo, revoker: revoker, txManager: txManager, hasher: hasher},
 	}
 }
 

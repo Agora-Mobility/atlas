@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Agora-Mobility/atlas/infra/database/sqlc/gen"
+	"github.com/Agora-Mobility/atlas/shared/tenant"
 )
 
 type txKey struct{}
@@ -64,4 +65,22 @@ func Queries(ctx context.Context, pool *pgxpool.Pool) *gen.Queries {
 		return gen.New(tx)
 	}
 	return gen.New(pool)
+}
+
+// Scoped runs fn on the transaction in ctx, or on a new one, after setting
+// the tenant of ctx (organization and user) for row-level security. The
+// settings are local to the transaction, so a pooled connection never keeps
+// the tenant of a previous request.
+func Scoped(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
+	return NewTxManager(pool).WithinTransaction(ctx, func(ctx context.Context) error {
+		tx, ok := ctx.Value(txKey{}).(pgx.Tx)
+		if !ok {
+			return errors.New("scoped query without a transaction")
+		}
+		organizationID, userID := tenant.From(ctx).Settings()
+		if _, err := tx.Exec(ctx, "SELECT set_config('atlas.organization_id', $1, true), set_config('atlas.user_id', $2, true)", organizationID, userID); err != nil {
+			return fmt.Errorf("set tenant: %w", err)
+		}
+		return fn(ctx)
+	})
 }

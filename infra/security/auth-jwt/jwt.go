@@ -15,9 +15,13 @@ import (
 var ErrInvalidToken = errors.New("invalid token")
 
 type Claims struct {
-	Role      enums.Role `json:"role"`
-	SessionID uuid.UUID  `json:"sid"`
-	ClientID  string     `json:"cid"`
+	Role           enums.Role             `json:"role"`
+	SessionID      uuid.UUID              `json:"sid"`
+	ClientID       string                 `json:"cid"`
+	MembershipID   *uuid.UUID             `json:"mid,omitempty"`
+	OrganizationID *uuid.UUID             `json:"oid,omitempty"`
+	Scope          enums.OrganizationType `json:"scp,omitempty"`
+	PermVersion    int64                  `json:"pv,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -41,9 +45,13 @@ func (s *Service) Generate(access services.AccessTokenClaims) (string, time.Time
 	now := time.Now()
 	expires := now.Add(s.ttl)
 	claims := Claims{
-		Role:      access.Role,
-		SessionID: access.SessionID,
-		ClientID:  access.ClientID,
+		Role:           access.Role,
+		SessionID:      access.SessionID,
+		ClientID:       access.ClientID,
+		MembershipID:   access.MembershipID,
+		OrganizationID: access.OrganizationID,
+		Scope:          access.Scope,
+		PermVersion:    access.PermVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.NewString(),
 			Subject:   access.UserID.String(),
@@ -76,6 +84,9 @@ func (s *Service) Verify(tokenString string) (*Claims, error) {
 	}
 	if claims.ClientID == "" || claims.SessionID == uuid.Nil {
 		return nil, fmt.Errorf("%w: missing client or session", ErrInvalidToken)
+	}
+	if claims.Role == enums.RoleStaff && (claims.MembershipID == nil || claims.OrganizationID == nil || !claims.Scope.IsValid()) {
+		return nil, fmt.Errorf("%w: staff token without membership", ErrInvalidToken)
 	}
 	return claims, nil
 }

@@ -1,22 +1,23 @@
 package enums
 
-// Role is the access role carried in the JWT.
 type Role string
 
 const (
 	RoleCustomer Role = "customer"
 	RoleProvider Role = "provider"
-	RoleOperator Role = "operator"
-	RoleAdmin    Role = "admin"
-	RolePartner  Role = "partner"
+	RoleStaff    Role = "staff"
 )
 
 func (r Role) IsValid() bool {
 	switch r {
-	case RoleCustomer, RoleProvider, RoleOperator, RoleAdmin, RolePartner:
+	case RoleCustomer, RoleProvider, RoleStaff:
 		return true
 	}
 	return false
+}
+
+func (r Role) IsAppAccount() bool {
+	return r == RoleCustomer || r == RoleProvider
 }
 
 func (r Role) String() string {

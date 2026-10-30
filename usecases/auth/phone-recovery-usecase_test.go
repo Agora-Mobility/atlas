@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/enums"
@@ -69,6 +70,28 @@ func TestConfirmPhone_WrongClientGetsNoSession(t *testing.T) {
 	require.ErrorIs(t, err, usecases.ErrClientNotAllowed)
 }
 
+func TestRequestPhoneCode_SignsInAVerifiedAccount(t *testing.T) {
+	f := newFixture(t)
+	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newSignUpUser(t, enums.RoleCustomer), nil)
+	f.otp.EXPECT().Issue(gomock.Any(), enums.OTPPurposeVerifyPhone, phone).Return("123456", nil)
+	f.sms.EXPECT().Send(gomock.Any(), phone, gomock.Any()).Return(nil)
+
+	require.NoError(t, f.phoneVerification.RequestCode(context.Background(), dtos.PhoneVerificationRequestInput{Phone: phone}, customerApp))
+}
+
+func TestPhoneSignIn_IsClosedToStaffClients(t *testing.T) {
+	for _, client := range []*entities.Client{backoffice, partnerPanel} {
+		t.Run(client.ClientID, func(t *testing.T) {
+			f := newFixture(t)
+
+			require.NoError(t, f.phoneVerification.RequestCode(context.Background(), dtos.PhoneVerificationRequestInput{Phone: phone}, client))
+			_, err := f.phoneVerification.Confirm(context.Background(),
+				dtos.PhoneVerificationConfirmInput{Phone: phone, Code: "123456"}, client, "", "")
+			require.ErrorIs(t, err, usecases.ErrClientNotAllowed)
+		})
+	}
+}
+
 func TestRequestPhoneCode_IsSilentForUnknownPhonesAndCooldown(t *testing.T) {
 	t.Run("unknown phone", func(t *testing.T) {
 		f := newFixture(t)
@@ -98,7 +121,7 @@ func TestRequestRecovery_SendsCodeOnlyForAccountsOfTheClient(t *testing.T) {
 
 	t.Run("staff account through the customer app", func(t *testing.T) {
 		f := newFixture(t)
-		f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, enums.RoleAdmin, true), nil)
+		f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, enums.RoleStaff, true), nil)
 
 		require.NoError(t, f.recovery.RequestRecovery(context.Background(), dtos.RecoveryRequestInput{Phone: phone}, customerApp))
 	})
@@ -118,7 +141,7 @@ func TestConfirmRecovery_ReplacesHashAndEndsAllSessions(t *testing.T) {
 	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(user, nil)
 	f.hasher.EXPECT().Hash("N0vo!segredo").Return("$argon2id$new", nil)
 	f.users.EXPECT().Update(gomock.Any(), user).Return(nil)
-	f.refreshTokens.EXPECT().RevokeAllForUser(gomock.Any(), user.ID, gomock.Any()).Return(nil)
+	f.expectAllSessionsRevoked(t, user.ID)
 
 	err := f.recovery.ConfirmRecovery(context.Background(),
 		dtos.RecoveryConfirmInput{Phone: phone, Code: "123456", NewPassword: "N0vo!segredo"}, customerApp)
