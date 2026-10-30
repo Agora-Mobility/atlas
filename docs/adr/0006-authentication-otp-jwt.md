@@ -106,6 +106,12 @@ runs as several stateless instances behind a load balancer.
   to the log. Provider failures (invalid key, no credits, timeout) become
   `ErrSMSUnavailable` and are logged at error level without the message
   content.
+- E-mail goes through **Resend** (`github.com/resend/resend-go/v3`,
+  `RESEND_*` and `EMAIL_FROM`/`EMAIL_REPLY_TO` variables) behind
+  `services.IEmailSender`. `RESEND_API_KEY` is required in production and
+  needs `EMAIL_FROM` on a domain verified in Resend; without the key, other
+  environments write the e-mail to the log. Provider failures become
+  `ErrEmailUnavailable`, and the recipient is masked in the logs.
 - Usecases return sentinel errors (`errors.Is`); controllers map each one to
   an HTTP status and a stable error code.
 - Events: `identity.user-registered.v1`, `identity.phone-verified.v1`,

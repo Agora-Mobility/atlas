@@ -14,6 +14,7 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/database/redis"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
+	"github.com/Agora-Mobility/atlas/infra/notification/email"
 	"github.com/Agora-Mobility/atlas/infra/notification/sms"
 	"github.com/Agora-Mobility/atlas/infra/outbox"
 	"github.com/Agora-Mobility/atlas/infra/queue"
@@ -42,6 +43,7 @@ type Container struct {
 	Authenticator      *middleware.Authenticator
 	ClientAuthorizer   *middleware.ClientAuthorizer
 	SMS                services.ISMSSender
+	Email              services.IEmailSender
 
 	Health        *HealthModule
 	Auth          *AuthModule
@@ -74,6 +76,10 @@ func Connect(ctx context.Context, cfg *config.Config) (*Connections, error) {
 }
 
 func New(cfg *config.Config, version string, conn *Connections) (*Container, error) {
+	emailSender, err := newEmailSender(cfg.Email)
+	if err != nil {
+		return nil, err
+	}
 	jwt := authjwt.NewService(cfg.JWT.Secret, cfg.JWT.Issuer, cfg.JWT.AccessTTL)
 	sessionRevocations := revocation.NewRedisStore(conn.Redis, cfg.App.Name+":", cfg.JWT.AccessTTL)
 	c := &Container{
@@ -93,6 +99,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 		Authenticator:      middleware.NewAuthenticator(jwt, sessionRevocations),
 		ClientAuthorizer:   middleware.NewClientAuthorizer(repository.NewClientRepository(conn.Pool)),
 		SMS:                newSMSSender(cfg.SMS),
+		Email:              emailSender,
 	}
 	auth, err := newAuthModule(c)
 	if err != nil {
@@ -128,6 +135,13 @@ func newSMSSender(cfg config.SMSConfig) services.ISMSSender {
 		return sms.LogSender{}
 	}
 	return sms.NewCastBrickSender(cfg.APIKey, cfg.BaseURL, cfg.SenderID, cfg.Timeout)
+}
+
+func newEmailSender(cfg config.EmailConfig) (services.IEmailSender, error) {
+	if !cfg.Enabled() {
+		return email.LogSender{}, nil
+	}
+	return email.NewResendSender(cfg.APIKey, cfg.BaseURL, cfg.From, cfg.ReplyTo, cfg.Timeout)
 }
 
 func (c *Container) Close() error {

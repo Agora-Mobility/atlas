@@ -27,6 +27,7 @@ type Config struct {
 	JWT      JWTConfig      `mapstructure:",squash"`
 	OTP      OTPConfig      `mapstructure:",squash"`
 	SMS      SMSConfig      `mapstructure:",squash"`
+	Email    EmailConfig    `mapstructure:",squash"`
 	Access   AccessConfig   `mapstructure:",squash"`
 }
 
@@ -103,6 +104,18 @@ type SMSConfig struct {
 	Timeout  time.Duration `mapstructure:"CASTBRICK_TIMEOUT"`
 }
 
+type EmailConfig struct {
+	APIKey  string        `mapstructure:"RESEND_API_KEY"`
+	BaseURL string        `mapstructure:"RESEND_BASE_URL"`
+	Timeout time.Duration `mapstructure:"RESEND_TIMEOUT"`
+	From    string        `mapstructure:"EMAIL_FROM"`
+	ReplyTo string        `mapstructure:"EMAIL_REPLY_TO"`
+}
+
+func (c EmailConfig) Enabled() bool {
+	return strings.TrimSpace(c.APIKey) != ""
+}
+
 type AccessConfig struct {
 	MFAEncryptionKey     string        `mapstructure:"MFA_ENCRYPTION_KEY"`
 	MFAChallengeTTL      time.Duration `mapstructure:"MFA_CHALLENGE_TTL"`
@@ -156,6 +169,11 @@ var defaults = map[string]any{
 	"CASTBRICK_BASE_URL":           "https://api.castbrick.co/v1",
 	"CASTBRICK_SENDER_ID":          "",
 	"CASTBRICK_TIMEOUT":            "10s",
+	"RESEND_API_KEY":               "",
+	"RESEND_BASE_URL":              "https://api.resend.com",
+	"RESEND_TIMEOUT":               "10s",
+	"EMAIL_FROM":                   "",
+	"EMAIL_REPLY_TO":               "",
 	"MFA_CHALLENGE_TTL":            "5m",
 	"MFA_MAX_ATTEMPTS":             5,
 	"PERMISSION_CACHE_TTL":         "5m",
@@ -232,6 +250,12 @@ func (c *Config) validate() error {
 	if c.SMS.Timeout <= 0 || strings.TrimSpace(c.SMS.BaseURL) == "" {
 		errs = append(errs, errors.New("CASTBRICK_TIMEOUT must be positive and CASTBRICK_BASE_URL cannot be empty"))
 	}
+	if c.Email.Timeout <= 0 || strings.TrimSpace(c.Email.BaseURL) == "" {
+		errs = append(errs, errors.New("RESEND_TIMEOUT must be positive and RESEND_BASE_URL cannot be empty"))
+	}
+	if c.Email.Enabled() && strings.TrimSpace(c.Email.From) == "" {
+		errs = append(errs, errors.New("EMAIL_FROM is required when RESEND_API_KEY is set"))
+	}
 	if len(c.JWT.Secret) < 32 {
 		errs = append(errs, errors.New("JWT_SECRET must be at least 32 characters"))
 	}
@@ -247,6 +271,9 @@ func (c *Config) validate() error {
 	if c.App.Env == enums.EnvProduction {
 		if !c.SMS.Enabled() {
 			errs = append(errs, errors.New("CASTBRICK_API_KEY is required in production"))
+		}
+		if !c.Email.Enabled() {
+			errs = append(errs, errors.New("RESEND_API_KEY is required in production"))
 		}
 		for _, o := range c.HTTP.CORSAllowedOrigins {
 			if o == "*" {

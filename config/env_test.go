@@ -56,6 +56,9 @@ func TestLoadDefaults(t *testing.T) {
 	assert.False(t, cfg.SMS.Enabled())
 	assert.Equal(t, "https://api.castbrick.co/v1", cfg.SMS.BaseURL)
 	assert.Equal(t, 10*time.Second, cfg.SMS.Timeout)
+	assert.False(t, cfg.Email.Enabled())
+	assert.Equal(t, "https://api.resend.com", cfg.Email.BaseURL)
+	assert.Equal(t, 10*time.Second, cfg.Email.Timeout)
 }
 
 func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
@@ -69,10 +72,30 @@ func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 
 	t.Setenv("CASTBRICK_API_KEY", "cb_live_key")
 	t.Setenv("CASTBRICK_SENDER_ID", "AGORA")
+	_, err = config.Load()
+	require.ErrorContains(t, err, "RESEND_API_KEY is required in production")
+
+	t.Setenv("RESEND_API_KEY", "re_live_key")
+	t.Setenv("EMAIL_FROM", "Agora <no-reply@agora.ao>")
 	cfg, err := config.Load()
 	require.NoError(t, err)
 	assert.True(t, cfg.SMS.Enabled())
 	assert.Equal(t, "AGORA", cfg.SMS.SenderID)
+}
+
+func TestLoadResendKeyNeedsTheSender(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("RESEND_API_KEY", "re_test_key")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "EMAIL_FROM is required when RESEND_API_KEY is set")
+
+	t.Setenv("EMAIL_FROM", "Agora <no-reply@agora.ao>")
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.True(t, cfg.Email.Enabled())
+	assert.Equal(t, "Agora <no-reply@agora.ao>", cfg.Email.From)
 }
 
 func TestLoadEnvOverridesDotEnv(t *testing.T) {
