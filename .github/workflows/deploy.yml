@@ -104,7 +104,6 @@ jobs:
                 --read-only \
                 --cap-drop ALL \
                 --security-opt no-new-privileges \
-                --health-cmd /healthcheck \
                 --health-interval 5s \
                 --health-timeout 3s \
                 --health-start-period 30s \
