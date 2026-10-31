@@ -99,8 +99,6 @@ jobs:
                 -e LOG_OUTPUT=stdout \
                 -e TRUSTED_PROXIES=172.30.3.1 \
                 --network atlas-api \
-                -p 127.0.0.1:8700:8700 \
-                -p 100.78.53.89:8700:8700 \
                 --read-only \
                 --cap-drop ALL \
                 --security-opt no-new-privileges \
