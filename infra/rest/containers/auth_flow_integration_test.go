@@ -29,6 +29,7 @@ import (
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/infra/cache"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/outbox"
@@ -710,6 +711,7 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 		Config:             cfg,
 		Pool:               pool,
 		Redis:              rdb,
+		Cache:              cache.NewRedisCache(rdb, cfg.App.Name+":cache:"),
 		TxManager:          postgres.NewTxManager(pool),
 		Outbox:             outbox.NewRepository(pool),
 		JWT:                jwt,
@@ -722,11 +724,13 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 	auth, err := newAuthModule(c)
 	require.NoError(t, err)
 	c.Auth = auth
+	c.Catalog = newCatalogModule(c)
 
 	gin.SetMode(gin.TestMode)
 	binding.Setup()
 	r := gin.New()
 	c.Auth.Router.Register(r.Group("/api/v1"))
+	c.Catalog.Router.Register(r.Group("/api/v1"))
 	return r
 }
 

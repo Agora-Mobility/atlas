@@ -22,6 +22,8 @@ const totpIssuer = "AGORA"
 type AuthModule struct {
 	Controller *controllers.AuthController
 	Router     *authrouter.Router
+	// Authorizer checks the permissions of staff routes in every module.
+	Authorizer *middleware.Authorizer
 }
 
 func newAuthModule(c *Container) (*AuthModule, error) {
@@ -71,9 +73,11 @@ func newAuthModule(c *Container) (*AuthModule, error) {
 		Partner:  cfg.Access.InvitationPartner,
 	})
 	organizations := usecases.NewOrganizationUsecase(orgRepo, roleRepo, membershipRepo, auditRepo, c.Outbox, c.TxManager)
+	authorizer := middleware.NewAuthorizer(accessResolver)
 
 	return &AuthModule{
 		Controller: controller,
+		Authorizer: authorizer,
 		Router: authrouter.NewRouter(authrouter.Controllers{
 			Auth: controller,
 			Profile: controllers.NewProfileController(
@@ -89,7 +93,7 @@ func newAuthModule(c *Container) (*AuthModule, error) {
 			)),
 			MFA:   controllers.NewMFAController(staffSignIn),
 			Roles: controllers.NewRoleController(usecases.NewRoleUsecase(roleRepo, auditRepo, c.Outbox, c.TxManager, accessResolver)),
-		}, c.Authenticator, middleware.NewAuthorizer(accessResolver), c.ClientAuthorizer, authrouter.Limiters{
+		}, c.Authenticator, authorizer, c.ClientAuthorizer, authrouter.Limiters{
 			Register: authLimiter(c, "register"),
 			Login:    authLimiter(c, "login"),
 			Phone:    authLimiter(c, "phone"),

@@ -54,6 +54,504 @@
                 }
             }
         },
+        "/api/v1/admin/categories": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires categories:manage. Active and inactive, in display order.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice catalog"
+                ],
+                "summary": "List the service categories",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CategoryList"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires categories:manage. The slug cannot change later. The category starts active but stays out of the app until it has an active service.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice catalog"
+                ],
+                "summary": "Create a service category",
+                "parameters": [
+                    {
+                        "description": "Category",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CreateCategoryInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CategoryView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Slug already used",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/categories/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires categories:manage.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice catalog"
+                ],
+                "summary": "Get a service category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CategoryView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Category not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires categories:manage. Only the fields sent change. Setting is_active to false hides the category and all its services from the app; categories are never deleted.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice catalog"
+                ],
+                "summary": "Change a service category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateCategoryInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CategoryView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Category not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/services": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires services:manage. Active and inactive unless filtered.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice catalog"
+                ],
+                "summary": "List the services",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category id",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Active or inactive only",
+                        "name": "is_active",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Part of the name or slug",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (from 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ServicePage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid filters",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires services:manage. The slug cannot change later. Fees are in cêntimos of kwanza (1 Kz = 100).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice catalog"
+                ],
+                "summary": "Create a service",
+                "parameters": [
+                    {
+                        "description": "Service",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CreateServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ServiceView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Slug already used",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields or unknown category",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/services/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires services:manage.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice catalog"
+                ],
+                "summary": "Get a service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ServiceView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Service not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires services:manage. Only the fields sent change; pricing, when sent, replaces the three fees. Setting is_active to false hides the service from the app; services are never deleted.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice catalog"
+                ],
+                "summary": "Change a service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ServiceView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or session ended",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Service not found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields or unknown category",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/users": {
             "get": {
                 "security": [
@@ -1211,6 +1709,43 @@
                     },
                     "500": {
                         "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/catalog": {
+            "get": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Active categories in display order, each with its active services. Categories without active services are left out. No sign-in needed. Fees are in cêntimos of kwanza (1 Kz = 100).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Catalog"
+                ],
+                "summary": "Service catalog of the app",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.Catalog"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing X-Client-Id",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unknown client",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -3546,6 +4081,127 @@
                 }
             }
         },
+        "dtos.Catalog": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CatalogCategory"
+                    }
+                }
+            }
+        },
+        "dtos.CatalogCategory": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Transporte de passageiros até ao destino."
+                },
+                "icon": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Táxi"
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CatalogService"
+                    }
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "taxi"
+                }
+            }
+        },
+        "dtos.CatalogService": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Viagem até ao destino indicado."
+                },
+                "icon": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Táxi"
+                },
+                "pricing": {
+                    "$ref": "#/definitions/dtos.PricingView"
+                },
+                "requires_destination": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "taxi"
+                }
+            }
+        },
+        "dtos.CategoryList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CategoryView"
+                    }
+                }
+            }
+        },
+        "dtos.CategoryView": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Transporte de passageiros até ao destino."
+                },
+                "display_order": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "icon": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Táxi"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.ChangePasswordInput": {
             "type": "object",
             "required": [
@@ -3559,6 +4215,41 @@
                 },
                 "new_password": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.CreateCategoryInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "slug"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Limpeza de casas e escritórios."
+                },
+                "display_order": {
+                    "type": "integer",
+                    "maximum": 9999,
+                    "minimum": 0,
+                    "example": 5
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "cleaning"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "Limpeza"
+                },
+                "slug": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "example": "cleaning"
                 }
             }
         },
@@ -3612,6 +4303,58 @@
                 },
                 "requires_mfa": {
                     "type": "boolean"
+                }
+            }
+        },
+        "dtos.CreateServiceInput": {
+            "type": "object",
+            "required": [
+                "category_id",
+                "name",
+                "requires_destination",
+                "slug"
+            ],
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Viatura de gama alta."
+                },
+                "display_order": {
+                    "type": "integer",
+                    "maximum": 9999,
+                    "minimum": 0,
+                    "example": 2
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "taxi-executive"
+                },
+                "is_active": {
+                    "description": "IsActive defaults to true.",
+                    "type": "boolean",
+                    "example": true
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "Táxi Executivo"
+                },
+                "pricing": {
+                    "$ref": "#/definitions/dtos.PricingInput"
+                },
+                "requires_destination": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "slug": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "example": "taxi-executive"
                 }
             }
         },
@@ -4029,6 +4772,43 @@
                 }
             }
         },
+        "dtos.PricingInput": {
+            "type": "object",
+            "properties": {
+                "base_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 150000
+                },
+                "per_km_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 20000
+                },
+                "per_minute_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 0
+                }
+            }
+        },
+        "dtos.PricingView": {
+            "type": "object",
+            "properties": {
+                "base_fee_cents": {
+                    "type": "integer",
+                    "example": 150000
+                },
+                "per_km_fee_cents": {
+                    "type": "integer",
+                    "example": 20000
+                },
+                "per_minute_fee_cents": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
         "dtos.RecoveryCodesOutput": {
             "type": "object",
             "properties": {
@@ -4195,6 +4975,77 @@
                 }
             }
         },
+        "dtos.ServicePage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ServiceView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.ServiceView": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Viagem até ao destino indicado."
+                },
+                "display_order": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "icon": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Táxi"
+                },
+                "pricing": {
+                    "$ref": "#/definitions/dtos.PricingView"
+                },
+                "requires_destination": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.SessionOutput": {
             "type": "object",
             "properties": {
@@ -4255,6 +5106,33 @@
                     "type": "string",
                     "maxLength": 500,
                     "example": "Situação resolvida"
+                }
+            }
+        },
+        "dtos.UpdateCategoryInput": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "display_order": {
+                    "type": "integer",
+                    "maximum": 9999,
+                    "minimum": 0
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "Táxi"
                 }
             }
         },
@@ -4328,6 +5206,42 @@
                     }
                 },
                 "requires_mfa": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dtos.UpdateServiceInput": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "display_order": {
+                    "type": "integer",
+                    "maximum": 9999,
+                    "minimum": 0
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "Táxi Executivo"
+                },
+                "pricing": {
+                    "$ref": "#/definitions/dtos.PricingInput"
+                },
+                "requires_destination": {
                     "type": "boolean"
                 }
             }

@@ -22,13 +22,16 @@ managed from the backoffice, and future categories should not need a release.
     (Maintenance);
   - active/inactive flag;
   - pricing parameters (base fee, per-km, per-minute) stored as configurable
-    values, with the actual tariff rules decided in C1.
+    values in cêntimos of kwanza (integers, never floating point), with the
+    actual tariff rules decided in C1.
 - Categories and services are soft-deleted (`active = false`) so that
   historical requests keep their references.
 - Catalogue reads are public and **cached in Redis** (`infra/cache`), with the
   cache invalidated on every backoffice change.
-- Events: `catalogue.service-updated.v1`, consumed if other modules need
-  denormalised copies.
+- Events: `catalog.category-created.v1`, `catalog.category-updated.v1`,
+  `catalog.service-created.v1` and `catalog.service-updated.v1`, consumed if
+  other modules need denormalised copies. Code uses the US spelling
+  (`catalog`), which the linter enforces.
 
 ## Consequences
 
