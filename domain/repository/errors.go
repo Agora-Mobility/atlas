@@ -8,4 +8,6 @@ var (
 	ErrPhoneAlreadyExists = errors.New("phone already registered")
 	ErrNIFAlreadyExists   = errors.New("nif already registered")
 	ErrRoleCodeTaken      = errors.New("role code already used in the organization")
+	ErrCategorySlugTaken  = errors.New("service category slug already used")
+	ErrServiceSlugTaken   = errors.New("service slug already used")
 )
