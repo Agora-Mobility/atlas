@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/Agora-Mobility/atlas/compare/v1.0.0...v1.1.0) (2026-10-30)
+
+
+### Features
+
+* **auth:** add multi-scope RBAC with MFA, row-level security and audit trail ([cf60fb4](https://github.com/Agora-Mobility/atlas/commit/cf60fb45b647d19bb1b562e5c66c47e1be6ca15a))
+* **auth:** confirm e-mail changes and account deletion with an SMS code ([b193175](https://github.com/Agora-Mobility/atlas/commit/b193175820f9995e6eed25d54a2440b1428c0069))
+* **auth:** sign customers and providers in with a phone code ([c846936](https://github.com/Agora-Mobility/atlas/commit/c846936b1138531618a4643eb9f4f6f689187f3d))
+* **notifications:** add a Resend e-mail sender ([2701721](https://github.com/Agora-Mobility/atlas/commit/27017212720be51cd3dfc30b4edc14e51a632563))
+* **notifications:** send invitations and access notices by e-mail ([67d2ce8](https://github.com/Agora-Mobility/atlas/commit/67d2ce8964c9dc676724e64089b71e889cccb034))
+* **partners:** let AGORA update the name and NIF of a partner ([96da673](https://github.com/Agora-Mobility/atlas/commit/96da673f2fda9efc39266db83b2dda542491880a))
+
 ## 1.0.0 (2026-10-28)
 
 
