@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/Agora-Mobility/atlas/compare/v1.1.0...v1.1.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* **ci:** use the image healthcheck in the production deploy ([8e1e45d](https://github.com/Agora-Mobility/atlas/commit/8e1e45dcccf0412a247004d46e085b03d10ef25c))
+* **ci:** use the image healthcheck in the production deploy ([ae5f9d5](https://github.com/Agora-Mobility/atlas/commit/ae5f9d54aec4b7462ca85eee3bfdb0e4386fd44a))
+
 ## [1.1.0](https://github.com/Agora-Mobility/atlas/compare/v1.0.0...v1.1.0) (2026-10-30)
 
 
