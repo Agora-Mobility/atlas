@@ -47,6 +47,7 @@ type Container struct {
 
 	Health        *HealthModule
 	Auth          *AuthModule
+	Catalog       *CatalogModule
 	Notifications *NotificationsModule
 }
 
@@ -107,6 +108,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 	}
 	c.Health = newHealthModule(c)
 	c.Auth = auth
+	c.Catalog = newCatalogModule(c)
 	c.Notifications = newNotificationsModule(c)
 	return c, nil
 }
