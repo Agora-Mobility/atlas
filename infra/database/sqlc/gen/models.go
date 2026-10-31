@@ -368,6 +368,35 @@ type RolePermission struct {
 	PermissionCode string    `json:"permission_code"`
 }
 
+type Service struct {
+	ID                  uuid.UUID `json:"id"`
+	CategoryID          uuid.UUID `json:"category_id"`
+	Slug                string    `json:"slug"`
+	Name                string    `json:"name"`
+	Description         string    `json:"description"`
+	Icon                string    `json:"icon"`
+	RequiresDestination bool      `json:"requires_destination"`
+	BaseFeeCents        int64     `json:"base_fee_cents"`
+	PerKmFeeCents       int64     `json:"per_km_fee_cents"`
+	PerMinuteFeeCents   int64     `json:"per_minute_fee_cents"`
+	DisplayOrder        int32     `json:"display_order"`
+	IsActive            bool      `json:"is_active"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+type ServiceCategory struct {
+	ID           uuid.UUID `json:"id"`
+	Slug         string    `json:"slug"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	Icon         string    `json:"icon"`
+	DisplayOrder int32     `json:"display_order"`
+	IsActive     bool      `json:"is_active"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type User struct {
 	ID          uuid.UUID        `json:"id"`
 	Name        string           `json:"name"`

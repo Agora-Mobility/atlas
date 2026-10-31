@@ -20,6 +20,7 @@ type Querier interface {
 	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
 	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
 	CountPendingOutboxEvents(ctx context.Context) (int64, error)
+	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
 	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
@@ -29,6 +30,8 @@ type Querier interface {
 	CreateRecoveryCodes(ctx context.Context, arg CreateRecoveryCodesParams) error
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
+	CreateService(ctx context.Context, arg CreateServiceParams) error
+	CreateServiceCategory(ctx context.Context, arg CreateServiceCategoryParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateUserBlock(ctx context.Context, arg CreateUserBlockParams) error
 	CreateUserBlockReasons(ctx context.Context, arg CreateUserBlockReasonsParams) error
@@ -55,6 +58,8 @@ type Querier interface {
 	GetPlatformOrganization(ctx context.Context) (Organization, error)
 	GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRolesByIDs(ctx context.Context, ids []uuid.UUID) ([]Role, error)
+	GetService(ctx context.Context, id uuid.UUID) (Service, error)
+	GetServiceCategory(ctx context.Context, id uuid.UUID) (ServiceCategory, error)
 	GetSystemRoleByCode(ctx context.Context, arg GetSystemRoleByCodeParams) (Role, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
@@ -64,6 +69,7 @@ type Querier interface {
 	ListActiveBlockReasons(ctx context.Context) ([]BlockReason, error)
 	ListActiveBlockReasonsByIDs(ctx context.Context, ids []uuid.UUID) ([]BlockReason, error)
 	ListActiveMembershipsForSignIn(ctx context.Context, arg ListActiveMembershipsForSignInParams) ([]Membership, error)
+	ListActiveServicesOfActiveCategories(ctx context.Context) ([]Service, error)
 	ListMembers(ctx context.Context, arg ListMembersParams) ([]ListMembersRow, error)
 	ListMembershipPermissions(ctx context.Context, membershipID uuid.UUID) ([]string, error)
 	ListMembershipRoles(ctx context.Context, membershipIds []uuid.UUID) ([]MembershipRole, error)
@@ -71,6 +77,8 @@ type Querier interface {
 	ListPermissionsByScope(ctx context.Context, scope enums.OrganizationType) ([]ListPermissionsByScopeRow, error)
 	ListRolePermissions(ctx context.Context, roleIds []uuid.UUID) ([]RolePermission, error)
 	ListRolesForOrganization(ctx context.Context, arg ListRolesForOrganizationParams) ([]Role, error)
+	ListServiceCategories(ctx context.Context, onlyActive bool) ([]ServiceCategory, error)
+	ListServices(ctx context.Context, arg ListServicesParams) ([]Service, error)
 	ListUserSessionsIssuedSince(ctx context.Context, arg ListUserSessionsIssuedSinceParams) ([]uuid.UUID, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
@@ -86,6 +94,8 @@ type Querier interface {
 	UpdateMembership(ctx context.Context, arg UpdateMembershipParams) error
 	UpdatePartnerOrganization(ctx context.Context, arg UpdatePartnerOrganizationParams) (int64, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (int64, error)
+	UpdateService(ctx context.Context, arg UpdateServiceParams) error
+	UpdateServiceCategory(ctx context.Context, arg UpdateServiceCategoryParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLoginParams) error
 	UseRecoveryCode(ctx context.Context, arg UseRecoveryCodeParams) (int64, error)

@@ -22,7 +22,8 @@ import (
 
 var appTables = []string{
 	"audit_log", "block_reasons", "clients", "invitations", "membership_roles", "memberships", "mfa_recovery_codes", "organizations", "outbox",
-	"permissions", "refresh_tokens", "role_permissions", "roles", "schema_migrations", "user_block_reasons", "user_blocks", "user_mfa", "users",
+	"permissions", "refresh_tokens", "role_permissions", "roles", "schema_migrations", "service_categories", "services", "user_block_reasons",
+	"user_blocks", "user_mfa", "users",
 }
 
 func startPostgres(t *testing.T) string {
@@ -140,7 +141,7 @@ func TestMigrate_MovesALegacyPublicDatabaseKeepingData(t *testing.T) {
 	var version int
 	var dirty bool
 	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
-	assert.Equal(t, 13, version)
+	assert.Equal(t, 14, version)
 	assert.False(t, dirty)
 
 	_, err = pool.Exec(ctx, "UPDATE audit_log SET reason = 'x'")
