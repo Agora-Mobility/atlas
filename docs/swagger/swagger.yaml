@@ -87,6 +87,40 @@ definitions:
       reason:
         type: string
     type: object
+  dtos.ApplicationList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.ApplicationView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.ApplicationView:
+    properties:
+      name:
+        type: string
+      phone:
+        type: string
+      requested_service_id:
+        type: string
+      requested_service_name:
+        type: string
+      service_id:
+        type: string
+      status:
+        type: string
+      submitted_at:
+        type: string
+      user_id:
+        type: string
+      vehicle_plate:
+        type: string
+    type: object
   dtos.AssignInput:
     properties:
       provider_id:
@@ -466,6 +500,36 @@ definitions:
     - platform
     - token
     type: object
+  dtos.DocumentURLOutput:
+    properties:
+      expires_at:
+        type: string
+      url:
+        type: string
+    type: object
+  dtos.DocumentView:
+    properties:
+      content_type:
+        type: string
+      name:
+        type: string
+      rejection_reason:
+        type: string
+      reviewed_at:
+        type: string
+      size_bytes:
+        type: integer
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+      url_expires_at:
+        type: string
+    type: object
   dtos.FareEstimateInput:
     properties:
       category:
@@ -785,6 +849,41 @@ definitions:
       position:
         $ref: '#/definitions/dtos.PositionInput'
     type: object
+  dtos.OpenCategory:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      services:
+        items:
+          $ref: '#/definitions/dtos.OpenService'
+        type: array
+      slug:
+        type: string
+    type: object
+  dtos.OpenService:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      min_vehicle_seats:
+        type: integer
+      name:
+        type: string
+      requires_vehicle:
+        type: boolean
+      slug:
+        type: string
+    type: object
+  dtos.OpenServices:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/dtos.OpenCategory'
+        type: array
+    type: object
   dtos.OrganizationPage:
     properties:
       items:
@@ -849,6 +948,24 @@ definitions:
         items:
           $ref: '#/definitions/enums.OrganizationType'
         type: array
+    type: object
+  dtos.PersonalDataInput:
+    properties:
+      address:
+        example: Rua Rainha Ginga, 29, Luanda
+        maxLength: 200
+        type: string
+      birth_date:
+        example: "1990-05-20"
+        type: string
+      id_number:
+        example: 000000000LA000
+        maxLength: 120
+        type: string
+    required:
+    - address
+    - birth_date
+    - id_number
     type: object
   dtos.PhoneChangeConfirmInput:
     properties:
@@ -1196,37 +1313,48 @@ definitions:
         example: 0
         type: integer
     type: object
-  dtos.ProviderAdminInput:
+  dtos.ProfileView:
     properties:
+      address:
+        type: string
+      birth_date:
+        type: string
+      documents:
+        items:
+          $ref: '#/definitions/dtos.DocumentView'
+        type: array
+      email:
+        type: string
+      id_number:
+        type: string
+      missing:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      phone:
+        type: string
+      requested_service_id:
+        type: string
+      required_documents:
+        items:
+          $ref: '#/definitions/dtos.RequiredDocumentView'
+        type: array
+      reviewed_at:
+        type: string
       service_id:
         type: string
       status:
-        enum:
-        - pending
-        - approved
-        - suspended
         type: string
-      vehicle_description:
-        maxLength: 120
+      status_reason:
         type: string
-      vehicle_plate:
-        maxLength: 20
-        type: string
-    required:
-    - status
-    type: object
-  dtos.ProviderAdminView:
-    properties:
-      service_id:
-        type: string
-      status:
+      submitted_at:
         type: string
       user_id:
         type: string
-      vehicle_description:
-        type: string
-      vehicle_plate:
-        type: string
+      vehicle:
+        $ref: '#/definitions/dtos.VehicleView'
     type: object
   dtos.ProviderSummary:
     properties:
@@ -1308,6 +1436,19 @@ definitions:
     required:
     - refresh_token
     type: object
+  dtos.RegisterDocumentInput:
+    properties:
+      document_type:
+        example: id_card
+        maxLength: 64
+        type: string
+      object_key:
+        maxLength: 255
+        type: string
+    required:
+    - document_type
+    - object_key
+    type: object
   dtos.RegisterInput:
     properties:
       phone:
@@ -1316,6 +1457,43 @@ definitions:
         type: string
     required:
     - phone
+    type: object
+  dtos.RegisterProviderInput:
+    properties:
+      email:
+        example: pedro@exemplo.ao
+        maxLength: 254
+        type: string
+      name:
+        example: Pedro Cunga
+        maxLength: 120
+        type: string
+      password:
+        example: S3gredo!forte
+        maxLength: 128
+        type: string
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
+    required:
+    - name
+    - password
+    - phone
+    type: object
+  dtos.RegisteredProvider:
+    properties:
+      id:
+        type: string
+      is_verified:
+        type: boolean
+      name:
+        type: string
+      phone:
+        type: string
+      status:
+        example: draft
+        type: string
     type: object
   dtos.ReplaceRolesInput:
     properties:
@@ -1340,6 +1518,13 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  dtos.RequestServiceInput:
+    properties:
+      service_id:
+        type: string
+    required:
+    - service_id
     type: object
   dtos.RequestView:
     properties:
@@ -1412,6 +1597,21 @@ definitions:
       version:
         type: integer
     type: object
+  dtos.RequiredDocumentView:
+    properties:
+      allowed_content_types:
+        items:
+          type: string
+        type: array
+      max_size_bytes:
+        type: integer
+      name:
+        type: string
+      scope:
+        type: string
+      type:
+        type: string
+    type: object
   dtos.ResetPasswordInput:
     properties:
       new_password:
@@ -1419,6 +1619,35 @@ definitions:
         type: string
     required:
     - new_password
+    type: object
+  dtos.ReviewDocumentInput:
+    properties:
+      reason:
+        maxLength: 500
+        type: string
+      status:
+        enum:
+        - approved
+        - rejected
+        type: string
+    required:
+    - status
+    type: object
+  dtos.ReviewProviderInput:
+    properties:
+      reason:
+        maxLength: 500
+        type: string
+      service_id:
+        type: string
+      status:
+        enum:
+        - approved
+        - rejected
+        - suspended
+        type: string
+    required:
+    - status
     type: object
   dtos.RoleList:
     properties:
@@ -1776,6 +2005,38 @@ definitions:
       requires_destination:
         type: boolean
     type: object
+  dtos.UploadURLInput:
+    properties:
+      content_type:
+        example: image/jpeg
+        maxLength: 64
+        type: string
+      document_type:
+        example: id_card
+        maxLength: 64
+        type: string
+      size:
+        example: 204800
+        minimum: 1
+        type: integer
+    required:
+    - content_type
+    - document_type
+    - size
+    type: object
+  dtos.UploadURLOutput:
+    properties:
+      expires_at:
+        type: string
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      object_key:
+        type: string
+      upload_url:
+        type: string
+    type: object
   dtos.UserPage:
     properties:
       items:
@@ -1811,6 +2072,53 @@ definitions:
         $ref: '#/definitions/enums.Role'
       status:
         $ref: '#/definitions/enums.UserStatus'
+    type: object
+  dtos.VehicleInput:
+    properties:
+      brand:
+        example: Toyota
+        maxLength: 120
+        type: string
+      color:
+        example: Branco
+        maxLength: 120
+        type: string
+      model:
+        example: Corolla
+        maxLength: 120
+        type: string
+      plate:
+        example: LD-45-21-AF
+        maxLength: 20
+        type: string
+      seats:
+        example: 5
+        type: integer
+      year:
+        example: 2020
+        type: integer
+    required:
+    - brand
+    - color
+    - model
+    - plate
+    - seats
+    - year
+    type: object
+  dtos.VehicleView:
+    properties:
+      brand:
+        type: string
+      color:
+        type: string
+      model:
+        type: string
+      plate:
+        type: string
+      seats:
+        type: integer
+      year:
+        type: integer
     type: object
   dtos.ZoneInput:
     properties:
@@ -2339,43 +2647,153 @@ paths:
       summary: Search again for a queued request
       tags:
       - Backoffice dispatch
-  /api/v1/admin/providers/{id}:
-    put:
-      consumes:
-      - application/json
-      description: Requires providers:approve. Sets the status, the vehicle and the
-        one service the provider takes offers for. An approved provider must have
-        a service. The service cannot change during an active job, and changing it
-        takes the provider offline and clears the coverage.
+  /api/v1/admin/providers:
+    get:
+      description: Requires providers:read. Oldest submission first.
       parameters:
-      - description: User id of the provider
-        in: path
-        name: id
-        required: true
+      - description: draft, pending, approved, rejected or suspended
+        in: query
+        name: status
         type: string
-      - description: Profile
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.ProviderAdminInput'
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ProviderAdminView'
-        "422":
-          description: Unprocessable Entity
+            $ref: '#/definitions/dtos.ApplicationList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List provider applications
+      tags:
+      - Backoffice providers
+  /api/v1/admin/providers/{id}:
+    get:
+      description: Requires providers:read. Profile, requested service and documents,
+        each with a short-lived link.
+      parameters:
+      - description: User id of the provider
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProfileView'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - BearerAuth: []
       - ClientId: []
-      summary: Set the dispatch profile of a provider
+      summary: Get a provider application
       tags:
-      - Backoffice dispatch
+      - Backoffice providers
+    put:
+      consumes:
+      - application/json
+      description: 'Requires providers:approve. Never creates a provider: accounts
+        are created in the app. Approving needs service_id, usually the requested
+        service, and every required document approved. Rejecting and suspending need
+        a reason. A suspended provider can be approved again.'
+      parameters:
+      - description: User id of the provider
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Decision
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ReviewProviderInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProfileView'
+        "404":
+          description: PROVIDER_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: INVALID_PROVIDER_TRANSITION or PROVIDER_BUSY
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Missing service_id or APPROVAL_REQUIREMENTS_NOT_MET
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Decide on a provider
+      tags:
+      - Backoffice providers
+  /api/v1/admin/providers/{id}/documents/{type}/review:
+    post:
+      consumes:
+      - application/json
+      description: Requires providers:approve. Rejecting needs a reason.
+      parameters:
+      - description: User id of the provider
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Document type
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Decision
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ReviewDocumentInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProfileView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: REVIEW_NOT_ALLOWED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: REASON_REQUIRED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Approve or reject a document
+      tags:
+      - Backoffice providers
   /api/v1/admin/services:
     get:
       description: Requires services:manage. Active and inactive unless filtered.
@@ -4508,6 +4926,104 @@ paths:
       summary: Set the base and service radius
       tags:
       - Provider
+  /api/v1/providers/me/documents:
+    post:
+      consumes:
+      - application/json
+      description: Confirms that the file exists and that its content really is an
+        accepted type. A new file replaces the previous one of that type, which is
+        how a rejected document is sent again.
+      parameters:
+      - description: Document
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RegisterDocumentInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.ProfileView'
+        "409":
+          description: PROFILE_LOCKED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: FILE_NOT_UPLOADED, INVALID_OBJECT_KEY or FILE_TYPE_NOT_ACCEPTED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Register an uploaded document
+      tags:
+      - Provider onboarding
+  /api/v1/providers/me/documents/{type}/url:
+    get:
+      parameters:
+      - description: Document type
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DocumentURLOutput'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Short-lived link to one of my documents
+      tags:
+      - Provider onboarding
+  /api/v1/providers/me/documents/upload-url:
+    post:
+      consumes:
+      - application/json
+      description: Validates the type and the size. Then PUT the file directly to
+        upload_url with the returned headers, and register it with POST /api/v1/providers/me/documents.
+      parameters:
+      - description: File
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UploadURLInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UploadURLOutput'
+        "409":
+          description: PROFILE_LOCKED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: FILE_TYPE_NOT_ACCEPTED, FILE_TOO_LARGE or UNKNOWN_DOCUMENT_TYPE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "503":
+          description: STORAGE_UNAVAILABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a URL to upload a document
+      tags:
+      - Provider onboarding
   /api/v1/providers/me/locations:
     post:
       consumes:
@@ -4576,6 +5092,201 @@ paths:
       summary: Enter the live index
       tags:
       - Provider
+  /api/v1/providers/me/personal:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Personal data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PersonalDataInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProfileView'
+        "409":
+          description: PROFILE_LOCKED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Save the personal data
+      tags:
+      - Provider onboarding
+  /api/v1/providers/me/profile:
+    get:
+      description: Status, data, documents, what the requested service requires and
+        what is still missing.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProfileView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: My provider profile
+      tags:
+      - Provider onboarding
+  /api/v1/providers/me/service:
+    put:
+      consumes:
+      - application/json
+      description: Stored as the requested service. The service a provider really
+        takes comes from the approval.
+      parameters:
+      - description: Service
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RequestServiceInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProfileView'
+        "409":
+          description: PROFILE_LOCKED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: SERVICE_NOT_OPEN
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Choose the service to provide
+      tags:
+      - Provider onboarding
+  /api/v1/providers/me/submit:
+    post:
+      description: Answers 422 PROFILE_INCOMPLETE with the list of what is missing
+        in details.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProfileView'
+        "409":
+          description: PROFILE_LOCKED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: PROFILE_INCOMPLETE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Submit the profile for review
+      tags:
+      - Provider onboarding
+  /api/v1/providers/me/vehicle:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.VehicleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProfileView'
+        "409":
+          description: PROFILE_LOCKED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Save the vehicle
+      tags:
+      - Provider onboarding
+  /api/v1/providers/onboarding/services:
+    get:
+      description: By category, for example Táxi with Económico, Conforto and XL.
+        A service only appears once its requirements are configured.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OpenServices'
+      security:
+      - ClientId: []
+      summary: Services that accept providers
+      tags:
+      - Provider onboarding
+  /api/v1/providers/register:
+    post:
+      consumes:
+      - application/json
+      description: 'Only through agora-provider-app: the account type comes from the
+        client, never from the payload. Creates the account and a draft profile, and
+        sends an SMS code. Confirm it with POST /api/v1/auth/phone/verify to get a
+        session.'
+      parameters:
+      - description: Account
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RegisterProviderInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.RegisteredProvider'
+        "403":
+          description: Not the provider app
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Phone or e-mail already registered
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Create a provider account
+      tags:
+      - Provider onboarding
   /api/v1/requests:
     get:
       description: Customers only, most recent first.

@@ -87,7 +87,7 @@ func NewAuthUsecase(
 
 func (uc *AuthUsecase) Register(ctx context.Context, req dtos.RegisterInput, client *entities.Client) (*dtos.UserView, error) {
 	role, allowed := client.SignUpRole()
-	if !allowed {
+	if !allowed || role == enums.RoleProvider {
 		return nil, ErrRegistrationNotAllowed
 	}
 

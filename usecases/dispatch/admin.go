@@ -13,19 +13,17 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/shared/customerrors"
-	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/usecases/dispatch/dtos"
 )
 
 const (
-	auditEntityZone     = "service_zone"
-	auditEntityPolicy   = "dispatch_policy"
-	auditEntityTariff   = "service_tariff"
-	auditEntityProvider = "provider_profile"
-	auditEntityRequest  = "service_request"
-	heatResolution      = 8
-	defaultHeatWindow   = 24 * time.Hour
+	auditEntityZone    = "service_zone"
+	auditEntityPolicy  = "dispatch_policy"
+	auditEntityTariff  = "service_tariff"
+	auditEntityRequest = "service_request"
+	heatResolution     = 8
+	defaultHeatWindow  = 24 * time.Hour
 )
 
 func entitiesDestinationError() error {
@@ -277,68 +275,6 @@ func toTariffView(t *entities.ServiceTariff) dtos.TariffView {
 		MinimumFeeCents: t.MinimumFeeCents, ZoneFeeCents: t.ZoneFeeCents, NightFeeCents: t.NightFeeCents, NightStartHour: t.NightStartHour, NightEndHour: t.NightEndHour,
 		FreeWaitSeconds: t.FreeWaitSeconds, CommissionBps: t.CommissionBps,
 	}}
-}
-
-func (u *Usecase) SaveProvider(ctx context.Context, actor entities.Actor, userID uuid.UUID, role enums.Role, in dtos.ProviderAdminInput) (*dtos.ProviderAdminView, error) {
-	if role != enums.RoleProvider {
-		return nil, ErrProviderNotEligible
-	}
-	status := entities.ProviderStatus(in.Status)
-	if status == entities.ProviderApproved && in.ServiceID == nil {
-		return nil, customerrors.FieldError("service_id", "Um prestador aprovado presta exatamente um serviço.")
-	}
-	if in.ServiceID != nil {
-		service, err := u.Config.FindService(ctx, *in.ServiceID)
-		if err != nil {
-			return nil, err
-		}
-		if service == nil || !service.IsOffered {
-			return nil, ErrServiceNotOffered
-		}
-	}
-	current, err := u.Providers.FindProfile(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	serviceChanged := current != nil && !sameService(current.ServiceID, in.ServiceID)
-	if serviceChanged {
-		active, err := u.Requests.ActiveOfProvider(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		if active != nil {
-			return nil, ErrProviderBusy
-		}
-	}
-	profile := &entities.ProviderProfile{UserID: userID, Status: status, ServiceID: in.ServiceID, VehiclePlate: strings.TrimSpace(in.VehiclePlate), VehicleDescription: strings.TrimSpace(in.VehicleDescription)}
-	view := &dtos.ProviderAdminView{UserID: userID, Status: in.Status, VehiclePlate: profile.VehiclePlate, VehicleDescription: profile.VehicleDescription, ServiceID: in.ServiceID}
-	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		if err := u.Providers.SaveProfile(ctx, profile); err != nil {
-			return err
-		}
-		if serviceChanged {
-			if err := u.Providers.ClearCoverage(ctx, userID); err != nil {
-				return err
-			}
-		}
-		return u.audit(ctx, actor, "provider_profile.save", auditEntityProvider, userID, nil, view)
-	})
-	if err != nil {
-		return nil, err
-	}
-	if status != entities.ProviderApproved || serviceChanged {
-		if err := u.Locator.SetOffline(ctx, userID); err != nil {
-			return nil, err
-		}
-	}
-	return view, nil
-}
-
-func sameService(a, b *uuid.UUID) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	return *a == *b
 }
 
 func (u *Usecase) OperatorQueue(ctx context.Context, page pagination.Params) (*dtos.RequestList, error) {

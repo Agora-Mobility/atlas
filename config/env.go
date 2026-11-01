@@ -33,6 +33,31 @@ type Config struct {
 	Realtime RealtimeConfig `mapstructure:",squash"`
 	Mapbox   MapboxConfig   `mapstructure:",squash"`
 	FCM      FCMConfig      `mapstructure:",squash"`
+	R2       R2Config       `mapstructure:",squash"`
+}
+
+type R2Config struct {
+	AccountID       string        `mapstructure:"R2_ACCOUNT_ID"`
+	AccessKeyID     string        `mapstructure:"R2_ACCESS_KEY_ID"`
+	SecretAccessKey string        `mapstructure:"R2_SECRET_ACCESS_KEY"`
+	Bucket          string        `mapstructure:"R2_BUCKET"`
+	Endpoint        string        `mapstructure:"R2_ENDPOINT"`
+	PresignEndpoint string        `mapstructure:"R2_PRESIGN_ENDPOINT"`
+	PresignTTL      time.Duration `mapstructure:"R2_PRESIGN_TTL"`
+}
+
+func (c R2Config) Enabled() bool {
+	return c.ResolvedEndpoint() != "" && strings.TrimSpace(c.AccessKeyID) != "" && strings.TrimSpace(c.SecretAccessKey) != "" && strings.TrimSpace(c.Bucket) != ""
+}
+
+func (c R2Config) ResolvedEndpoint() string {
+	if endpoint := strings.TrimSpace(c.Endpoint); endpoint != "" {
+		return endpoint
+	}
+	if account := strings.TrimSpace(c.AccountID); account != "" {
+		return "https://" + account + ".r2.cloudflarestorage.com"
+	}
+	return ""
 }
 
 type DispatchConfig struct {
@@ -263,6 +288,13 @@ var defaults = map[string]any{
 	"FCM_CREDENTIALS_JSON":         "",
 	"FCM_BASE_URL":                 "https://fcm.googleapis.com",
 	"FCM_TIMEOUT":                  "5s",
+	"R2_ACCOUNT_ID":                "",
+	"R2_ACCESS_KEY_ID":             "",
+	"R2_SECRET_ACCESS_KEY":         "",
+	"R2_BUCKET":                    "",
+	"R2_ENDPOINT":                  "",
+	"R2_PRESIGN_ENDPOINT":          "",
+	"R2_PRESIGN_TTL":               "15m",
 }
 
 const cloudflareIdleLimit = 100 * time.Second
@@ -362,6 +394,9 @@ func (c *Config) validate() error {
 		if !c.Email.Enabled() {
 			errs = append(errs, errors.New("RESEND_API_KEY is required in production"))
 		}
+		if !c.R2.Enabled() {
+			errs = append(errs, errors.New("R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET are required in production"))
+		}
 		for _, o := range c.HTTP.CORSAllowedOrigins {
 			if o == "*" {
 				errs = append(errs, errors.New("CORS_ALLOWED_ORIGINS cannot be * in production"))
@@ -403,6 +438,9 @@ func (c *Config) validateDispatch() []error {
 	}
 	if c.Mapbox.RoadFactor < 1 || c.Mapbox.AverageSpeedKmh <= 0 {
 		errs = append(errs, errors.New("ROUTING_ROAD_FACTOR must be at least 1 and ROUTING_FALLBACK_SPEED_KMH positive"))
+	}
+	if c.R2.PresignTTL <= 0 {
+		errs = append(errs, errors.New("R2_PRESIGN_TTL must be positive"))
 	}
 	if c.FCM.Timeout <= 0 || strings.TrimSpace(c.FCM.BaseURL) == "" {
 		errs = append(errs, errors.New("FCM_TIMEOUT must be positive and FCM_BASE_URL cannot be empty"))

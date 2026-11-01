@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/domain/entities"
+	domainrepository "github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/geo/h3index"
 	"github.com/Agora-Mobility/atlas/infra/geo/mapbox"
@@ -21,7 +19,6 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/rest/dispatch/controllers"
 	dispatchrouter "github.com/Agora-Mobility/atlas/infra/rest/dispatch/router"
 	"github.com/Agora-Mobility/atlas/infra/sse"
-	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/usecases/dispatch"
 	"github.com/Agora-Mobility/atlas/usecases/notifications"
 	rtusecase "github.com/Agora-Mobility/atlas/usecases/realtime"
@@ -34,21 +31,10 @@ type DispatchModule struct {
 	Usecase   *dispatch.Usecase
 	Projector *rtusecase.Projector
 	Notifier  *notifications.RequestNotifier
+	Locator   domainrepository.IProviderLocator
 
 	projectorWorkers    int
 	notificationWorkers int
-}
-
-type userRoles struct {
-	users *repository.UserRepository
-}
-
-func (u userRoles) RoleOf(ctx *gin.Context, id uuid.UUID) (enums.Role, bool, error) {
-	user, err := u.users.FindByID(ctx.Request.Context(), id)
-	if err != nil || user == nil {
-		return "", false, err
-	}
-	return user.Role, true, nil
 }
 
 func newDispatchModule(c *Container, pushSender services.IPushSender, routingProvider services.IRoutingProvider) *DispatchModule {
@@ -56,6 +42,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 	geo := h3index.New()
 	mailbox := realtime.NewMailbox(c.Redis, cfg.Realtime.MailboxEntries, cfg.Realtime.MailboxTTL)
 	devices := repository.NewDeviceRepository(c.Pool)
+	locator := repository.NewProviderLocator(c.Redis, geo)
 	notifier := notifications.NewRequestNotifier(devices, pushSender, c.SMS, cfg.Dispatch.OfferDeepLink, cfg.Dispatch.OperatorPhone)
 	uc := dispatch.NewUsecase(dispatch.Deps{
 		Config:    repository.NewDispatchConfigRepository(c.Pool),
@@ -64,7 +51,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Requests:  repository.NewRequestRepository(c.Pool),
 		Offers:    repository.NewOfferRepository(c.Pool),
 		Devices:   devices,
-		Locator:   repository.NewProviderLocator(c.Redis, geo),
+		Locator:   locator,
 		Outbox:    c.Outbox,
 		Tx:        c.TxManager,
 		Audit:     repository.NewAuditLogRepository(c.Pool),
@@ -82,13 +69,13 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Heartbeat: cfg.Realtime.Heartbeat, PollInterval: cfg.Realtime.PollInterval, DeadAfter: cfg.Realtime.DeadAfter,
 	})
 	router := dispatchrouter.NewRouter(
-		controllers.NewDispatchController(uc, userRoles{users: repository.NewUserRepository(c.Pool)}),
+		controllers.NewDispatchController(uc),
 		controllers.NewStreamController(streamer, uc),
 		c.Authenticator, c.Auth.Authorizer, c.ClientAuthorizer,
 		middleware.NewIdempotency(c.Redis, cfg.Dispatch.IdempotencyTTL),
 	)
 	return &DispatchModule{
-		Router: router, Usecase: uc, Projector: rtusecase.NewProjector(mailbox), Notifier: notifier,
+		Router: router, Usecase: uc, Projector: rtusecase.NewProjector(mailbox), Notifier: notifier, Locator: locator,
 		projectorWorkers: cfg.Realtime.ProjectorWorkers, notificationWorkers: cfg.Dispatch.NotificationWorkers,
 	}
 }

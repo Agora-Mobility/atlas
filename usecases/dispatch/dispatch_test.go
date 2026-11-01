@@ -526,5 +526,5 @@ func TestAProviderWhoLostTheServiceCannotAcceptAnOpenOffer(t *testing.T) {
 
 	_, err := w.usecase.Accept(context.Background(), provider, offer.ID, w.request.Version)
 
-	assert.ErrorIs(t, err, ErrProviderNotEligible)
+	assert.ErrorIs(t, err, ErrProviderNotApproved)
 }

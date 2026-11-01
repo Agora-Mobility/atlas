@@ -687,7 +687,96 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/providers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires providers:read. Oldest submission first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice providers"
+                ],
+                "summary": "List provider applications",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "draft, pending, approved, rejected or suspended",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ApplicationList"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/providers/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires providers:read. Profile, requested service and documents, each with a short-lived link.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice providers"
+                ],
+                "summary": "Get a provider application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User id of the provider",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "put": {
                 "security": [
                     {
@@ -697,7 +786,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Requires providers:approve. Sets the status, the vehicle and the one service the provider takes offers for. An approved provider must have a service. The service cannot change during an active job, and changing it takes the provider offline and clears the coverage.",
+                "description": "Requires providers:approve. Never creates a provider: accounts are created in the app. Approving needs service_id, usually the requested service, and every required document approved. Rejecting and suspending need a reason. A suspended provider can be approved again.",
                 "consumes": [
                     "application/json"
                 ],
@@ -705,9 +794,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Backoffice dispatch"
+                    "Backoffice providers"
                 ],
-                "summary": "Set the dispatch profile of a provider",
+                "summary": "Decide on a provider",
                 "parameters": [
                     {
                         "type": "string",
@@ -717,12 +806,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Profile",
+                        "description": "Decision",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProviderAdminInput"
+                            "$ref": "#/definitions/dtos.ReviewProviderInput"
                         }
                     }
                 ],
@@ -730,11 +819,97 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProviderAdminView"
+                            "$ref": "#/definitions/dtos.ProfileView"
+                        }
+                    },
+                    "404": {
+                        "description": "PROVIDER_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "INVALID_PROVIDER_TRANSITION or PROVIDER_BUSY",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     },
                     "422": {
-                        "description": "Unprocessable Entity",
+                        "description": "Missing service_id or APPROVAL_REQUIREMENTS_NOT_MET",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/providers/{id}/documents/{type}/review": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires providers:approve. Rejecting needs a reason.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice providers"
+                ],
+                "summary": "Approve or reject a document",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User id of the provider",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Document type",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Decision",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ReviewDocumentInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "REVIEW_NOT_ALLOWED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "REASON_REQUIRED",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -4060,6 +4235,162 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/providers/me/documents": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Confirms that the file exists and that its content really is an accepted type. A new file replaces the previous one of that type, which is how a rejected document is sent again.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "Register an uploaded document",
+                "parameters": [
+                    {
+                        "description": "Document",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RegisterDocumentInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileView"
+                        }
+                    },
+                    "409": {
+                        "description": "PROFILE_LOCKED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "FILE_NOT_UPLOADED, INVALID_OBJECT_KEY or FILE_TYPE_NOT_ACCEPTED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/documents/upload-url": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Validates the type and the size. Then PUT the file directly to upload_url with the returned headers, and register it with POST /api/v1/providers/me/documents.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "Get a URL to upload a document",
+                "parameters": [
+                    {
+                        "description": "File",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UploadURLInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UploadURLOutput"
+                        }
+                    },
+                    "409": {
+                        "description": "PROFILE_LOCKED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "FILE_TYPE_NOT_ACCEPTED, FILE_TOO_LARGE or UNKNOWN_DOCUMENT_TYPE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "STORAGE_UNAVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/documents/{type}/url": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "Short-lived link to one of my documents",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Document type",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DocumentURLOutput"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/providers/me/locations": {
             "post": {
                 "security": [
@@ -4168,6 +4499,316 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Not approved",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/personal": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "Save the personal data",
+                "parameters": [
+                    {
+                        "description": "Personal data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PersonalDataInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileView"
+                        }
+                    },
+                    "409": {
+                        "description": "PROFILE_LOCKED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Status, data, documents, what the requested service requires and what is still missing.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "My provider profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/service": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Stored as the requested service. The service a provider really takes comes from the approval.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "Choose the service to provide",
+                "parameters": [
+                    {
+                        "description": "Service",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileView"
+                        }
+                    },
+                    "409": {
+                        "description": "PROFILE_LOCKED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "SERVICE_NOT_OPEN",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/submit": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Answers 422 PROFILE_INCOMPLETE with the list of what is missing in details.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "Submit the profile for review",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileView"
+                        }
+                    },
+                    "409": {
+                        "description": "PROFILE_LOCKED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "PROFILE_INCOMPLETE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/vehicle": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "Save the vehicle",
+                "parameters": [
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileView"
+                        }
+                    },
+                    "409": {
+                        "description": "PROFILE_LOCKED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/onboarding/services": {
+            "get": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "By category, for example Táxi with Económico, Conforto and XL. A service only appears once its requirements are configured.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "Services that accept providers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OpenServices"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/register": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Only through agora-provider-app: the account type comes from the client, never from the payload. Creates the account and a draft profile, and sends an SMS code. Confirm it with POST /api/v1/auth/phone/verify to get a session.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider onboarding"
+                ],
+                "summary": "Create a provider account",
+                "parameters": [
+                    {
+                        "description": "Account",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RegisterProviderInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RegisteredProvider"
+                        }
+                    },
+                    "403": {
+                        "description": "Not the provider app",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Phone or e-mail already registered",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -5922,6 +6563,58 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ApplicationList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ApplicationView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.ApplicationView": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "requested_service_id": {
+                    "type": "string"
+                },
+                "requested_service_name": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "submitted_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "vehicle_plate": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.AssignInput": {
             "type": "object",
             "required": [
@@ -6462,6 +7155,52 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.DocumentURLOutput": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.DocumentView": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rejection_reason": {
+                    "type": "string"
+                },
+                "reviewed_at": {
+                    "type": "string"
+                },
+                "size_bytes": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "url_expires_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.FareEstimateInput": {
             "type": "object",
             "required": [
@@ -6936,6 +7675,60 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.OpenCategory": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.OpenService"
+                    }
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.OpenService": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "min_vehicle_seats": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "requires_vehicle": {
+                    "type": "boolean"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.OpenServices": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.OpenCategory"
+                    }
+                }
+            }
+        },
         "dtos.OrganizationPage": {
             "type": "object",
             "properties": {
@@ -7032,6 +7825,30 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/enums.OrganizationType"
                     }
+                }
+            }
+        },
+        "dtos.PersonalDataInput": {
+            "type": "object",
+            "required": [
+                "address",
+                "birth_date",
+                "id_number"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "Rua Rainha Ginga, 29, Luanda"
+                },
+                "birth_date": {
+                    "type": "string",
+                    "example": "1990-05-20"
+                },
+                "id_number": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "000000000LA000"
                 }
             }
         },
@@ -7510,50 +8327,68 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.ProviderAdminInput": {
+        "dtos.ProfileView": {
             "type": "object",
-            "required": [
-                "status"
-            ],
             "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "birth_date": {
+                    "type": "string"
+                },
+                "documents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DocumentView"
+                    }
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id_number": {
+                    "type": "string"
+                },
+                "missing": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "requested_service_id": {
+                    "type": "string"
+                },
+                "required_documents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RequiredDocumentView"
+                    }
+                },
+                "reviewed_at": {
+                    "type": "string"
+                },
                 "service_id": {
                     "type": "string"
                 },
                 "status": {
-                    "type": "string",
-                    "enum": [
-                        "pending",
-                        "approved",
-                        "suspended"
-                    ]
-                },
-                "vehicle_description": {
-                    "type": "string",
-                    "maxLength": 120
-                },
-                "vehicle_plate": {
-                    "type": "string",
-                    "maxLength": 20
-                }
-            }
-        },
-        "dtos.ProviderAdminView": {
-            "type": "object",
-            "properties": {
-                "service_id": {
                     "type": "string"
                 },
-                "status": {
+                "status_reason": {
+                    "type": "string"
+                },
+                "submitted_at": {
                     "type": "string"
                 },
                 "user_id": {
                     "type": "string"
                 },
-                "vehicle_description": {
-                    "type": "string"
-                },
-                "vehicle_plate": {
-                    "type": "string"
+                "vehicle": {
+                    "$ref": "#/definitions/dtos.VehicleView"
                 }
             }
         },
@@ -7675,6 +8510,24 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RegisterDocumentInput": {
+            "type": "object",
+            "required": [
+                "document_type",
+                "object_key"
+            ],
+            "properties": {
+                "document_type": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "id_card"
+                },
+                "object_key": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
         "dtos.RegisterInput": {
             "type": "object",
             "required": [
@@ -7685,6 +8538,57 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "example": "+244923000000"
+                }
+            }
+        },
+        "dtos.RegisterProviderInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "password",
+                "phone"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "pedro@exemplo.ao"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Pedro Cunga"
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "example": "S3gredo!forte"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000000"
+                }
+            }
+        },
+        "dtos.RegisteredProvider": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "is_verified": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "draft"
                 }
             }
         },
@@ -7721,6 +8625,17 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.RequestServiceInput": {
+            "type": "object",
+            "required": [
+                "service_id"
+            ],
+            "properties": {
+                "service_id": {
+                    "type": "string"
                 }
             }
         },
@@ -7831,6 +8746,29 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RequiredDocumentView": {
+            "type": "object",
+            "properties": {
+                "allowed_content_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "max_size_bytes": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.ResetPasswordInput": {
             "type": "object",
             "required": [
@@ -7840,6 +8778,48 @@ const docTemplate = `{
                 "new_password": {
                     "type": "string",
                     "example": "N0vo!segredo"
+                }
+            }
+        },
+        "dtos.ReviewDocumentInput": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "approved",
+                        "rejected"
+                    ]
+                }
+            }
+        },
+        "dtos.ReviewProviderInput": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "approved",
+                        "rejected",
+                        "suspended"
+                    ]
                 }
             }
         },
@@ -8349,6 +9329,51 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.UploadURLInput": {
+            "type": "object",
+            "required": [
+                "content_type",
+                "document_type",
+                "size"
+            ],
+            "properties": {
+                "content_type": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "image/jpeg"
+                },
+                "document_type": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "id_card"
+                },
+                "size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 204800
+                }
+            }
+        },
+        "dtos.UploadURLOutput": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "object_key": {
+                    "type": "string"
+                },
+                "upload_url": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.UserPage": {
             "type": "object",
             "properties": {
@@ -8401,6 +9426,70 @@ const docTemplate = `{
                 },
                 "status": {
                     "$ref": "#/definitions/enums.UserStatus"
+                }
+            }
+        },
+        "dtos.VehicleInput": {
+            "type": "object",
+            "required": [
+                "brand",
+                "color",
+                "model",
+                "plate",
+                "seats",
+                "year"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Toyota"
+                },
+                "color": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Branco"
+                },
+                "model": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Corolla"
+                },
+                "plate": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "LD-45-21-AF"
+                },
+                "seats": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "year": {
+                    "type": "integer",
+                    "example": 2020
+                }
+            }
+        },
+        "dtos.VehicleView": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "plate": {
+                    "type": "string"
+                },
+                "seats": {
+                    "type": "integer"
+                },
+                "year": {
+                    "type": "integer"
                 }
             }
         },

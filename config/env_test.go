@@ -61,6 +61,27 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, 10*time.Second, cfg.Email.Timeout)
 }
 
+func TestLoadProductionRequiresTheDocumentStorage(t *testing.T) {
+	setRequired(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.agora.ao")
+	t.Setenv("CASTBRICK_API_KEY", "key")
+	t.Setenv("RESEND_API_KEY", "key")
+	t.Setenv("EMAIL_FROM", "AGORA <no-reply@agora.ao>")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "R2_ACCOUNT_ID")
+
+	t.Setenv("R2_ACCOUNT_ID", "account")
+	t.Setenv("R2_ACCESS_KEY_ID", "id")
+	t.Setenv("R2_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("R2_BUCKET", "documents")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.Equal(t, "https://account.r2.cloudflarestorage.com", cfg.R2.ResolvedEndpoint())
+}
+
 func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 	isolateEnv(t)
 	setRequired(t)
@@ -77,6 +98,10 @@ func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 
 	t.Setenv("RESEND_API_KEY", "re_live_key")
 	t.Setenv("EMAIL_FROM", "Agora <no-reply@agora.ao>")
+	t.Setenv("R2_ACCOUNT_ID", "account")
+	t.Setenv("R2_ACCESS_KEY_ID", "id")
+	t.Setenv("R2_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("R2_BUCKET", "documents")
 	cfg, err := config.Load()
 	require.NoError(t, err)
 	assert.True(t, cfg.SMS.Enabled())

@@ -92,7 +92,7 @@ func (u *Usecase) ReportPositions(ctx context.Context, providerID uuid.UUID, in 
 			view := cadenceView(entities.PhaseOffline, entities.CadenceFor(entities.PhaseOffline, false, false), 0, len(in.Positions))
 			return view, nil
 		}
-		indexes, err := u.liveIndexesOf(ctx, providerID)
+		indexes, err := u.indexesForActiveTrip(ctx, providerID)
 		if err != nil {
 			return nil, err
 		}
@@ -129,6 +129,17 @@ func (u *Usecase) ReportPositions(ctx context.Context, providerID uuid.UUID, in 
 		return nil, err
 	}
 	return cadenceView(phase, cadence, accepted, rejected), nil
+}
+
+func (u *Usecase) indexesForActiveTrip(ctx context.Context, providerID uuid.UUID) ([]entities.LiveIndex, error) {
+	profile, err := u.Providers.FindProfile(ctx, providerID)
+	if err != nil {
+		return nil, err
+	}
+	if profile == nil || profile.Status != entities.ProviderApproved {
+		return nil, nil
+	}
+	return u.liveIndexesOf(ctx, providerID)
 }
 
 func phaseOf(trip *entities.ActiveTrip, reserved bool) entities.ProviderPhase {

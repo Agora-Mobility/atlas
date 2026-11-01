@@ -349,21 +349,6 @@ type TariffList struct {
 	Items []TariffView `json:"items"`
 }
 
-type ProviderAdminInput struct {
-	Status             string     `json:"status" binding:"required,oneof=pending approved suspended"`
-	VehiclePlate       string     `json:"vehicle_plate" binding:"max=20"`
-	VehicleDescription string     `json:"vehicle_description" binding:"max=120"`
-	ServiceID          *uuid.UUID `json:"service_id"`
-}
-
-type ProviderAdminView struct {
-	UserID             uuid.UUID  `json:"user_id"`
-	Status             string     `json:"status"`
-	VehiclePlate       string     `json:"vehicle_plate"`
-	VehicleDescription string     `json:"vehicle_description"`
-	ServiceID          *uuid.UUID `json:"service_id"`
-}
-
 type AssignInput struct {
 	ProviderID uuid.UUID `json:"provider_id" binding:"required"`
 }

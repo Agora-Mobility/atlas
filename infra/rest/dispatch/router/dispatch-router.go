@@ -89,8 +89,6 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	tariffs.GET("", r.controller.ListTariffs)
 	tariffs.POST("", r.controller.PublishTariff)
 
-	admin.PUT("/providers/:id", can(entities.PermProvidersApprove), r.controller.SaveProvider)
-
 	dispatchOps := admin.Group("/dispatch", can(entities.PermRequestsManage))
 	dispatchOps.GET("/queue", r.controller.OperatorQueue)
 	dispatchOps.GET("/heatmap", r.controller.HeatMap)

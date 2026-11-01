@@ -85,7 +85,7 @@ func TestDispatchBackofficeFlow(t *testing.T) {
 	})
 
 	t.Run("a tariff change creates a new version", func(t *testing.T) {
-		found := a.call(http.MethodGet, "/api/v1/admin/services?search=t%C3%A1xi", backofficeApp, adminToken, nil)
+		found := a.call(http.MethodGet, "/api/v1/admin/services?search=econ%C3%B3mico", backofficeApp, adminToken, nil)
 		serviceID = found.body["items"].([]any)[0].(map[string]any)["id"].(string)
 		first := a.call(http.MethodPost, "/api/v1/admin/tariffs", backofficeApp, adminToken, map[string]any{
 			"service_id": serviceID, "currency": "AOA", "base_fee_cents": 30_000, "per_km_fee_cents": 13_000, "per_minute_fee_cents": 1_500, "minimum_fee_cents": 45_000, "commission_bps": 0,
@@ -107,28 +107,22 @@ func TestDispatchBackofficeFlow(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, invalid.status)
 	})
 
-	t.Run("only provider accounts get a dispatch profile", func(t *testing.T) {
-		var customerID, providerID string
-		require.NoError(t, owner.QueryRow(ctx, `INSERT INTO users (id, name, phone, password, is_verified, status, role) VALUES (gen_random_uuid(), 'C', '+244900000001', 'x', true, 'active', 'customer') RETURNING id`).Scan(&customerID))
+	t.Run("the backoffice reviews providers but never creates them", func(t *testing.T) {
+		var providerID string
 		require.NoError(t, owner.QueryRow(ctx, `INSERT INTO users (id, name, phone, password, is_verified, status, role) VALUES (gen_random_uuid(), 'P', '+244900000002', 'x', true, 'active', 'provider') RETURNING id`).Scan(&providerID))
 
-		res := a.call(http.MethodPut, "/api/v1/admin/providers/"+customerID, backofficeApp, adminToken, map[string]any{"status": "approved"})
-		assert.Equal(t, "PROVIDER_NOT_ELIGIBLE", res.code())
-		res = a.call(http.MethodPut, "/api/v1/admin/providers/"+providerID, backofficeApp, adminToken, map[string]any{"status": "approved"})
+		res := a.call(http.MethodPut, "/api/v1/admin/providers/"+providerID, backofficeApp, adminToken, map[string]any{"status": "approved"})
 		assert.Equal(t, http.StatusUnprocessableEntity, res.status, "an approved provider must have one service")
 		res = a.call(http.MethodPut, "/api/v1/admin/providers/"+providerID, backofficeApp, adminToken, map[string]any{"status": "approved", "service_ids": []string{serviceID, serviceID}})
 		assert.Equal(t, http.StatusUnprocessableEntity, res.status, "a list of services does not count as the one service")
-		res = a.call(http.MethodPut, "/api/v1/admin/providers/0192f1d2-7c3a-7b4e-9a10-2f3c4d5e6f70", backofficeApp, adminToken, map[string]any{"status": "approved"})
-		assert.Equal(t, "PROVIDER_NOT_FOUND", res.code())
-
-		res = a.call(http.MethodPut, "/api/v1/admin/providers/"+providerID, backofficeApp, adminToken, map[string]any{
-			"status": "approved", "vehicle_plate": "LD-45-21-AF", "vehicle_description": "Toyota Corolla", "service_id": serviceID,
-		})
-		require.Equal(t, http.StatusOK, res.status, res.body)
-		assert.Equal(t, "approved", res.body["status"])
-
+		res = a.call(http.MethodPut, "/api/v1/admin/providers/"+providerID, backofficeApp, adminToken, map[string]any{"status": "approved", "service_id": serviceID})
+		assert.Equal(t, "PROVIDER_NOT_FOUND", res.code(), "without a profile created by the provider there is nothing to approve")
 		res = a.call(http.MethodPut, "/api/v1/admin/providers/"+providerID, backofficeApp, adminToken, map[string]any{"status": "banned"})
 		assert.Equal(t, http.StatusUnprocessableEntity, res.status)
+
+		list := a.call(http.MethodGet, "/api/v1/admin/providers?status=pending", backofficeApp, adminToken, nil)
+		require.Equal(t, http.StatusOK, list.status, list.body)
+		assert.Empty(t, list.body["items"])
 	})
 
 	t.Run("the operator sees the queue and supply and demand", func(t *testing.T) {
@@ -147,7 +141,7 @@ func TestDispatchBackofficeFlow(t *testing.T) {
 	t.Run("every change is audited", func(t *testing.T) {
 		var audited int
 		require.NoError(t, owner.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE entity_type IN ('service_zone', 'dispatch_policy', 'service_tariff', 'provider_profile')`).Scan(&audited))
-		assert.Equal(t, 7, audited, "zone twice, policy twice, tariff twice, provider once")
+		assert.Equal(t, 6, audited, "zone twice, policy twice, tariff twice")
 	})
 }
 

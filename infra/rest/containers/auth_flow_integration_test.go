@@ -41,6 +41,7 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/security/revocation"
 	"github.com/Agora-Mobility/atlas/infra/security/totp"
 	"github.com/Agora-Mobility/atlas/infra/sse"
+	"github.com/Agora-Mobility/atlas/infra/storage/r2"
 	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
 )
 
@@ -732,6 +733,7 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 	c.Auth = auth
 	c.Catalog = newCatalogModule(c)
 	c.Dispatch = newDispatchModule(c, push.LogSender{}, newRoutingProvider(cfg.Mapbox))
+	c.Onboarding = newOnboardingModule(c, r2.Unavailable{})
 
 	gin.SetMode(gin.TestMode)
 	binding.Setup()
@@ -739,6 +741,7 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 	c.Auth.Router.Register(r.Group("/api/v1"))
 	c.Catalog.Router.Register(r.Group("/api/v1"))
 	c.Dispatch.Router.Register(r.Group("/api/v1"))
+	c.Onboarding.Router.Register(r.Group("/api/v1"))
 	return r
 }
 

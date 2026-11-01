@@ -21,17 +21,12 @@ import (
 	"github.com/Agora-Mobility/atlas/usecases/dispatch/dtos"
 )
 
-type UserRoles interface {
-	RoleOf(ctx *gin.Context, id uuid.UUID) (enums.Role, bool, error)
-}
-
 type DispatchController struct {
 	dispatch *dispatch.Usecase
-	users    UserRoles
 }
 
-func NewDispatchController(uc *dispatch.Usecase, users UserRoles) *DispatchController {
-	return &DispatchController{dispatch: uc, users: users}
+func NewDispatchController(uc *dispatch.Usecase) *DispatchController {
+	return &DispatchController{dispatch: uc}
 }
 
 func userWithRole(ctx *gin.Context, role enums.Role) (uuid.UUID, bool) {
@@ -116,7 +111,7 @@ var errorTable = []struct {
 	{dispatch.ErrFareEstimateInvalid, http.StatusConflict, "FARE_ESTIMATE_INVALID", "The price does not match this route. Ask for a new one."},
 	{dispatch.ErrNoTariff, http.StatusUnprocessableEntity, "NO_TARIFF", "There is no tariff for this service here yet."},
 	{dispatch.ErrRequestConflict, http.StatusConflict, "REQUEST_CONFLICT", "The request changed in the meantime."},
-	{dispatch.ErrProviderNotApproved, http.StatusForbidden, "PROVIDER_NOT_APPROVED", "The provider is not approved."},
+	{dispatch.ErrProviderNotApproved, http.StatusForbidden, "PROVIDER_NOT_APPROVED", "The provider is not approved for this."},
 	{dispatch.ErrProviderBusy, http.StatusConflict, "PROVIDER_BUSY", "You already have an active job."},
 	{dispatch.ErrProviderNotEligible, http.StatusUnprocessableEntity, "PROVIDER_NOT_ELIGIBLE", "This provider cannot take this request."},
 	{dispatch.ErrQuoteRequired, http.StatusConflict, "QUOTE_REQUIRED", "This offer is answered with a quote."},

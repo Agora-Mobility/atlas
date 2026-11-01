@@ -45,7 +45,12 @@ func seedDispatch(ctx context.Context, pool *pgxpool.Pool) error {
 		  VALUES ('00000000-0000-0000-0000-0000000000c1', 'AO', 'Luanda', ST_GeogFromText($1), 'Africa/Luanda', 'AOA')
 		  ON CONFLICT (id) DO NOTHING`, []any{luandaApproximateArea}},
 		{`INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps)
-		  SELECT s.id, 'AOA', 30000, 13000, 1500, 45000, 0 FROM services s
+		  SELECT s.id, 'AOA',
+		         CASE s.slug WHEN 'taxi-comfort' THEN 45000 WHEN 'taxi-xl' THEN 60000 ELSE 30000 END,
+		         CASE s.slug WHEN 'taxi-comfort' THEN 18000 WHEN 'taxi-xl' THEN 22000 ELSE 13000 END,
+		         CASE s.slug WHEN 'taxi-comfort' THEN 2000 WHEN 'taxi-xl' THEN 2500 ELSE 1500 END,
+		         CASE s.slug WHEN 'taxi-comfort' THEN 70000 WHEN 'taxi-xl' THEN 90000 ELSE 45000 END,
+		         0 FROM services s
 		  WHERE NOT EXISTS (SELECT 1 FROM service_tariffs t WHERE t.service_id = s.id AND t.valid_until IS NULL)`, nil},
 		{`INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id)
 		  SELECT '00000000-0000-0000-0000-0000000000a4', 'approved', 'LD-45-21-AF', 'Toyota Corolla Branco', s.id FROM services s WHERE s.slug = 'taxi'

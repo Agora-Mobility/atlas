@@ -27,6 +27,7 @@ const (
 	templateQuote          = "quote_received"
 	templateReminder       = "request_reminder"
 	templateOperator       = "operator_alert"
+	templateProviderReview = "provider_review"
 	statusSent             = "sent"
 	statusFailed           = "failed"
 	statusSkipped          = "skipped"
@@ -61,7 +62,8 @@ func RequestBindingKeys() []string {
 		types = append(types, eventType)
 	}
 	slices.Sort(types)
-	types = append(types, events.OfferCreated, events.OfferCancelled, events.QuoteSubmitted, events.ReminderDue, events.OperatorAlerted)
+	types = append(types, events.OfferCreated, events.OfferCancelled, events.QuoteSubmitted, events.ReminderDue, events.OperatorAlerted,
+		events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended)
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
 		keys = append(keys, events.RoutingKey(eventType, 1))
@@ -81,6 +83,8 @@ func (n *RequestNotifier) OnEvent(ctx context.Context, env events.Envelope) erro
 		return n.onReminder(ctx, env)
 	case events.OperatorAlerted:
 		return n.onOperatorAlert(ctx, env)
+	case events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended:
+		return n.onProviderReview(ctx, env)
 	default:
 		return n.onTransition(ctx, env)
 	}
@@ -212,6 +216,26 @@ func (n *RequestNotifier) onOperatorAlert(ctx context.Context, env events.Envelo
 		return nil
 	}
 	return n.smsToPhone(ctx, nil, n.operatorPhone, templateOperator, fmt.Sprintf("AGORA operação: pedido %s de %s precisa de atenção (%s).", event.RequestID, event.Category, event.Reason))
+}
+
+var providerReviewMessages = map[string]struct{ title, body string }{
+	events.ProviderApproved:  {"Conta aprovada", "A tua conta foi aprovada. Já podes ficar online."},
+	events.ProviderRejected:  {"Corrige o teu perfil", "O teu perfil precisa de correções. Abre a aplicação para veres o motivo."},
+	events.ProviderSuspended: {"Conta suspensa", "A tua conta foi suspensa. Abre a aplicação para veres o motivo."},
+}
+
+func (n *RequestNotifier) onProviderReview(ctx context.Context, env events.Envelope) error {
+	var event events.ProviderReviewV1
+	if err := env.DecodePayload(&event); err != nil {
+		return err
+	}
+	message := providerReviewMessages[env.EventType]
+	return errors.Join(
+		n.pushTo(ctx, event.ProviderID, templateProviderReview, services.PushMessage{
+			Title: message.title, Body: message.body, Data: map[string]string{"type": "provider.review", "event_id": env.EventID.String()},
+		}),
+		n.smsToUser(ctx, event.ProviderID, templateProviderReview, "AGORA: "+message.body),
+	)
 }
 
 func (n *RequestNotifier) pushTo(ctx context.Context, userID uuid.UUID, template string, message services.PushMessage) error {

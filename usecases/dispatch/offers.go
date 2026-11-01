@@ -115,7 +115,7 @@ func (u *Usecase) requireEligible(ctx context.Context, request *entities.Service
 		return err
 	}
 	if len(eligible) == 0 {
-		return ErrProviderNotEligible
+		return ErrProviderNotApproved
 	}
 	return nil
 }

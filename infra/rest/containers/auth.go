@@ -24,6 +24,7 @@ type AuthModule struct {
 	Router     *authrouter.Router
 	// Authorizer checks the permissions of staff routes in every module.
 	Authorizer *middleware.Authorizer
+	CodeSender *usecases.VerificationCodeSender
 }
 
 func newAuthModule(c *Container) (*AuthModule, error) {
@@ -78,6 +79,7 @@ func newAuthModule(c *Container) (*AuthModule, error) {
 	return &AuthModule{
 		Controller: controller,
 		Authorizer: authorizer,
+		CodeSender: codeSender,
 		Router: authrouter.NewRouter(authrouter.Controllers{
 			Auth: controller,
 			Profile: controllers.NewProfileController(

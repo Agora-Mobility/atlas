@@ -217,47 +217,6 @@ func (c *DispatchController) PublishTariff(ctx *gin.Context) {
 	respond(ctx, http.StatusCreated, view, err)
 }
 
-// SaveProvider godoc
-//
-//	@Summary		Set the dispatch profile of a provider
-//	@Description	Requires providers:approve. Sets the status, the vehicle and the one service the provider takes offers for. An approved provider must have a service. The service cannot change during an active job, and changing it takes the provider offline and clears the coverage.
-//	@Tags			Backoffice dispatch
-//	@Accept			json
-//	@Produce		json
-//	@Param			id		path		string					true	"User id of the provider"
-//	@Param			body	body		dtos.ProviderAdminInput	true	"Profile"
-//	@Success		200		{object}	dtos.ProviderAdminView
-//	@Failure		422		{object}	shared.ErrorResponse
-//	@Security		BearerAuth
-//	@Security		ClientId
-//	@Router			/api/v1/admin/providers/{id} [put]
-func (c *DispatchController) SaveProvider(ctx *gin.Context) {
-	actor, ok := staffActor(ctx)
-	if !ok {
-		return
-	}
-	id, ok := idParam(ctx, "PROVIDER_NOT_FOUND", "Provider not found.")
-	if !ok {
-		return
-	}
-	var in dtos.ProviderAdminInput
-	if err := binding.JSON(ctx, &in); err != nil {
-		shared.InvalidRequest(ctx, err)
-		return
-	}
-	role, found, err := c.users.RoleOf(ctx, id)
-	if err != nil {
-		respond(ctx, 0, nil, err)
-		return
-	}
-	if !found {
-		shared.NotFound(ctx, "PROVIDER_NOT_FOUND", "Provider not found.")
-		return
-	}
-	view, err := c.dispatch.SaveProvider(ctx.Request.Context(), actor, id, role, in)
-	respond(ctx, http.StatusOK, view, err)
-}
-
 // OperatorQueue godoc
 //
 //	@Summary	Requests waiting for an operator
