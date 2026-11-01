@@ -75,3 +75,7 @@ This changes the delivery model. The per-instance fan-out queue is **not** used.
 - **Deploys:** on shutdown each stream gets `action: reconnect` with a random
   `retry_in_ms`, so reconnections spread over time.
 - **The ack protects offers, not the heartbeat.** See ADR 0012.
+- **Throughput, measured with `make test-load`:** the relay publishes a whole batch
+  with one confirmation round trip, the projector runs `REALTIME_PROJECTOR_WORKERS`
+  workers that keep the order of each request, and `XADD` and `PUBLISH` share one
+  Redis script. Without these three, delivery saturated near 24 requests per second.
