@@ -120,6 +120,10 @@ func (c *Consumer) consume(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			// Closing the channel blocks while prefetched deliveries are pending.
+			for d := range deliveries {
+				_ = d.Nack(false, true)
+			}
 			return nil
 		case d, ok := <-deliveries:
 			if !ok {
