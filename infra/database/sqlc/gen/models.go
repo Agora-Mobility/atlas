@@ -233,6 +233,21 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 	return string(ns.UserStatus), nil
 }
 
+type Address struct {
+	ID           uuid.UUID   `json:"id"`
+	Lat          float64     `json:"lat"`
+	Lng          float64     `json:"lng"`
+	Geom         interface{} `json:"geom"`
+	Line         string      `json:"line"`
+	Reference    string      `json:"reference"`
+	Neighborhood string      `json:"neighborhood"`
+	City         string      `json:"city"`
+	Province     string      `json:"province"`
+	CountryCode  string      `json:"country_code"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+}
+
 type AuditLog struct {
 	ID             uuid.UUID       `json:"id"`
 	ActorID        *uuid.UUID      `json:"actor_id"`
@@ -425,20 +440,19 @@ type Permission struct {
 type Provider struct {
 	UserID             uuid.UUID  `json:"user_id"`
 	Status             string     `json:"status"`
-	BaseLat            *float64   `json:"base_lat"`
-	BaseLng            *float64   `json:"base_lng"`
-	ServiceRadiusKm    *float64   `json:"service_radius_km"`
-	LastJobCompletedAt *time.Time `json:"last_job_completed_at"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
-	ServiceID          *uuid.UUID `json:"service_id"`
 	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
+	ServiceID          *uuid.UUID `json:"service_id"`
 	BirthDate          *time.Time `json:"birth_date"`
 	IDNumber           string     `json:"id_number"`
-	Address            string     `json:"address"`
+	HomeAddressID      *uuid.UUID `json:"home_address_id"`
+	BaseAddressID      *uuid.UUID `json:"base_address_id"`
+	ServiceRadiusKm    *float64   `json:"service_radius_km"`
 	StatusReason       string     `json:"status_reason"`
 	SubmittedAt        *time.Time `json:"submitted_at"`
 	ReviewedAt         *time.Time `json:"reviewed_at"`
+	LastJobCompletedAt *time.Time `json:"last_job_completed_at"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 type ProviderCoverage struct {
@@ -576,19 +590,11 @@ type ServiceRequest struct {
 	PolicyID             uuid.UUID       `json:"policy_id"`
 	Status               string          `json:"status"`
 	Version              int32           `json:"version"`
-	PickupLat            float64         `json:"pickup_lat"`
-	PickupLng            float64         `json:"pickup_lng"`
-	PickupGeom           interface{}     `json:"pickup_geom"`
-	PickupReference      string          `json:"pickup_reference"`
-	PickupAddress        string          `json:"pickup_address"`
+	PickupAddressID      uuid.UUID       `json:"pickup_address_id"`
 	ContactPhone         string          `json:"contact_phone"`
 	PickupH3R8           int64           `json:"pickup_h3_r8"`
-	DestinationLat       *float64        `json:"destination_lat"`
-	DestinationLng       *float64        `json:"destination_lng"`
-	DestinationReference string          `json:"destination_reference"`
-	DestinationAddress   string          `json:"destination_address"`
+	DestinationAddressID *uuid.UUID      `json:"destination_address_id"`
 	DestinationH3R8      *int64          `json:"destination_h3_r8"`
-	Stops                json.RawMessage `json:"stops"`
 	PassengerName        string          `json:"passenger_name"`
 	PassengerPhone       string          `json:"passenger_phone"`
 	Details              json.RawMessage `json:"details"`
@@ -627,6 +633,12 @@ type ServiceRequestEvent struct {
 	ActorID    *uuid.UUID `json:"actor_id"`
 	Reason     string     `json:"reason"`
 	OccurredAt time.Time  `json:"occurred_at"`
+}
+
+type ServiceRequestStop struct {
+	RequestID uuid.UUID `json:"request_id"`
+	Position  int32     `json:"position"`
+	AddressID uuid.UUID `json:"address_id"`
 }
 
 type ServiceRequiredDocument struct {
@@ -679,6 +691,14 @@ type User struct {
 	CreatedAt   time.Time        `json:"created_at"`
 	UpdatedAt   time.Time        `json:"updated_at"`
 	DeletedAt   *time.Time       `json:"deleted_at"`
+}
+
+type UserAddress struct {
+	AddressID uuid.UUID `json:"address_id"`
+	UserID    uuid.UUID `json:"user_id"`
+	Kind      string    `json:"kind"`
+	Label     string    `json:"label"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type UserBlock struct {

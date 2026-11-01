@@ -78,6 +78,63 @@ definitions:
       request:
         $ref: '#/definitions/dtos.RequestView'
     type: object
+  dtos.AddressInput:
+    properties:
+      city:
+        example: Luanda
+        maxLength: 120
+        type: string
+      country_code:
+        example: AO
+        maxLength: 2
+        type: string
+      lat:
+        example: -8.84
+        type: number
+      line:
+        example: Rua Rainha Ginga, 29
+        maxLength: 200
+        type: string
+      lng:
+        example: 13.23
+        type: number
+      neighborhood:
+        example: Ingombota
+        maxLength: 120
+        type: string
+      province:
+        example: Luanda
+        maxLength: 120
+        type: string
+      reference:
+        example: Portão azul, junto à farmácia
+        maxLength: 140
+        type: string
+    required:
+    - lat
+    - lng
+    type: object
+  dtos.AddressView:
+    properties:
+      city:
+        type: string
+      country_code:
+        type: string
+      id:
+        type: string
+      lat:
+        type: number
+      line:
+        type: string
+      lng:
+        type: number
+      neighborhood:
+        type: string
+      province:
+        type: string
+      reference:
+        type: string
+    type: object
   dtos.AdjustmentView:
     properties:
       amount_cents:
@@ -952,9 +1009,7 @@ definitions:
   dtos.PersonalDataInput:
     properties:
       address:
-        example: Rua Rainha Ginga, 29, Luanda
-        maxLength: 200
-        type: string
+        $ref: '#/definitions/dtos.AddressInput'
       birth_date:
         example: "1990-05-20"
         type: string
@@ -1033,6 +1088,8 @@ definitions:
   dtos.PlaceView:
     properties:
       address:
+        type: string
+      address_id:
         type: string
       lat:
         type: number
@@ -1327,7 +1384,7 @@ definitions:
   dtos.ProviderView:
     properties:
       address:
-        type: string
+        $ref: '#/definitions/dtos.AddressView'
       birth_date:
         type: string
       documents:
@@ -2035,6 +2092,82 @@ definitions:
       object_key:
         type: string
       upload_url:
+        type: string
+    type: object
+  dtos.UserAddressInput:
+    properties:
+      city:
+        example: Luanda
+        maxLength: 120
+        type: string
+      country_code:
+        example: AO
+        maxLength: 2
+        type: string
+      kind:
+        example: home
+        type: string
+      label:
+        example: Casa
+        maxLength: 120
+        type: string
+      lat:
+        example: -8.84
+        type: number
+      line:
+        example: Rua Rainha Ginga, 29
+        maxLength: 200
+        type: string
+      lng:
+        example: 13.23
+        type: number
+      neighborhood:
+        example: Ingombota
+        maxLength: 120
+        type: string
+      province:
+        example: Luanda
+        maxLength: 120
+        type: string
+      reference:
+        example: Portão azul, junto à farmácia
+        maxLength: 140
+        type: string
+    required:
+    - kind
+    - lat
+    - lng
+    type: object
+  dtos.UserAddressList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.UserAddressView'
+        type: array
+    type: object
+  dtos.UserAddressView:
+    properties:
+      city:
+        type: string
+      country_code:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      label:
+        type: string
+      lat:
+        type: number
+      line:
+        type: string
+      lng:
+        type: number
+      neighborhood:
+        type: string
+      province:
+        type: string
+      reference:
         type: string
     type: object
   dtos.UserPage:
@@ -5957,6 +6090,115 @@ paths:
       summary: Update the profile of the authenticated user
       tags:
       - Users
+  /api/v1/users/me/addresses:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UserAddressList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: My saved addresses
+      tags:
+      - Addresses
+    post:
+      consumes:
+      - application/json
+      description: lat and lng are mandatory; the rest only helps. kind is home, work
+        or other, with one home and one work per user.
+      parameters:
+      - description: Address
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UserAddressInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.UserAddressView'
+        "409":
+          description: ADDRESS_KIND_TAKEN
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Save an address
+      tags:
+      - Addresses
+  /api/v1/users/me/addresses/{id}:
+    delete:
+      parameters:
+      - description: Address id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: ADDRESS_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Delete a saved address
+      tags:
+      - Addresses
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Address id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Address
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UserAddressInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UserAddressView'
+        "404":
+          description: ADDRESS_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: ADDRESS_KIND_TAKEN
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change a saved address
+      tags:
+      - Addresses
   /api/v1/users/me/mfa/recovery-codes:
     post:
       consumes:

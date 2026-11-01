@@ -796,11 +796,14 @@ func TestRedisOutageKeepsTheRequestSearchingAndRecovers(t *testing.T) {
 	var requestID string
 	ctx := context.Background()
 
+	pickupAddress, destinationAddress := uuid.New(), uuid.New()
+	_, err := env.owner.Exec(ctx, `INSERT INTO addresses (id, lat, lng) VALUES ($1, $2, $3), ($4, $5, $6)`, pickupAddress, pickup.Lat, pickup.Lng, destinationAddress, target.Lat, target.Lng)
+	require.NoError(t, err)
 	require.NoError(t, env.owner.QueryRow(ctx, `
-		INSERT INTO service_requests (id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, pickup_lat, pickup_lng, pickup_h3_r8, destination_lat, destination_lng, currency, idempotency_key, search_deadline_at, next_action_at, fare_estimate_id, fare_cents, commission_cents)
-		SELECT gen_random_uuid(), $1, s.category_id, 'taxi', s.id, (SELECT id FROM service_zones LIMIT 1), p.id, 'searching', $3, $4, 1, $5, $6, 'AOA', $7, now() + interval '3 minutes', now() + interval '1 second', $8, 171500, 17150
+		INSERT INTO service_requests (id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, pickup_address_id, pickup_h3_r8, destination_address_id, currency, idempotency_key, search_deadline_at, next_action_at, fare_estimate_id, fare_cents, commission_cents)
+		SELECT gen_random_uuid(), $1, s.category_id, 'taxi', s.id, (SELECT id FROM service_zones LIMIT 1), p.id, 'searching', $3, 1, $4, 'AOA', $5, now() + interval '3 minutes', now() + interval '1 second', $6, 171500, 17150
 		FROM services s JOIN dispatch_policies p ON p.category_id = s.category_id AND p.zone_id IS NULL WHERE s.id = $2 RETURNING id`,
-		customer.id, serviceID, pickup.Lat, pickup.Lng, target.Lat, target.Lng, uuid.NewString(), estimateID).Scan(&requestID))
+		customer.id, serviceID, pickupAddress, destinationAddress, uuid.NewString(), estimateID).Scan(&requestID))
 
 	env.redisProxy.setBlocked(true)
 	time.Sleep(1500 * time.Millisecond)
@@ -1039,4 +1042,99 @@ func TestDriversOnlyReceiveOffersOfTheirOwnService(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	assert.Len(t, economyStream.ofType("request.offer"), 1, "Economy never gets a Comfort request")
 	assert.Len(t, comfortStream.ofType("request.offer"), 1, "Comfort never gets an Economy request")
+}
+
+func TestEveryPlaceOfARequestIsAnAddress(t *testing.T) {
+	clearOnlineProviders(t)
+	customer := newCustomer(t)
+	stop := map[string]any{"lat": -8.88, "lng": 13.21, "address": "Shopping Fortaleza"}
+	estimate := customer.post(t, "/api/v1/fare-estimates", map[string]any{"category": "taxi", "pickup": pickup, "destination": target, "stops": []any{stop}})
+	require.Equal(t, http.StatusCreated, estimate.status, estimate.text)
+	option := estimate.body["items"].([]any)[0].(map[string]any)
+	created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{
+		"service_id": option["service_id"], "fare_estimate_id": option["fare_estimate_id"],
+		"pickup":      map[string]any{"lat": pickup.Lat, "lng": pickup.Lng, "reference": "Portão azul", "address": "Rua Rainha Ginga, 29"},
+		"destination": map[string]any{"lat": target.Lat, "lng": target.Lng, "reference": "Largo"},
+		"stops":       []any{stop},
+	}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	require.Equal(t, http.StatusCreated, created.status, created.text)
+
+	ctx := context.Background()
+	var line, reference string
+	var lat, lng float64
+	require.NoError(t, env.owner.QueryRow(ctx, `SELECT a.line, a.reference, a.lat, a.lng FROM service_requests r JOIN addresses a ON a.id = r.pickup_address_id WHERE r.id = $1`, created.str("id")).Scan(&line, &reference, &lat, &lng))
+	assert.Equal(t, "Rua Rainha Ginga, 29", line)
+	assert.Equal(t, "Portão azul", reference)
+	assert.InDelta(t, pickup.Lat, lat, 1e-9)
+	assert.InDelta(t, pickup.Lng, lng, 1e-9)
+
+	var inRange bool
+	require.NoError(t, env.owner.QueryRow(ctx, `SELECT ST_DWithin(a.geom, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, 1) FROM service_requests r JOIN addresses a ON a.id = r.destination_address_id WHERE r.id = $1`, created.str("id"), target.Lng, target.Lat).Scan(&inRange))
+	assert.True(t, inRange, "the address is a PostGIS point too")
+
+	view := customer.get(t, "/api/v1/requests/"+created.str("id"))
+	assert.Equal(t, "Portão azul", view.body["pickup"].(map[string]any)["reference"])
+	stops := view.body["stops"].([]any)
+	require.Len(t, stops, 1)
+	assert.Equal(t, "Shopping Fortaleza", stops[0].(map[string]any)["address"])
+
+	changed := customer.post(t, "/api/v1/requests/"+created.str("id")+"/route", map[string]any{"destination": map[string]any{"lat": -9.1, "lng": 13.4, "address": "Novo destino"}})
+	require.Equal(t, http.StatusOK, changed.status, changed.text)
+	assert.Equal(t, "Novo destino", changed.body["destination"].(map[string]any)["address"])
+	assert.Empty(t, changed.body["stops"], "the new route has no stops")
+	var keptOld int
+	require.NoError(t, env.owner.QueryRow(ctx, `SELECT count(*) FROM addresses WHERE reference = 'Largo'`).Scan(&keptOld))
+	assert.Positive(t, keptOld, "the old destination stays in the history")
+}
+
+func TestUsersKeepTheirAddresses(t *testing.T) {
+	customer := newCustomer(t)
+	const path = "/api/v1/users/me/addresses"
+	assert.Empty(t, customer.get(t, path).body["items"])
+
+	assert.Equal(t, http.StatusUnprocessableEntity, customer.post(t, path, map[string]any{"kind": "home", "line": "Sem pin"}).status, "latitude and longitude are mandatory")
+	assert.Equal(t, http.StatusUnprocessableEntity, customer.post(t, path, map[string]any{"kind": "office", "lat": -8.84, "lng": 13.23}).status)
+
+	home := customer.post(t, path, map[string]any{"kind": "home", "label": "Casa", "lat": -8.84, "lng": 13.23, "line": "Rua Rainha Ginga, 29", "reference": "Portão azul", "neighborhood": "Ingombota", "city": "Luanda", "province": "Luanda", "country_code": "ao"})
+	require.Equal(t, http.StatusCreated, home.status, home.text)
+	assert.Equal(t, "AO", home.str("country_code"))
+	assert.Equal(t, "ADDRESS_KIND_TAKEN", customer.post(t, path, map[string]any{"kind": "home", "lat": -8.85, "lng": 13.24}).code(), "only one home")
+	require.Equal(t, http.StatusCreated, customer.post(t, path, map[string]any{"kind": "other", "label": "Ginásio", "lat": -8.86, "lng": 13.25}).status)
+	require.Equal(t, http.StatusCreated, customer.post(t, path, map[string]any{"kind": "other", "label": "Escola", "lat": -8.87, "lng": 13.26}).status)
+	assert.Len(t, customer.get(t, path).body["items"], 3)
+
+	id := home.str("id")
+	updated := customer.do(t, http.MethodPut, path+"/"+id, map[string]any{"kind": "home", "label": "Casa nova", "lat": -8.9, "lng": 13.3, "line": "Rua nova"}, nil)
+	require.Equal(t, http.StatusOK, updated.status, updated.text)
+	assert.Equal(t, id, updated.str("id"))
+	assert.Equal(t, "Rua nova", updated.str("line"))
+
+	stranger := newCustomer(t)
+	assert.Equal(t, "ADDRESS_NOT_FOUND", stranger.do(t, http.MethodPut, path+"/"+id, map[string]any{"kind": "home", "lat": -8.9, "lng": 13.3}, nil).code())
+	assert.Equal(t, "ADDRESS_NOT_FOUND", stranger.do(t, http.MethodDelete, path+"/"+id, nil, nil).code())
+
+	assert.Equal(t, http.StatusNoContent, customer.do(t, http.MethodDelete, path+"/"+id, nil, nil).status)
+	assert.Len(t, customer.get(t, path).body["items"], 2)
+}
+
+func TestProviderAddressesLiveInTheAddressTable(t *testing.T) {
+	provider := newApprovedProvider(t, "maintenance")
+	coverage := provider.do(t, http.MethodPut, "/api/v1/providers/me/coverage", map[string]any{"lat": -8.85, "lng": 13.25, "radius_km": 30}, nil)
+	require.Equal(t, http.StatusOK, coverage.status, coverage.text)
+	again := provider.do(t, http.MethodPut, "/api/v1/providers/me/coverage", map[string]any{"lat": -8.86, "lng": 13.26, "radius_km": 30}, nil)
+	require.Equal(t, http.StatusOK, again.status, again.text)
+
+	ctx := context.Background()
+	var lat float64
+	require.NoError(t, env.owner.QueryRow(ctx, `SELECT a.lat FROM providers p JOIN addresses a ON a.id = p.base_address_id WHERE p.user_id = $1`, provider.id).Scan(&lat))
+	assert.InDelta(t, -8.86, lat, 1e-9, "the base is updated in place")
+
+	draft := signUpProvider(t, "Com Morada")
+	personal := draft.do(t, http.MethodPut, "/api/v1/providers/me/personal", map[string]any{"birth_date": "1990-05-20", "id_number": "1", "address": map[string]any{"line": "Sem pin"}}, nil)
+	assert.Equal(t, http.StatusUnprocessableEntity, personal.status, "latitude and longitude are mandatory")
+	saved := draft.do(t, http.MethodPut, "/api/v1/providers/me/personal", map[string]any{"birth_date": "1990-05-20", "id_number": "1", "address": map[string]any{"lat": -8.83, "lng": 13.24, "line": "Rua Rainha Ginga, 29"}}, nil)
+	require.Equal(t, http.StatusOK, saved.status, saved.text)
+	assert.Equal(t, "Rua Rainha Ginga, 29", saved.body["address"].(map[string]any)["line"])
+	require.NoError(t, env.owner.QueryRow(ctx, `SELECT a.lat FROM providers p JOIN addresses a ON a.id = p.home_address_id WHERE p.user_id = $1`, draft.id).Scan(&lat))
+	assert.InDelta(t, -8.83, lat, 1e-9)
 }

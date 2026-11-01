@@ -47,12 +47,14 @@ type Querier interface {
 	CreateUserBlock(ctx context.Context, arg CreateUserBlockParams) error
 	CreateUserBlockReasons(ctx context.Context, arg CreateUserBlockReasonsParams) error
 	CurrentServiceTariff(ctx context.Context, arg CurrentServiceTariffParams) (ServiceTariff, error)
+	DeleteAddress(ctx context.Context, id uuid.UUID) error
 	DeleteDeviceToken(ctx context.Context, token string) error
 	DeleteMembershipRoles(ctx context.Context, membershipID uuid.UUID) error
 	DeleteProviderCoverage(ctx context.Context, providerID uuid.UUID) error
 	DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error
 	DeleteRole(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteRolePermissions(ctx context.Context, roleID uuid.UUID) error
+	DeleteServiceRequestStops(ctx context.Context, requestID uuid.UUID) error
 	DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDeviceTokenParams) error
 	DeleteUserMFA(ctx context.Context, userID uuid.UUID) error
 	DemandByCell(ctx context.Context, arg DemandByCellParams) ([]DemandByCellRow, error)
@@ -67,6 +69,7 @@ type Querier interface {
 	FindServiceRequestByIdempotencyKey(ctx context.Context, arg FindServiceRequestByIdempotencyKeyParams) (ServiceRequest, error)
 	FindZoneCoveringPoint(ctx context.Context, arg FindZoneCoveringPointParams) (uuid.UUID, error)
 	GetActiveClientByClientID(ctx context.Context, clientID string) (Client, error)
+	GetAddress(ctx context.Context, id uuid.UUID) (GetAddressRow, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error)
 	GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error)
 	GetDocumentType(ctx context.Context, code string) (GetDocumentTypeRow, error)
@@ -99,6 +102,7 @@ type Querier interface {
 	GetServiceTariff(ctx context.Context, id uuid.UUID) (ServiceTariff, error)
 	GetServiceZone(ctx context.Context, id uuid.UUID) (GetServiceZoneRow, error)
 	GetSystemRoleByCode(ctx context.Context, arg GetSystemRoleByCodeParams) (Role, error)
+	GetUserAddress(ctx context.Context, arg GetUserAddressParams) (GetUserAddressRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByPhone(ctx context.Context, phone *string) (User, error)
@@ -111,6 +115,7 @@ type Querier interface {
 	InsertProviderCoverage(ctx context.Context, arg InsertProviderCoverageParams) error
 	InsertServiceRequest(ctx context.Context, arg InsertServiceRequestParams) error
 	InsertServiceRequestEvent(ctx context.Context, arg InsertServiceRequestEventParams) error
+	InsertServiceRequestStop(ctx context.Context, arg InsertServiceRequestStopParams) error
 	IsValidZoneGeometry(ctx context.Context, geojson string) (bool, error)
 	ListActiveBlockReasons(ctx context.Context) ([]BlockReason, error)
 	ListActiveBlockReasonsByIDs(ctx context.Context, ids []uuid.UUID) ([]BlockReason, error)
@@ -133,6 +138,7 @@ type Querier interface {
 	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error)
 	ListRequestOffers(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestOffersForUpdate(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
+	ListRequestPlaces(ctx context.Context, requestIds []uuid.UUID) ([]ListRequestPlacesRow, error)
 	ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOfCustomerParams) ([]ServiceRequest, error)
 	ListRequestsWithProviderOnTheWay(ctx context.Context, limit int32) ([]ServiceRequest, error)
 	ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]ListRequiredDocumentsRow, error)
@@ -142,6 +148,7 @@ type Querier interface {
 	ListServiceZones(ctx context.Context, onlyActive bool) ([]ListServiceZonesRow, error)
 	ListServices(ctx context.Context, arg ListServicesParams) ([]Service, error)
 	ListServicesOpenToProviders(ctx context.Context) ([]ListServicesOpenToProvidersRow, error)
+	ListUserAddresses(ctx context.Context, userID uuid.UUID) ([]ListUserAddressesRow, error)
 	ListUserSessionsIssuedSince(ctx context.Context, arg ListUserSessionsIssuedSinceParams) ([]uuid.UUID, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
@@ -158,8 +165,10 @@ type Querier interface {
 	RevokeRefreshTokenFamily(ctx context.Context, arg RevokeRefreshTokenFamilyParams) error
 	RevokeUserRefreshTokens(ctx context.Context, arg RevokeUserRefreshTokensParams) error
 	RoleIsAssigned(ctx context.Context, roleID uuid.UUID) (bool, error)
+	SaveAddress(ctx context.Context, arg SaveAddressParams) error
 	SavePendingUserMFA(ctx context.Context, arg SavePendingUserMFAParams) error
 	SaveProviderDocument(ctx context.Context, arg SaveProviderDocumentParams) error
+	SaveUserAddress(ctx context.Context, arg SaveUserAddressParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)

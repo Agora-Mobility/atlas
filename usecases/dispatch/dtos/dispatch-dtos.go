@@ -124,14 +124,15 @@ type RequestView struct {
 }
 
 type PlaceView struct {
-	Lat       float64 `json:"lat"`
-	Lng       float64 `json:"lng"`
-	Reference string  `json:"reference,omitempty"`
-	Address   string  `json:"address,omitempty"`
+	AddressID uuid.UUID `json:"address_id"`
+	Lat       float64   `json:"lat"`
+	Lng       float64   `json:"lng"`
+	Reference string    `json:"reference,omitempty"`
+	Address   string    `json:"address,omitempty"`
 }
 
 func ToPlaceView(p entities.RequestPlace) PlaceView {
-	return PlaceView{Lat: p.Point.Lat, Lng: p.Point.Lng, Reference: p.Reference, Address: p.Address}
+	return PlaceView{AddressID: p.AddressID, Lat: p.Point.Lat, Lng: p.Point.Lng, Reference: p.Reference, Address: p.Address}
 }
 
 type RequestList struct {

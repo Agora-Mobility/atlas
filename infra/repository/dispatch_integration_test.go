@@ -274,7 +274,7 @@ func TestRequestRoundTripAndOptimisticLock(t *testing.T) {
 	assert.InDelta(t, -8.92, stored.Destination.Point.Lat, 1e-9)
 
 	var inZone bool
-	require.NoError(t, owner.QueryRow(ctx, `SELECT ST_DWithin(pickup_geom, ST_SetSRID(ST_MakePoint(13.23, -8.84), 4326)::geography, 1) FROM service_requests WHERE id = $1`, request.ID).Scan(&inZone))
+	require.NoError(t, owner.QueryRow(ctx, `SELECT ST_DWithin(a.geom, ST_SetSRID(ST_MakePoint(13.23, -8.84), 4326)::geography, 1) FROM service_requests r JOIN addresses a ON a.id = r.pickup_address_id WHERE r.id = $1`, request.ID).Scan(&inZone))
 	assert.True(t, inZone, "the pin is stored as a PostGIS point")
 
 	change, err := stored.Transition(entities.RequestSearching, entities.SystemRequestActor(), "", time.Now().UTC())

@@ -65,8 +65,9 @@ func (q *Queries) DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDevic
 }
 
 const filterEligibleProviders = `-- name: FilterEligibleProviders :many
-SELECT p.user_id, p.last_job_completed_at, p.created_at, p.base_lat, p.base_lng, p.service_radius_km, u.phone
+SELECT p.user_id, p.last_job_completed_at, p.created_at, b.lat AS base_lat, b.lng AS base_lng, p.service_radius_km, u.phone
 FROM providers p
+LEFT JOIN addresses b ON b.id = p.base_address_id
 JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
 WHERE p.user_id = ANY($1::uuid[]) AND p.status = 'approved' AND p.service_id = $2::uuid
 `
@@ -115,7 +116,7 @@ func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibl
 }
 
 const getProvider = `-- name: GetProvider :one
-SELECT user_id, status, base_lat, base_lng, service_radius_km, last_job_completed_at, created_at, updated_at, service_id, requested_service_id, birth_date, id_number, address, status_reason, submitted_at, reviewed_at FROM providers WHERE user_id = $1
+SELECT user_id, status, requested_service_id, service_id, birth_date, id_number, home_address_id, base_address_id, service_radius_km, status_reason, submitted_at, reviewed_at, last_job_completed_at, created_at, updated_at FROM providers WHERE user_id = $1
 `
 
 func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error) {
@@ -124,20 +125,19 @@ func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, 
 	err := row.Scan(
 		&i.UserID,
 		&i.Status,
-		&i.BaseLat,
-		&i.BaseLng,
-		&i.ServiceRadiusKm,
-		&i.LastJobCompletedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ServiceID,
 		&i.RequestedServiceID,
+		&i.ServiceID,
 		&i.BirthDate,
 		&i.IDNumber,
-		&i.Address,
+		&i.HomeAddressID,
+		&i.BaseAddressID,
+		&i.ServiceRadiusKm,
 		&i.StatusReason,
 		&i.SubmittedAt,
 		&i.ReviewedAt,
+		&i.LastJobCompletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -402,23 +402,17 @@ func (q *Queries) TouchProviderJobCompleted(ctx context.Context, arg TouchProvid
 }
 
 const updateProviderBase = `-- name: UpdateProviderBase :execrows
-UPDATE providers SET base_lat = $2, base_lng = $3, service_radius_km = $4, updated_at = now() WHERE user_id = $1
+UPDATE providers SET base_address_id = $2, service_radius_km = $3, updated_at = now() WHERE user_id = $1
 `
 
 type UpdateProviderBaseParams struct {
-	UserID          uuid.UUID `json:"user_id"`
-	BaseLat         *float64  `json:"base_lat"`
-	BaseLng         *float64  `json:"base_lng"`
-	ServiceRadiusKm *float64  `json:"service_radius_km"`
+	UserID          uuid.UUID  `json:"user_id"`
+	BaseAddressID   *uuid.UUID `json:"base_address_id"`
+	ServiceRadiusKm *float64   `json:"service_radius_km"`
 }
 
 func (q *Queries) UpdateProviderBase(ctx context.Context, arg UpdateProviderBaseParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateProviderBase,
-		arg.UserID,
-		arg.BaseLat,
-		arg.BaseLng,
-		arg.ServiceRadiusKm,
-	)
+	result, err := q.db.Exec(ctx, updateProviderBase, arg.UserID, arg.BaseAddressID, arg.ServiceRadiusKm)
 	if err != nil {
 		return 0, err
 	}
@@ -442,11 +436,11 @@ func (q *Queries) UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenPa
 }
 
 const upsertProvider = `-- name: UpsertProvider :exec
-INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, address, status_reason, submitted_at, reviewed_at)
+INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, home_address_id, status_reason, submitted_at, reviewed_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (user_id) DO UPDATE
 SET status = EXCLUDED.status, service_id = EXCLUDED.service_id, requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date,
-    id_number = EXCLUDED.id_number, address = EXCLUDED.address, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
+    id_number = EXCLUDED.id_number, home_address_id = EXCLUDED.home_address_id, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
     reviewed_at = EXCLUDED.reviewed_at, updated_at = now()
 `
 
@@ -457,7 +451,7 @@ type UpsertProviderParams struct {
 	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
 	BirthDate          *time.Time `json:"birth_date"`
 	IDNumber           string     `json:"id_number"`
-	Address            string     `json:"address"`
+	HomeAddressID      *uuid.UUID `json:"home_address_id"`
 	StatusReason       string     `json:"status_reason"`
 	SubmittedAt        *time.Time `json:"submitted_at"`
 	ReviewedAt         *time.Time `json:"reviewed_at"`
@@ -471,7 +465,7 @@ func (q *Queries) UpsertProvider(ctx context.Context, arg UpsertProviderParams) 
 		arg.RequestedServiceID,
 		arg.BirthDate,
 		arg.IDNumber,
-		arg.Address,
+		arg.HomeAddressID,
 		arg.StatusReason,
 		arg.SubmittedAt,
 		arg.ReviewedAt,

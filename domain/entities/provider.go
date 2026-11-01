@@ -32,7 +32,6 @@ const (
 	minVehicleYear      = 1950
 	maxVehicleSeats     = 60
 	maxProfileTextLen   = 120
-	maxAddressTextLen   = 200
 	maxReasonTextLen    = 500
 )
 
@@ -80,12 +79,13 @@ type Provider struct {
 	RequestedServiceID *uuid.UUID
 	BirthDate          *time.Time
 	IDNumber           string
-	Address            string
+	HomeAddress        *Address
 	Vehicle            Vehicle
 	StatusReason       string
 	SubmittedAt        *time.Time
 	ReviewedAt         *time.Time
 	Base               *GeoPoint
+	BaseAddressID      *uuid.UUID
 	ServiceRadiusKm    *float64
 	LastJobCompletedAt *time.Time
 	CreatedAt          time.Time
@@ -103,21 +103,28 @@ func (p *Provider) RequestService(serviceID uuid.UUID) error {
 	return nil
 }
 
-func (p *Provider) SetPersonalData(birthDate time.Time, idNumber, address string, now time.Time) error {
+func (p *Provider) SetPersonalData(birthDate time.Time, idNumber string, address Address, now time.Time) error {
 	if !p.IsEditable() {
 		return ErrProfileLocked
 	}
-	idNumber, address = strings.TrimSpace(idNumber), strings.TrimSpace(address)
+	idNumber = strings.TrimSpace(idNumber)
 	if birthDate.Year() < minBirthYear || birthDate.AddDate(minProviderAgeYears, 0, 0).After(now) {
 		return validationError("birth_date", "É preciso ter pelo menos 18 anos.")
 	}
 	if idNumber == "" || len([]rune(idNumber)) > maxProfileTextLen {
 		return validationError("id_number", "Indica o número do documento de identificação.")
 	}
-	if address == "" || len([]rune(address)) > maxAddressTextLen {
-		return validationError("address", "Indica a morada.")
+	if p.HomeAddress != nil {
+		address.ID = p.HomeAddress.ID
 	}
-	p.BirthDate, p.IDNumber, p.Address = &birthDate, idNumber, address
+	normalized, err := address.Normalized("address")
+	if err != nil {
+		return err
+	}
+	if normalized.Line == "" {
+		return validationError("address.line", "Indica a morada.")
+	}
+	p.BirthDate, p.IDNumber, p.HomeAddress = &birthDate, idNumber, &normalized
 	return nil
 }
 
@@ -260,7 +267,7 @@ func (r *ProviderRequirements) MissingFor(profile *Provider, name string, docume
 	if profile.IDNumber == "" {
 		missing["personal.id_number"] = "Falta o número do documento de identificação."
 	}
-	if profile.Address == "" {
+	if profile.HomeAddress == nil {
 		missing["personal.address"] = "Falta a morada."
 	}
 	if r.RequiresVehicle {

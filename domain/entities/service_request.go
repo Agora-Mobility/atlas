@@ -93,9 +93,10 @@ func (s RequestStatus) HasProvider() bool {
 }
 
 type RequestPlace struct {
-	Point     GeoPoint `json:"point"`
-	Reference string   `json:"reference,omitempty"`
-	Address   string   `json:"address,omitempty"`
+	AddressID uuid.UUID `json:"-"`
+	Point     GeoPoint  `json:"point"`
+	Reference string    `json:"reference,omitempty"`
+	Address   string    `json:"address,omitempty"`
 }
 
 func (p RequestPlace) normalized(field string) (RequestPlace, error) {
@@ -109,6 +110,13 @@ func (p RequestPlace) normalized(field string) (RequestPlace, error) {
 	}
 	if len([]rune(p.Address)) > maxAddressLength {
 		return p, validationError(field+".address", "A morada tem no máximo 200 caracteres.")
+	}
+	if p.AddressID == uuid.Nil {
+		id, err := uuid.NewV7()
+		if err != nil {
+			return p, err
+		}
+		p.AddressID = id
 	}
 	return p, nil
 }
@@ -181,6 +189,7 @@ type ServiceRequest struct {
 	NeedsOperator  bool
 	OperatorReason string
 	IdempotencyKey string
+	RouteChanged   bool
 	CancelReason   string
 	CancelledBy    string
 	AcceptedAt     *time.Time
@@ -426,6 +435,7 @@ func (r *ServiceRequest) ChangeRoute(destination RequestPlace, stops []RequestPl
 	}
 	r.Destination = &normalized
 	r.Stops = normalizedAll
+	r.RouteChanged = true
 	r.Fare.Cents = &fareCents
 	r.Fare.CommissionCents = &commissionCents
 	return nil

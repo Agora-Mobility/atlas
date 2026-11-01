@@ -21,6 +21,7 @@ import (
 	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/shared/phone"
+	addressdtos "github.com/Agora-Mobility/atlas/usecases/addresses/dtos"
 	"github.com/Agora-Mobility/atlas/usecases/providers/dtos"
 )
 
@@ -233,7 +234,7 @@ func (u *Usecase) SetPersonalData(ctx context.Context, providerID uuid.UUID, in 
 		return nil, customerrors.FieldError("birth_date", "A data tem de estar no formato AAAA-MM-DD.")
 	}
 	return u.editProvider(ctx, providerID, func(provider *entities.Provider) error {
-		return provider.SetPersonalData(birthDate, in.IDNumber, in.Address, u.now())
+		return provider.SetPersonalData(birthDate, in.IDNumber, in.Address.ToAddress(), u.now())
 	})
 }
 
@@ -440,8 +441,12 @@ func (u *Usecase) missingFor(ctx context.Context, provider *entities.Provider) (
 func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLinks bool) (*dtos.ProviderView, error) {
 	view := &dtos.ProviderView{
 		UserID: provider.UserID, Status: string(provider.Status), StatusReason: provider.StatusReason, RequestedServiceID: provider.RequestedServiceID, ServiceID: provider.ServiceID,
-		IDNumber: provider.IDNumber, Address: provider.Address, SubmittedAt: provider.SubmittedAt, ReviewedAt: provider.ReviewedAt,
+		IDNumber: provider.IDNumber, SubmittedAt: provider.SubmittedAt, ReviewedAt: provider.ReviewedAt,
 		RequiredDocuments: []dtos.RequiredDocumentView{}, Documents: []dtos.DocumentView{}, Missing: map[string]string{},
+	}
+	if provider.HomeAddress != nil {
+		address := addressdtos.ToAddressView(provider.HomeAddress)
+		view.Address = &address
 	}
 	if provider.BirthDate != nil {
 		view.BirthDate = provider.BirthDate.Format(time.DateOnly)

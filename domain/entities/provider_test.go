@@ -45,9 +45,15 @@ func TestProviderStatusFollowsTheReviewFlow(t *testing.T) {
 func TestPersonalDataAndVehicleAreValidated(t *testing.T) {
 	profile := &entities.Provider{Status: entities.ProviderDraft}
 
-	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-17, 0, 0), "007", "Luanda", providerNow), "under 18")
-	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), " ", "Luanda", providerNow))
-	require.NoError(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), "007", "Luanda", providerNow))
+	home := entities.Address{Point: entities.GeoPoint{Lat: -8.84, Lng: 13.23}, Line: "Rua Rainha Ginga, 29"}
+	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-17, 0, 0), "007", home, providerNow), "under 18")
+	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), " ", home, providerNow))
+	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), "007", entities.Address{Line: "Sem pin"}, providerNow), "the address needs latitude and longitude")
+	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), "007", entities.Address{Point: home.Point}, providerNow), "the address needs a line")
+	require.NoError(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), "007", home, providerNow))
+	first := profile.HomeAddress.ID
+	require.NoError(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), "007", entities.Address{Point: home.Point, Line: "Outra rua"}, providerNow))
+	assert.Equal(t, first, profile.HomeAddress.ID, "editing keeps the same address row")
 
 	require.NoError(t, profile.SetVehicle(validVehicle(), providerNow))
 	assert.Equal(t, "LD-45-21-AF", profile.Vehicle.Plate)

@@ -734,6 +734,7 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 	c.Catalog = newCatalogModule(c)
 	c.Dispatch = newDispatchModule(c, push.LogSender{}, newRoutingProvider(cfg.Mapbox))
 	c.Providers = newProvidersModule(c, r2.Unavailable{})
+	c.Addresses = newAddressesModule(c)
 
 	gin.SetMode(gin.TestMode)
 	binding.Setup()
@@ -742,6 +743,7 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 	c.Catalog.Router.Register(r.Group("/api/v1"))
 	c.Dispatch.Router.Register(r.Group("/api/v1"))
 	c.Providers.Router.Register(r.Group("/api/v1"))
+	c.Addresses.Router.Register(r.Group("/api/v1"))
 	return r
 }
 

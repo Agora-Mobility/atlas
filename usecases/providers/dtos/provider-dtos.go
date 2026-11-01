@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	addressdtos "github.com/Agora-Mobility/atlas/usecases/addresses/dtos"
 )
 
 type RegisterProviderInput struct {
@@ -46,9 +48,9 @@ type RequestServiceInput struct {
 }
 
 type PersonalDataInput struct {
-	BirthDate string `json:"birth_date" binding:"required" example:"1990-05-20"`
-	IDNumber  string `json:"id_number" binding:"required,max=120" example:"000000000LA000"`
-	Address   string `json:"address" binding:"required,max=200" example:"Rua Rainha Ginga, 29, Luanda"`
+	BirthDate string                   `json:"birth_date" binding:"required" example:"1990-05-20"`
+	IDNumber  string                   `json:"id_number" binding:"required,max=120" example:"000000000LA000"`
+	Address   addressdtos.AddressInput `json:"address" binding:"required"`
 }
 
 type VehicleInput struct {
@@ -114,23 +116,23 @@ type RequiredDocumentView struct {
 }
 
 type ProviderView struct {
-	UserID             uuid.UUID              `json:"user_id"`
-	Name               string                 `json:"name"`
-	Phone              string                 `json:"phone,omitempty"`
-	Email              string                 `json:"email,omitempty"`
-	Status             string                 `json:"status"`
-	StatusReason       string                 `json:"status_reason,omitempty"`
-	RequestedServiceID *uuid.UUID             `json:"requested_service_id,omitempty"`
-	ServiceID          *uuid.UUID             `json:"service_id,omitempty"`
-	BirthDate          string                 `json:"birth_date,omitempty"`
-	IDNumber           string                 `json:"id_number,omitempty"`
-	Address            string                 `json:"address,omitempty"`
-	Vehicle            *VehicleView           `json:"vehicle,omitempty"`
-	SubmittedAt        *time.Time             `json:"submitted_at,omitempty"`
-	ReviewedAt         *time.Time             `json:"reviewed_at,omitempty"`
-	RequiredDocuments  []RequiredDocumentView `json:"required_documents"`
-	Documents          []DocumentView         `json:"documents"`
-	Missing            map[string]string      `json:"missing"`
+	UserID             uuid.UUID                `json:"user_id"`
+	Name               string                   `json:"name"`
+	Phone              string                   `json:"phone,omitempty"`
+	Email              string                   `json:"email,omitempty"`
+	Status             string                   `json:"status"`
+	StatusReason       string                   `json:"status_reason,omitempty"`
+	RequestedServiceID *uuid.UUID               `json:"requested_service_id,omitempty"`
+	ServiceID          *uuid.UUID               `json:"service_id,omitempty"`
+	BirthDate          string                   `json:"birth_date,omitempty"`
+	IDNumber           string                   `json:"id_number,omitempty"`
+	Address            *addressdtos.AddressView `json:"address,omitempty"`
+	Vehicle            *VehicleView             `json:"vehicle,omitempty"`
+	SubmittedAt        *time.Time               `json:"submitted_at,omitempty"`
+	ReviewedAt         *time.Time               `json:"reviewed_at,omitempty"`
+	RequiredDocuments  []RequiredDocumentView   `json:"required_documents"`
+	Documents          []DocumentView           `json:"documents"`
+	Missing            map[string]string        `json:"missing"`
 }
 
 type ReviewDocumentInput struct {

@@ -117,7 +117,7 @@ func (p *person) sendDocument(t *testing.T, documentType string) {
 func fillProfile(t *testing.T, p *person, serviceID string, seats int) {
 	t.Helper()
 	require.Equal(t, http.StatusOK, p.do(t, http.MethodPut, "/api/v1/providers/me/service", map[string]string{"service_id": serviceID}, nil).status)
-	personal := p.do(t, http.MethodPut, "/api/v1/providers/me/personal", map[string]string{"birth_date": "1990-05-20", "id_number": "000000000LA000", "address": "Rua Rainha Ginga, 29, Luanda"}, nil)
+	personal := p.do(t, http.MethodPut, "/api/v1/providers/me/personal", map[string]any{"birth_date": "1990-05-20", "id_number": "000000000LA000", "address": map[string]any{"lat": -8.83, "lng": 13.24, "line": "Rua Rainha Ginga, 29", "city": "Luanda", "country_code": "AO"}}, nil)
 	require.Equal(t, http.StatusOK, personal.status, personal.text)
 	vehicle := p.do(t, http.MethodPut, "/api/v1/providers/me/vehicle", map[string]any{"brand": "Toyota", "model": "Corolla", "year": 2020, "color": "Branco", "plate": "LD-45-21-AF", "seats": seats}, nil)
 	require.Equal(t, http.StatusOK, vehicle.status, vehicle.text)

@@ -73,3 +73,8 @@ exact distances are computed in Go and official polygons stay in PostGIS.
   to one vehicle and one service, set by the backoffice (`provider_profiles.service_id`).
   Economy and Comfort drivers never receive each other's requests. The live index stays
   per category, so eligibility is checked before the candidate cap, and again on accept.
+- **Addresses (2026-11-01):** `addresses` holds every place with mandatory `lat` and
+  `lng` and a generated PostGIS point. `service_requests` (pickup, destination),
+  `service_request_stops`, `providers` (home, base) and `user_addresses` point to it.
+  A request gets its own address rows, so changing a saved address never rewrites
+  the history. Fare estimates keep plain coordinates: they are a quote, not a place.

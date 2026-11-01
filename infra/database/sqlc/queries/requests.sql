@@ -1,9 +1,28 @@
 -- name: InsertServiceRequest :exec
-INSERT INTO service_requests (id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_lat, pickup_lng,
-    pickup_reference, pickup_address, contact_phone, pickup_h3_r8, destination_lat, destination_lng, destination_reference, destination_address,
-    destination_h3_r8, stops, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at,
-    fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, idempotency_key, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38);
+INSERT INTO service_requests (id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone,
+    pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended,
+    search_deadline_at, next_action_at, reminder_at, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, idempotency_key, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31);
+
+-- name: DeleteServiceRequestStops :exec
+DELETE FROM service_request_stops WHERE request_id = $1;
+
+-- name: InsertServiceRequestStop :exec
+INSERT INTO service_request_stops (request_id, position, address_id) VALUES ($1, $2, $3);
+
+-- name: ListRequestPlaces :many
+SELECT r.id AS request_id, 'pickup'::text AS role, 0::int AS position, a.id, a.lat, a.lng, a.line, a.reference
+FROM service_requests r JOIN addresses a ON a.id = r.pickup_address_id
+WHERE r.id = ANY(sqlc.arg(request_ids)::uuid[])
+UNION ALL
+SELECT r.id, 'destination'::text, 0::int, a.id, a.lat, a.lng, a.line, a.reference
+FROM service_requests r JOIN addresses a ON a.id = r.destination_address_id
+WHERE r.id = ANY(sqlc.arg(request_ids)::uuid[])
+UNION ALL
+SELECT st.request_id, 'stop'::text, st.position, a.id, a.lat, a.lng, a.line, a.reference
+FROM service_request_stops st JOIN addresses a ON a.id = st.address_id
+WHERE st.request_id = ANY(sqlc.arg(request_ids)::uuid[])
+ORDER BY 2, 3;
 
 -- name: GetServiceRequest :one
 SELECT * FROM service_requests WHERE id = $1;
@@ -19,9 +38,8 @@ SELECT * FROM service_requests WHERE customer_id = $1 AND idempotency_key = $2;
 
 -- name: UpdateServiceRequest :execrows
 UPDATE service_requests
-SET status = sqlc.arg(status), version = sqlc.arg(version), destination_lat = sqlc.arg(destination_lat), destination_lng = sqlc.arg(destination_lng),
-    destination_reference = sqlc.arg(destination_reference), destination_address = sqlc.arg(destination_address), destination_h3_r8 = sqlc.arg(destination_h3_r8),
-    stops = sqlc.arg(stops), search_round = sqlc.arg(search_round), search_extended = sqlc.arg(search_extended), search_deadline_at = sqlc.arg(search_deadline_at),
+SET status = sqlc.arg(status), version = sqlc.arg(version), destination_address_id = sqlc.arg(destination_address_id), destination_h3_r8 = sqlc.arg(destination_h3_r8),
+    search_round = sqlc.arg(search_round), search_extended = sqlc.arg(search_extended), search_deadline_at = sqlc.arg(search_deadline_at),
     next_action_at = sqlc.arg(next_action_at), reminder_at = sqlc.arg(reminder_at), provider_id = sqlc.arg(provider_id), fare_cents = sqlc.arg(fare_cents),
     commission_cents = sqlc.arg(commission_cents), boost_bps = sqlc.arg(boost_bps), needs_operator = sqlc.arg(needs_operator), operator_reason = sqlc.arg(operator_reason),
     cancel_reason = sqlc.arg(cancel_reason), cancelled_by = sqlc.arg(cancelled_by), accepted_at = sqlc.arg(accepted_at), arrived_at = sqlc.arg(arrived_at),

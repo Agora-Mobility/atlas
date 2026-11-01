@@ -47,3 +47,14 @@ types and functions) makes grants and backups harder to scope.
 - Where the database role is not the owner of the database (managed
   PostgreSQL), the DBA creates the `atlas` schema owned by that role and
   revokes `CREATE` on `public`.
+
+## Update 2026-11-01
+
+`atlas` is now the only schema of the database. Before production, migrations can
+still be edited in place, so the legacy path was removed.
+
+- PostGIS is installed inside `atlas`. Migration 000001 drops the extensions and
+  schemas that the PostGIS image creates (`tiger`, `topology`) and then `public`.
+- `search_path` is `atlas`, also as the default of the database.
+- The role that runs the migrations must be able to create the extension and drop
+  `public`. A managed PostgreSQL may need the DBA for this.

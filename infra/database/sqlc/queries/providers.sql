@@ -5,11 +5,11 @@ INSERT INTO providers (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING;
 SELECT * FROM providers WHERE user_id = $1;
 
 -- name: UpsertProvider :exec
-INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, address, status_reason, submitted_at, reviewed_at)
+INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, home_address_id, status_reason, submitted_at, reviewed_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (user_id) DO UPDATE
 SET status = EXCLUDED.status, service_id = EXCLUDED.service_id, requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date,
-    id_number = EXCLUDED.id_number, address = EXCLUDED.address, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
+    id_number = EXCLUDED.id_number, home_address_id = EXCLUDED.home_address_id, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
     reviewed_at = EXCLUDED.reviewed_at, updated_at = now();
 
 -- name: GetVehicleOfProvider :one
@@ -35,7 +35,7 @@ LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 SELECT count(*) FROM providers p WHERE sqlc.arg(status)::text = '' OR p.status = sqlc.arg(status)::text;
 
 -- name: UpdateProviderBase :execrows
-UPDATE providers SET base_lat = $2, base_lng = $3, service_radius_km = $4, updated_at = now() WHERE user_id = $1;
+UPDATE providers SET base_address_id = $2, service_radius_km = $3, updated_at = now() WHERE user_id = $1;
 
 -- name: TouchProviderJobCompleted :exec
 UPDATE providers SET last_job_completed_at = $2, updated_at = now() WHERE user_id = $1;
@@ -48,8 +48,9 @@ JOIN service_categories c ON c.id = s.category_id
 WHERE p.user_id = $1;
 
 -- name: FilterEligibleProviders :many
-SELECT p.user_id, p.last_job_completed_at, p.created_at, p.base_lat, p.base_lng, p.service_radius_km, u.phone
+SELECT p.user_id, p.last_job_completed_at, p.created_at, b.lat AS base_lat, b.lng AS base_lng, p.service_radius_km, u.phone
 FROM providers p
+LEFT JOIN addresses b ON b.id = p.base_address_id
 JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
 WHERE p.user_id = ANY(sqlc.arg(provider_ids)::uuid[]) AND p.status = 'approved' AND p.service_id = sqlc.arg(service_id)::uuid;
 

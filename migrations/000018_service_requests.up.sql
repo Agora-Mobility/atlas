@@ -8,19 +8,11 @@ CREATE TABLE service_requests (
     policy_id            UUID             NOT NULL REFERENCES dispatch_policies (id),
     status               TEXT             NOT NULL CHECK (status IN ('created', 'scheduled', 'searching', 'offered', 'awaiting_choice', 'accepted', 'provider_en_route', 'in_progress', 'completed', 'expired', 'cancelled')),
     version              INTEGER          NOT NULL DEFAULT 1,
-    pickup_lat           DOUBLE PRECISION NOT NULL,
-    pickup_lng           DOUBLE PRECISION NOT NULL,
-    pickup_geom          geography(Point, 4326) GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(pickup_lng, pickup_lat), 4326)::geography) STORED,
-    pickup_reference     TEXT             NOT NULL DEFAULT '',
-    pickup_address       TEXT             NOT NULL DEFAULT '',
+    pickup_address_id    UUID             NOT NULL REFERENCES addresses (id),
     contact_phone        TEXT             NOT NULL DEFAULT '',
     pickup_h3_r8         BIGINT           NOT NULL,
-    destination_lat      DOUBLE PRECISION,
-    destination_lng      DOUBLE PRECISION,
-    destination_reference TEXT            NOT NULL DEFAULT '',
-    destination_address  TEXT             NOT NULL DEFAULT '',
+    destination_address_id UUID           REFERENCES addresses (id),
     destination_h3_r8    BIGINT,
-    stops                JSONB            NOT NULL DEFAULT '[]',
     passenger_name       TEXT             NOT NULL DEFAULT '',
     passenger_phone      TEXT             NOT NULL DEFAULT '',
     details              JSONB            NOT NULL DEFAULT '{}',
@@ -56,7 +48,13 @@ CREATE INDEX service_requests_customer_idx ON service_requests (customer_id, cre
 CREATE INDEX service_requests_provider_idx ON service_requests (provider_id, created_at DESC) WHERE provider_id IS NOT NULL;
 CREATE INDEX service_requests_operator_idx ON service_requests (created_at) WHERE needs_operator;
 CREATE INDEX service_requests_h3_idx ON service_requests (pickup_h3_r8, created_at);
-CREATE INDEX service_requests_pickup_geom_idx ON service_requests USING GIST (pickup_geom);
+
+CREATE TABLE service_request_stops (
+    request_id UUID    NOT NULL REFERENCES service_requests (id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL,
+    address_id UUID    NOT NULL REFERENCES addresses (id),
+    PRIMARY KEY (request_id, position)
+);
 
 CREATE TABLE service_request_events (
     id          BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

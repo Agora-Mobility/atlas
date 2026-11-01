@@ -47,11 +47,13 @@ INSERT INTO service_categories (slug, name, description, icon, display_order) VA
 -- One base service per category. The fees start at zero until the backoffice
 -- sets the tariff.
 INSERT INTO services (category_id, slug, name, description, icon, requires_destination, display_order)
-SELECT c.id, s.slug, s.name, s.description, s.icon, s.requires_destination, 1
+SELECT c.id, s.slug, s.name, s.description, s.icon, s.requires_destination, s.position
 FROM (VALUES
-    ('taxi', 'taxi', 'Táxi', 'Viagem até ao destino indicado.', 'taxi', true),
-    ('maintenance', 'maintenance', 'Manutenção', 'Um técnico desloca-se ao local indicado.', 'maintenance', false),
-    ('towing', 'towing', 'Reboque', 'Reboque da viatura até ao destino indicado.', 'towing', true),
-    ('removals', 'removals', 'Mudanças', 'Transporte dos bens até ao destino indicado.', 'removals', true)
-) AS s (category_slug, slug, name, description, icon, requires_destination)
+    ('taxi', 'taxi', 'Económico', 'Viatura ligeira até 4 passageiros.', 'taxi', true, 1),
+    ('taxi', 'taxi-comfort', 'Conforto', 'Viaturas recentes, até 4 passageiros.', 'taxi', true, 2),
+    ('taxi', 'taxi-xl', 'XL', 'Viatura grande, até 6 passageiros.', 'taxi', true, 3),
+    ('maintenance', 'maintenance', 'Manutenção', 'Um técnico desloca-se ao local indicado.', 'maintenance', false, 1),
+    ('towing', 'towing', 'Reboque', 'Reboque da viatura até ao destino indicado.', 'towing', true, 1),
+    ('removals', 'removals', 'Mudanças', 'Transporte dos bens até ao destino indicado.', 'removals', true, 1)
+) AS s (category_slug, slug, name, description, icon, requires_destination, position)
 JOIN service_categories c ON c.slug = s.category_slug;

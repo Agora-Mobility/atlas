@@ -5882,6 +5882,185 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/users/me/addresses": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Addresses"
+                ],
+                "summary": "My saved addresses",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserAddressList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "lat and lng are mandatory; the rest only helps. kind is home, work or other, with one home and one work per user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Addresses"
+                ],
+                "summary": "Save an address",
+                "parameters": [
+                    {
+                        "description": "Address",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserAddressInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserAddressView"
+                        }
+                    },
+                    "409": {
+                        "description": "ADDRESS_KIND_TAKEN",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/addresses/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Addresses"
+                ],
+                "summary": "Change a saved address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Address",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserAddressInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UserAddressView"
+                        }
+                    },
+                    "404": {
+                        "description": "ADDRESS_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "ADDRESS_KIND_TAKEN",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "tags": [
+                    "Addresses"
+                ],
+                "summary": "Delete a saved address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "ADDRESS_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/me/mfa/recovery-codes": {
             "post": {
                 "security": [
@@ -6546,6 +6725,85 @@ const docTemplate = `{
                 },
                 "request": {
                     "$ref": "#/definitions/dtos.RequestView"
+                }
+            }
+        },
+        "dtos.AddressInput": {
+            "type": "object",
+            "required": [
+                "lat",
+                "lng"
+            ],
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Luanda"
+                },
+                "country_code": {
+                    "type": "string",
+                    "maxLength": 2,
+                    "example": "AO"
+                },
+                "lat": {
+                    "type": "number",
+                    "example": -8.84
+                },
+                "line": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "Rua Rainha Ginga, 29"
+                },
+                "lng": {
+                    "type": "number",
+                    "example": 13.23
+                },
+                "neighborhood": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Ingombota"
+                },
+                "province": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Luanda"
+                },
+                "reference": {
+                    "type": "string",
+                    "maxLength": 140,
+                    "example": "Portão azul, junto à farmácia"
+                }
+            }
+        },
+        "dtos.AddressView": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "country_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "line": {
+                    "type": "string"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "neighborhood": {
+                    "type": "string"
+                },
+                "province": {
+                    "type": "string"
+                },
+                "reference": {
+                    "type": "string"
                 }
             }
         },
@@ -7837,9 +8095,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "address": {
-                    "type": "string",
-                    "maxLength": 200,
-                    "example": "Rua Rainha Ginga, 29, Luanda"
+                    "$ref": "#/definitions/dtos.AddressInput"
                 },
                 "birth_date": {
                     "type": "string",
@@ -7944,6 +8200,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "address": {
+                    "type": "string"
+                },
+                "address_id": {
                     "type": "string"
                 },
                 "lat": {
@@ -8348,7 +8607,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "address": {
-                    "type": "string"
+                    "$ref": "#/definitions/dtos.AddressView"
                 },
                 "birth_date": {
                     "type": "string"
@@ -9370,6 +9629,112 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "upload_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.UserAddressInput": {
+            "type": "object",
+            "required": [
+                "kind",
+                "lat",
+                "lng"
+            ],
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Luanda"
+                },
+                "country_code": {
+                    "type": "string",
+                    "maxLength": 2,
+                    "example": "AO"
+                },
+                "kind": {
+                    "type": "string",
+                    "example": "home"
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Casa"
+                },
+                "lat": {
+                    "type": "number",
+                    "example": -8.84
+                },
+                "line": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "Rua Rainha Ginga, 29"
+                },
+                "lng": {
+                    "type": "number",
+                    "example": 13.23
+                },
+                "neighborhood": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Ingombota"
+                },
+                "province": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Luanda"
+                },
+                "reference": {
+                    "type": "string",
+                    "maxLength": 140,
+                    "example": "Portão azul, junto à farmácia"
+                }
+            }
+        },
+        "dtos.UserAddressList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.UserAddressView"
+                    }
+                }
+            }
+        },
+        "dtos.UserAddressView": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "country_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "line": {
+                    "type": "string"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "neighborhood": {
+                    "type": "string"
+                },
+                "province": {
+                    "type": "string"
+                },
+                "reference": {
                     "type": "string"
                 }
             }
