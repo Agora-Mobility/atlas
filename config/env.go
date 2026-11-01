@@ -40,9 +40,8 @@ type R2Config struct {
 	AccountID       string        `mapstructure:"R2_ACCOUNT_ID"`
 	AccessKeyID     string        `mapstructure:"R2_ACCESS_KEY_ID"`
 	SecretAccessKey string        `mapstructure:"R2_SECRET_ACCESS_KEY"`
-	Bucket          string        `mapstructure:"R2_BUCKET"`
+	Bucket          string        `mapstructure:"R2_BUCKET_NAME"`
 	Endpoint        string        `mapstructure:"R2_ENDPOINT"`
-	PresignEndpoint string        `mapstructure:"R2_PRESIGN_ENDPOINT"`
 	PresignTTL      time.Duration `mapstructure:"R2_PRESIGN_TTL"`
 }
 
@@ -291,9 +290,8 @@ var defaults = map[string]any{
 	"R2_ACCOUNT_ID":                "",
 	"R2_ACCESS_KEY_ID":             "",
 	"R2_SECRET_ACCESS_KEY":         "",
-	"R2_BUCKET":                    "",
+	"R2_BUCKET_NAME":               "",
 	"R2_ENDPOINT":                  "",
-	"R2_PRESIGN_ENDPOINT":          "",
 	"R2_PRESIGN_TTL":               "15m",
 }
 
@@ -395,7 +393,7 @@ func (c *Config) validate() error {
 			errs = append(errs, errors.New("RESEND_API_KEY is required in production"))
 		}
 		if !c.R2.Enabled() {
-			errs = append(errs, errors.New("R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET are required in production"))
+			errs = append(errs, errors.New("R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET_NAME are required in production"))
 		}
 		for _, o := range c.HTTP.CORSAllowedOrigins {
 			if o == "*" {

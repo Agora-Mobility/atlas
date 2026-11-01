@@ -75,6 +75,10 @@ test-integration: ## Run integration tests (needs Docker for testcontainers)
 test-e2e: ## Run the end-to-end flows against real Postgres, Redis and RabbitMQ (needs Docker)
 	go test -race -tags=e2e -count=1 -timeout=15m ./test/e2e/...
 
+.PHONY: test-r2
+test-r2: ## Write, read and delete one test object in the real R2 bucket of .env
+	go test -tags=r2live -count=1 -v ./infra/storage/r2/...
+
 .PHONY: test-load
 test-load: ## Run the k6 load test against a disposable stack (needs Docker and k6)
 	./test/load/run.sh

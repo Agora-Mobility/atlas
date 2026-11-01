@@ -224,5 +224,5 @@ Providers apply in the app and the backoffice reviews them (ADR 0007).
    the returned URL with the returned headers, then `POST /api/v1/providers/me/documents`.
 5. `POST /api/v1/providers/me/submit`. `GET /api/v1/providers/me/profile` shows what is missing.
 
-`make docker-up` starts MinIO on `localhost:9000` (console on `9001`) with the bucket
-already created, so development needs no R2 credentials.
+Documents go to Cloudflare R2 (`R2_*` in `.env`). `make test-r2` checks the credentials
+against the real bucket. The other test suites never touch R2.

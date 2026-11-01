@@ -21,7 +21,7 @@ func newObjectStorage(cfg config.R2Config) services.IObjectStorage {
 		return r2.Unavailable{}
 	}
 	return r2.New(r2.Settings{
-		Endpoint: cfg.ResolvedEndpoint(), PresignEndpoint: cfg.PresignEndpoint, AccessKeyID: cfg.AccessKeyID,
+		Endpoint: cfg.ResolvedEndpoint(), AccessKeyID: cfg.AccessKeyID,
 		SecretKey: cfg.SecretAccessKey, Bucket: cfg.Bucket, PresignTTL: cfg.PresignTTL,
 	})
 }

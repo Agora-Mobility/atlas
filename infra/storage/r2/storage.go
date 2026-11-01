@@ -19,12 +19,11 @@ import (
 const region = "auto"
 
 type Settings struct {
-	Endpoint        string
-	PresignEndpoint string
-	AccessKeyID     string
-	SecretKey       string
-	Bucket          string
-	PresignTTL      time.Duration
+	Endpoint    string
+	AccessKeyID string
+	SecretKey   string
+	Bucket      string
+	PresignTTL  time.Duration
 }
 
 type Storage struct {
@@ -38,28 +37,21 @@ type Storage struct {
 var _ services.IObjectStorage = (*Storage)(nil)
 
 func New(settings Settings) *Storage {
-	presignEndpoint := settings.PresignEndpoint
-	if presignEndpoint == "" {
-		presignEndpoint = settings.Endpoint
-	}
-	return &Storage{
-		client:  newClient(settings, settings.Endpoint),
-		presign: s3.NewPresignClient(newClient(settings, presignEndpoint)),
-		bucket:  settings.Bucket,
-		ttl:     settings.PresignTTL,
-		now:     time.Now,
-	}
-}
-
-func newClient(settings Settings, endpoint string) *s3.Client {
-	return s3.New(s3.Options{
+	client := s3.New(s3.Options{
 		Region:                     region,
-		BaseEndpoint:               aws.String(endpoint),
+		BaseEndpoint:               aws.String(settings.Endpoint),
 		Credentials:                credentials.NewStaticCredentialsProvider(settings.AccessKeyID, settings.SecretKey, ""),
 		UsePathStyle:               true,
 		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
 		ResponseChecksumValidation: aws.ResponseChecksumValidationWhenRequired,
 	})
+	return &Storage{
+		client:  client,
+		presign: s3.NewPresignClient(client),
+		bucket:  settings.Bucket,
+		ttl:     settings.PresignTTL,
+		now:     time.Now,
+	}
 }
 
 func (s *Storage) PresignUpload(ctx context.Context, key, contentType string, sizeBytes int64) (*services.PresignedURL, error) {

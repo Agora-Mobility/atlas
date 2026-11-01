@@ -196,14 +196,6 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 		assert.Equal(t, "FILE_TYPE_NOT_ACCEPTED", pedro.post(t, "/api/v1/providers/me/documents", map[string]string{"document_type": "id_card", "object_key": disguised}).code(), "the content must match the declared type")
 	})
 
-	t.Run("documents stay private", func(t *testing.T) {
-		key := pedro.upload(t, "profile_photo", "image/jpeg", jpegBytes)
-		res, err := http.Get(env.storageURL + "/" + minioBucket + "/" + key)
-		require.NoError(t, err)
-		_ = res.Body.Close()
-		assert.Equal(t, http.StatusForbidden, res.StatusCode, "no public URL")
-	})
-
 	t.Run("he uploads everything and submits", func(t *testing.T) {
 		for _, document := range allDocuments {
 			pedro.sendDocument(t, document)

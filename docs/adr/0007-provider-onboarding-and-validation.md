@@ -83,8 +83,9 @@ them and never creates one.
   approved and the vehicle meets the minimum.
 - **The backend enforces it:** a provider who is not approved gets 403 when going online
   or answering an offer.
-- Local development uses MinIO in `docker-compose.yml`. Production uses a private
-  Cloudflare R2 bucket and refuses to start without it.
+- Documents live in Cloudflare R2, and production refuses to start without it. The
+  end-to-end tests use an in-memory S3 server, so they never write to a real bucket;
+  `make test-r2` checks the real one.
 
 ## Still open
 

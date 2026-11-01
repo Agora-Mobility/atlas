@@ -20,15 +20,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -65,7 +63,6 @@ type point struct {
 }
 
 type stack struct {
-	storageURL  string
 	owner       *pgxpool.Pool
 	redisDirect *goredis.Client
 	redisProxy  *tcpProxy
@@ -145,11 +142,8 @@ func startStack() (func(), error) {
 	closers = append(closers, mapbox.server.Close)
 	sms := newSMSStub()
 	closers = append(closers, sms.server.Close)
-	minioEndpoint, closeMinio, err := startMinio(ctx)
-	if err != nil {
-		return cleanup, err
-	}
-	closers = append(closers, closeMinio)
+	storage := newS3Stub()
+	closers = append(closers, storage.server.Close)
 	fcm, err := newFCMStub()
 	if err != nil {
 		return cleanup, err
@@ -167,7 +161,7 @@ func startStack() (func(), error) {
 		"SSE_DEAD_AFTER": "3s", "SSE_RECONNECT_SPREAD": "1s", "NEARBY_MIN_CELL_COUNT": "2", "MAPBOX_ACCESS_TOKEN": "sk.e2e", "MAPBOX_BASE_URL": mapbox.server.URL,
 		"MAPBOX_TIMEOUT": "300ms", "MAPBOX_BREAKER_FAILURES": "3", "MAPBOX_BREAKER_COOLDOWN": "200ms", "FCM_PROJECT_ID": "agora-e2e", "FCM_BASE_URL": fcm.server.URL,
 		"FCM_CREDENTIALS_JSON": fcm.credentials, "HTTP_SHUTDOWN_TIMEOUT": "5s", "CASTBRICK_API_KEY": "e2e", "CASTBRICK_BASE_URL": sms.server.URL,
-		"OTP_RESEND_COOLDOWN": "0s", "AUTH_RATE_LIMIT_REQUESTS": "100000", "R2_ENDPOINT": strings.Replace(minioEndpoint, "localhost", "127.0.0.1", 1), "R2_PRESIGN_ENDPOINT": minioEndpoint, "R2_ACCESS_KEY_ID": minioUser, "R2_SECRET_ACCESS_KEY": minioPassword, "R2_BUCKET": minioBucket,
+		"OTP_RESEND_COOLDOWN": "0s", "AUTH_RATE_LIMIT_REQUESTS": "100000", "R2_ENDPOINT": storage.server.URL, "R2_ACCESS_KEY_ID": "e2e", "R2_SECRET_ACCESS_KEY": "e2e", "R2_BUCKET_NAME": storageBucket,
 	}
 	for key, value := range settings {
 		if err := os.Setenv(key, value); err != nil {
@@ -183,7 +177,7 @@ func startStack() (func(), error) {
 	direct := goredis.NewClient(&goredis.Options{Addr: redisEndpoint})
 	closers = append(closers, func() { _ = direct.Close() })
 
-	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, mapbox: mapbox, sms: sms, fcm: fcm, storageURL: minioEndpoint}
+	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, mapbox: mapbox, sms: sms, fcm: fcm}
 	if err := seedPlatform(ctx, owner); err != nil {
 		return cleanup, err
 	}
@@ -219,41 +213,52 @@ func startContainer(ctx context.Context, image, port string, environment map[str
 	return net.JoinHostPort(host, mapped.Port()), closer, nil
 }
 
-const (
-	minioUser     = "e2eminioroot"
-	minioPassword = "e2eminiopass"
-	minioBucket   = "agora-documents"
-)
+const storageBucket = "agora-documents"
 
-func startMinio(ctx context.Context) (string, func(), error) {
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image: "bitnamilegacy/minio:2025.7.23", ExposedPorts: []string{"9000/tcp"},
-			Env:        map[string]string{"MINIO_ROOT_USER": minioUser, "MINIO_ROOT_PASSWORD": minioPassword},
-			WaitingFor: wait.ForHTTP("/minio/health/live").WithPort("9000/tcp").WithStartupTimeout(2 * time.Minute),
-		},
-		Started: true,
-	})
-	if err != nil {
-		return "", func() {}, err
+type storedFile struct {
+	content     []byte
+	contentType string
+}
+
+type s3Stub struct {
+	server *httptest.Server
+	mu     sync.Mutex
+	files  map[string]storedFile
+}
+
+func newS3Stub() *s3Stub {
+	stub := &s3Stub{files: map[string]storedFile{}}
+	stub.server = httptest.NewServer(http.HandlerFunc(stub.serve))
+	return stub
+}
+
+func (s *s3Stub) serve(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("X-Amz-Signature") == "" && r.Header.Get("Authorization") == "" {
+		w.WriteHeader(http.StatusForbidden)
+		return
 	}
-	closer := func() { _ = container.Terminate(context.Background()) }
-	endpoint, err := container.PortEndpoint(ctx, "9000/tcp", "http")
-	if err != nil {
-		return "", closer, err
-	}
-	client := s3.New(s3.Options{
-		Region: "auto", BaseEndpoint: aws.String(endpoint), UsePathStyle: true,
-		Credentials: credentials.NewStaticCredentialsProvider(minioUser, minioPassword, ""),
-	})
-	bucket := minioBucket
-	for range 240 {
-		if _, err := client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &bucket}); err == nil {
-			return endpoint, closer, nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	file, found := s.files[r.URL.Path]
+	switch r.Method {
+	case http.MethodPut:
+		content, _ := io.ReadAll(r.Body)
+		s.files[r.URL.Path] = storedFile{content: content, contentType: r.Header.Get("Content-Type")}
+	case http.MethodDelete:
+		delete(s.files, r.URL.Path)
+		w.WriteHeader(http.StatusNoContent)
+	case http.MethodHead, http.MethodGet:
+		if !found {
+			w.WriteHeader(http.StatusNotFound)
+			return
 		}
-		time.Sleep(250 * time.Millisecond)
+		w.Header().Set("Content-Type", file.contentType)
+		w.Header().Set("Content-Length", strconv.Itoa(len(file.content)))
+		w.WriteHeader(http.StatusOK)
+		if r.Method == http.MethodGet {
+			_, _ = w.Write(file.content)
+		}
 	}
-	return "", closer, errors.New("the bucket was not created")
 }
 
 type smsStub struct {

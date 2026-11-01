@@ -75,7 +75,7 @@ func TestLoadProductionRequiresTheDocumentStorage(t *testing.T) {
 	t.Setenv("R2_ACCOUNT_ID", "account")
 	t.Setenv("R2_ACCESS_KEY_ID", "id")
 	t.Setenv("R2_SECRET_ACCESS_KEY", "secret")
-	t.Setenv("R2_BUCKET", "documents")
+	t.Setenv("R2_BUCKET_NAME", "documents")
 
 	cfg, err := config.Load()
 	require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 	t.Setenv("R2_ACCOUNT_ID", "account")
 	t.Setenv("R2_ACCESS_KEY_ID", "id")
 	t.Setenv("R2_SECRET_ACCESS_KEY", "secret")
-	t.Setenv("R2_BUCKET", "documents")
+	t.Setenv("R2_BUCKET_NAME", "documents")
 	cfg, err := config.Load()
 	require.NoError(t, err)
 	assert.True(t, cfg.SMS.Enabled())
