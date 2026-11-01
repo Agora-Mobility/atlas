@@ -1,0 +1,799 @@
+package controllers
+
+import (
+	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+
+	"github.com/Agora-Mobility/atlas/domain/entities"
+	"github.com/Agora-Mobility/atlas/domain/repository"
+	"github.com/Agora-Mobility/atlas/infra/middleware"
+	"github.com/Agora-Mobility/atlas/infra/rest/binding"
+	"github.com/Agora-Mobility/atlas/shared"
+	"github.com/Agora-Mobility/atlas/shared/customerrors"
+	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/shared/pagination"
+	"github.com/Agora-Mobility/atlas/usecases/dispatch"
+	"github.com/Agora-Mobility/atlas/usecases/dispatch/dtos"
+)
+
+type UserRoles interface {
+	RoleOf(ctx *gin.Context, id uuid.UUID) (enums.Role, bool, error)
+}
+
+type DispatchController struct {
+	dispatch *dispatch.Usecase
+	users    UserRoles
+}
+
+func NewDispatchController(uc *dispatch.Usecase, users UserRoles) *DispatchController {
+	return &DispatchController{dispatch: uc, users: users}
+}
+
+func userWithRole(ctx *gin.Context, role enums.Role) (uuid.UUID, bool) {
+	reqCtx := ctx.Request.Context()
+	userID, ok := middleware.UserIDFromContext(reqCtx)
+	if !ok {
+		shared.Unauthorized(ctx, shared.CodeUnauthorized, "Authentication required.")
+		return uuid.Nil, false
+	}
+	current, _ := middleware.RoleFromContext(reqCtx)
+	if current != role {
+		shared.Forbidden(ctx, "WRONG_ACCOUNT_TYPE", "This action is not available to this account.")
+		return uuid.Nil, false
+	}
+	return userID, true
+}
+
+func idParam(ctx *gin.Context, code, message string) (uuid.UUID, bool) {
+	id, err := uuid.Parse(ctx.Param("id"))
+	if err != nil {
+		shared.NotFound(ctx, code, message)
+		return uuid.Nil, false
+	}
+	return id, true
+}
+
+func requestParam(ctx *gin.Context) (uuid.UUID, bool) {
+	return idParam(ctx, "REQUEST_NOT_FOUND", "Request not found.")
+}
+
+func offerParam(ctx *gin.Context) (uuid.UUID, bool) {
+	return idParam(ctx, "OFFER_NOT_FOUND", "Offer not found.")
+}
+
+func respond(ctx *gin.Context, status int, body any, err error) {
+	if err != nil {
+		handleError(ctx, err)
+		return
+	}
+	if body == nil {
+		ctx.Status(status)
+		return
+	}
+	ctx.JSON(status, body)
+}
+
+func handleError(ctx *gin.Context, err error) {
+	var expired *dispatch.FareEstimateExpiredError
+	if errors.As(err, &expired) {
+		ctx.AbortWithStatusJSON(http.StatusConflict, gin.H{
+			"error":  shared.ErrorBody{Code: "FARE_ESTIMATE_EXPIRED", Message: "The price expired. Confirm the new one."},
+			"quotes": expired.Fresh,
+		})
+		return
+	}
+	for _, mapped := range errorTable {
+		if errors.Is(err, mapped.target) {
+			shared.RespondError(ctx, mapped.status, mapped.code, mapped.message)
+			return
+		}
+	}
+	if validationErr, ok := customerrors.AsValidation(err); ok {
+		shared.ValidationFailed(ctx, validationErr)
+		return
+	}
+	shared.InternalServerError(ctx, shared.CodeInternalError, "An internal error occurred.", err)
+}
+
+var errorTable = []struct {
+	target  error
+	status  int
+	code    string
+	message string
+}{
+	{dispatch.ErrRequestNotFound, http.StatusNotFound, "REQUEST_NOT_FOUND", "Request not found."},
+	{dispatch.ErrOfferNotFound, http.StatusNotFound, "OFFER_NOT_FOUND", "Offer not found."},
+	{dispatch.ErrZoneNotFound, http.StatusNotFound, "ZONE_NOT_FOUND", "Zone not found."},
+	{dispatch.ErrPolicyNotFound, http.StatusNotFound, "POLICY_NOT_FOUND", "Policy not found."},
+	{dispatch.ErrServiceNotOffered, http.StatusUnprocessableEntity, "SERVICE_NOT_OFFERED", "This service is not available."},
+	{dispatch.ErrOutsideServiceArea, http.StatusUnprocessableEntity, "OUTSIDE_SERVICE_AREA", "The service is not available at this location yet."},
+	{dispatch.ErrFareEstimateRequired, http.StatusUnprocessableEntity, "FARE_ESTIMATE_REQUIRED", "This service needs a fare estimate."},
+	{dispatch.ErrFareEstimateInvalid, http.StatusConflict, "FARE_ESTIMATE_INVALID", "The price does not match this route. Ask for a new one."},
+	{dispatch.ErrNoTariff, http.StatusUnprocessableEntity, "NO_TARIFF", "There is no tariff for this service here yet."},
+	{dispatch.ErrRequestConflict, http.StatusConflict, "REQUEST_CONFLICT", "The request changed in the meantime."},
+	{dispatch.ErrProviderNotApproved, http.StatusForbidden, "PROVIDER_NOT_APPROVED", "The provider is not approved."},
+	{dispatch.ErrProviderBusy, http.StatusConflict, "PROVIDER_BUSY", "You already have an active job."},
+	{dispatch.ErrProviderNotEligible, http.StatusUnprocessableEntity, "PROVIDER_NOT_ELIGIBLE", "This provider cannot take this request."},
+	{dispatch.ErrQuoteRequired, http.StatusConflict, "QUOTE_REQUIRED", "This offer is answered with a quote."},
+	{dispatch.ErrQuoteNotAllowed, http.StatusConflict, "QUOTE_NOT_ALLOWED", "This offer does not take quotes."},
+	{dispatch.ErrQuoteExpired, http.StatusConflict, "QUOTE_EXPIRED", "The quote is no longer valid."},
+	{dispatch.ErrRouteChangeForbidden, http.StatusConflict, "ROUTE_CHANGE_FORBIDDEN", "The route of this request cannot change."},
+	{dispatch.ErrInvalidChannel, http.StatusUnprocessableEntity, "INVALID_CHANNEL", "Unknown delivery channel."},
+	{entities.ErrOfferClosed, http.StatusConflict, "OFFER_ENDED", "This offer has ended."},
+	{entities.ErrOfferExpired, http.StatusConflict, "OFFER_EXPIRED", "This offer has expired."},
+	{entities.ErrInvalidTransition, http.StatusConflict, "INVALID_TRANSITION", "This action is not possible in the current state."},
+	{entities.ErrTransitionForbidden, http.StatusForbidden, "TRANSITION_FORBIDDEN", "You cannot make this change."},
+	{entities.ErrCancelReasonMissing, http.StatusUnprocessableEntity, "CANCEL_REASON_REQUIRED", "A cancel reason is required."},
+	{entities.ErrScheduleNotAllowed, http.StatusUnprocessableEntity, "SCHEDULE_NOT_ALLOWED", "This service cannot be scheduled."},
+	{entities.ErrBoostNotAllowed, http.StatusConflict, "BOOST_NOT_ALLOWED", "This request cannot raise its offer."},
+	{entities.ErrBoostNotHigher, http.StatusConflict, "BOOST_NOT_HIGHER", "The raise must be higher than the current one."},
+	{repository.ErrInvalidGeometry, http.StatusUnprocessableEntity, "INVALID_GEOMETRY", "The geometry is not a valid polygon."},
+}
+
+// Nearby godoc
+//
+//	@Summary		Providers near a point
+//	@Description	Customers only. Aggregates by H3 cell, without identity or exact position, and only above a minimum per cell.
+//	@Tags			Dispatch
+//	@Produce		json
+//	@Param			lat			query		number	true	"Latitude"
+//	@Param			lng			query		number	true	"Longitude"
+//	@Param			category	query		string	true	"Category slug"
+//	@Success		200			{object}	dtos.NearbyView
+//	@Failure		422			{object}	shared.ErrorResponse	"Outside the service area"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/nearby [get]
+func (c *DispatchController) Nearby(ctx *gin.Context) {
+	if _, ok := userWithRole(ctx, enums.RoleCustomer); !ok {
+		return
+	}
+	lat, latErr := strconv.ParseFloat(ctx.Query("lat"), 64)
+	lng, lngErr := strconv.ParseFloat(ctx.Query("lng"), 64)
+	if latErr != nil || lngErr != nil || ctx.Query("category") == "" {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "lat, lng and category are required.")
+		return
+	}
+	view, err := c.dispatch.Nearby(ctx.Request.Context(), entities.GeoPoint{Lat: lat, Lng: lng}, ctx.Query("category"))
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// CreateFareEstimates godoc
+//
+//	@Summary		Fixed price before confirming
+//	@Description	Customers only. One priced option per active service of the category. route_source tells whether the distance came from Mapbox or from the fallback estimate.
+//	@Tags			Dispatch
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.FareEstimateInput	true	"Route"
+//	@Success		201		{object}	dtos.FareEstimateList
+//	@Failure		422		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/fare-estimates [post]
+func (c *DispatchController) CreateFareEstimates(ctx *gin.Context) {
+	customerID, ok := userWithRole(ctx, enums.RoleCustomer)
+	if !ok {
+		return
+	}
+	var in dtos.FareEstimateInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	list, err := c.dispatch.CreateEstimates(ctx.Request.Context(), customerID, in)
+	respond(ctx, http.StatusCreated, list, err)
+}
+
+// RegisterDevice godoc
+//
+//	@Summary	Register the push token of this device
+//	@Tags		Dispatch
+//	@Accept		json
+//	@Param		body	body	dtos.DeviceInput	true	"Device"
+//	@Success	204
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/devices [put]
+func (c *DispatchController) RegisterDevice(ctx *gin.Context) {
+	userID, ok := middleware.UserIDFromContext(ctx.Request.Context())
+	if !ok {
+		shared.Unauthorized(ctx, shared.CodeUnauthorized, "Authentication required.")
+		return
+	}
+	var in dtos.DeviceInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	respond(ctx, http.StatusNoContent, nil, c.dispatch.RegisterDevice(ctx.Request.Context(), userID, in))
+}
+
+// UnregisterDevice godoc
+//
+//	@Summary	Forget a push token
+//	@Tags		Dispatch
+//	@Param		token	path	string	true	"Push token"
+//	@Success	204
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/devices/{token} [delete]
+func (c *DispatchController) UnregisterDevice(ctx *gin.Context) {
+	userID, ok := middleware.UserIDFromContext(ctx.Request.Context())
+	if !ok {
+		shared.Unauthorized(ctx, shared.CodeUnauthorized, "Authentication required.")
+		return
+	}
+	respond(ctx, http.StatusNoContent, nil, c.dispatch.UnregisterDevice(ctx.Request.Context(), userID, ctx.Param("token")))
+}
+
+// GoOnline godoc
+//
+//	@Summary	Enter the live index
+//	@Tags		Provider
+//	@Accept		json
+//	@Produce	json
+//	@Param		body	body		dtos.OnlineInput	false	"First position"
+//	@Success	200		{object}	dtos.CadenceView
+//	@Failure	403		{object}	shared.ErrorResponse	"Not approved"
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/providers/me/online [post]
+func (c *DispatchController) GoOnline(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	var in dtos.OnlineInput
+	if ctx.Request.ContentLength != 0 {
+		if err := binding.JSON(ctx, &in); err != nil {
+			shared.InvalidRequest(ctx, err)
+			return
+		}
+	}
+	view, err := c.dispatch.GoOnline(ctx.Request.Context(), providerID, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// GoOffline godoc
+//
+//	@Summary	Leave the live index
+//	@Tags		Provider
+//	@Produce	json
+//	@Success	200	{object}	dtos.CadenceView
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/providers/me/offline [post]
+func (c *DispatchController) GoOffline(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	view, err := c.dispatch.GoOffline(ctx.Request.Context(), providerID)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// ReportLocations godoc
+//
+//	@Summary		Send a batch of positions
+//	@Description	Points use age_s, seconds before now, so a wrong phone clock does not matter. Implausible points are dropped. The answer carries the next cadence.
+//	@Tags			Provider
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.LocationsInput	true	"Positions"
+//	@Success		200		{object}	dtos.CadenceView
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/providers/me/locations [post]
+func (c *DispatchController) ReportLocations(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	var in dtos.LocationsInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.ReportPositions(ctx.Request.Context(), providerID, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// SetCoverage godoc
+//
+//	@Summary		Set the base and service radius
+//	@Description	Recomputes the H3 coverage cells of the categories dispatched by coverage. Without radius_km the default of the policy applies.
+//	@Tags			Provider
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.CoverageInput	true	"Base"
+//	@Success		200		{object}	dtos.CoverageView
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/providers/me/coverage [put]
+func (c *DispatchController) SetCoverage(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	var in dtos.CoverageInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.SetCoverage(ctx.Request.Context(), providerID, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// CreateRequest godoc
+//
+//	@Summary		Create a service request
+//	@Description	Requires Idempotency-Key, so the app can resend on a bad network without creating a second request. The pin is the truth; reference and address only help. When the fare estimate expired the answer is 409 with new quotes and no request is created.
+//	@Tags			Dispatch
+//	@Accept			json
+//	@Produce		json
+//	@Param			Idempotency-Key	header		string					true	"Unique per attempt"
+//	@Param			body			body		dtos.CreateRequestInput	true	"Request"
+//	@Success		201				{object}	dtos.RequestView
+//	@Success		200				{object}	dtos.RequestView		"The same key was already used"
+//	@Failure		409				{object}	shared.ErrorResponse	"FARE_ESTIMATE_EXPIRED or FARE_ESTIMATE_INVALID"
+//	@Failure		422				{object}	shared.ErrorResponse	"OUTSIDE_SERVICE_AREA and others"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests [post]
+func (c *DispatchController) CreateRequest(ctx *gin.Context) {
+	customerID, ok := userWithRole(ctx, enums.RoleCustomer)
+	if !ok {
+		return
+	}
+	var in dtos.CreateRequestInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, created, err := c.dispatch.CreateRequest(ctx.Request.Context(), customerID, ctx.GetHeader(middleware.HeaderIdempotencyKey), in)
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+	}
+	respond(ctx, status, view, err)
+}
+
+// ListRequests godoc
+//
+//	@Summary		History of requests
+//	@Description	Customers only, most recent first.
+//	@Tags			Dispatch
+//	@Produce		json
+//	@Param			status		query		string	false	"Comma-separated statuses"
+//	@Param			category	query		string	false	"Category slug"
+//	@Param			page		query		int		false	"Page"
+//	@Param			size		query		int		false	"Page size"
+//	@Success		200			{object}	dtos.RequestList
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests [get]
+func (c *DispatchController) ListRequests(ctx *gin.Context) {
+	customerID, ok := userWithRole(ctx, enums.RoleCustomer)
+	if !ok {
+		return
+	}
+	var page pagination.Params
+	if err := ctx.ShouldBindQuery(&page); err != nil {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid pagination.")
+		return
+	}
+	var statuses []string
+	if raw := ctx.Query("status"); raw != "" {
+		statuses = strings.Split(raw, ",")
+	}
+	list, err := c.dispatch.ListRequests(ctx.Request.Context(), customerID, statuses, ctx.Query("category"), page)
+	respond(ctx, http.StatusOK, list, err)
+}
+
+// ActiveRequest godoc
+//
+//	@Summary		Current state
+//	@Description	What the app reloads after a resync: the active request and, for providers, the open offers.
+//	@Tags			Dispatch
+//	@Produce		json
+//	@Success		200	{object}	dtos.ActiveState
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/active [get]
+func (c *DispatchController) ActiveRequest(ctx *gin.Context) {
+	reqCtx := ctx.Request.Context()
+	userID, ok := middleware.UserIDFromContext(reqCtx)
+	if !ok {
+		shared.Unauthorized(ctx, shared.CodeUnauthorized, "Authentication required.")
+		return
+	}
+	role, _ := middleware.RoleFromContext(reqCtx)
+	switch role {
+	case enums.RoleProvider:
+		state, err := c.dispatch.ActiveForProvider(reqCtx, userID)
+		respond(ctx, http.StatusOK, state, err)
+	case enums.RoleCustomer:
+		state, err := c.dispatch.ActiveForCustomer(reqCtx, userID)
+		respond(ctx, http.StatusOK, state, err)
+	default:
+		shared.Forbidden(ctx, "WRONG_ACCOUNT_TYPE", "This action is not available to this account.")
+	}
+}
+
+// GetRequest godoc
+//
+//	@Summary	Get a request
+//	@Tags		Dispatch
+//	@Produce	json
+//	@Param		id	path		string	true	"Request id"
+//	@Success	200	{object}	dtos.RequestView
+//	@Failure	404	{object}	shared.ErrorResponse
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/requests/{id} [get]
+func (c *DispatchController) GetRequest(ctx *gin.Context) {
+	userID, ok := middleware.UserIDFromContext(ctx.Request.Context())
+	if !ok {
+		shared.Unauthorized(ctx, shared.CodeUnauthorized, "Authentication required.")
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	view, err := c.dispatch.GetRequest(ctx.Request.Context(), userID, id)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// CancelRequest godoc
+//
+//	@Summary	Cancel a request
+//	@Tags		Dispatch
+//	@Accept		json
+//	@Produce	json
+//	@Param		id		path		string				true	"Request id"
+//	@Param		body	body		dtos.CancelInput	true	"Reason"
+//	@Success	200		{object}	dtos.RequestView
+//	@Failure	409		{object}	shared.ErrorResponse	"Not possible in this state"
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/requests/{id}/cancel [post]
+func (c *DispatchController) CancelRequest(ctx *gin.Context) {
+	reqCtx := ctx.Request.Context()
+	userID, ok := middleware.UserIDFromContext(reqCtx)
+	if !ok {
+		shared.Unauthorized(ctx, shared.CodeUnauthorized, "Authentication required.")
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.CancelInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	role, _ := middleware.RoleFromContext(reqCtx)
+	if role == enums.RoleProvider {
+		view, err := c.dispatch.CancelByProvider(reqCtx, userID, id, in.Reason)
+		respond(ctx, http.StatusOK, view, err)
+		return
+	}
+	view, err := c.dispatch.CancelByCustomer(reqCtx, userID, id, in.Reason)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// BoostRequest godoc
+//
+//	@Summary		Raise the offer
+//	@Description	10 or 20 percent over the original price, all of it for the provider. Starts a new search round.
+//	@Tags			Dispatch
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string			true	"Request id"
+//	@Param			body	body		dtos.BoostInput	true	"Percent"
+//	@Success		200		{object}	dtos.RequestView
+//	@Failure		409		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/{id}/boost [post]
+func (c *DispatchController) BoostRequest(ctx *gin.Context) {
+	customerID, ok := userWithRole(ctx, enums.RoleCustomer)
+	if !ok {
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.BoostInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.Boost(ctx.Request.Context(), customerID, id, in.Percent)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// ChangeRoute godoc
+//
+//	@Summary		Change the destination or stops
+//	@Description	Reprices with the same tariff and records the difference as a fare adjustment.
+//	@Tags			Dispatch
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Request id"
+//	@Param			body	body		dtos.ChangeRouteInput	true	"New route"
+//	@Success		200		{object}	dtos.RequestView
+//	@Failure		409		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/{id}/route [post]
+func (c *DispatchController) ChangeRoute(ctx *gin.Context) {
+	customerID, ok := userWithRole(ctx, enums.RoleCustomer)
+	if !ok {
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.ChangeRouteInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.ChangeRoute(ctx.Request.Context(), customerID, id, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// SelectQuote godoc
+//
+//	@Summary		Choose a quote
+//	@Description	The transaction checks that the quote is still valid. The other providers get their offer cancelled.
+//	@Tags			Dispatch
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Request id"
+//	@Param			body	body		dtos.SelectQuoteInput	true	"Quote"
+//	@Success		200		{object}	dtos.RequestView
+//	@Failure		409		{object}	shared.ErrorResponse	"QUOTE_EXPIRED or REQUEST_CONFLICT"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/{id}/select-quote [post]
+func (c *DispatchController) SelectQuote(ctx *gin.Context) {
+	customerID, ok := userWithRole(ctx, enums.RoleCustomer)
+	if !ok {
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.SelectQuoteInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.SelectQuote(ctx.Request.Context(), customerID, id, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// StartRoute godoc
+//
+//	@Summary	Provider leaves for the pickup
+//	@Tags		Provider
+//	@Produce	json
+//	@Param		id	path		string	true	"Request id"
+//	@Success	200	{object}	dtos.RequestView
+//	@Failure	409	{object}	shared.ErrorResponse
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/requests/{id}/en-route [post]
+func (c *DispatchController) StartRoute(ctx *gin.Context) {
+	c.providerAction(ctx, c.dispatch.StartRoute)
+}
+
+// Arrive godoc
+//
+//	@Summary		Provider arrived at the pickup
+//	@Description	Starts counting the waiting time.
+//	@Tags			Provider
+//	@Produce		json
+//	@Param			id	path		string	true	"Request id"
+//	@Success		200	{object}	dtos.RequestView
+//	@Failure		409	{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/{id}/arrive [post]
+func (c *DispatchController) Arrive(ctx *gin.Context) {
+	c.providerAction(ctx, c.dispatch.Arrive)
+}
+
+// StartJob godoc
+//
+//	@Summary	Start the trip or service
+//	@Tags		Provider
+//	@Produce	json
+//	@Param		id	path		string	true	"Request id"
+//	@Success	200	{object}	dtos.RequestView
+//	@Failure	409	{object}	shared.ErrorResponse
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/requests/{id}/start [post]
+func (c *DispatchController) StartJob(ctx *gin.Context) {
+	c.providerAction(ctx, c.dispatch.StartJob)
+}
+
+// CompleteJob godoc
+//
+//	@Summary	Complete the trip or service
+//	@Tags		Provider
+//	@Produce	json
+//	@Param		id	path		string	true	"Request id"
+//	@Success	200	{object}	dtos.RequestView
+//	@Failure	409	{object}	shared.ErrorResponse
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/requests/{id}/complete [post]
+func (c *DispatchController) CompleteJob(ctx *gin.Context) {
+	c.providerAction(ctx, c.dispatch.CompleteJob)
+}
+
+func (c *DispatchController) providerAction(ctx *gin.Context, action providerRequestAction) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	view, err := action(ctx.Request.Context(), providerID, id)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// GetOffer godoc
+//
+//	@Summary		Detail of an offer
+//	@Description	The event only carries the essentials; the rest comes from here.
+//	@Tags			Provider
+//	@Produce		json
+//	@Param			id	path		string	true	"Offer id"
+//	@Success		200	{object}	dtos.OfferView
+//	@Failure		404	{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/offers/{id} [get]
+func (c *DispatchController) GetOffer(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	id, ok := offerParam(ctx)
+	if !ok {
+		return
+	}
+	view, err := c.dispatch.GetOffer(ctx.Request.Context(), providerID, id)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// OfferDelivered godoc
+//
+//	@Summary		Acknowledge an offer
+//	@Description	Tells the server the offer reached the phone, and through which channel. Without it the watcher moves to the next channel or provider.
+//	@Tags			Provider
+//	@Accept			json
+//	@Param			id		path	string				true	"Offer id"
+//	@Param			body	body	dtos.DeliveredInput	true	"Channel"
+//	@Success		204
+//	@Failure		404	{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/offers/{id}/delivered [post]
+func (c *DispatchController) OfferDelivered(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	id, ok := offerParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.DeliveredInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	respond(ctx, http.StatusNoContent, nil, c.dispatch.MarkDelivered(ctx.Request.Context(), providerID, id, in.Channel))
+}
+
+// AcceptOffer godoc
+//
+//	@Summary		Accept an offer
+//	@Description	Send the version received with the offer. Only one provider wins; the others get 409.
+//	@Tags			Provider
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string				true	"Offer id"
+//	@Param			body	body		dtos.AcceptInput	true	"Version"
+//	@Success		200		{object}	dtos.AcceptResult
+//	@Failure		409		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/offers/{id}/accept [post]
+func (c *DispatchController) AcceptOffer(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	id, ok := offerParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.AcceptInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	result, err := c.dispatch.Accept(ctx.Request.Context(), providerID, id, in.Version)
+	respond(ctx, http.StatusOK, result, err)
+}
+
+// RejectOffer godoc
+//
+//	@Summary	Reject an offer
+//	@Tags		Provider
+//	@Param		id	path	string	true	"Offer id"
+//	@Success	204
+//	@Failure	409	{object}	shared.ErrorResponse
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/offers/{id}/reject [post]
+func (c *DispatchController) RejectOffer(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	id, ok := offerParam(ctx)
+	if !ok {
+		return
+	}
+	respond(ctx, http.StatusNoContent, nil, c.dispatch.Reject(ctx.Request.Context(), providerID, id))
+}
+
+// QuoteOffer godoc
+//
+//	@Summary	Answer an offer with a quote
+//	@Tags		Provider
+//	@Accept		json
+//	@Param		id		path	string			true	"Offer id"
+//	@Param		body	body	dtos.QuoteInput	true	"Quote"
+//	@Success	204
+//	@Failure	409	{object}	shared.ErrorResponse
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/offers/{id}/quote [post]
+func (c *DispatchController) QuoteOffer(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	id, ok := offerParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.QuoteInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	respond(ctx, http.StatusNoContent, nil, c.dispatch.SubmitQuote(ctx.Request.Context(), providerID, id, in))
+}

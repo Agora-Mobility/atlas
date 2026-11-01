@@ -47,7 +47,7 @@ run: ## Run the API locally (needs `make docker-up` for dependencies)
 
 .PHONY: build
 build: ## Build the binary into ./bin/atlas
-	CGO_ENABLED=0 go build -trimpath -ldflags="$(LDFLAGS)" -o $(BINARY) .
+	CGO_ENABLED=1 go build -trimpath -tags netgo,osusergo -ldflags="$(LDFLAGS) -linkmode external -extldflags -static" -o $(BINARY) .
 
 .PHONY: fmt
 fmt: $(GOLANGCI_LINT) ## Format code (gofmt + goimports)
@@ -70,6 +70,14 @@ test-race: ## Run unit tests with the race detector
 .PHONY: test-integration
 test-integration: ## Run integration tests (needs Docker for testcontainers)
 	go test -race -tags=integration ./...
+
+.PHONY: test-e2e
+test-e2e: ## Run the end-to-end flows against real Postgres, Redis and RabbitMQ (needs Docker)
+	go test -race -tags=e2e -count=1 -timeout=15m ./test/e2e/...
+
+.PHONY: test-load
+test-load: ## Run the k6 load test against a disposable stack (needs Docker and k6)
+	./test/load/run.sh
 
 .PHONY: cover
 cover: ## Run all tests with coverage and print the summary

@@ -49,6 +49,7 @@ type Container struct {
 	Auth          *AuthModule
 	Catalog       *CatalogModule
 	Notifications *NotificationsModule
+	Dispatch      *DispatchModule
 }
 
 type Connections struct {
@@ -96,7 +97,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 		Deduplicator:       queue.NewDeduplicator(conn.Redis, cfg.RabbitMQ.DedupTTL),
 		JWT:                jwt,
 		SessionRevocations: sessionRevocations,
-		SSE:                sse.NewHub(32),
+		SSE:                sse.NewHub(cfg.Realtime.ReconnectSpread),
 		Authenticator:      middleware.NewAuthenticator(jwt, sessionRevocations),
 		ClientAuthorizer:   middleware.NewClientAuthorizer(repository.NewClientRepository(conn.Pool)),
 		SMS:                newSMSSender(cfg.SMS),
@@ -110,6 +111,11 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 	c.Auth = auth
 	c.Catalog = newCatalogModule(c)
 	c.Notifications = newNotificationsModule(c)
+	pushSender, err := newPushSender(context.Background(), cfg.FCM)
+	if err != nil {
+		return nil, err
+	}
+	c.Dispatch = newDispatchModule(c, pushSender, newRoutingProvider(cfg.Mapbox))
 	return c, nil
 }
 
@@ -129,7 +135,7 @@ func (c *Container) Consumers() []*queue.Consumer {
 }
 
 func (c *Container) consumerConfigs() []queue.ConsumerConfig {
-	return c.Notifications.Consumers()
+	return append(c.Notifications.Consumers(), c.Dispatch.Consumers()...)
 }
 
 func newSMSSender(cfg config.SMSConfig) services.ISMSSender {

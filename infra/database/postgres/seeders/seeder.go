@@ -18,6 +18,7 @@ var all = []seeder{
 	{name: "users", run: seedUsers},
 	{name: "partners", run: seedPartners},
 	{name: "memberships", run: seedMemberships},
+	{name: "dispatch", run: seedDispatch},
 }
 
 const partnerOrganizationID = "00000000-0000-0000-0000-0000000000b1"
@@ -28,6 +29,34 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	for _, s := range all {
 		if err := s.run(ctx, pool); err != nil {
 			return fmt.Errorf("seeder %s: %w", s.name, err)
+		}
+	}
+	return nil
+}
+
+const luandaApproximateArea = "MULTIPOLYGON(((12.9 -9.4,13.8 -9.4,13.8 -8.5,12.9 -8.5,12.9 -9.4)))"
+
+func seedDispatch(ctx context.Context, pool *pgxpool.Pool) error {
+	statements := []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO service_zones (id, country_code, name, geom, timezone, currency)
+		  VALUES ('00000000-0000-0000-0000-0000000000c1', 'AO', 'Luanda', ST_GeogFromText($1), 'Africa/Luanda', 'AOA')
+		  ON CONFLICT (id) DO NOTHING`, []any{luandaApproximateArea}},
+		{`INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps)
+		  SELECT s.id, 'AOA', 30000, 13000, 1500, 45000, 0 FROM services s
+		  WHERE NOT EXISTS (SELECT 1 FROM service_tariffs t WHERE t.service_id = s.id AND t.valid_until IS NULL)`, nil},
+		{`INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description)
+		  VALUES ('00000000-0000-0000-0000-0000000000a4', 'approved', 'LD-45-21-AF', 'Toyota Corolla Branco')
+		  ON CONFLICT (user_id) DO NOTHING`, nil},
+		{`INSERT INTO provider_services (provider_id, service_id)
+		  SELECT '00000000-0000-0000-0000-0000000000a4', s.id FROM services s
+		  ON CONFLICT DO NOTHING`, nil},
+	}
+	for _, statement := range statements {
+		if _, err := pool.Exec(ctx, statement.sql, statement.args...); err != nil {
+			return err
 		}
 	}
 	return nil

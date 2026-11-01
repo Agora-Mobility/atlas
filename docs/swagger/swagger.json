@@ -284,6 +284,457 @@
                 }
             }
         },
+        "/api/v1/admin/dispatch-policies": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "List the dispatch policies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PolicyList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The resolution and radii are refused when they would need too many H3 cells per search.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Create a policy for a category, optionally for a zone",
+                "parameters": [
+                    {
+                        "description": "Policy",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PolicyInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PolicyView"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/dispatch-policies/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Change a policy",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Policy id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Policy",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PolicyInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PolicyView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/dispatch/heatmap": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Resolution 8 hexagons for the Mapbox map of the backoffice. Demand covers the last 24 hours.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Supply and demand by H3 cell",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Zone id",
+                        "name": "zone_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.HeatMap"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/dispatch/queue": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Requests waiting for an operator",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/dispatch/requests/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Get any request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/dispatch/requests/{id}/assign": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Dispatch a request by hand",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Provider",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AssignInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/dispatch/requests/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Cancel a request as an operator",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reason",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CancelInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/dispatch/requests/{id}/retry": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Search again for a queued request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/providers/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires providers:approve. Sets the status, the vehicle and the services the provider may take.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Set the dispatch profile of a provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User id of the provider",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Profile",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderAdminInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderAdminView"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/services": {
             "get": {
                 "security": [
@@ -545,6 +996,79 @@
                     },
                     "422": {
                         "description": "Invalid fields or unknown category",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/tariffs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "List the current tariffs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TariffList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Tariffs are never edited: this closes the current version and creates another, so the history explains every price. Values are integers in the smallest unit of the currency.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Publish a new tariff version",
+                "parameters": [
+                    {
+                        "description": "Tariff",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TariffInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TariffView"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -951,6 +1475,133 @@
                     },
                     "500": {
                         "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/zones": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "List the service zones",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ZoneList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires services:manage. The geometry is a GeoJSON Polygon or MultiPolygon. Each zone carries its currency and time zone.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Create a service zone",
+                "parameters": [
+                    {
+                        "description": "Zone",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ZoneInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ZoneView"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/zones/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Replace a service zone",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Zone id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Zone",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ZoneInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ZoneView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -1753,6 +2404,119 @@
                 }
             }
         },
+        "/api/v1/devices": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Register the push token of this device",
+                "parameters": [
+                    {
+                        "description": "Device",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DeviceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/v1/devices/{token}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Forget a push token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Push token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/v1/fare-estimates": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customers only. One priced option per active service of the category. route_source tells whether the distance came from Mapbox or from the fallback estimate.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Fixed price before confirming",
+                "parameters": [
+                    {
+                        "description": "Route",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FareEstimateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FareEstimateList"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/invitations/accept": {
             "post": {
                 "security": [
@@ -2491,6 +3255,294 @@
                 }
             }
         },
+        "/api/v1/nearby": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customers only. Aggregates by H3 cell, without identity or exact position, and only above a minimum per cell.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Providers near a point",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude",
+                        "name": "lat",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude",
+                        "name": "lng",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.NearbyView"
+                        }
+                    },
+                    "422": {
+                        "description": "Outside the service area",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/offers/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The event only carries the essentials; the rest comes from here.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Detail of an offer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Offer id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OfferView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/offers/{id}/accept": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Send the version received with the offer. Only one provider wins; the others get 409.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Accept an offer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Offer id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Version",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AcceptInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AcceptResult"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/offers/{id}/delivered": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Tells the server the offer reached the phone, and through which channel. Without it the watcher moves to the next channel or provider.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Acknowledge an offer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Offer id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Channel",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DeliveredInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/offers/{id}/quote": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Answer an offer with a quote",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Offer id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Quote",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.QuoteInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/offers/{id}/reject": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Reject an offer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Offer id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/partners": {
             "get": {
                 "security": [
@@ -2952,6 +4004,740 @@
                     },
                     "403": {
                         "description": "Missing permission",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/coverage": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Recomputes the H3 coverage cells of the categories dispatched by coverage. Without radius_km the default of the policy applies.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Set the base and service radius",
+                "parameters": [
+                    {
+                        "description": "Base",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CoverageInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CoverageView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/locations": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Points use age_s, seconds before now, so a wrong phone clock does not matter. Implausible points are dropped. The answer carries the next cadence.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Send a batch of positions",
+                "parameters": [
+                    {
+                        "description": "Positions",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.LocationsInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CadenceView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/offline": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Leave the live index",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CadenceView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/online": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Enter the live index",
+                "parameters": [
+                    {
+                        "description": "First position",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OnlineInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CadenceView"
+                        }
+                    },
+                    "403": {
+                        "description": "Not approved",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customers only, most recent first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "History of requests",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated statuses",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires Idempotency-Key, so the app can resend on a bad network without creating a second request. The pin is the truth; reference and address only help. When the fare estimate expired the answer is 409 with new quotes and no request is created.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Create a service request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Unique per attempt",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CreateRequestInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The same key was already used",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "FARE_ESTIMATE_EXPIRED or FARE_ESTIMATE_INVALID",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "OUTSIDE_SERVICE_AREA and others",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/active": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "What the app reloads after a resync: the active request and, for providers, the open offers.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Current state",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ActiveState"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Get a request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/arrive": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Starts counting the waiting time.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Provider arrived at the pickup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/boost": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "10 or 20 percent over the original price, all of it for the provider. Starts a new search round.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Raise the offer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Percent",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BoostInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Cancel a request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reason",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CancelInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Not possible in this state",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/complete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Complete the trip or service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/en-route": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Provider leaves for the pickup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/route": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Reprices with the same tariff and records the difference as a fare adjustment.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Change the destination or stops",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New route",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ChangeRouteInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/select-quote": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The transaction checks that the quote is still valid. The other providers get their offer cancelled.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Choose a quote",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Quote",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SelectQuoteInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "QUOTE_EXPIRED or REQUEST_CONFLICT",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Start the trip or service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -3903,6 +5689,54 @@
                 }
             }
         },
+        "/events": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Server-Sent Events of the signed-in customer or provider. Send Last-Event-ID to replay what was missed. Offers carry expires_in_s, relative to the moment of delivery. When the cursor is older than the mailbox a resync event asks the app to reload through GET /api/v1/requests/active.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Real time"
+                ],
+                "summary": "Real-time events",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Id of the last event received",
+                        "name": "Last-Event-ID",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Only app accounts have a stream",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/live": {
             "get": {
                 "produces": [
@@ -3978,6 +5812,18 @@
                 }
             }
         },
+        "dtos.AcceptInput": {
+            "type": "object",
+            "required": [
+                "version"
+            ],
+            "properties": {
+                "version": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
         "dtos.AcceptInvitationInput": {
             "type": "object",
             "required": [
@@ -3998,6 +5844,17 @@
                 "token": {
                     "type": "string",
                     "maxLength": 128
+                }
+            }
+        },
+        "dtos.AcceptResult": {
+            "type": "object",
+            "properties": {
+                "request": {
+                    "$ref": "#/definitions/dtos.RequestView"
+                },
+                "route": {
+                    "$ref": "#/definitions/dtos.RouteView"
                 }
             }
         },
@@ -4027,6 +5884,45 @@
                         }
                     ],
                     "example": "platform"
+                }
+            }
+        },
+        "dtos.ActiveState": {
+            "type": "object",
+            "properties": {
+                "offers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.OfferView"
+                    }
+                },
+                "request": {
+                    "$ref": "#/definitions/dtos.RequestView"
+                }
+            }
+        },
+        "dtos.AdjustmentView": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.AssignInput": {
+            "type": "object",
+            "required": [
+                "provider_id"
+            ],
+            "properties": {
+                "provider_id": {
+                    "type": "string"
                 }
             }
         },
@@ -4078,6 +5974,59 @@
                     "example": [
                         "0192f1d2-7c3a-7b4e-9a10-2f3c4d5e6f70"
                     ]
+                }
+            }
+        },
+        "dtos.BoostInput": {
+            "type": "object",
+            "required": [
+                "percent"
+            ],
+            "properties": {
+                "percent": {
+                    "type": "integer",
+                    "enum": [
+                        10,
+                        20
+                    ]
+                }
+            }
+        },
+        "dtos.CadenceView": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "type": "integer"
+                },
+                "distance_m": {
+                    "type": "integer"
+                },
+                "interval_s": {
+                    "type": "integer"
+                },
+                "online": {
+                    "type": "boolean"
+                },
+                "phase": {
+                    "type": "string"
+                },
+                "rejected": {
+                    "type": "integer"
+                },
+                "send_gps": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dtos.CancelInput": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "maxLength": 200
                 }
             }
         },
@@ -4218,6 +6167,64 @@
                 }
             }
         },
+        "dtos.ChangeRouteInput": {
+            "type": "object",
+            "required": [
+                "destination"
+            ],
+            "properties": {
+                "destination": {
+                    "$ref": "#/definitions/dtos.PlaceInput"
+                },
+                "stops": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                        "$ref": "#/definitions/dtos.PlaceInput"
+                    }
+                }
+            }
+        },
+        "dtos.CoverageInput": {
+            "type": "object",
+            "required": [
+                "lat",
+                "lng"
+            ],
+            "properties": {
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "radius_km": {
+                    "type": "number",
+                    "maximum": 300,
+                    "minimum": 0
+                }
+            }
+        },
+        "dtos.CoverageView": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "integer"
+                },
+                "cells": {
+                    "type": "integer"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "radius_km": {
+                    "type": "number"
+                }
+            }
+        },
         "dtos.CreateCategoryInput": {
             "type": "object",
             "required": [
@@ -4268,6 +6275,47 @@
                     "type": "string",
                     "maxLength": 20,
                     "example": "5417123456"
+                }
+            }
+        },
+        "dtos.CreateRequestInput": {
+            "type": "object",
+            "required": [
+                "pickup",
+                "service_id"
+            ],
+            "properties": {
+                "contact_phone": {
+                    "type": "string",
+                    "maxLength": 20
+                },
+                "destination": {
+                    "$ref": "#/definitions/dtos.PlaceInput"
+                },
+                "details": {
+                    "type": "object"
+                },
+                "fare_estimate_id": {
+                    "type": "string"
+                },
+                "passenger": {
+                    "$ref": "#/definitions/dtos.PassengerInput"
+                },
+                "pickup": {
+                    "$ref": "#/definitions/dtos.PlaceInput"
+                },
+                "scheduled_for": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "stops": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                        "$ref": "#/definitions/dtos.PlaceInput"
+                    }
                 }
             }
         },
@@ -4371,6 +6419,148 @@
                 }
             }
         },
+        "dtos.DeliveredInput": {
+            "type": "object",
+            "required": [
+                "channel"
+            ],
+            "properties": {
+                "channel": {
+                    "type": "string",
+                    "enum": [
+                        "sse",
+                        "fcm",
+                        "sms"
+                    ]
+                }
+            }
+        },
+        "dtos.DeviceInput": {
+            "type": "object",
+            "required": [
+                "platform",
+                "token"
+            ],
+            "properties": {
+                "platform": {
+                    "type": "string",
+                    "enum": [
+                        "android",
+                        "ios"
+                    ]
+                },
+                "token": {
+                    "type": "string",
+                    "maxLength": 4096
+                }
+            }
+        },
+        "dtos.FareEstimateInput": {
+            "type": "object",
+            "required": [
+                "category",
+                "pickup"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "destination": {
+                    "$ref": "#/definitions/dtos.PlaceInput"
+                },
+                "pickup": {
+                    "$ref": "#/definitions/dtos.PlaceInput"
+                },
+                "stops": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                        "$ref": "#/definitions/dtos.PlaceInput"
+                    }
+                }
+            }
+        },
+        "dtos.FareEstimateList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.FareEstimateView"
+                    }
+                }
+            }
+        },
+        "dtos.FareEstimateView": {
+            "type": "object",
+            "properties": {
+                "currency": {
+                    "type": "string"
+                },
+                "distance_m": {
+                    "type": "integer"
+                },
+                "duration_s": {
+                    "type": "integer"
+                },
+                "expires_in_s": {
+                    "type": "integer"
+                },
+                "fare_estimate_id": {
+                    "type": "string"
+                },
+                "route_source": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "service_slug": {
+                    "type": "string"
+                },
+                "total_cents": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.HeatCell": {
+            "type": "object",
+            "properties": {
+                "cell": {
+                    "type": "string"
+                },
+                "demand": {
+                    "type": "integer"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "supply": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.HeatMap": {
+            "type": "object",
+            "properties": {
+                "cells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.HeatCell"
+                    }
+                },
+                "resolution": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.InvitationTokenInput": {
             "type": "object",
             "required": [
@@ -4413,6 +6603,28 @@
                     "minItems": 1,
                     "items": {
                         "type": "string"
+                    }
+                }
+            }
+        },
+        "dtos.LocationsInput": {
+            "type": "object",
+            "required": [
+                "positions"
+            ],
+            "properties": {
+                "battery_low": {
+                    "type": "boolean"
+                },
+                "network_weak": {
+                    "type": "boolean"
+                },
+                "positions": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dtos.PositionInput"
                     }
                 }
             }
@@ -4628,6 +6840,95 @@
                 }
             }
         },
+        "dtos.NearbyCell": {
+            "type": "object",
+            "properties": {
+                "cell": {
+                    "type": "string"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                }
+            }
+        },
+        "dtos.NearbyView": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "cells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.NearbyCell"
+                    }
+                }
+            }
+        },
+        "dtos.OfferView": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "destination": {
+                    "$ref": "#/definitions/dtos.PlaceView"
+                },
+                "details": {
+                    "type": "object"
+                },
+                "distance_m": {
+                    "type": "integer"
+                },
+                "expires_in_s": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "net_cents": {
+                    "type": "integer"
+                },
+                "pickup": {
+                    "$ref": "#/definitions/dtos.PlaceView"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "request_version": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "stops": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.PlaceView"
+                    }
+                }
+            }
+        },
+        "dtos.OnlineInput": {
+            "type": "object",
+            "properties": {
+                "position": {
+                    "$ref": "#/definitions/dtos.PositionInput"
+                }
+            }
+        },
         "dtos.OrganizationPage": {
             "type": "object",
             "properties": {
@@ -4678,6 +6979,23 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.PassengerInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "phone"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 20
                 }
             }
         },
@@ -4772,6 +7090,382 @@
                 }
             }
         },
+        "dtos.PlaceInput": {
+            "type": "object",
+            "required": [
+                "lat",
+                "lng"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "lat": {
+                    "type": "number",
+                    "example": -8.84
+                },
+                "lng": {
+                    "type": "number",
+                    "example": 13.23
+                },
+                "reference": {
+                    "type": "string",
+                    "maxLength": 140,
+                    "example": "Junto à farmácia, portão azul"
+                }
+            }
+        },
+        "dtos.PlaceView": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "reference": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.PolicyInput": {
+            "type": "object",
+            "required": [
+                "ack_timeout_seconds",
+                "batch_size",
+                "candidate_source",
+                "initial_channels",
+                "offer_mode",
+                "offer_ttl_seconds",
+                "on_exhausted",
+                "pricing_mode",
+                "radii_km",
+                "ranking",
+                "search_ttl_seconds"
+            ],
+            "properties": {
+                "ack_giveup_seconds": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "ack_timeout_seconds": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "allow_boost": {
+                    "type": "boolean"
+                },
+                "batch_size": {
+                    "type": "integer",
+                    "maximum": 50,
+                    "minimum": 1
+                },
+                "candidate_source": {
+                    "type": "string",
+                    "enum": [
+                        "live",
+                        "coverage"
+                    ]
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "fallback_channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "h3_resolution": {
+                    "type": "integer",
+                    "maximum": 15,
+                    "minimum": 0
+                },
+                "initial_channels": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "offer_mode": {
+                    "type": "string",
+                    "enum": [
+                        "sequential",
+                        "parallel",
+                        "quote"
+                    ]
+                },
+                "offer_ttl_seconds": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "on_exhausted": {
+                    "type": "string",
+                    "enum": [
+                        "suggest_retry",
+                        "alert_operator",
+                        "operator_queue",
+                        "extend_or_queue"
+                    ]
+                },
+                "pricing_mode": {
+                    "type": "string",
+                    "enum": [
+                        "fixed",
+                        "call_out",
+                        "quote"
+                    ]
+                },
+                "radii_km": {
+                    "type": "array",
+                    "maxItems": 6,
+                    "minItems": 1,
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "rank_by_eta": {
+                    "type": "boolean"
+                },
+                "ranking": {
+                    "type": "string",
+                    "enum": [
+                        "distance_idle",
+                        "distance",
+                        "base_distance",
+                        "customer_choice"
+                    ]
+                },
+                "reserve_provider": {
+                    "type": "boolean"
+                },
+                "schedule_max_days": {
+                    "type": "integer",
+                    "maximum": 365,
+                    "minimum": 0
+                },
+                "search_lead_seconds": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "search_ttl_seconds": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "sms_on_accept": {
+                    "type": "boolean"
+                },
+                "tracking_statuses": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "zone_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.PolicyList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.PolicyView"
+                    }
+                }
+            }
+        },
+        "dtos.PolicyView": {
+            "type": "object",
+            "required": [
+                "ack_timeout_seconds",
+                "batch_size",
+                "candidate_source",
+                "initial_channels",
+                "offer_mode",
+                "offer_ttl_seconds",
+                "on_exhausted",
+                "pricing_mode",
+                "radii_km",
+                "ranking",
+                "search_ttl_seconds"
+            ],
+            "properties": {
+                "ack_giveup_seconds": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "ack_timeout_seconds": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "allow_boost": {
+                    "type": "boolean"
+                },
+                "batch_size": {
+                    "type": "integer",
+                    "maximum": 50,
+                    "minimum": 1
+                },
+                "candidate_source": {
+                    "type": "string",
+                    "enum": [
+                        "live",
+                        "coverage"
+                    ]
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "fallback_channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "h3_resolution": {
+                    "type": "integer",
+                    "maximum": 15,
+                    "minimum": 0
+                },
+                "id": {
+                    "type": "string"
+                },
+                "initial_channels": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "offer_mode": {
+                    "type": "string",
+                    "enum": [
+                        "sequential",
+                        "parallel",
+                        "quote"
+                    ]
+                },
+                "offer_ttl_seconds": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "on_exhausted": {
+                    "type": "string",
+                    "enum": [
+                        "suggest_retry",
+                        "alert_operator",
+                        "operator_queue",
+                        "extend_or_queue"
+                    ]
+                },
+                "pricing_mode": {
+                    "type": "string",
+                    "enum": [
+                        "fixed",
+                        "call_out",
+                        "quote"
+                    ]
+                },
+                "radii_km": {
+                    "type": "array",
+                    "maxItems": 6,
+                    "minItems": 1,
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "rank_by_eta": {
+                    "type": "boolean"
+                },
+                "ranking": {
+                    "type": "string",
+                    "enum": [
+                        "distance_idle",
+                        "distance",
+                        "base_distance",
+                        "customer_choice"
+                    ]
+                },
+                "reserve_provider": {
+                    "type": "boolean"
+                },
+                "schedule_max_days": {
+                    "type": "integer",
+                    "maximum": 365,
+                    "minimum": 0
+                },
+                "search_lead_seconds": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "search_ttl_seconds": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "sms_on_accept": {
+                    "type": "boolean"
+                },
+                "tracking_statuses": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "zone_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.PositionInput": {
+            "type": "object",
+            "required": [
+                "lat",
+                "lng"
+            ],
+            "properties": {
+                "accuracy_m": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "age_s": {
+                    "type": "integer",
+                    "maximum": 86400,
+                    "minimum": 0
+                },
+                "heading": {
+                    "type": "number"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                }
+            }
+        },
+        "dtos.PositionView": {
+            "type": "object",
+            "properties": {
+                "age_s": {
+                    "type": "integer"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                }
+            }
+        },
         "dtos.PricingInput": {
             "type": "object",
             "properties": {
@@ -4806,6 +7500,116 @@
                 "per_minute_fee_cents": {
                     "type": "integer",
                     "example": 0
+                }
+            }
+        },
+        "dtos.ProviderAdminInput": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "service_ids": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "approved",
+                        "suspended"
+                    ]
+                },
+                "vehicle_description": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "vehicle_plate": {
+                    "type": "string",
+                    "maxLength": 20
+                }
+            }
+        },
+        "dtos.ProviderAdminView": {
+            "type": "object",
+            "properties": {
+                "service_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "vehicle_description": {
+                    "type": "string"
+                },
+                "vehicle_plate": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.ProviderSummary": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "vehicle_description": {
+                    "type": "string"
+                },
+                "vehicle_plate": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.QuoteInput": {
+            "type": "object",
+            "required": [
+                "amount_cents"
+            ],
+            "properties": {
+                "amount_cents": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "note": {
+                    "type": "string",
+                    "maxLength": 300
+                }
+            }
+        },
+        "dtos.QuoteView": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "distance_m": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "offer_id": {
+                    "type": "string"
+                },
+                "provider": {
+                    "$ref": "#/definitions/dtos.ProviderSummary"
+                },
+                "valid_for_s": {
+                    "type": "integer"
                 }
             }
         },
@@ -4900,6 +7704,133 @@
                 }
             }
         },
+        "dtos.RequestList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RequestView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.RequestView": {
+            "type": "object",
+            "properties": {
+                "accepted_at": {
+                    "type": "string"
+                },
+                "adjustments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.AdjustmentView"
+                    }
+                },
+                "arrived_at": {
+                    "type": "string"
+                },
+                "boost_bps": {
+                    "type": "integer"
+                },
+                "can_boost": {
+                    "type": "boolean"
+                },
+                "cancel_reason": {
+                    "type": "string"
+                },
+                "cancelled_by": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "commission_cents": {
+                    "type": "integer"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "destination": {
+                    "$ref": "#/definitions/dtos.PlaceView"
+                },
+                "details": {
+                    "type": "object"
+                },
+                "fare_cents": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "needs_operator": {
+                    "type": "boolean"
+                },
+                "operator_reason": {
+                    "type": "string"
+                },
+                "passenger_name": {
+                    "type": "string"
+                },
+                "pickup": {
+                    "$ref": "#/definitions/dtos.PlaceView"
+                },
+                "position": {
+                    "$ref": "#/definitions/dtos.PositionView"
+                },
+                "provider": {
+                    "$ref": "#/definitions/dtos.ProviderSummary"
+                },
+                "provider_net_cents": {
+                    "type": "integer"
+                },
+                "quotes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.QuoteView"
+                    }
+                },
+                "scheduled_for": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "stops": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.PlaceView"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.ResetPasswordInput": {
             "type": "object",
             "required": [
@@ -4972,6 +7903,39 @@
                         }
                     ],
                     "example": "platform"
+                }
+            }
+        },
+        "dtos.RouteView": {
+            "type": "object",
+            "properties": {
+                "distance_m": {
+                    "type": "integer"
+                },
+                "duration_s": {
+                    "type": "integer"
+                },
+                "geometry": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.SelectQuoteInput": {
+            "type": "object",
+            "required": [
+                "offer_id",
+                "version"
+            ],
+            "properties": {
+                "offer_id": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },
@@ -5096,6 +8060,145 @@
                 "password": {
                     "type": "string",
                     "example": "S3gredo!forte"
+                }
+            }
+        },
+        "dtos.TariffInput": {
+            "type": "object",
+            "required": [
+                "currency",
+                "service_id"
+            ],
+            "properties": {
+                "base_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "commission_bps": {
+                    "type": "integer",
+                    "maximum": 10000,
+                    "minimum": 0
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "free_wait_seconds": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "minimum_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "night_end_hour": {
+                    "type": "integer",
+                    "maximum": 23,
+                    "minimum": 0
+                },
+                "night_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "night_start_hour": {
+                    "type": "integer",
+                    "maximum": 23,
+                    "minimum": 0
+                },
+                "per_km_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "per_minute_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "zone_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "zone_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.TariffList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.TariffView"
+                    }
+                }
+            }
+        },
+        "dtos.TariffView": {
+            "type": "object",
+            "required": [
+                "currency",
+                "service_id"
+            ],
+            "properties": {
+                "base_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "commission_bps": {
+                    "type": "integer",
+                    "maximum": 10000,
+                    "minimum": 0
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "free_wait_seconds": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "id": {
+                    "type": "string"
+                },
+                "minimum_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "night_end_hour": {
+                    "type": "integer",
+                    "maximum": 23,
+                    "minimum": 0
+                },
+                "night_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "night_start_hour": {
+                    "type": "integer",
+                    "maximum": 23,
+                    "minimum": 0
+                },
+                "per_km_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "per_minute_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "valid_from": {
+                    "type": "string"
+                },
+                "zone_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "zone_id": {
+                    "type": "string"
                 }
             }
         },
@@ -5298,6 +8401,75 @@
                 },
                 "status": {
                     "$ref": "#/definitions/enums.UserStatus"
+                }
+            }
+        },
+        "dtos.ZoneInput": {
+            "type": "object",
+            "required": [
+                "country_code",
+                "currency",
+                "geometry",
+                "name",
+                "timezone"
+            ],
+            "properties": {
+                "country_code": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "geometry": {
+                    "type": "object"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "timezone": {
+                    "type": "string",
+                    "maxLength": 64
+                }
+            }
+        },
+        "dtos.ZoneList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ZoneView"
+                    }
+                }
+            }
+        },
+        "dtos.ZoneView": {
+            "type": "object",
+            "properties": {
+                "country_code": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "geometry": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
                 }
             }
         },

@@ -19,6 +19,14 @@ definitions:
         example: ok
         type: string
     type: object
+  dtos.AcceptInput:
+    properties:
+      version:
+        minimum: 1
+        type: integer
+    required:
+    - version
+    type: object
   dtos.AcceptInvitationInput:
     properties:
       code:
@@ -35,6 +43,13 @@ definitions:
     - code
     - password
     - token
+    type: object
+  dtos.AcceptResult:
+    properties:
+      request:
+        $ref: '#/definitions/dtos.RequestView'
+      route:
+        $ref: '#/definitions/dtos.RouteView'
     type: object
   dtos.AccessView:
     properties:
@@ -53,6 +68,31 @@ definitions:
         allOf:
         - $ref: '#/definitions/enums.OrganizationType'
         example: platform
+    type: object
+  dtos.ActiveState:
+    properties:
+      offers:
+        items:
+          $ref: '#/definitions/dtos.OfferView'
+        type: array
+      request:
+        $ref: '#/definitions/dtos.RequestView'
+    type: object
+  dtos.AdjustmentView:
+    properties:
+      amount_cents:
+        type: integer
+      created_at:
+        type: string
+      reason:
+        type: string
+    type: object
+  dtos.AssignInput:
+    properties:
+      provider_id:
+        type: string
+    required:
+    - provider_id
     type: object
   dtos.BlockReasonList:
     properties:
@@ -88,6 +128,41 @@ definitions:
         type: array
     required:
     - reason_ids
+    type: object
+  dtos.BoostInput:
+    properties:
+      percent:
+        enum:
+        - 10
+        - 20
+        type: integer
+    required:
+    - percent
+    type: object
+  dtos.CadenceView:
+    properties:
+      accepted:
+        type: integer
+      distance_m:
+        type: integer
+      interval_s:
+        type: integer
+      online:
+        type: boolean
+      phase:
+        type: string
+      rejected:
+        type: integer
+      send_gps:
+        type: boolean
+    type: object
+  dtos.CancelInput:
+    properties:
+      reason:
+        maxLength: 200
+        type: string
+    required:
+    - reason
     type: object
   dtos.Catalog:
     properties:
@@ -184,6 +259,45 @@ definitions:
     - current_password
     - new_password
     type: object
+  dtos.ChangeRouteInput:
+    properties:
+      destination:
+        $ref: '#/definitions/dtos.PlaceInput'
+      stops:
+        items:
+          $ref: '#/definitions/dtos.PlaceInput'
+        maxItems: 3
+        type: array
+    required:
+    - destination
+    type: object
+  dtos.CoverageInput:
+    properties:
+      lat:
+        type: number
+      lng:
+        type: number
+      radius_km:
+        maximum: 300
+        minimum: 0
+        type: number
+    required:
+    - lat
+    - lng
+    type: object
+  dtos.CoverageView:
+    properties:
+      categories:
+        type: integer
+      cells:
+        type: integer
+      lat:
+        type: number
+      lng:
+        type: number
+      radius_km:
+        type: number
+    type: object
   dtos.CreateCategoryInput:
     properties:
       description:
@@ -223,6 +337,34 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  dtos.CreateRequestInput:
+    properties:
+      contact_phone:
+        maxLength: 20
+        type: string
+      destination:
+        $ref: '#/definitions/dtos.PlaceInput'
+      details:
+        type: object
+      fare_estimate_id:
+        type: string
+      passenger:
+        $ref: '#/definitions/dtos.PassengerInput'
+      pickup:
+        $ref: '#/definitions/dtos.PlaceInput'
+      scheduled_for:
+        type: string
+      service_id:
+        type: string
+      stops:
+        items:
+          $ref: '#/definitions/dtos.PlaceInput'
+        maxItems: 3
+        type: array
+    required:
+    - pickup
+    - service_id
     type: object
   dtos.CreateRoleInput:
     properties:
@@ -299,6 +441,101 @@ definitions:
         maxLength: 128
         type: string
     type: object
+  dtos.DeliveredInput:
+    properties:
+      channel:
+        enum:
+        - sse
+        - fcm
+        - sms
+        type: string
+    required:
+    - channel
+    type: object
+  dtos.DeviceInput:
+    properties:
+      platform:
+        enum:
+        - android
+        - ios
+        type: string
+      token:
+        maxLength: 4096
+        type: string
+    required:
+    - platform
+    - token
+    type: object
+  dtos.FareEstimateInput:
+    properties:
+      category:
+        example: taxi
+        type: string
+      destination:
+        $ref: '#/definitions/dtos.PlaceInput'
+      pickup:
+        $ref: '#/definitions/dtos.PlaceInput'
+      stops:
+        items:
+          $ref: '#/definitions/dtos.PlaceInput'
+        maxItems: 3
+        type: array
+    required:
+    - category
+    - pickup
+    type: object
+  dtos.FareEstimateList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.FareEstimateView'
+        type: array
+    type: object
+  dtos.FareEstimateView:
+    properties:
+      currency:
+        type: string
+      distance_m:
+        type: integer
+      duration_s:
+        type: integer
+      expires_in_s:
+        type: integer
+      fare_estimate_id:
+        type: string
+      route_source:
+        type: string
+      service_id:
+        type: string
+      service_name:
+        type: string
+      service_slug:
+        type: string
+      total_cents:
+        type: integer
+    type: object
+  dtos.HeatCell:
+    properties:
+      cell:
+        type: string
+      demand:
+        type: integer
+      lat:
+        type: number
+      lng:
+        type: number
+      supply:
+        type: integer
+    type: object
+  dtos.HeatMap:
+    properties:
+      cells:
+        items:
+          $ref: '#/definitions/dtos.HeatCell'
+        type: array
+      resolution:
+        type: integer
+    type: object
   dtos.InvitationTokenInput:
     properties:
       token:
@@ -332,6 +569,21 @@ definitions:
     - name
     - phone
     - role_ids
+    type: object
+  dtos.LocationsInput:
+    properties:
+      battery_low:
+        type: boolean
+      network_weak:
+        type: boolean
+      positions:
+        items:
+          $ref: '#/definitions/dtos.PositionInput'
+        maxItems: 100
+        minItems: 1
+        type: array
+    required:
+    - positions
     type: object
   dtos.LoginInput:
     properties:
@@ -475,6 +727,64 @@ definitions:
           $ref: '#/definitions/dtos.RoleSummary'
         type: array
     type: object
+  dtos.NearbyCell:
+    properties:
+      cell:
+        type: string
+      count:
+        type: integer
+      lat:
+        type: number
+      lng:
+        type: number
+    type: object
+  dtos.NearbyView:
+    properties:
+      available:
+        type: boolean
+      cells:
+        items:
+          $ref: '#/definitions/dtos.NearbyCell'
+        type: array
+    type: object
+  dtos.OfferView:
+    properties:
+      category:
+        type: string
+      currency:
+        type: string
+      destination:
+        $ref: '#/definitions/dtos.PlaceView'
+      details:
+        type: object
+      distance_m:
+        type: integer
+      expires_in_s:
+        type: integer
+      id:
+        type: string
+      mode:
+        type: string
+      net_cents:
+        type: integer
+      pickup:
+        $ref: '#/definitions/dtos.PlaceView'
+      request_id:
+        type: string
+      request_version:
+        type: integer
+      status:
+        type: string
+      stops:
+        items:
+          $ref: '#/definitions/dtos.PlaceView'
+        type: array
+    type: object
+  dtos.OnlineInput:
+    properties:
+      position:
+        $ref: '#/definitions/dtos.PositionInput'
+    type: object
   dtos.OrganizationPage:
     properties:
       items:
@@ -508,6 +818,18 @@ definitions:
         example: partner
       updated_at:
         type: string
+    type: object
+  dtos.PassengerInput:
+    properties:
+      name:
+        maxLength: 80
+        type: string
+      phone:
+        maxLength: 20
+        type: string
+    required:
+    - name
+    - phone
     type: object
   dtos.PermissionList:
     properties:
@@ -572,6 +894,281 @@ definitions:
     required:
     - phone
     type: object
+  dtos.PlaceInput:
+    properties:
+      address:
+        maxLength: 200
+        type: string
+      lat:
+        example: -8.84
+        type: number
+      lng:
+        example: 13.23
+        type: number
+      reference:
+        example: Junto à farmácia, portão azul
+        maxLength: 140
+        type: string
+    required:
+    - lat
+    - lng
+    type: object
+  dtos.PlaceView:
+    properties:
+      address:
+        type: string
+      lat:
+        type: number
+      lng:
+        type: number
+      reference:
+        type: string
+    type: object
+  dtos.PolicyInput:
+    properties:
+      ack_giveup_seconds:
+        minimum: 0
+        type: integer
+      ack_timeout_seconds:
+        minimum: 1
+        type: integer
+      allow_boost:
+        type: boolean
+      batch_size:
+        maximum: 50
+        minimum: 1
+        type: integer
+      candidate_source:
+        enum:
+        - live
+        - coverage
+        type: string
+      category_id:
+        type: string
+      fallback_channels:
+        items:
+          type: string
+        type: array
+      h3_resolution:
+        maximum: 15
+        minimum: 0
+        type: integer
+      initial_channels:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      offer_mode:
+        enum:
+        - sequential
+        - parallel
+        - quote
+        type: string
+      offer_ttl_seconds:
+        minimum: 1
+        type: integer
+      on_exhausted:
+        enum:
+        - suggest_retry
+        - alert_operator
+        - operator_queue
+        - extend_or_queue
+        type: string
+      pricing_mode:
+        enum:
+        - fixed
+        - call_out
+        - quote
+        type: string
+      radii_km:
+        items:
+          type: number
+        maxItems: 6
+        minItems: 1
+        type: array
+      rank_by_eta:
+        type: boolean
+      ranking:
+        enum:
+        - distance_idle
+        - distance
+        - base_distance
+        - customer_choice
+        type: string
+      reserve_provider:
+        type: boolean
+      schedule_max_days:
+        maximum: 365
+        minimum: 0
+        type: integer
+      search_lead_seconds:
+        minimum: 0
+        type: integer
+      search_ttl_seconds:
+        minimum: 1
+        type: integer
+      sms_on_accept:
+        type: boolean
+      tracking_statuses:
+        items:
+          type: string
+        type: array
+      zone_id:
+        type: string
+    required:
+    - ack_timeout_seconds
+    - batch_size
+    - candidate_source
+    - initial_channels
+    - offer_mode
+    - offer_ttl_seconds
+    - on_exhausted
+    - pricing_mode
+    - radii_km
+    - ranking
+    - search_ttl_seconds
+    type: object
+  dtos.PolicyList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.PolicyView'
+        type: array
+    type: object
+  dtos.PolicyView:
+    properties:
+      ack_giveup_seconds:
+        minimum: 0
+        type: integer
+      ack_timeout_seconds:
+        minimum: 1
+        type: integer
+      allow_boost:
+        type: boolean
+      batch_size:
+        maximum: 50
+        minimum: 1
+        type: integer
+      candidate_source:
+        enum:
+        - live
+        - coverage
+        type: string
+      category_id:
+        type: string
+      fallback_channels:
+        items:
+          type: string
+        type: array
+      h3_resolution:
+        maximum: 15
+        minimum: 0
+        type: integer
+      id:
+        type: string
+      initial_channels:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      offer_mode:
+        enum:
+        - sequential
+        - parallel
+        - quote
+        type: string
+      offer_ttl_seconds:
+        minimum: 1
+        type: integer
+      on_exhausted:
+        enum:
+        - suggest_retry
+        - alert_operator
+        - operator_queue
+        - extend_or_queue
+        type: string
+      pricing_mode:
+        enum:
+        - fixed
+        - call_out
+        - quote
+        type: string
+      radii_km:
+        items:
+          type: number
+        maxItems: 6
+        minItems: 1
+        type: array
+      rank_by_eta:
+        type: boolean
+      ranking:
+        enum:
+        - distance_idle
+        - distance
+        - base_distance
+        - customer_choice
+        type: string
+      reserve_provider:
+        type: boolean
+      schedule_max_days:
+        maximum: 365
+        minimum: 0
+        type: integer
+      search_lead_seconds:
+        minimum: 0
+        type: integer
+      search_ttl_seconds:
+        minimum: 1
+        type: integer
+      sms_on_accept:
+        type: boolean
+      tracking_statuses:
+        items:
+          type: string
+        type: array
+      zone_id:
+        type: string
+    required:
+    - ack_timeout_seconds
+    - batch_size
+    - candidate_source
+    - initial_channels
+    - offer_mode
+    - offer_ttl_seconds
+    - on_exhausted
+    - pricing_mode
+    - radii_km
+    - ranking
+    - search_ttl_seconds
+    type: object
+  dtos.PositionInput:
+    properties:
+      accuracy_m:
+        minimum: 0
+        type: number
+      age_s:
+        maximum: 86400
+        minimum: 0
+        type: integer
+      heading:
+        type: number
+      lat:
+        type: number
+      lng:
+        type: number
+    required:
+    - lat
+    - lng
+    type: object
+  dtos.PositionView:
+    properties:
+      age_s:
+        type: integer
+      lat:
+        type: number
+      lng:
+        type: number
+    type: object
   dtos.PricingInput:
     properties:
       base_fee_cents:
@@ -597,6 +1194,80 @@ definitions:
         type: integer
       per_minute_fee_cents:
         example: 0
+        type: integer
+    type: object
+  dtos.ProviderAdminInput:
+    properties:
+      service_ids:
+        items:
+          type: string
+        maxItems: 50
+        type: array
+      status:
+        enum:
+        - pending
+        - approved
+        - suspended
+        type: string
+      vehicle_description:
+        maxLength: 120
+        type: string
+      vehicle_plate:
+        maxLength: 20
+        type: string
+    required:
+    - status
+    type: object
+  dtos.ProviderAdminView:
+    properties:
+      service_ids:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+      user_id:
+        type: string
+      vehicle_description:
+        type: string
+      vehicle_plate:
+        type: string
+    type: object
+  dtos.ProviderSummary:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      vehicle_description:
+        type: string
+      vehicle_plate:
+        type: string
+    type: object
+  dtos.QuoteInput:
+    properties:
+      amount_cents:
+        minimum: 1
+        type: integer
+      note:
+        maxLength: 300
+        type: string
+    required:
+    - amount_cents
+    type: object
+  dtos.QuoteView:
+    properties:
+      amount_cents:
+        type: integer
+      distance_m:
+        type: integer
+      note:
+        type: string
+      offer_id:
+        type: string
+      provider:
+        $ref: '#/definitions/dtos.ProviderSummary'
+      valid_for_s:
         type: integer
     type: object
   dtos.RecoveryCodesOutput:
@@ -662,6 +1333,90 @@ definitions:
     required:
     - role_ids
     type: object
+  dtos.RequestList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.RequestView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.RequestView:
+    properties:
+      accepted_at:
+        type: string
+      adjustments:
+        items:
+          $ref: '#/definitions/dtos.AdjustmentView'
+        type: array
+      arrived_at:
+        type: string
+      boost_bps:
+        type: integer
+      can_boost:
+        type: boolean
+      cancel_reason:
+        type: string
+      cancelled_by:
+        type: string
+      category:
+        type: string
+      commission_cents:
+        type: integer
+      completed_at:
+        type: string
+      contact_phone:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      destination:
+        $ref: '#/definitions/dtos.PlaceView'
+      details:
+        type: object
+      fare_cents:
+        type: integer
+      id:
+        type: string
+      needs_operator:
+        type: boolean
+      operator_reason:
+        type: string
+      passenger_name:
+        type: string
+      pickup:
+        $ref: '#/definitions/dtos.PlaceView'
+      position:
+        $ref: '#/definitions/dtos.PositionView'
+      provider:
+        $ref: '#/definitions/dtos.ProviderSummary'
+      provider_net_cents:
+        type: integer
+      quotes:
+        items:
+          $ref: '#/definitions/dtos.QuoteView'
+        type: array
+      scheduled_for:
+        type: string
+      service_id:
+        type: string
+      started_at:
+        type: string
+      status:
+        type: string
+      stops:
+        items:
+          $ref: '#/definitions/dtos.PlaceView'
+        type: array
+      version:
+        type: integer
+    type: object
   dtos.ResetPasswordInput:
     properties:
       new_password:
@@ -710,6 +1465,28 @@ definitions:
         allOf:
         - $ref: '#/definitions/enums.OrganizationType'
         example: platform
+    type: object
+  dtos.RouteView:
+    properties:
+      distance_m:
+        type: integer
+      duration_s:
+        type: integer
+      geometry:
+        type: string
+      source:
+        type: string
+    type: object
+  dtos.SelectQuoteInput:
+    properties:
+      offer_id:
+        type: string
+      version:
+        minimum: 1
+        type: integer
+    required:
+    - offer_id
+    - version
     type: object
   dtos.ServicePage:
     properties:
@@ -795,6 +1572,107 @@ definitions:
         type: string
     required:
     - password
+    type: object
+  dtos.TariffInput:
+    properties:
+      base_fee_cents:
+        minimum: 0
+        type: integer
+      commission_bps:
+        maximum: 10000
+        minimum: 0
+        type: integer
+      currency:
+        type: string
+      free_wait_seconds:
+        minimum: 0
+        type: integer
+      minimum_fee_cents:
+        minimum: 0
+        type: integer
+      night_end_hour:
+        maximum: 23
+        minimum: 0
+        type: integer
+      night_fee_cents:
+        minimum: 0
+        type: integer
+      night_start_hour:
+        maximum: 23
+        minimum: 0
+        type: integer
+      per_km_fee_cents:
+        minimum: 0
+        type: integer
+      per_minute_fee_cents:
+        minimum: 0
+        type: integer
+      service_id:
+        type: string
+      zone_fee_cents:
+        minimum: 0
+        type: integer
+      zone_id:
+        type: string
+    required:
+    - currency
+    - service_id
+    type: object
+  dtos.TariffList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.TariffView'
+        type: array
+    type: object
+  dtos.TariffView:
+    properties:
+      base_fee_cents:
+        minimum: 0
+        type: integer
+      commission_bps:
+        maximum: 10000
+        minimum: 0
+        type: integer
+      currency:
+        type: string
+      free_wait_seconds:
+        minimum: 0
+        type: integer
+      id:
+        type: string
+      minimum_fee_cents:
+        minimum: 0
+        type: integer
+      night_end_hour:
+        maximum: 23
+        minimum: 0
+        type: integer
+      night_fee_cents:
+        minimum: 0
+        type: integer
+      night_start_hour:
+        maximum: 23
+        minimum: 0
+        type: integer
+      per_km_fee_cents:
+        minimum: 0
+        type: integer
+      per_minute_fee_cents:
+        minimum: 0
+        type: integer
+      service_id:
+        type: string
+      valid_from:
+        type: string
+      zone_fee_cents:
+        minimum: 0
+        type: integer
+      zone_id:
+        type: string
+    required:
+    - currency
+    - service_id
     type: object
   dtos.UnblockUserInput:
     properties:
@@ -938,6 +1816,53 @@ definitions:
         $ref: '#/definitions/enums.Role'
       status:
         $ref: '#/definitions/enums.UserStatus'
+    type: object
+  dtos.ZoneInput:
+    properties:
+      country_code:
+        type: string
+      currency:
+        type: string
+      geometry:
+        type: object
+      is_active:
+        type: boolean
+      name:
+        maxLength: 80
+        type: string
+      timezone:
+        maxLength: 64
+        type: string
+    required:
+    - country_code
+    - currency
+    - geometry
+    - name
+    - timezone
+    type: object
+  dtos.ZoneList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.ZoneView'
+        type: array
+    type: object
+  dtos.ZoneView:
+    properties:
+      country_code:
+        type: string
+      currency:
+        type: string
+      geometry:
+        type: object
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      timezone:
+        type: string
     type: object
   enums.MembershipStatus:
     enum:
@@ -1180,6 +2105,280 @@ paths:
       summary: Change a service category
       tags:
       - Backoffice catalog
+  /api/v1/admin/dispatch-policies:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PolicyList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the dispatch policies
+      tags:
+      - Backoffice dispatch
+    post:
+      consumes:
+      - application/json
+      description: The resolution and radii are refused when they would need too many
+        H3 cells per search.
+      parameters:
+      - description: Policy
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PolicyInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.PolicyView'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a policy for a category, optionally for a zone
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch-policies/{id}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Policy id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Policy
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PolicyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PolicyView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change a policy
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/heatmap:
+    get:
+      description: Resolution 8 hexagons for the Mapbox map of the backoffice. Demand
+        covers the last 24 hours.
+      parameters:
+      - description: Zone id
+        in: query
+        name: zone_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.HeatMap'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Supply and demand by H3 cell
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/queue:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Requests waiting for an operator
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/requests/{id}:
+    get:
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get any request
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/requests/{id}/assign:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Provider
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.AssignInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Dispatch a request by hand
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/requests/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CancelInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Cancel a request as an operator
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/requests/{id}/retry:
+    post:
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Search again for a queued request
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/providers/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Requires providers:approve. Sets the status, the vehicle and the
+        services the provider may take.
+      parameters:
+      - description: User id of the provider
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Profile
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ProviderAdminInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderAdminView'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set the dispatch profile of a provider
+      tags:
+      - Backoffice dispatch
   /api/v1/admin/services:
     get:
       description: Requires services:manage. Active and inactive unless filtered.
@@ -1351,6 +2550,51 @@ paths:
       summary: Change a service
       tags:
       - Backoffice catalog
+  /api/v1/admin/tariffs:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TariffList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the current tariffs
+      tags:
+      - Backoffice dispatch
+    post:
+      consumes:
+      - application/json
+      description: 'Tariffs are never edited: this closes the current version and
+        creates another, so the history explains every price. Values are integers
+        in the smallest unit of the currency.'
+      parameters:
+      - description: Tariff
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.TariffInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.TariffView'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Publish a new tariff version
+      tags:
+      - Backoffice dispatch
   /api/v1/admin/users:
     get:
       description: Requires users:read. Staff are managed as members.
@@ -1612,6 +2856,83 @@ paths:
       summary: Unblock a customer or provider account
       tags:
       - Backoffice users
+  /api/v1/admin/zones:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ZoneList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the service zones
+      tags:
+      - Backoffice dispatch
+    post:
+      consumes:
+      - application/json
+      description: Requires services:manage. The geometry is a GeoJSON Polygon or
+        MultiPolygon. Each zone carries its currency and time zone.
+      parameters:
+      - description: Zone
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ZoneInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.ZoneView'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a service zone
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/zones/{id}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Zone id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Zone
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ZoneInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ZoneView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Replace a service zone
+      tags:
+      - Backoffice dispatch
   /api/v1/auth/login:
     post:
       consumes:
@@ -2141,6 +3462,74 @@ paths:
       summary: Service catalog of the app
       tags:
       - Catalog
+  /api/v1/devices:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Device
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.DeviceInput'
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Register the push token of this device
+      tags:
+      - Dispatch
+  /api/v1/devices/{token}:
+    delete:
+      parameters:
+      - description: Push token
+        in: path
+        name: token
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Forget a push token
+      tags:
+      - Dispatch
+  /api/v1/fare-estimates:
+    post:
+      consumes:
+      - application/json
+      description: Customers only. One priced option per active service of the category.
+        route_source tells whether the distance came from Mapbox or from the fallback
+        estimate.
+      parameters:
+      - description: Route
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.FareEstimateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.FareEstimateList'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Fixed price before confirming
+      tags:
+      - Dispatch
   /api/v1/invitations/accept:
     post:
       consumes:
@@ -2617,6 +4006,185 @@ paths:
       summary: Invite a member
       tags:
       - Members
+  /api/v1/nearby:
+    get:
+      description: Customers only. Aggregates by H3 cell, without identity or exact
+        position, and only above a minimum per cell.
+      parameters:
+      - description: Latitude
+        in: query
+        name: lat
+        required: true
+        type: number
+      - description: Longitude
+        in: query
+        name: lng
+        required: true
+        type: number
+      - description: Category slug
+        in: query
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.NearbyView'
+        "422":
+          description: Outside the service area
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Providers near a point
+      tags:
+      - Dispatch
+  /api/v1/offers/{id}:
+    get:
+      description: The event only carries the essentials; the rest comes from here.
+      parameters:
+      - description: Offer id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OfferView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Detail of an offer
+      tags:
+      - Provider
+  /api/v1/offers/{id}/accept:
+    post:
+      consumes:
+      - application/json
+      description: Send the version received with the offer. Only one provider wins;
+        the others get 409.
+      parameters:
+      - description: Offer id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Version
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.AcceptInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AcceptResult'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Accept an offer
+      tags:
+      - Provider
+  /api/v1/offers/{id}/delivered:
+    post:
+      consumes:
+      - application/json
+      description: Tells the server the offer reached the phone, and through which
+        channel. Without it the watcher moves to the next channel or provider.
+      parameters:
+      - description: Offer id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Channel
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.DeliveredInput'
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Acknowledge an offer
+      tags:
+      - Provider
+  /api/v1/offers/{id}/quote:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Offer id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Quote
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.QuoteInput'
+      responses:
+        "204":
+          description: No Content
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Answer an offer with a quote
+      tags:
+      - Provider
+  /api/v1/offers/{id}/reject:
+    post:
+      parameters:
+      - description: Offer id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Reject an offer
+      tags:
+      - Provider
   /api/v1/partners:
     get:
       description: Requires partners:read (AGORA only).
@@ -2917,6 +4485,458 @@ paths:
       summary: Permission catalog of the scope
       tags:
       - Members
+  /api/v1/providers/me/coverage:
+    put:
+      consumes:
+      - application/json
+      description: Recomputes the H3 coverage cells of the categories dispatched by
+        coverage. Without radius_km the default of the policy applies.
+      parameters:
+      - description: Base
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CoverageInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CoverageView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set the base and service radius
+      tags:
+      - Provider
+  /api/v1/providers/me/locations:
+    post:
+      consumes:
+      - application/json
+      description: Points use age_s, seconds before now, so a wrong phone clock does
+        not matter. Implausible points are dropped. The answer carries the next cadence.
+      parameters:
+      - description: Positions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.LocationsInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CadenceView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Send a batch of positions
+      tags:
+      - Provider
+  /api/v1/providers/me/offline:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CadenceView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Leave the live index
+      tags:
+      - Provider
+  /api/v1/providers/me/online:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: First position
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/dtos.OnlineInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CadenceView'
+        "403":
+          description: Not approved
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Enter the live index
+      tags:
+      - Provider
+  /api/v1/requests:
+    get:
+      description: Customers only, most recent first.
+      parameters:
+      - description: Comma-separated statuses
+        in: query
+        name: status
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: History of requests
+      tags:
+      - Dispatch
+    post:
+      consumes:
+      - application/json
+      description: Requires Idempotency-Key, so the app can resend on a bad network
+        without creating a second request. The pin is the truth; reference and address
+        only help. When the fare estimate expired the answer is 409 with new quotes
+        and no request is created.
+      parameters:
+      - description: Unique per attempt
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateRequestInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The same key was already used
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: FARE_ESTIMATE_EXPIRED or FARE_ESTIMATE_INVALID
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: OUTSIDE_SERVICE_AREA and others
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a service request
+      tags:
+      - Dispatch
+  /api/v1/requests/{id}:
+    get:
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a request
+      tags:
+      - Dispatch
+  /api/v1/requests/{id}/arrive:
+    post:
+      description: Starts counting the waiting time.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Provider arrived at the pickup
+      tags:
+      - Provider
+  /api/v1/requests/{id}/boost:
+    post:
+      consumes:
+      - application/json
+      description: 10 or 20 percent over the original price, all of it for the provider.
+        Starts a new search round.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Percent
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.BoostInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Raise the offer
+      tags:
+      - Dispatch
+  /api/v1/requests/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CancelInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Not possible in this state
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Cancel a request
+      tags:
+      - Dispatch
+  /api/v1/requests/{id}/complete:
+    post:
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Complete the trip or service
+      tags:
+      - Provider
+  /api/v1/requests/{id}/en-route:
+    post:
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Provider leaves for the pickup
+      tags:
+      - Provider
+  /api/v1/requests/{id}/route:
+    post:
+      consumes:
+      - application/json
+      description: Reprices with the same tariff and records the difference as a fare
+        adjustment.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New route
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ChangeRouteInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change the destination or stops
+      tags:
+      - Dispatch
+  /api/v1/requests/{id}/select-quote:
+    post:
+      consumes:
+      - application/json
+      description: The transaction checks that the quote is still valid. The other
+        providers get their offer cancelled.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Quote
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SelectQuoteInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: QUOTE_EXPIRED or REQUEST_CONFLICT
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Choose a quote
+      tags:
+      - Dispatch
+  /api/v1/requests/{id}/start:
+    post:
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Start the trip or service
+      tags:
+      - Provider
+  /api/v1/requests/active:
+    get:
+      description: 'What the app reloads after a resync: the active request and, for
+        providers, the open offers.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ActiveState'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Current state
+      tags:
+      - Dispatch
   /api/v1/roles:
     get:
       description: Requires roles:read. System roles of the scope and the roles of
@@ -3518,6 +5538,38 @@ paths:
       summary: Change the password of the authenticated user
       tags:
       - Users
+  /events:
+    get:
+      description: Server-Sent Events of the signed-in customer or provider. Send
+        Last-Event-ID to replay what was missed. Offers carry expires_in_s, relative
+        to the moment of delivery. When the cursor is older than the mailbox a resync
+        event asks the app to reload through GET /api/v1/requests/active.
+      parameters:
+      - description: Id of the last event received
+        in: header
+        name: Last-Event-ID
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Event stream
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Only app accounts have a stream
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Real-time events
+      tags:
+      - Real time
   /live:
     get:
       produces:

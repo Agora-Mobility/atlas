@@ -60,6 +60,7 @@ func NewServer(c *containers.Container, basePath string, registerRoutes func(api
 	registerAPIDocs(r, cfg)
 
 	registerRoutes(r.Group(basePath))
+	c.Dispatch.Router.RegisterStream(r)
 
 	return &Server{
 		container: c,
@@ -87,6 +88,8 @@ func (s *Server) Start(ctx context.Context) error {
 	var workers sync.WaitGroup
 	relay := s.container.OutboxRelay()
 	workers.Go(func() { relay.Run(workersCtx) })
+	workers.Go(func() { s.container.SSE.RunDoor(workersCtx, s.container.Redis) })
+	workers.Go(func() { s.container.Dispatch.Usecase.RunWatcher(workersCtx) })
 	for _, consumer := range s.container.Consumers() {
 		workers.Go(func() { consumer.Run(workersCtx) })
 	}
@@ -116,6 +119,7 @@ func (s *Server) shutdown(ctx context.Context, stopWorkers context.CancelFunc, w
 	defer cancel()
 
 	var errs []error
+	s.container.SSE.Drain()
 	if err := s.http.Shutdown(shutdownCtx); err != nil {
 		errs = append(errs, fmt.Errorf("http shutdown: %w", err))
 	}

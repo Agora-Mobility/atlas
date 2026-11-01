@@ -29,6 +29,58 @@ type Config struct {
 	SMS      SMSConfig      `mapstructure:",squash"`
 	Email    EmailConfig    `mapstructure:",squash"`
 	Access   AccessConfig   `mapstructure:",squash"`
+	Dispatch DispatchConfig `mapstructure:",squash"`
+	Realtime RealtimeConfig `mapstructure:",squash"`
+	Mapbox   MapboxConfig   `mapstructure:",squash"`
+	FCM      FCMConfig      `mapstructure:",squash"`
+}
+
+type DispatchConfig struct {
+	WatcherInterval  time.Duration `mapstructure:"DISPATCH_WATCHER_INTERVAL"`
+	WatcherBatch     int           `mapstructure:"DISPATCH_WATCHER_BATCH"`
+	ChannelTimeout   time.Duration `mapstructure:"DISPATCH_CHANNEL_TIMEOUT"`
+	FareEstimateTTL  time.Duration `mapstructure:"FARE_ESTIMATE_TTL"`
+	NearbyMinCount   int           `mapstructure:"NEARBY_MIN_CELL_COUNT"`
+	MaxAccuracyM     float64       `mapstructure:"LOCATION_MAX_ACCURACY_M"`
+	MaxSpeedKmh      float64       `mapstructure:"LOCATION_MAX_SPEED_KMH"`
+	HistoryRetention time.Duration `mapstructure:"LOCATION_HISTORY_RETENTION"`
+	OfferDeepLink    string        `mapstructure:"OFFER_DEEP_LINK_BASE"`
+	OperatorPhone    string        `mapstructure:"OPERATOR_ALERT_PHONE"`
+	IdempotencyTTL   time.Duration `mapstructure:"IDEMPOTENCY_TTL"`
+}
+
+type RealtimeConfig struct {
+	Heartbeat       time.Duration `mapstructure:"SSE_HEARTBEAT_INTERVAL"`
+	PollInterval    time.Duration `mapstructure:"SSE_POLL_INTERVAL"`
+	DeadAfter       time.Duration `mapstructure:"SSE_DEAD_AFTER"`
+	MailboxEntries  int64         `mapstructure:"SSE_MAILBOX_MAX_ENTRIES"`
+	MailboxTTL      time.Duration `mapstructure:"SSE_MAILBOX_TTL"`
+	ReconnectSpread time.Duration `mapstructure:"SSE_RECONNECT_SPREAD"`
+}
+
+type MapboxConfig struct {
+	AccessToken     string        `mapstructure:"MAPBOX_ACCESS_TOKEN"`
+	BaseURL         string        `mapstructure:"MAPBOX_BASE_URL"`
+	Timeout         time.Duration `mapstructure:"MAPBOX_TIMEOUT"`
+	BreakerFailures int           `mapstructure:"MAPBOX_BREAKER_FAILURES"`
+	BreakerCooldown time.Duration `mapstructure:"MAPBOX_BREAKER_COOLDOWN"`
+	RoadFactor      float64       `mapstructure:"ROUTING_ROAD_FACTOR"`
+	AverageSpeedKmh float64       `mapstructure:"ROUTING_FALLBACK_SPEED_KMH"`
+}
+
+func (c MapboxConfig) Enabled() bool {
+	return strings.TrimSpace(c.AccessToken) != ""
+}
+
+type FCMConfig struct {
+	ProjectID       string        `mapstructure:"FCM_PROJECT_ID"`
+	CredentialsJSON string        `mapstructure:"FCM_CREDENTIALS_JSON"`
+	BaseURL         string        `mapstructure:"FCM_BASE_URL"`
+	Timeout         time.Duration `mapstructure:"FCM_TIMEOUT"`
+}
+
+func (c FCMConfig) Enabled() bool {
+	return strings.TrimSpace(c.ProjectID) != "" && strings.TrimSpace(c.CredentialsJSON) != ""
 }
 
 type AppConfig struct {
@@ -179,7 +231,37 @@ var defaults = map[string]any{
 	"PERMISSION_CACHE_TTL":         "5m",
 	"INVITATION_URL_BACKOFFICE":    "http://localhost:3001/convite",
 	"INVITATION_URL_PARTNER_PANEL": "http://localhost:3002/convite",
+	"DISPATCH_WATCHER_INTERVAL":    "1s",
+	"DISPATCH_WATCHER_BATCH":       200,
+	"DISPATCH_CHANNEL_TIMEOUT":     "5s",
+	"FARE_ESTIMATE_TTL":            "5m",
+	"NEARBY_MIN_CELL_COUNT":        3,
+	"LOCATION_MAX_ACCURACY_M":      100,
+	"LOCATION_MAX_SPEED_KMH":       200,
+	"LOCATION_HISTORY_RETENTION":   "720h",
+	"OFFER_DEEP_LINK_BASE":         "agoraprovider://app",
+	"OPERATOR_ALERT_PHONE":         "",
+	"IDEMPOTENCY_TTL":              "24h",
+	"SSE_HEARTBEAT_INTERVAL":       "15s",
+	"SSE_POLL_INTERVAL":            "30s",
+	"SSE_DEAD_AFTER":               "38s",
+	"SSE_MAILBOX_MAX_ENTRIES":      200,
+	"SSE_MAILBOX_TTL":              "24h",
+	"SSE_RECONNECT_SPREAD":         "30s",
+	"MAPBOX_ACCESS_TOKEN":          "",
+	"MAPBOX_BASE_URL":              "https://api.mapbox.com",
+	"MAPBOX_TIMEOUT":               "2s",
+	"MAPBOX_BREAKER_FAILURES":      5,
+	"MAPBOX_BREAKER_COOLDOWN":      "30s",
+	"ROUTING_ROAD_FACTOR":          1.4,
+	"ROUTING_FALLBACK_SPEED_KMH":   25,
+	"FCM_PROJECT_ID":               "",
+	"FCM_CREDENTIALS_JSON":         "",
+	"FCM_BASE_URL":                 "https://fcm.googleapis.com",
+	"FCM_TIMEOUT":                  "5s",
 }
+
+const cloudflareIdleLimit = 100 * time.Second
 
 var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET", "MFA_ENCRYPTION_KEY"}
 
@@ -268,6 +350,7 @@ func (c *Config) validate() error {
 	if strings.TrimSpace(c.Access.InvitationBackoffice) == "" || strings.TrimSpace(c.Access.InvitationPartner) == "" {
 		errs = append(errs, errors.New("INVITATION_URL_BACKOFFICE and INVITATION_URL_PARTNER_PANEL cannot be empty"))
 	}
+	errs = append(errs, c.validateDispatch()...)
 	if c.App.Env == enums.EnvProduction {
 		if !c.SMS.Enabled() {
 			errs = append(errs, errors.New("CASTBRICK_API_KEY is required in production"))
@@ -283,6 +366,41 @@ func (c *Config) validate() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+func (c *Config) validateDispatch() []error {
+	var errs []error
+	if c.Dispatch.WatcherInterval <= 0 || c.Dispatch.WatcherBatch <= 0 || c.Dispatch.ChannelTimeout <= 0 {
+		errs = append(errs, errors.New("DISPATCH_WATCHER_INTERVAL, DISPATCH_WATCHER_BATCH and DISPATCH_CHANNEL_TIMEOUT must be positive"))
+	}
+	if c.Dispatch.FareEstimateTTL <= 0 || c.Dispatch.NearbyMinCount <= 0 || c.Dispatch.IdempotencyTTL <= 0 {
+		errs = append(errs, errors.New("FARE_ESTIMATE_TTL, NEARBY_MIN_CELL_COUNT and IDEMPOTENCY_TTL must be positive"))
+	}
+	if c.Dispatch.MaxAccuracyM <= 0 || c.Dispatch.MaxSpeedKmh <= 0 {
+		errs = append(errs, errors.New("LOCATION_MAX_ACCURACY_M and LOCATION_MAX_SPEED_KMH must be positive"))
+	}
+	if strings.TrimSpace(c.Dispatch.OfferDeepLink) == "" {
+		errs = append(errs, errors.New("OFFER_DEEP_LINK_BASE cannot be empty"))
+	}
+	if c.Realtime.Heartbeat <= 0 || c.Realtime.Heartbeat >= cloudflareIdleLimit {
+		errs = append(errs, errors.New("SSE_HEARTBEAT_INTERVAL must be positive and below the 100s Cloudflare idle limit"))
+	}
+	if c.Realtime.PollInterval <= 0 || c.Realtime.DeadAfter <= c.Realtime.Heartbeat || c.Realtime.ReconnectSpread < 0 {
+		errs = append(errs, errors.New("SSE_POLL_INTERVAL must be positive, SSE_DEAD_AFTER above the heartbeat and SSE_RECONNECT_SPREAD >= 0"))
+	}
+	if c.Realtime.MailboxEntries <= 0 || c.Realtime.MailboxTTL <= 0 {
+		errs = append(errs, errors.New("SSE_MAILBOX_MAX_ENTRIES and SSE_MAILBOX_TTL must be positive"))
+	}
+	if c.Mapbox.Timeout <= 0 || c.Mapbox.BreakerFailures <= 0 || c.Mapbox.BreakerCooldown <= 0 || strings.TrimSpace(c.Mapbox.BaseURL) == "" {
+		errs = append(errs, errors.New("MAPBOX_TIMEOUT, MAPBOX_BREAKER_FAILURES and MAPBOX_BREAKER_COOLDOWN must be positive and MAPBOX_BASE_URL cannot be empty"))
+	}
+	if c.Mapbox.RoadFactor < 1 || c.Mapbox.AverageSpeedKmh <= 0 {
+		errs = append(errs, errors.New("ROUTING_ROAD_FACTOR must be at least 1 and ROUTING_FALLBACK_SPEED_KMH positive"))
+	}
+	if c.FCM.Timeout <= 0 || strings.TrimSpace(c.FCM.BaseURL) == "" {
+		errs = append(errs, errors.New("FCM_TIMEOUT must be positive and FCM_BASE_URL cannot be empty"))
+	}
+	return errs
 }
 
 // compact trims entries and drops empty ones, so "" or "a, ,b" parse cleanly.
