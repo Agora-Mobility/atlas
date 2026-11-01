@@ -21,8 +21,11 @@ import (
 )
 
 var appTables = []string{
-	"audit_log", "block_reasons", "clients", "invitations", "membership_roles", "memberships", "mfa_recovery_codes", "organizations", "outbox",
-	"permissions", "refresh_tokens", "role_permissions", "roles", "schema_migrations", "service_categories", "services", "user_block_reasons",
+	"audit_log", "block_reasons", "clients", "device_tokens", "dispatch_policies", "eta_observations", "fare_adjustments",
+	"fare_estimates", "invitations", "membership_roles", "memberships", "mfa_recovery_codes", "notifications", "organizations",
+	"outbox", "permissions", "provider_coverage", "provider_location_samples", "provider_profiles", "provider_services",
+	"refresh_tokens", "request_offers", "role_permissions", "roles", "schema_migrations", "service_categories",
+	"service_request_events", "service_requests", "service_tariffs", "service_zones", "services", "user_block_reasons",
 	"user_blocks", "user_mfa", "users",
 }
 
@@ -141,7 +144,7 @@ func TestMigrate_MovesALegacyPublicDatabaseKeepingData(t *testing.T) {
 	var version int
 	var dirty bool
 	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
-	assert.Equal(t, 14, version)
+	assert.Equal(t, 19, version)
 	assert.False(t, dirty)
 
 	_, err = pool.Exec(ctx, "UPDATE audit_log SET reason = 'x'")
