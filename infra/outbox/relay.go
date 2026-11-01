@@ -77,6 +77,10 @@ func (r *Relay) processBatch(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("fetch pending: %w", err)
 	}
 
+	if len(rows) == 0 {
+		return 0, nil
+	}
+
 	msgs := make([]queue.Message, 0, len(rows))
 	for _, row := range rows {
 		msgs = append(msgs, queue.Message{ID: row.ID.String(), Type: row.EventType, RoutingKey: row.RoutingKey, Body: row.Envelope})
