@@ -92,3 +92,42 @@ func (mr *MockIEmailSenderMockRecorder) Send(ctx, email any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockIEmailSender)(nil).Send), ctx, email)
 }
+
+// MockIPushSender is a mock of IPushSender interface.
+type MockIPushSender struct {
+	ctrl     *gomock.Controller
+	recorder *MockIPushSenderMockRecorder
+	isgomock struct{}
+}
+
+// MockIPushSenderMockRecorder is the mock recorder for MockIPushSender.
+type MockIPushSenderMockRecorder struct {
+	mock *MockIPushSender
+}
+
+// NewMockIPushSender creates a new mock instance.
+func NewMockIPushSender(ctrl *gomock.Controller) *MockIPushSender {
+	mock := &MockIPushSender{ctrl: ctrl}
+	mock.recorder = &MockIPushSenderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIPushSender) EXPECT() *MockIPushSenderMockRecorder {
+	return m.recorder
+}
+
+// Send mocks base method.
+func (m *MockIPushSender) Send(ctx context.Context, message services.PushMessage) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", ctx, message)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Send indicates an expected call of Send.
+func (mr *MockIPushSenderMockRecorder) Send(ctx, message any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockIPushSender)(nil).Send), ctx, message)
+}
