@@ -370,12 +370,13 @@ func TestCriterion8TaxiCompletesWithMapboxDown(t *testing.T) {
 }
 
 type badNetwork struct {
-	server    *httptest.Server
-	dropped   atomic.Int64
-	forwarded atomic.Int64
+	server         *httptest.Server
+	requests       atomic.Int64
+	lostOnTheWay   atomic.Int64
+	lostOnTheReply atomic.Int64
 }
 
-func newBadNetwork(t *testing.T, upstream string, lossRate float64, latency time.Duration) *badNetwork {
+func newBadNetwork(t *testing.T, upstream string, latency time.Duration) *badNetwork {
 	t.Helper()
 	target, err := url.Parse(upstream)
 	require.NoError(t, err)
@@ -388,19 +389,17 @@ func newBadNetwork(t *testing.T, upstream string, lossRate float64, latency time
 			proxy.ServeHTTP(w, r)
 			return
 		}
-		roll := rand.Float64()
-		if roll < lossRate/2 {
-			network.dropped.Add(1)
+		switch network.requests.Add(1) % 4 {
+		case 1:
+			network.lostOnTheWay.Add(1)
 			panic(http.ErrAbortHandler)
-		}
-		network.forwarded.Add(1)
-		if roll < lossRate {
-			recorder := httptest.NewRecorder()
-			proxy.ServeHTTP(recorder, r)
-			network.dropped.Add(1)
+		case 3:
+			proxy.ServeHTTP(httptest.NewRecorder(), r)
+			network.lostOnTheReply.Add(1)
 			panic(http.ErrAbortHandler)
+		default:
+			proxy.ServeHTTP(w, r)
 		}
-		proxy.ServeHTTP(w, r)
 	}))
 	t.Cleanup(network.server.Close)
 	return network
@@ -424,7 +423,7 @@ func (p *person) retrying(t *testing.T, method, path string, payload any) result
 
 func TestCriterion9FullFlowOverABadNetworkWithIdempotentRetries(t *testing.T) {
 	clearOnlineProviders(t)
-	network := newBadNetwork(t, env.api.baseURL, 0.25, 100*time.Millisecond)
+	network := newBadNetwork(t, env.api.baseURL, 100*time.Millisecond)
 	driver := newApprovedProvider(t, "taxi")
 	driver.api = network.server.URL
 	customer := newCustomer(t)
@@ -458,7 +457,8 @@ func TestCriterion9FullFlowOverABadNetworkWithIdempotentRetries(t *testing.T) {
 	require.NoError(t, env.owner.QueryRow(ctx, `SELECT count(*) FROM request_offers WHERE request_id = $1`, requestID).Scan(&offers))
 	assert.Equal(t, 1, requests, "retries never create a second request")
 	assert.Equal(t, 1, offers)
-	assert.Positive(t, network.dropped.Load(), "the network really did fail")
+	assert.Positive(t, network.lostOnTheWay.Load(), "requests were lost on the way")
+	assert.Positive(t, network.lostOnTheReply.Load(), "actions ran and their answers were lost")
 }
 
 func TestCriterion10And11ExpiredQuoteGetsANewOneWithoutCreatingARequest(t *testing.T) {
