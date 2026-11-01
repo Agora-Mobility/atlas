@@ -201,3 +201,23 @@ func (RouteChangedV1) EventType() string     { return RouteChanged }
 func (RouteChangedV1) EventVersion() int     { return 1 }
 func (RouteChangedV1) AggregateType() string { return ServiceRequestAggregate }
 func (e RouteChangedV1) AggregateID() string { return e.RequestID.String() }
+
+const (
+	ProviderApplicationSubmitted = "providers.application-submitted"
+	ProviderApproved             = "providers.approved"
+	ProviderRejected             = "providers.rejected"
+	ProviderSuspended            = "providers.suspended"
+)
+
+type ProviderReviewV1 struct {
+	Type       string     `json:"-"`
+	ProviderID uuid.UUID  `json:"provider_id"`
+	ServiceID  *uuid.UUID `json:"service_id,omitempty"`
+	Reason     string     `json:"reason,omitempty"`
+	OccurredAt time.Time  `json:"occurred_at"`
+}
+
+func (e ProviderReviewV1) EventType() string   { return e.Type }
+func (ProviderReviewV1) EventVersion() int     { return 1 }
+func (ProviderReviewV1) AggregateType() string { return ProviderAggregate }
+func (e ProviderReviewV1) AggregateID() string { return e.ProviderID.String() }

@@ -10,3 +10,4 @@ package repository
 //go:generate go tool mockgen -source=access.go -destination=mocks/access_mock.go -package=mocks
 //go:generate go tool mockgen -source=catalog.go -destination=mocks/catalog_mock.go -package=mocks
 //go:generate go tool mockgen -source=dispatch.go -destination=mocks/dispatch_mock.go -package=mocks
+//go:generate go tool mockgen -source=onboarding.go -destination=mocks/onboarding_mock.go -package=mocks

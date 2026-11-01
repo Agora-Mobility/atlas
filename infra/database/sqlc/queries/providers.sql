@@ -2,10 +2,14 @@
 SELECT * FROM provider_profiles WHERE user_id = $1;
 
 -- name: UpsertProviderProfile :exec
-INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id, requested_service_id, birth_date, id_number, address,
+    vehicle_brand, vehicle_model, vehicle_year, vehicle_color, vehicle_seats, status_reason, submitted_at, reviewed_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 ON CONFLICT (user_id) DO UPDATE
-SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, service_id = EXCLUDED.service_id, updated_at = now();
+SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, service_id = EXCLUDED.service_id,
+    requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date, id_number = EXCLUDED.id_number, address = EXCLUDED.address,
+    vehicle_brand = EXCLUDED.vehicle_brand, vehicle_model = EXCLUDED.vehicle_model, vehicle_year = EXCLUDED.vehicle_year, vehicle_color = EXCLUDED.vehicle_color,
+    vehicle_seats = EXCLUDED.vehicle_seats, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at, reviewed_at = EXCLUDED.reviewed_at, updated_at = now();
 
 -- name: UpdateProviderBase :execrows
 UPDATE provider_profiles SET base_lat = $2, base_lng = $3, service_radius_km = $4, updated_at = now() WHERE user_id = $1;

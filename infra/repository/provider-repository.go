@@ -36,8 +36,17 @@ func (r *ProviderRepository) FindProfile(ctx context.Context, userID uuid.UUID) 
 		return nil, fmt.Errorf("get provider: %w", err)
 	}
 	profile := &entities.ProviderProfile{
-		UserID: row.UserID, Status: entities.ProviderStatus(row.Status), ServiceID: row.ServiceID, VehiclePlate: row.VehiclePlate, VehicleDescription: row.VehicleDescription,
+		UserID: row.UserID, Status: entities.ProviderStatus(row.Status), ServiceID: row.ServiceID, RequestedServiceID: row.RequestedServiceID,
+		BirthDate: row.BirthDate, IDNumber: row.IDNumber, Address: row.Address, VehiclePlate: row.VehiclePlate, VehicleDescription: row.VehicleDescription,
+		Vehicle:      entities.ProviderVehicle{Brand: row.VehicleBrand, Model: row.VehicleModel, Color: row.VehicleColor, Plate: row.VehiclePlate},
+		StatusReason: row.StatusReason, SubmittedAt: row.SubmittedAt, ReviewedAt: row.ReviewedAt,
 		ServiceRadiusKm: row.ServiceRadiusKm, LastJobCompletedAt: row.LastJobCompletedAt, CreatedAt: row.CreatedAt,
+	}
+	if row.VehicleYear != nil {
+		profile.Vehicle.Year = int(*row.VehicleYear)
+	}
+	if row.VehicleSeats != nil {
+		profile.Vehicle.Seats = int(*row.VehicleSeats)
 	}
 	if row.BaseLat != nil && row.BaseLng != nil {
 		profile.Base = &entities.GeoPoint{Lat: *row.BaseLat, Lng: *row.BaseLng}
@@ -46,10 +55,20 @@ func (r *ProviderRepository) FindProfile(ctx context.Context, userID uuid.UUID) 
 }
 
 func (r *ProviderRepository) SaveProfile(ctx context.Context, p *entities.ProviderProfile) error {
-	err := postgres.Queries(ctx, r.pool).UpsertProviderProfile(ctx, gen.UpsertProviderProfileParams{
+	params := gen.UpsertProviderProfileParams{
 		UserID: p.UserID, Status: string(p.Status), VehiclePlate: p.VehiclePlate, VehicleDescription: p.VehicleDescription, ServiceID: p.ServiceID,
-	})
-	if err != nil {
+		RequestedServiceID: p.RequestedServiceID, BirthDate: p.BirthDate, IDNumber: p.IDNumber, Address: p.Address, VehicleBrand: p.Vehicle.Brand,
+		VehicleModel: p.Vehicle.Model, VehicleColor: p.Vehicle.Color, StatusReason: p.StatusReason, SubmittedAt: p.SubmittedAt, ReviewedAt: p.ReviewedAt,
+	}
+	if p.Vehicle.Year > 0 {
+		year := int32(p.Vehicle.Year) // #nosec G115 -- validated by the entity
+		params.VehicleYear = &year
+	}
+	if p.Vehicle.Seats > 0 {
+		seats := int32(p.Vehicle.Seats) // #nosec G115 -- validated by the entity
+		params.VehicleSeats = &seats
+	}
+	if err := postgres.Queries(ctx, r.pool).UpsertProviderProfile(ctx, params); err != nil {
 		return fmt.Errorf("save provider: %w", err)
 	}
 	return nil

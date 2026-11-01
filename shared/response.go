@@ -70,6 +70,10 @@ func ValidationFailed(ctx *gin.Context, validationErr *customerrors.ValidationEr
 	})
 }
 
+func UnprocessableWithDetails(ctx *gin.Context, code, message string, details map[string]string) {
+	respond(ctx, http.StatusUnprocessableEntity, ErrorBody{Code: code, Message: message, Details: details})
+}
+
 func InvalidRequest(ctx *gin.Context, err error) {
 	if validationErr, ok := customerrors.AsValidation(err); ok {
 		ValidationFailed(ctx, validationErr)

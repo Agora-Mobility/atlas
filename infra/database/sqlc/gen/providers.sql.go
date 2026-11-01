@@ -115,7 +115,7 @@ func (q *Queries) GetProviderCategory(ctx context.Context, userID uuid.UUID) (Ge
 }
 
 const getProviderProfile = `-- name: GetProviderProfile :one
-SELECT user_id, status, vehicle_plate, vehicle_description, base_lat, base_lng, service_radius_km, last_job_completed_at, created_at, updated_at, service_id FROM provider_profiles WHERE user_id = $1
+SELECT user_id, status, vehicle_plate, vehicle_description, base_lat, base_lng, service_radius_km, last_job_completed_at, created_at, updated_at, service_id, requested_service_id, birth_date, id_number, address, vehicle_brand, vehicle_model, vehicle_year, vehicle_color, vehicle_seats, status_reason, submitted_at, reviewed_at FROM provider_profiles WHERE user_id = $1
 `
 
 func (q *Queries) GetProviderProfile(ctx context.Context, userID uuid.UUID) (ProviderProfile, error) {
@@ -133,6 +133,18 @@ func (q *Queries) GetProviderProfile(ctx context.Context, userID uuid.UUID) (Pro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ServiceID,
+		&i.RequestedServiceID,
+		&i.BirthDate,
+		&i.IDNumber,
+		&i.Address,
+		&i.VehicleBrand,
+		&i.VehicleModel,
+		&i.VehicleYear,
+		&i.VehicleColor,
+		&i.VehicleSeats,
+		&i.StatusReason,
+		&i.SubmittedAt,
+		&i.ReviewedAt,
 	)
 	return i, err
 }
@@ -334,10 +346,14 @@ func (q *Queries) UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenPa
 }
 
 const upsertProviderProfile = `-- name: UpsertProviderProfile :exec
-INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id, requested_service_id, birth_date, id_number, address,
+    vehicle_brand, vehicle_model, vehicle_year, vehicle_color, vehicle_seats, status_reason, submitted_at, reviewed_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 ON CONFLICT (user_id) DO UPDATE
-SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, service_id = EXCLUDED.service_id, updated_at = now()
+SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, service_id = EXCLUDED.service_id,
+    requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date, id_number = EXCLUDED.id_number, address = EXCLUDED.address,
+    vehicle_brand = EXCLUDED.vehicle_brand, vehicle_model = EXCLUDED.vehicle_model, vehicle_year = EXCLUDED.vehicle_year, vehicle_color = EXCLUDED.vehicle_color,
+    vehicle_seats = EXCLUDED.vehicle_seats, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at, reviewed_at = EXCLUDED.reviewed_at, updated_at = now()
 `
 
 type UpsertProviderProfileParams struct {
@@ -346,6 +362,18 @@ type UpsertProviderProfileParams struct {
 	VehiclePlate       string     `json:"vehicle_plate"`
 	VehicleDescription string     `json:"vehicle_description"`
 	ServiceID          *uuid.UUID `json:"service_id"`
+	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
+	BirthDate          *time.Time `json:"birth_date"`
+	IDNumber           string     `json:"id_number"`
+	Address            string     `json:"address"`
+	VehicleBrand       string     `json:"vehicle_brand"`
+	VehicleModel       string     `json:"vehicle_model"`
+	VehicleYear        *int32     `json:"vehicle_year"`
+	VehicleColor       string     `json:"vehicle_color"`
+	VehicleSeats       *int32     `json:"vehicle_seats"`
+	StatusReason       string     `json:"status_reason"`
+	SubmittedAt        *time.Time `json:"submitted_at"`
+	ReviewedAt         *time.Time `json:"reviewed_at"`
 }
 
 func (q *Queries) UpsertProviderProfile(ctx context.Context, arg UpsertProviderProfileParams) error {
@@ -355,6 +383,18 @@ func (q *Queries) UpsertProviderProfile(ctx context.Context, arg UpsertProviderP
 		arg.VehiclePlate,
 		arg.VehicleDescription,
 		arg.ServiceID,
+		arg.RequestedServiceID,
+		arg.BirthDate,
+		arg.IDNumber,
+		arg.Address,
+		arg.VehicleBrand,
+		arg.VehicleModel,
+		arg.VehicleYear,
+		arg.VehicleColor,
+		arg.VehicleSeats,
+		arg.StatusReason,
+		arg.SubmittedAt,
+		arg.ReviewedAt,
 	)
 	return err
 }

@@ -24,6 +24,7 @@ type Querier interface {
 	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
 	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
 	CountPendingOutboxEvents(ctx context.Context) (int64, error)
+	CountProviderApplications(ctx context.Context, status string) (int64, error)
 	CountRequestsOfCustomer(ctx context.Context, arg CountRequestsOfCustomerParams) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
 	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
@@ -34,6 +35,7 @@ type Querier interface {
 	CreateInvitation(ctx context.Context, arg CreateInvitationParams) error
 	CreateMembership(ctx context.Context, arg CreateMembershipParams) error
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) error
+	CreateProviderProfile(ctx context.Context, userID uuid.UUID) error
 	CreateRecoveryCodes(ctx context.Context, arg CreateRecoveryCodesParams) error
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
@@ -67,6 +69,7 @@ type Querier interface {
 	GetActiveClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error)
 	GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error)
+	GetDocumentType(ctx context.Context, code string) (GetDocumentTypeRow, error)
 	GetETAObservation(ctx context.Context, arg GetETAObservationParams) (GetETAObservationRow, error)
 	GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstimate, error)
 	GetInvitationByHash(ctx context.Context, tokenHash string) (Invitation, error)
@@ -81,6 +84,7 @@ type Querier interface {
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetPlatformOrganization(ctx context.Context) (Organization, error)
 	GetProviderCategory(ctx context.Context, userID uuid.UUID) (GetProviderCategoryRow, error)
+	GetProviderDocument(ctx context.Context, arg GetProviderDocumentParams) (GetProviderDocumentRow, error)
 	GetProviderProfile(ctx context.Context, userID uuid.UUID) (ProviderProfile, error)
 	GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRequestOffer(ctx context.Context, id uuid.UUID) (RequestOffer, error)
@@ -89,6 +93,7 @@ type Querier interface {
 	GetService(ctx context.Context, id uuid.UUID) (Service, error)
 	GetServiceCategory(ctx context.Context, id uuid.UUID) (ServiceCategory, error)
 	GetServiceForDispatch(ctx context.Context, id uuid.UUID) (GetServiceForDispatchRow, error)
+	GetServiceOnboarding(ctx context.Context, serviceID uuid.UUID) (GetServiceOnboardingRow, error)
 	GetServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	GetServiceRequestForUpdate(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	GetServiceTariff(ctx context.Context, id uuid.UUID) (ServiceTariff, error)
@@ -120,13 +125,17 @@ type Querier interface {
 	ListMembershipPermissions(ctx context.Context, membershipID uuid.UUID) ([]string, error)
 	ListMembershipRoles(ctx context.Context, membershipIds []uuid.UUID) ([]MembershipRole, error)
 	ListOpenOffersOfProvider(ctx context.Context, arg ListOpenOffersOfProviderParams) ([]RequestOffer, error)
+	ListOpenOnboardingServices(ctx context.Context) ([]ListOpenOnboardingServicesRow, error)
 	ListOperatorQueue(ctx context.Context, arg ListOperatorQueueParams) ([]ServiceRequest, error)
 	ListPartnerOrganizations(ctx context.Context, arg ListPartnerOrganizationsParams) ([]Organization, error)
 	ListPermissionsByScope(ctx context.Context, scope enums.OrganizationType) ([]ListPermissionsByScopeRow, error)
+	ListProviderApplications(ctx context.Context, arg ListProviderApplicationsParams) ([]ListProviderApplicationsRow, error)
+	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error)
 	ListRequestOffers(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestOffersForUpdate(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOfCustomerParams) ([]ServiceRequest, error)
 	ListRequestsWithProviderOnTheWay(ctx context.Context, limit int32) ([]ServiceRequest, error)
+	ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]ListRequiredDocumentsRow, error)
 	ListRolePermissions(ctx context.Context, roleIds []uuid.UUID) ([]RolePermission, error)
 	ListRolesForOrganization(ctx context.Context, arg ListRolesForOrganizationParams) ([]Role, error)
 	ListServiceCategories(ctx context.Context, onlyActive bool) ([]ServiceCategory, error)
@@ -149,6 +158,7 @@ type Querier interface {
 	RevokeUserRefreshTokens(ctx context.Context, arg RevokeUserRefreshTokensParams) error
 	RoleIsAssigned(ctx context.Context, roleID uuid.UUID) (bool, error)
 	SavePendingUserMFA(ctx context.Context, arg SavePendingUserMFAParams) error
+	SaveProviderDocument(ctx context.Context, arg SaveProviderDocumentParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)

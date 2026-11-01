@@ -6,30 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type ProviderStatus string
-
-const (
-	ProviderPending   ProviderStatus = "pending"
-	ProviderApproved  ProviderStatus = "approved"
-	ProviderSuspended ProviderStatus = "suspended"
-)
-
-func (s ProviderStatus) IsValid() bool {
-	return s == ProviderPending || s == ProviderApproved || s == ProviderSuspended
-}
-
-type ProviderProfile struct {
-	UserID             uuid.UUID
-	Status             ProviderStatus
-	ServiceID          *uuid.UUID
-	VehiclePlate       string
-	VehicleDescription string
-	Base               *GeoPoint
-	ServiceRadiusKm    *float64
-	LastJobCompletedAt *time.Time
-	CreatedAt          time.Time
-}
-
 type EligibleProvider struct {
 	UserID             uuid.UUID
 	Phone              string

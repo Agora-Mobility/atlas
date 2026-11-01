@@ -428,6 +428,30 @@ type ProviderCoverage struct {
 	ProviderID uuid.UUID `json:"provider_id"`
 }
 
+type ProviderDocument struct {
+	ID              uuid.UUID  `json:"id"`
+	ProviderID      uuid.UUID  `json:"provider_id"`
+	DocumentType    string     `json:"document_type"`
+	ObjectKey       string     `json:"object_key"`
+	ContentType     string     `json:"content_type"`
+	SizeBytes       int64      `json:"size_bytes"`
+	Status          string     `json:"status"`
+	RejectionReason string     `json:"rejection_reason"`
+	ReviewedBy      *uuid.UUID `json:"reviewed_by"`
+	ReviewedAt      *time.Time `json:"reviewed_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+type ProviderDocumentType struct {
+	Code                string   `json:"code"`
+	Name                string   `json:"name"`
+	Scope               string   `json:"scope"`
+	AllowedContentTypes []string `json:"allowed_content_types"`
+	MaxSizeBytes        int64    `json:"max_size_bytes"`
+	DisplayOrder        int32    `json:"display_order"`
+}
+
 type ProviderLocationSample struct {
 	ID         int64     `json:"id"`
 	ProviderID uuid.UUID `json:"provider_id"`
@@ -449,6 +473,18 @@ type ProviderProfile struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 	ServiceID          *uuid.UUID `json:"service_id"`
+	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
+	BirthDate          *time.Time `json:"birth_date"`
+	IDNumber           string     `json:"id_number"`
+	Address            string     `json:"address"`
+	VehicleBrand       string     `json:"vehicle_brand"`
+	VehicleModel       string     `json:"vehicle_model"`
+	VehicleYear        *int32     `json:"vehicle_year"`
+	VehicleColor       string     `json:"vehicle_color"`
+	VehicleSeats       *int32     `json:"vehicle_seats"`
+	StatusReason       string     `json:"status_reason"`
+	SubmittedAt        *time.Time `json:"submitted_at"`
+	ReviewedAt         *time.Time `json:"reviewed_at"`
 }
 
 type RefreshToken struct {
@@ -531,6 +567,12 @@ type ServiceCategory struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+type ServiceOnboarding struct {
+	ServiceID       uuid.UUID `json:"service_id"`
+	RequiresVehicle bool      `json:"requires_vehicle"`
+	MinVehicleSeats int32     `json:"min_vehicle_seats"`
+}
+
 type ServiceRequest struct {
 	ID                   uuid.UUID       `json:"id"`
 	CustomerID           uuid.UUID       `json:"customer_id"`
@@ -592,6 +634,11 @@ type ServiceRequestEvent struct {
 	ActorID    *uuid.UUID `json:"actor_id"`
 	Reason     string     `json:"reason"`
 	OccurredAt time.Time  `json:"occurred_at"`
+}
+
+type ServiceRequiredDocument struct {
+	ServiceID    uuid.UUID `json:"service_id"`
+	DocumentType string    `json:"document_type"`
 }
 
 type ServiceTariff struct {
