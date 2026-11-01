@@ -213,12 +213,12 @@ make test-e2e          # full stack and acceptance criteria of the proposal (Doc
 make test-load         # k6 against a disposable stack (Docker and k6)
 ```
 
-## Provider onboarding
+## Provider sign-up
 
 Providers apply in the app and the backoffice reviews them (ADR 0007).
 
 1. `POST /api/v1/providers/register`, then `POST /api/v1/auth/phone/verify`.
-2. `GET /api/v1/providers/onboarding/services`, then `PUT /api/v1/providers/me/service`.
+2. `GET /api/v1/providers/services`, then `PUT /api/v1/providers/me/service`.
 3. `PUT /api/v1/providers/me/personal` and `PUT /api/v1/providers/me/vehicle`.
 4. For each document: `POST /api/v1/providers/me/documents/upload-url`, PUT the file to
    the returned URL with the returned headers, then `POST /api/v1/providers/me/documents`.

@@ -1,32 +1,55 @@
--- name: GetProviderProfile :one
-SELECT * FROM provider_profiles WHERE user_id = $1;
+-- name: CreateProvider :exec
+INSERT INTO providers (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING;
 
--- name: UpsertProviderProfile :exec
-INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id, requested_service_id, birth_date, id_number, address,
-    vehicle_brand, vehicle_model, vehicle_year, vehicle_color, vehicle_seats, status_reason, submitted_at, reviewed_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+-- name: GetProvider :one
+SELECT * FROM providers WHERE user_id = $1;
+
+-- name: UpsertProvider :exec
+INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, address, status_reason, submitted_at, reviewed_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (user_id) DO UPDATE
-SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, service_id = EXCLUDED.service_id,
-    requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date, id_number = EXCLUDED.id_number, address = EXCLUDED.address,
-    vehicle_brand = EXCLUDED.vehicle_brand, vehicle_model = EXCLUDED.vehicle_model, vehicle_year = EXCLUDED.vehicle_year, vehicle_color = EXCLUDED.vehicle_color,
-    vehicle_seats = EXCLUDED.vehicle_seats, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at, reviewed_at = EXCLUDED.reviewed_at, updated_at = now();
+SET status = EXCLUDED.status, service_id = EXCLUDED.service_id, requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date,
+    id_number = EXCLUDED.id_number, address = EXCLUDED.address, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
+    reviewed_at = EXCLUDED.reviewed_at, updated_at = now();
+
+-- name: GetVehicleOfProvider :one
+SELECT * FROM vehicles WHERE provider_id = $1;
+
+-- name: UpsertVehicle :exec
+INSERT INTO vehicles (provider_id, brand, model, year, color, plate, seats)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (provider_id) DO UPDATE
+SET brand = EXCLUDED.brand, model = EXCLUDED.model, year = EXCLUDED.year, color = EXCLUDED.color, plate = EXCLUDED.plate, seats = EXCLUDED.seats, updated_at = now();
+
+-- name: ListProviderApplications :many
+SELECT p.user_id, p.status, p.requested_service_id, p.service_id, p.submitted_at, p.reviewed_at, v.plate AS vehicle_plate, u.name, u.phone, s.name AS requested_service_name
+FROM providers p
+JOIN users u ON u.id = p.user_id
+LEFT JOIN vehicles v ON v.provider_id = p.user_id
+LEFT JOIN services s ON s.id = p.requested_service_id
+WHERE sqlc.arg(status)::text = '' OR p.status = sqlc.arg(status)::text
+ORDER BY p.submitted_at NULLS LAST, p.created_at
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
+
+-- name: CountProviderApplications :one
+SELECT count(*) FROM providers p WHERE sqlc.arg(status)::text = '' OR p.status = sqlc.arg(status)::text;
 
 -- name: UpdateProviderBase :execrows
-UPDATE provider_profiles SET base_lat = $2, base_lng = $3, service_radius_km = $4, updated_at = now() WHERE user_id = $1;
+UPDATE providers SET base_lat = $2, base_lng = $3, service_radius_km = $4, updated_at = now() WHERE user_id = $1;
 
 -- name: TouchProviderJobCompleted :exec
-UPDATE provider_profiles SET last_job_completed_at = $2, updated_at = now() WHERE user_id = $1;
+UPDATE providers SET last_job_completed_at = $2, updated_at = now() WHERE user_id = $1;
 
 -- name: GetProviderCategory :one
 SELECT c.id, c.slug
-FROM provider_profiles p
+FROM providers p
 JOIN services s ON s.id = p.service_id
 JOIN service_categories c ON c.id = s.category_id
 WHERE p.user_id = $1;
 
 -- name: FilterEligibleProviders :many
 SELECT p.user_id, p.last_job_completed_at, p.created_at, p.base_lat, p.base_lng, p.service_radius_km, u.phone
-FROM provider_profiles p
+FROM providers p
 JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
 WHERE p.user_id = ANY(sqlc.arg(provider_ids)::uuid[]) AND p.status = 'approved' AND p.service_id = sqlc.arg(service_id)::uuid;
 

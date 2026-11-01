@@ -50,7 +50,7 @@ type Container struct {
 	Catalog       *CatalogModule
 	Notifications *NotificationsModule
 	Dispatch      *DispatchModule
-	Onboarding    *OnboardingModule
+	Providers     *ProvidersModule
 }
 
 type Connections struct {
@@ -117,7 +117,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 		return nil, err
 	}
 	c.Dispatch = newDispatchModule(c, pushSender, newRoutingProvider(cfg.Mapbox))
-	c.Onboarding = newOnboardingModule(c, newObjectStorage(cfg.R2))
+	c.Providers = newProvidersModule(c, newObjectStorage(cfg.R2))
 	return c, nil
 }
 

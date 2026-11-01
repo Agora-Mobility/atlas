@@ -422,6 +422,25 @@ type Permission struct {
 	Scopes      []enums.OrganizationType `json:"scopes"`
 }
 
+type Provider struct {
+	UserID             uuid.UUID  `json:"user_id"`
+	Status             string     `json:"status"`
+	BaseLat            *float64   `json:"base_lat"`
+	BaseLng            *float64   `json:"base_lng"`
+	ServiceRadiusKm    *float64   `json:"service_radius_km"`
+	LastJobCompletedAt *time.Time `json:"last_job_completed_at"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	ServiceID          *uuid.UUID `json:"service_id"`
+	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
+	BirthDate          *time.Time `json:"birth_date"`
+	IDNumber           string     `json:"id_number"`
+	Address            string     `json:"address"`
+	StatusReason       string     `json:"status_reason"`
+	SubmittedAt        *time.Time `json:"submitted_at"`
+	ReviewedAt         *time.Time `json:"reviewed_at"`
+}
+
 type ProviderCoverage struct {
 	CategoryID uuid.UUID `json:"category_id"`
 	H3R6       int64     `json:"h3_r6"`
@@ -459,32 +478,6 @@ type ProviderLocationSample struct {
 	Lat        float64   `json:"lat"`
 	Lng        float64   `json:"lng"`
 	RecordedAt time.Time `json:"recorded_at"`
-}
-
-type ProviderProfile struct {
-	UserID             uuid.UUID  `json:"user_id"`
-	Status             string     `json:"status"`
-	VehiclePlate       string     `json:"vehicle_plate"`
-	VehicleDescription string     `json:"vehicle_description"`
-	BaseLat            *float64   `json:"base_lat"`
-	BaseLng            *float64   `json:"base_lng"`
-	ServiceRadiusKm    *float64   `json:"service_radius_km"`
-	LastJobCompletedAt *time.Time `json:"last_job_completed_at"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
-	ServiceID          *uuid.UUID `json:"service_id"`
-	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
-	BirthDate          *time.Time `json:"birth_date"`
-	IDNumber           string     `json:"id_number"`
-	Address            string     `json:"address"`
-	VehicleBrand       string     `json:"vehicle_brand"`
-	VehicleModel       string     `json:"vehicle_model"`
-	VehicleYear        *int32     `json:"vehicle_year"`
-	VehicleColor       string     `json:"vehicle_color"`
-	VehicleSeats       *int32     `json:"vehicle_seats"`
-	StatusReason       string     `json:"status_reason"`
-	SubmittedAt        *time.Time `json:"submitted_at"`
-	ReviewedAt         *time.Time `json:"reviewed_at"`
 }
 
 type RefreshToken struct {
@@ -567,7 +560,7 @@ type ServiceCategory struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-type ServiceOnboarding struct {
+type ServiceProviderRequirement struct {
 	ServiceID       uuid.UUID `json:"service_id"`
 	RequiresVehicle bool      `json:"requires_vehicle"`
 	MinVehicleSeats int32     `json:"min_vehicle_seats"`
@@ -708,4 +701,17 @@ type UserMfa struct {
 	LastUsedStep int64      `json:"last_used_step"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+type Vehicle struct {
+	ID         uuid.UUID `json:"id"`
+	ProviderID uuid.UUID `json:"provider_id"`
+	Brand      string    `json:"brand"`
+	Model      string    `json:"model"`
+	Year       *int32    `json:"year"`
+	Color      string    `json:"color"`
+	Plate      string    `json:"plate"`
+	Seats      *int32    `json:"seats"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }

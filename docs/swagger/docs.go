@@ -766,7 +766,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "404": {
@@ -819,7 +819,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "404": {
@@ -893,7 +893,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "404": {
@@ -4253,7 +4253,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Register an uploaded document",
                 "parameters": [
@@ -4271,7 +4271,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4307,7 +4307,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Get a URL to upload a document",
                 "parameters": [
@@ -4363,7 +4363,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Short-lived link to one of my documents",
                 "parameters": [
@@ -4523,7 +4523,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Save the personal data",
                 "parameters": [
@@ -4541,7 +4541,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4574,14 +4574,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "My provider profile",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     }
                 }
@@ -4605,7 +4605,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Choose the service to provide",
                 "parameters": [
@@ -4623,7 +4623,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4656,14 +4656,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Submit the profile for review",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4698,7 +4698,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Save the vehicle",
                 "parameters": [
@@ -4716,7 +4716,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4729,31 +4729,6 @@ const docTemplate = `{
                         "description": "Invalid fields",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/providers/onboarding/services": {
-            "get": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "description": "By category, for example Táxi with Económico, Conforto and XL. A service only appears once its requirements are configured.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Provider onboarding"
-                ],
-                "summary": "Services that accept providers",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.OpenServices"
                         }
                     }
                 }
@@ -4774,7 +4749,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Create a provider account",
                 "parameters": [
@@ -4811,6 +4786,31 @@ const docTemplate = `{
                         "description": "Invalid fields",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/services": {
+            "get": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "By category, for example Táxi with Económico, Conforto and XL. A service only appears once its requirements are configured.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Services that accept providers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OpenServices"
                         }
                     }
                 }
@@ -8327,7 +8327,24 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.ProfileView": {
+        "dtos.ProviderSummary": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "vehicle_description": {
+                    "type": "string"
+                },
+                "vehicle_plate": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.ProviderView": {
             "type": "object",
             "properties": {
                 "address": {
@@ -8389,23 +8406,6 @@ const docTemplate = `{
                 },
                 "vehicle": {
                     "$ref": "#/definitions/dtos.VehicleView"
-                }
-            }
-        },
-        "dtos.ProviderSummary": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "vehicle_description": {
-                    "type": "string"
-                },
-                "vehicle_plate": {
-                    "type": "string"
                 }
             }
         },

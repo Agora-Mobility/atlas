@@ -15,16 +15,16 @@ import (
 	"github.com/Agora-Mobility/atlas/shared/customerrors"
 	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
-	"github.com/Agora-Mobility/atlas/usecases/onboarding"
-	"github.com/Agora-Mobility/atlas/usecases/onboarding/dtos"
+	"github.com/Agora-Mobility/atlas/usecases/providers"
+	"github.com/Agora-Mobility/atlas/usecases/providers/dtos"
 )
 
-type OnboardingController struct {
-	onboarding *onboarding.Usecase
+type ProviderController struct {
+	providers *providers.Usecase
 }
 
-func NewOnboardingController(uc *onboarding.Usecase) *OnboardingController {
-	return &OnboardingController{onboarding: uc}
+func NewProviderController(uc *providers.Usecase) *ProviderController {
+	return &ProviderController{providers: uc}
 }
 
 var errorTable = []struct {
@@ -33,19 +33,19 @@ var errorTable = []struct {
 	code    string
 	message string
 }{
-	{onboarding.ErrRegistrationNotAllowed, http.StatusForbidden, "REGISTRATION_NOT_ALLOWED", "Provider accounts are created in the provider app."},
-	{onboarding.ErrPhoneTaken, http.StatusConflict, "PHONE_ALREADY_EXISTS", "Phone already registered."},
-	{onboarding.ErrEmailTaken, http.StatusConflict, "EMAIL_ALREADY_EXISTS", "E-mail already registered."},
-	{onboarding.ErrServiceNotOpen, http.StatusUnprocessableEntity, "SERVICE_NOT_OPEN", "This service does not accept providers."},
-	{onboarding.ErrDocumentTypeUnknown, http.StatusUnprocessableEntity, "UNKNOWN_DOCUMENT_TYPE", "Unknown document type."},
-	{onboarding.ErrContentTypeRejected, http.StatusUnprocessableEntity, "FILE_TYPE_NOT_ACCEPTED", "This file type is not accepted for this document."},
-	{onboarding.ErrFileTooLarge, http.StatusUnprocessableEntity, "FILE_TOO_LARGE", "The file is too large."},
-	{onboarding.ErrObjectKeyInvalid, http.StatusUnprocessableEntity, "INVALID_OBJECT_KEY", "The object key does not belong to this document."},
-	{onboarding.ErrObjectNotFound, http.StatusUnprocessableEntity, "FILE_NOT_UPLOADED", "The file was not uploaded."},
-	{onboarding.ErrDocumentNotFound, http.StatusNotFound, "DOCUMENT_NOT_FOUND", "Document not found."},
-	{onboarding.ErrProviderNotFound, http.StatusNotFound, "PROVIDER_NOT_FOUND", "Provider not found."},
-	{onboarding.ErrProviderBusy, http.StatusConflict, "PROVIDER_BUSY", "The provider has an active job."},
-	{onboarding.ErrReviewNotAllowed, http.StatusConflict, "REVIEW_NOT_ALLOWED", "Documents are reviewed while the application is pending."},
+	{providers.ErrRegistrationNotAllowed, http.StatusForbidden, "REGISTRATION_NOT_ALLOWED", "Provider accounts are created in the provider app."},
+	{providers.ErrPhoneTaken, http.StatusConflict, "PHONE_ALREADY_EXISTS", "Phone already registered."},
+	{providers.ErrEmailTaken, http.StatusConflict, "EMAIL_ALREADY_EXISTS", "E-mail already registered."},
+	{providers.ErrServiceNotOpen, http.StatusUnprocessableEntity, "SERVICE_NOT_OPEN", "This service does not accept providers."},
+	{providers.ErrDocumentTypeUnknown, http.StatusUnprocessableEntity, "UNKNOWN_DOCUMENT_TYPE", "Unknown document type."},
+	{providers.ErrContentTypeRejected, http.StatusUnprocessableEntity, "FILE_TYPE_NOT_ACCEPTED", "This file type is not accepted for this document."},
+	{providers.ErrFileTooLarge, http.StatusUnprocessableEntity, "FILE_TOO_LARGE", "The file is too large."},
+	{providers.ErrObjectKeyInvalid, http.StatusUnprocessableEntity, "INVALID_OBJECT_KEY", "The object key does not belong to this document."},
+	{providers.ErrObjectNotFound, http.StatusUnprocessableEntity, "FILE_NOT_UPLOADED", "The file was not uploaded."},
+	{providers.ErrDocumentNotFound, http.StatusNotFound, "DOCUMENT_NOT_FOUND", "Document not found."},
+	{providers.ErrProviderNotFound, http.StatusNotFound, "PROVIDER_NOT_FOUND", "Provider not found."},
+	{providers.ErrProviderBusy, http.StatusConflict, "PROVIDER_BUSY", "The provider has an active job."},
+	{providers.ErrReviewNotAllowed, http.StatusConflict, "REVIEW_NOT_ALLOWED", "Documents are reviewed while the application is pending."},
 	{entities.ErrProfileLocked, http.StatusConflict, "PROFILE_LOCKED", "The profile cannot change in this state."},
 	{entities.ErrInvalidProviderTransition, http.StatusConflict, "INVALID_PROVIDER_TRANSITION", "This change of status is not possible."},
 	{entities.ErrReviewReasonRequired, http.StatusUnprocessableEntity, "REASON_REQUIRED", "A reason is required."},
@@ -61,7 +61,7 @@ func respond(ctx *gin.Context, status int, body any, err error) {
 }
 
 func handleError(ctx *gin.Context, err error) {
-	var incomplete *onboarding.IncompleteError
+	var incomplete *providers.IncompleteError
 	if errors.As(err, &incomplete) {
 		shared.UnprocessableWithDetails(ctx, incomplete.Code, "Some requirements are not met.", incomplete.Fields)
 		return
@@ -122,7 +122,7 @@ func providerParam(ctx *gin.Context) (uuid.UUID, bool) {
 //
 //	@Summary		Create a provider account
 //	@Description	Only through agora-provider-app: the account type comes from the client, never from the payload. Creates the account and a draft profile, and sends an SMS code. Confirm it with POST /api/v1/auth/phone/verify to get a session.
-//	@Tags			Provider onboarding
+//	@Tags			Providers
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.RegisterProviderInput	true	"Account"
@@ -132,7 +132,7 @@ func providerParam(ctx *gin.Context) (uuid.UUID, bool) {
 //	@Failure		422		{object}	shared.ErrorResponse	"Invalid fields"
 //	@Security		ClientId
 //	@Router			/api/v1/providers/register [post]
-func (c *OnboardingController) Register(ctx *gin.Context) {
+func (c *ProviderController) Register(ctx *gin.Context) {
 	client, ok := middleware.ClientFromContext(ctx.Request.Context())
 	if !ok {
 		shared.BadRequest(ctx, "UNKNOWN_CLIENT", "Missing or unknown client.")
@@ -143,7 +143,7 @@ func (c *OnboardingController) Register(ctx *gin.Context) {
 		shared.InvalidRequest(ctx, err)
 		return
 	}
-	view, err := c.onboarding.Register(ctx.Request.Context(), client, in)
+	view, err := c.providers.Register(ctx.Request.Context(), client, in)
 	respond(ctx, http.StatusCreated, view, err)
 }
 
@@ -151,13 +151,13 @@ func (c *OnboardingController) Register(ctx *gin.Context) {
 //
 //	@Summary		Services that accept providers
 //	@Description	By category, for example Táxi with Económico, Conforto and XL. A service only appears once its requirements are configured.
-//	@Tags			Provider onboarding
+//	@Tags			Providers
 //	@Produce		json
 //	@Success		200	{object}	dtos.OpenServices
 //	@Security		ClientId
-//	@Router			/api/v1/providers/onboarding/services [get]
-func (c *OnboardingController) OpenServices(ctx *gin.Context) {
-	view, err := c.onboarding.OpenServices(ctx.Request.Context())
+//	@Router			/api/v1/providers/services [get]
+func (c *ProviderController) OpenServices(ctx *gin.Context) {
+	view, err := c.providers.OpenServices(ctx.Request.Context())
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -165,18 +165,18 @@ func (c *OnboardingController) OpenServices(ctx *gin.Context) {
 //
 //	@Summary		My provider profile
 //	@Description	Status, data, documents, what the requested service requires and what is still missing.
-//	@Tags			Provider onboarding
+//	@Tags			Providers
 //	@Produce		json
-//	@Success		200	{object}	dtos.ProfileView
+//	@Success		200	{object}	dtos.ProviderView
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/providers/me/profile [get]
-func (c *OnboardingController) MyProfile(ctx *gin.Context) {
+func (c *ProviderController) MyProfile(ctx *gin.Context) {
 	providerID, ok := currentProvider(ctx)
 	if !ok {
 		return
 	}
-	view, err := c.onboarding.MyProfile(ctx.Request.Context(), providerID)
+	view, err := c.providers.Me(ctx.Request.Context(), providerID)
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -184,17 +184,17 @@ func (c *OnboardingController) MyProfile(ctx *gin.Context) {
 //
 //	@Summary		Choose the service to provide
 //	@Description	Stored as the requested service. The service a provider really takes comes from the approval.
-//	@Tags			Provider onboarding
+//	@Tags			Providers
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.RequestServiceInput	true	"Service"
-//	@Success		200		{object}	dtos.ProfileView
+//	@Success		200		{object}	dtos.ProviderView
 //	@Failure		409		{object}	shared.ErrorResponse	"PROFILE_LOCKED"
 //	@Failure		422		{object}	shared.ErrorResponse	"SERVICE_NOT_OPEN"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/providers/me/service [put]
-func (c *OnboardingController) RequestService(ctx *gin.Context) {
+func (c *ProviderController) RequestService(ctx *gin.Context) {
 	providerID, ok := currentProvider(ctx)
 	if !ok {
 		return
@@ -204,24 +204,24 @@ func (c *OnboardingController) RequestService(ctx *gin.Context) {
 		shared.InvalidRequest(ctx, err)
 		return
 	}
-	view, err := c.onboarding.RequestService(ctx.Request.Context(), providerID, in)
+	view, err := c.providers.RequestService(ctx.Request.Context(), providerID, in)
 	respond(ctx, http.StatusOK, view, err)
 }
 
 // SetPersonalData godoc
 //
 //	@Summary	Save the personal data
-//	@Tags		Provider onboarding
+//	@Tags		Providers
 //	@Accept		json
 //	@Produce	json
 //	@Param		body	body		dtos.PersonalDataInput	true	"Personal data"
-//	@Success	200		{object}	dtos.ProfileView
+//	@Success	200		{object}	dtos.ProviderView
 //	@Failure	409		{object}	shared.ErrorResponse	"PROFILE_LOCKED"
 //	@Failure	422		{object}	shared.ErrorResponse	"Invalid fields"
 //	@Security	BearerAuth
 //	@Security	ClientId
 //	@Router		/api/v1/providers/me/personal [put]
-func (c *OnboardingController) SetPersonalData(ctx *gin.Context) {
+func (c *ProviderController) SetPersonalData(ctx *gin.Context) {
 	providerID, ok := currentProvider(ctx)
 	if !ok {
 		return
@@ -231,24 +231,24 @@ func (c *OnboardingController) SetPersonalData(ctx *gin.Context) {
 		shared.InvalidRequest(ctx, err)
 		return
 	}
-	view, err := c.onboarding.SetPersonalData(ctx.Request.Context(), providerID, in)
+	view, err := c.providers.SetPersonalData(ctx.Request.Context(), providerID, in)
 	respond(ctx, http.StatusOK, view, err)
 }
 
 // SetVehicle godoc
 //
 //	@Summary	Save the vehicle
-//	@Tags		Provider onboarding
+//	@Tags		Providers
 //	@Accept		json
 //	@Produce	json
 //	@Param		body	body		dtos.VehicleInput	true	"Vehicle"
-//	@Success	200		{object}	dtos.ProfileView
+//	@Success	200		{object}	dtos.ProviderView
 //	@Failure	409		{object}	shared.ErrorResponse	"PROFILE_LOCKED"
 //	@Failure	422		{object}	shared.ErrorResponse	"Invalid fields"
 //	@Security	BearerAuth
 //	@Security	ClientId
 //	@Router		/api/v1/providers/me/vehicle [put]
-func (c *OnboardingController) SetVehicle(ctx *gin.Context) {
+func (c *ProviderController) SetVehicle(ctx *gin.Context) {
 	providerID, ok := currentProvider(ctx)
 	if !ok {
 		return
@@ -258,7 +258,7 @@ func (c *OnboardingController) SetVehicle(ctx *gin.Context) {
 		shared.InvalidRequest(ctx, err)
 		return
 	}
-	view, err := c.onboarding.SetVehicle(ctx.Request.Context(), providerID, in)
+	view, err := c.providers.SetVehicle(ctx.Request.Context(), providerID, in)
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -266,7 +266,7 @@ func (c *OnboardingController) SetVehicle(ctx *gin.Context) {
 //
 //	@Summary		Get a URL to upload a document
 //	@Description	Validates the type and the size. Then PUT the file directly to upload_url with the returned headers, and register it with POST /api/v1/providers/me/documents.
-//	@Tags			Provider onboarding
+//	@Tags			Providers
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.UploadURLInput	true	"File"
@@ -277,7 +277,7 @@ func (c *OnboardingController) SetVehicle(ctx *gin.Context) {
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/providers/me/documents/upload-url [post]
-func (c *OnboardingController) UploadURL(ctx *gin.Context) {
+func (c *ProviderController) UploadURL(ctx *gin.Context) {
 	providerID, ok := currentProvider(ctx)
 	if !ok {
 		return
@@ -287,7 +287,7 @@ func (c *OnboardingController) UploadURL(ctx *gin.Context) {
 		shared.InvalidRequest(ctx, err)
 		return
 	}
-	view, err := c.onboarding.UploadURL(ctx.Request.Context(), providerID, in)
+	view, err := c.providers.UploadURL(ctx.Request.Context(), providerID, in)
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -295,17 +295,17 @@ func (c *OnboardingController) UploadURL(ctx *gin.Context) {
 //
 //	@Summary		Register an uploaded document
 //	@Description	Confirms that the file exists and that its content really is an accepted type. A new file replaces the previous one of that type, which is how a rejected document is sent again.
-//	@Tags			Provider onboarding
+//	@Tags			Providers
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.RegisterDocumentInput	true	"Document"
-//	@Success		201		{object}	dtos.ProfileView
+//	@Success		201		{object}	dtos.ProviderView
 //	@Failure		409		{object}	shared.ErrorResponse	"PROFILE_LOCKED"
 //	@Failure		422		{object}	shared.ErrorResponse	"FILE_NOT_UPLOADED, INVALID_OBJECT_KEY or FILE_TYPE_NOT_ACCEPTED"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/providers/me/documents [post]
-func (c *OnboardingController) RegisterDocument(ctx *gin.Context) {
+func (c *ProviderController) RegisterDocument(ctx *gin.Context) {
 	providerID, ok := currentProvider(ctx)
 	if !ok {
 		return
@@ -315,14 +315,14 @@ func (c *OnboardingController) RegisterDocument(ctx *gin.Context) {
 		shared.InvalidRequest(ctx, err)
 		return
 	}
-	view, err := c.onboarding.RegisterDocument(ctx.Request.Context(), providerID, in)
+	view, err := c.providers.RegisterDocument(ctx.Request.Context(), providerID, in)
 	respond(ctx, http.StatusCreated, view, err)
 }
 
 // MyDocumentURL godoc
 //
 //	@Summary	Short-lived link to one of my documents
-//	@Tags		Provider onboarding
+//	@Tags		Providers
 //	@Produce	json
 //	@Param		type	path		string	true	"Document type"
 //	@Success	200		{object}	dtos.DocumentURLOutput
@@ -330,12 +330,12 @@ func (c *OnboardingController) RegisterDocument(ctx *gin.Context) {
 //	@Security	BearerAuth
 //	@Security	ClientId
 //	@Router		/api/v1/providers/me/documents/{type}/url [get]
-func (c *OnboardingController) MyDocumentURL(ctx *gin.Context) {
+func (c *ProviderController) MyDocumentURL(ctx *gin.Context) {
 	providerID, ok := currentProvider(ctx)
 	if !ok {
 		return
 	}
-	view, err := c.onboarding.MyDocumentURL(ctx.Request.Context(), providerID, ctx.Param("type"))
+	view, err := c.providers.MyDocumentURL(ctx.Request.Context(), providerID, ctx.Param("type"))
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -343,20 +343,20 @@ func (c *OnboardingController) MyDocumentURL(ctx *gin.Context) {
 //
 //	@Summary		Submit the profile for review
 //	@Description	Answers 422 PROFILE_INCOMPLETE with the list of what is missing in details.
-//	@Tags			Provider onboarding
+//	@Tags			Providers
 //	@Produce		json
-//	@Success		200	{object}	dtos.ProfileView
+//	@Success		200	{object}	dtos.ProviderView
 //	@Failure		409	{object}	shared.ErrorResponse	"PROFILE_LOCKED"
 //	@Failure		422	{object}	shared.ErrorResponse	"PROFILE_INCOMPLETE"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/providers/me/submit [post]
-func (c *OnboardingController) Submit(ctx *gin.Context) {
+func (c *ProviderController) Submit(ctx *gin.Context) {
 	providerID, ok := currentProvider(ctx)
 	if !ok {
 		return
 	}
-	view, err := c.onboarding.Submit(ctx.Request.Context(), providerID)
+	view, err := c.providers.Submit(ctx.Request.Context(), providerID)
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -373,13 +373,13 @@ func (c *OnboardingController) Submit(ctx *gin.Context) {
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/providers [get]
-func (c *OnboardingController) ListApplications(ctx *gin.Context) {
+func (c *ProviderController) ListApplications(ctx *gin.Context) {
 	var page pagination.Params
 	if err := ctx.ShouldBindQuery(&page); err != nil {
 		shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid pagination.")
 		return
 	}
-	list, err := c.onboarding.ListApplications(ctx.Request.Context(), ctx.Query("status"), page)
+	list, err := c.providers.ListApplications(ctx.Request.Context(), ctx.Query("status"), page)
 	respond(ctx, http.StatusOK, list, err)
 }
 
@@ -390,17 +390,17 @@ func (c *OnboardingController) ListApplications(ctx *gin.Context) {
 //	@Tags			Backoffice providers
 //	@Produce		json
 //	@Param			id	path		string	true	"User id of the provider"
-//	@Success		200	{object}	dtos.ProfileView
+//	@Success		200	{object}	dtos.ProviderView
 //	@Failure		404	{object}	shared.ErrorResponse
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/providers/{id} [get]
-func (c *OnboardingController) GetApplication(ctx *gin.Context) {
+func (c *ProviderController) GetApplication(ctx *gin.Context) {
 	id, ok := providerParam(ctx)
 	if !ok {
 		return
 	}
-	view, err := c.onboarding.GetApplication(ctx.Request.Context(), id)
+	view, err := c.providers.GetApplication(ctx.Request.Context(), id)
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -414,14 +414,14 @@ func (c *OnboardingController) GetApplication(ctx *gin.Context) {
 //	@Param			id		path		string						true	"User id of the provider"
 //	@Param			type	path		string						true	"Document type"
 //	@Param			body	body		dtos.ReviewDocumentInput	true	"Decision"
-//	@Success		200		{object}	dtos.ProfileView
+//	@Success		200		{object}	dtos.ProviderView
 //	@Failure		404		{object}	shared.ErrorResponse
 //	@Failure		409		{object}	shared.ErrorResponse	"REVIEW_NOT_ALLOWED"
 //	@Failure		422		{object}	shared.ErrorResponse	"REASON_REQUIRED"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/providers/{id}/documents/{type}/review [post]
-func (c *OnboardingController) ReviewDocument(ctx *gin.Context) {
+func (c *ProviderController) ReviewDocument(ctx *gin.Context) {
 	actor, ok := staffActor(ctx)
 	if !ok {
 		return
@@ -435,7 +435,7 @@ func (c *OnboardingController) ReviewDocument(ctx *gin.Context) {
 		shared.InvalidRequest(ctx, err)
 		return
 	}
-	view, err := c.onboarding.ReviewDocument(ctx.Request.Context(), actor, id, ctx.Param("type"), in)
+	view, err := c.providers.ReviewDocument(ctx.Request.Context(), actor, id, ctx.Param("type"), in)
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -448,14 +448,14 @@ func (c *OnboardingController) ReviewDocument(ctx *gin.Context) {
 //	@Produce		json
 //	@Param			id		path		string						true	"User id of the provider"
 //	@Param			body	body		dtos.ReviewProviderInput	true	"Decision"
-//	@Success		200		{object}	dtos.ProfileView
+//	@Success		200		{object}	dtos.ProviderView
 //	@Failure		404		{object}	shared.ErrorResponse	"PROVIDER_NOT_FOUND"
 //	@Failure		409		{object}	shared.ErrorResponse	"INVALID_PROVIDER_TRANSITION or PROVIDER_BUSY"
 //	@Failure		422		{object}	shared.ErrorResponse	"Missing service_id or APPROVAL_REQUIREMENTS_NOT_MET"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/providers/{id} [put]
-func (c *OnboardingController) ReviewProvider(ctx *gin.Context) {
+func (c *ProviderController) ReviewProvider(ctx *gin.Context) {
 	actor, ok := staffActor(ctx)
 	if !ok {
 		return
@@ -469,6 +469,6 @@ func (c *OnboardingController) ReviewProvider(ctx *gin.Context) {
 		shared.InvalidRequest(ctx, err)
 		return
 	}
-	view, err := c.onboarding.ReviewProvider(ctx.Request.Context(), actor, id, in)
+	view, err := c.providers.ReviewProvider(ctx.Request.Context(), actor, id, in)
 	respond(ctx, http.StatusOK, view, err)
 }

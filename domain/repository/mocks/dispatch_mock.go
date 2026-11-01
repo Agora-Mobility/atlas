@@ -431,6 +431,22 @@ func (m *MockIProviderRepository) EXPECT() *MockIProviderRepositoryMockRecorder 
 	return m.recorder
 }
 
+// Applications mocks base method.
+func (m *MockIProviderRepository) Applications(ctx context.Context, status string, limit, offset int) ([]repository.ProviderApplication, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Applications", ctx, status, limit, offset)
+	ret0, _ := ret[0].([]repository.ProviderApplication)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Applications indicates an expected call of Applications.
+func (mr *MockIProviderRepositoryMockRecorder) Applications(ctx, status, limit, offset any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Applications", reflect.TypeOf((*MockIProviderRepository)(nil).Applications), ctx, status, limit, offset)
+}
+
 // CategoryOf mocks base method.
 func (m *MockIProviderRepository) CategoryOf(ctx context.Context, userID uuid.UUID) (*entities.LiveIndex, error) {
 	m.ctrl.T.Helper()
@@ -475,6 +491,20 @@ func (mr *MockIProviderRepositoryMockRecorder) CoveringCell(ctx, categoryID, cel
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CoveringCell", reflect.TypeOf((*MockIProviderRepository)(nil).CoveringCell), ctx, categoryID, cell)
 }
 
+// Create mocks base method.
+func (m *MockIProviderRepository) Create(ctx context.Context, userID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockIProviderRepositoryMockRecorder) Create(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockIProviderRepository)(nil).Create), ctx, userID)
+}
+
 // FilterEligible mocks base method.
 func (m *MockIProviderRepository) FilterEligible(ctx context.Context, serviceID uuid.UUID, providerIDs []uuid.UUID) ([]entities.EligibleProvider, error) {
 	m.ctrl.T.Helper()
@@ -490,19 +520,19 @@ func (mr *MockIProviderRepositoryMockRecorder) FilterEligible(ctx, serviceID, pr
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterEligible", reflect.TypeOf((*MockIProviderRepository)(nil).FilterEligible), ctx, serviceID, providerIDs)
 }
 
-// FindProfile mocks base method.
-func (m *MockIProviderRepository) FindProfile(ctx context.Context, userID uuid.UUID) (*entities.ProviderProfile, error) {
+// Find mocks base method.
+func (m *MockIProviderRepository) Find(ctx context.Context, userID uuid.UUID) (*entities.Provider, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindProfile", ctx, userID)
-	ret0, _ := ret[0].(*entities.ProviderProfile)
+	ret := m.ctrl.Call(m, "Find", ctx, userID)
+	ret0, _ := ret[0].(*entities.Provider)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// FindProfile indicates an expected call of FindProfile.
-func (mr *MockIProviderRepositoryMockRecorder) FindProfile(ctx, userID any) *gomock.Call {
+// Find indicates an expected call of Find.
+func (mr *MockIProviderRepositoryMockRecorder) Find(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindProfile", reflect.TypeOf((*MockIProviderRepository)(nil).FindProfile), ctx, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockIProviderRepository)(nil).Find), ctx, userID)
 }
 
 // PurgeLocationSamples mocks base method.
@@ -534,6 +564,20 @@ func (mr *MockIProviderRepositoryMockRecorder) ReplaceCoverage(ctx, providerID, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceCoverage", reflect.TypeOf((*MockIProviderRepository)(nil).ReplaceCoverage), ctx, providerID, base, radiusKm, cellsByCategory)
 }
 
+// Save mocks base method.
+func (m *MockIProviderRepository) Save(ctx context.Context, provider *entities.Provider) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Save", ctx, provider)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Save indicates an expected call of Save.
+func (mr *MockIProviderRepositoryMockRecorder) Save(ctx, provider any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockIProviderRepository)(nil).Save), ctx, provider)
+}
+
 // SaveLocationSample mocks base method.
 func (m *MockIProviderRepository) SaveLocationSample(ctx context.Context, providerID, requestID uuid.UUID, point entities.GeoPoint, at time.Time) error {
 	m.ctrl.T.Helper()
@@ -546,20 +590,6 @@ func (m *MockIProviderRepository) SaveLocationSample(ctx context.Context, provid
 func (mr *MockIProviderRepositoryMockRecorder) SaveLocationSample(ctx, providerID, requestID, point, at any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveLocationSample", reflect.TypeOf((*MockIProviderRepository)(nil).SaveLocationSample), ctx, providerID, requestID, point, at)
-}
-
-// SaveProfile mocks base method.
-func (m *MockIProviderRepository) SaveProfile(ctx context.Context, profile *entities.ProviderProfile) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveProfile", ctx, profile)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SaveProfile indicates an expected call of SaveProfile.
-func (mr *MockIProviderRepositoryMockRecorder) SaveProfile(ctx, profile any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveProfile", reflect.TypeOf((*MockIProviderRepository)(nil).SaveProfile), ctx, profile)
 }
 
 // TouchJobCompleted mocks base method.

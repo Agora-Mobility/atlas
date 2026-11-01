@@ -537,7 +537,7 @@ func newProvider(t *testing.T, category string, at point) *person {
 func newProviderOfService(t *testing.T, serviceID string, at point) *person {
 	t.Helper()
 	provider := newPerson(t, enums.RoleProvider)
-	_, err := env.owner.Exec(context.Background(), `INSERT INTO provider_profiles (user_id, status, service_id) VALUES ($1, 'approved', $2)`, provider.id, serviceID)
+	_, err := env.owner.Exec(context.Background(), `INSERT INTO providers (user_id, status, service_id) VALUES ($1, 'approved', $2)`, provider.id, serviceID)
 	require.NoError(t, err)
 	first := positionAt(at)
 	first["age_s"] = 120
@@ -551,10 +551,15 @@ func newApprovedProvider(t *testing.T, category string) *person {
 	provider := newPerson(t, enums.RoleProvider)
 	ctx := context.Background()
 	_, err := env.owner.Exec(ctx, `
-		INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id)
-		SELECT $1, 'approved', 'LD-45-21-AF', 'Toyota Corolla Branco', s.id
-		FROM services s JOIN service_categories c ON c.id = s.category_id
-		WHERE c.slug = $2 ORDER BY s.display_order, s.created_at LIMIT 1`, provider.id, category)
+		WITH provider AS (
+			INSERT INTO providers (user_id, status, service_id)
+			SELECT $1, 'approved', s.id
+			FROM services s JOIN service_categories c ON c.id = s.category_id
+			WHERE c.slug = $2 ORDER BY s.display_order, s.created_at LIMIT 1
+			RETURNING user_id
+		)
+		INSERT INTO vehicles (provider_id, brand, model, year, color, plate, seats)
+		SELECT user_id, 'Toyota', 'Corolla', 2020, 'Branco', 'LD-45-21-AF', 5 FROM provider`, provider.id, category)
 	require.NoError(t, err)
 	return provider
 }

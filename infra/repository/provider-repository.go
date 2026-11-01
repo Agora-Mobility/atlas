@@ -27,51 +27,99 @@ func NewProviderRepository(pool *pgxpool.Pool) *ProviderRepository {
 	return &ProviderRepository{pool: pool, tx: postgres.NewTxManager(pool)}
 }
 
-func (r *ProviderRepository) FindProfile(ctx context.Context, userID uuid.UUID) (*entities.ProviderProfile, error) {
-	row, err := postgres.Queries(ctx, r.pool).GetProviderProfile(ctx, userID)
+func (r *ProviderRepository) Create(ctx context.Context, userID uuid.UUID) error {
+	if err := postgres.Queries(ctx, r.pool).CreateProvider(ctx, userID); err != nil {
+		return fmt.Errorf("create provider: %w", err)
+	}
+	return nil
+}
+
+func (r *ProviderRepository) Find(ctx context.Context, userID uuid.UUID) (*entities.Provider, error) {
+	queries := postgres.Queries(ctx, r.pool)
+	row, err := queries.GetProvider(ctx, userID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get provider: %w", err)
 	}
-	profile := &entities.ProviderProfile{
+	provider := &entities.Provider{
 		UserID: row.UserID, Status: entities.ProviderStatus(row.Status), ServiceID: row.ServiceID, RequestedServiceID: row.RequestedServiceID,
-		BirthDate: row.BirthDate, IDNumber: row.IDNumber, Address: row.Address, VehiclePlate: row.VehiclePlate, VehicleDescription: row.VehicleDescription,
-		Vehicle:      entities.ProviderVehicle{Brand: row.VehicleBrand, Model: row.VehicleModel, Color: row.VehicleColor, Plate: row.VehiclePlate},
-		StatusReason: row.StatusReason, SubmittedAt: row.SubmittedAt, ReviewedAt: row.ReviewedAt,
+		BirthDate: row.BirthDate, IDNumber: row.IDNumber, Address: row.Address, StatusReason: row.StatusReason, SubmittedAt: row.SubmittedAt, ReviewedAt: row.ReviewedAt,
 		ServiceRadiusKm: row.ServiceRadiusKm, LastJobCompletedAt: row.LastJobCompletedAt, CreatedAt: row.CreatedAt,
 	}
-	if row.VehicleYear != nil {
-		profile.Vehicle.Year = int(*row.VehicleYear)
-	}
-	if row.VehicleSeats != nil {
-		profile.Vehicle.Seats = int(*row.VehicleSeats)
-	}
 	if row.BaseLat != nil && row.BaseLng != nil {
-		profile.Base = &entities.GeoPoint{Lat: *row.BaseLat, Lng: *row.BaseLng}
+		provider.Base = &entities.GeoPoint{Lat: *row.BaseLat, Lng: *row.BaseLng}
 	}
-	return profile, nil
+	vehicle, err := queries.GetVehicleOfProvider(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return provider, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get vehicle: %w", err)
+	}
+	provider.Vehicle = entities.Vehicle{Brand: vehicle.Brand, Model: vehicle.Model, Color: vehicle.Color, Plate: vehicle.Plate}
+	if vehicle.Year != nil {
+		provider.Vehicle.Year = int(*vehicle.Year)
+	}
+	if vehicle.Seats != nil {
+		provider.Vehicle.Seats = int(*vehicle.Seats)
+	}
+	return provider, nil
 }
 
-func (r *ProviderRepository) SaveProfile(ctx context.Context, p *entities.ProviderProfile) error {
-	params := gen.UpsertProviderProfileParams{
-		UserID: p.UserID, Status: string(p.Status), VehiclePlate: p.VehiclePlate, VehicleDescription: p.VehicleDescription, ServiceID: p.ServiceID,
-		RequestedServiceID: p.RequestedServiceID, BirthDate: p.BirthDate, IDNumber: p.IDNumber, Address: p.Address, VehicleBrand: p.Vehicle.Brand,
-		VehicleModel: p.Vehicle.Model, VehicleColor: p.Vehicle.Color, StatusReason: p.StatusReason, SubmittedAt: p.SubmittedAt, ReviewedAt: p.ReviewedAt,
+func (r *ProviderRepository) Save(ctx context.Context, p *entities.Provider) error {
+	return r.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		queries := postgres.Queries(ctx, r.pool)
+		err := queries.UpsertProvider(ctx, gen.UpsertProviderParams{
+			UserID: p.UserID, Status: string(p.Status), ServiceID: p.ServiceID, RequestedServiceID: p.RequestedServiceID, BirthDate: p.BirthDate,
+			IDNumber: p.IDNumber, Address: p.Address, StatusReason: p.StatusReason, SubmittedAt: p.SubmittedAt, ReviewedAt: p.ReviewedAt,
+		})
+		if err != nil {
+			return fmt.Errorf("save provider: %w", err)
+		}
+		if p.Vehicle.Plate == "" {
+			return nil
+		}
+		year, seats := int32(p.Vehicle.Year), int32(p.Vehicle.Seats) // #nosec G115 -- validated by the entity
+		err = queries.UpsertVehicle(ctx, gen.UpsertVehicleParams{
+			ProviderID: p.UserID, Brand: p.Vehicle.Brand, Model: p.Vehicle.Model, Year: &year, Color: p.Vehicle.Color, Plate: p.Vehicle.Plate, Seats: &seats,
+		})
+		if err != nil {
+			return fmt.Errorf("save vehicle: %w", err)
+		}
+		return nil
+	})
+}
+
+func (r *ProviderRepository) Applications(ctx context.Context, status string, limit, offset int) ([]repository.ProviderApplication, int64, error) {
+	queries := postgres.Queries(ctx, r.pool)
+	rows, err := queries.ListProviderApplications(ctx, gen.ListProviderApplicationsParams{Status: status, PageLimit: int32(limit), PageOffset: int32(offset)}) // #nosec G115 -- bounded by pagination
+	if err != nil {
+		return nil, 0, fmt.Errorf("list provider applications: %w", err)
 	}
-	if p.Vehicle.Year > 0 {
-		year := int32(p.Vehicle.Year) // #nosec G115 -- validated by the entity
-		params.VehicleYear = &year
+	total, err := queries.CountProviderApplications(ctx, status)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count provider applications: %w", err)
 	}
-	if p.Vehicle.Seats > 0 {
-		seats := int32(p.Vehicle.Seats) // #nosec G115 -- validated by the entity
-		params.VehicleSeats = &seats
+	out := make([]repository.ProviderApplication, 0, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		application := repository.ProviderApplication{
+			UserID: row.UserID, Name: row.Name, Status: entities.ProviderStatus(row.Status), RequestedServiceID: row.RequestedServiceID, ServiceID: row.ServiceID, SubmittedAt: row.SubmittedAt,
+		}
+		if row.Phone != nil {
+			application.Phone = *row.Phone
+		}
+		if row.RequestedServiceName != nil {
+			application.RequestedServiceName = *row.RequestedServiceName
+		}
+		if row.VehiclePlate != nil {
+			application.VehiclePlate = *row.VehiclePlate
+		}
+		out = append(out, application)
 	}
-	if err := postgres.Queries(ctx, r.pool).UpsertProviderProfile(ctx, params); err != nil {
-		return fmt.Errorf("save provider: %w", err)
-	}
-	return nil
+	return out, total, nil
 }
 
 func (r *ProviderRepository) CategoryOf(ctx context.Context, userID uuid.UUID) (*entities.LiveIndex, error) {

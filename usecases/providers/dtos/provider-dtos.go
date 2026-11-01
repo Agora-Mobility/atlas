@@ -113,7 +113,7 @@ type RequiredDocumentView struct {
 	MaxSizeBytes        int64    `json:"max_size_bytes"`
 }
 
-type ProfileView struct {
+type ProviderView struct {
 	UserID             uuid.UUID              `json:"user_id"`
 	Name               string                 `json:"name"`
 	Phone              string                 `json:"phone,omitempty"`

@@ -146,7 +146,7 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 	})
 
 	t.Run("the catalog offers Económico, Conforto and XL under Táxi", func(t *testing.T) {
-		open := (&person{client: providerClient, api: env.api.baseURL}).get(t, "/api/v1/providers/onboarding/services")
+		open := (&person{client: providerClient, api: env.api.baseURL}).get(t, "/api/v1/providers/services")
 		require.Equal(t, http.StatusOK, open.status, open.text)
 		categories := open.body["categories"].([]any)
 		require.Len(t, categories, 1, "only services with configured requirements are open")
@@ -326,7 +326,7 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 			return sent == 2
 		}, 5*time.Second, 50*time.Millisecond, "one SMS for the rejection, one for the approval")
 		var audited int
-		require.NoError(t, env.owner.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE entity_type = 'provider_profile' AND entity_id = $1`, pedro.id.String()).Scan(&audited))
+		require.NoError(t, env.owner.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE entity_type = 'provider' AND entity_id = $1`, pedro.id.String()).Scan(&audited))
 		assert.Equal(t, 2, audited)
 	})
 

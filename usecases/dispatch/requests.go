@@ -582,12 +582,12 @@ func (u *Usecase) providerSummary(ctx context.Context, providerID *uuid.UUID) (*
 		return nil, err
 	}
 	summary := &dtos.ProviderSummary{ID: *providerID, Name: name}
-	profile, err := u.Providers.FindProfile(ctx, *providerID)
+	profile, err := u.Providers.Find(ctx, *providerID)
 	if err != nil {
 		return nil, err
 	}
 	if profile != nil {
-		summary.VehiclePlate, summary.VehicleDescription = profile.VehiclePlate, profile.VehicleDescription
+		summary.VehiclePlate, summary.VehicleDescription = profile.Vehicle.Plate, profile.Vehicle.Description()
 	}
 	return summary, nil
 }

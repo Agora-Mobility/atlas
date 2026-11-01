@@ -42,7 +42,7 @@ var (
 	ErrReviewReasonRequired      = errors.New("a reason is required")
 )
 
-type ProviderVehicle struct {
+type Vehicle struct {
 	Brand string
 	Model string
 	Year  int
@@ -51,7 +51,7 @@ type ProviderVehicle struct {
 	Seats int
 }
 
-func (v ProviderVehicle) Normalized(now time.Time) (ProviderVehicle, error) {
+func (v Vehicle) Normalized(now time.Time) (Vehicle, error) {
 	v.Brand, v.Model = strings.TrimSpace(v.Brand), strings.TrimSpace(v.Model)
 	v.Color = strings.TrimSpace(v.Color)
 	v.Plate = strings.ToUpper(strings.TrimSpace(v.Plate))
@@ -69,11 +69,11 @@ func (v ProviderVehicle) Normalized(now time.Time) (ProviderVehicle, error) {
 	return v, nil
 }
 
-func (v ProviderVehicle) Description() string {
+func (v Vehicle) Description() string {
 	return strings.TrimSpace(v.Brand + " " + v.Model + " " + v.Color)
 }
 
-type ProviderProfile struct {
+type Provider struct {
 	UserID             uuid.UUID
 	Status             ProviderStatus
 	ServiceID          *uuid.UUID
@@ -81,9 +81,7 @@ type ProviderProfile struct {
 	BirthDate          *time.Time
 	IDNumber           string
 	Address            string
-	Vehicle            ProviderVehicle
-	VehiclePlate       string
-	VehicleDescription string
+	Vehicle            Vehicle
 	StatusReason       string
 	SubmittedAt        *time.Time
 	ReviewedAt         *time.Time
@@ -93,11 +91,11 @@ type ProviderProfile struct {
 	CreatedAt          time.Time
 }
 
-func (p *ProviderProfile) IsEditable() bool {
+func (p *Provider) IsEditable() bool {
 	return p.Status == ProviderDraft || p.Status == ProviderRejected
 }
 
-func (p *ProviderProfile) RequestService(serviceID uuid.UUID) error {
+func (p *Provider) RequestService(serviceID uuid.UUID) error {
 	if !p.IsEditable() {
 		return ErrProfileLocked
 	}
@@ -105,7 +103,7 @@ func (p *ProviderProfile) RequestService(serviceID uuid.UUID) error {
 	return nil
 }
 
-func (p *ProviderProfile) SetPersonalData(birthDate time.Time, idNumber, address string, now time.Time) error {
+func (p *Provider) SetPersonalData(birthDate time.Time, idNumber, address string, now time.Time) error {
 	if !p.IsEditable() {
 		return ErrProfileLocked
 	}
@@ -123,7 +121,7 @@ func (p *ProviderProfile) SetPersonalData(birthDate time.Time, idNumber, address
 	return nil
 }
 
-func (p *ProviderProfile) SetVehicle(vehicle ProviderVehicle, now time.Time) error {
+func (p *Provider) SetVehicle(vehicle Vehicle, now time.Time) error {
 	if !p.IsEditable() {
 		return ErrProfileLocked
 	}
@@ -132,12 +130,10 @@ func (p *ProviderProfile) SetVehicle(vehicle ProviderVehicle, now time.Time) err
 		return err
 	}
 	p.Vehicle = normalized
-	p.VehiclePlate = normalized.Plate
-	p.VehicleDescription = normalized.Description()
 	return nil
 }
 
-func (p *ProviderProfile) Submit(now time.Time) error {
+func (p *Provider) Submit(now time.Time) error {
 	if !p.IsEditable() {
 		return ErrProfileLocked
 	}
@@ -147,7 +143,7 @@ func (p *ProviderProfile) Submit(now time.Time) error {
 	return nil
 }
 
-func (p *ProviderProfile) Approve(serviceID uuid.UUID, now time.Time) error {
+func (p *Provider) Approve(serviceID uuid.UUID, now time.Time) error {
 	if p.Status != ProviderPending && p.Status != ProviderSuspended {
 		return ErrInvalidProviderTransition
 	}
@@ -158,21 +154,21 @@ func (p *ProviderProfile) Approve(serviceID uuid.UUID, now time.Time) error {
 	return nil
 }
 
-func (p *ProviderProfile) Reject(reason string, now time.Time) error {
+func (p *Provider) Reject(reason string, now time.Time) error {
 	if p.Status != ProviderPending {
 		return ErrInvalidProviderTransition
 	}
 	return p.closeWith(ProviderRejected, reason, now)
 }
 
-func (p *ProviderProfile) Suspend(reason string, now time.Time) error {
+func (p *Provider) Suspend(reason string, now time.Time) error {
 	if p.Status != ProviderApproved {
 		return ErrInvalidProviderTransition
 	}
 	return p.closeWith(ProviderSuspended, reason, now)
 }
 
-func (p *ProviderProfile) closeWith(status ProviderStatus, reason string, now time.Time) error {
+func (p *Provider) closeWith(status ProviderStatus, reason string, now time.Time) error {
 	reason, err := normalizedReason(reason)
 	if err != nil {
 		return err
@@ -245,7 +241,7 @@ func (d *ProviderDocument) Review(approved bool, reason string, reviewer *uuid.U
 	return nil
 }
 
-type OnboardingRequirements struct {
+type ProviderRequirements struct {
 	ServiceID       uuid.UUID
 	ServiceName     string
 	RequiresVehicle bool
@@ -253,7 +249,7 @@ type OnboardingRequirements struct {
 	Documents       []DocumentType
 }
 
-func (r *OnboardingRequirements) MissingFor(profile *ProviderProfile, name string, documents []*ProviderDocument) map[string]string {
+func (r *ProviderRequirements) MissingFor(profile *Provider, name string, documents []*ProviderDocument) map[string]string {
 	missing := map[string]string{}
 	if strings.TrimSpace(name) == "" {
 		missing["personal.name"] = "Falta o nome."
@@ -286,7 +282,7 @@ func (r *OnboardingRequirements) MissingFor(profile *ProviderProfile, name strin
 	return missing
 }
 
-func (r *OnboardingRequirements) addVehicleGaps(vehicle ProviderVehicle, missing map[string]string) {
+func (r *ProviderRequirements) addVehicleGaps(vehicle Vehicle, missing map[string]string) {
 	if vehicle.Plate == "" {
 		missing["vehicle"] = "Faltam os dados da viatura."
 		return
@@ -296,7 +292,7 @@ func (r *OnboardingRequirements) addVehicleGaps(vehicle ProviderVehicle, missing
 	}
 }
 
-func (r *OnboardingRequirements) NotApproved(documents []*ProviderDocument) map[string]string {
+func (r *ProviderRequirements) NotApproved(documents []*ProviderDocument) map[string]string {
 	approved := make(map[string]bool, len(documents))
 	for _, document := range documents {
 		approved[document.Type] = document.Status == DocumentApproved

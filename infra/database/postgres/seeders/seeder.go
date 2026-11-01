@@ -52,9 +52,12 @@ func seedDispatch(ctx context.Context, pool *pgxpool.Pool) error {
 		         CASE s.slug WHEN 'taxi-comfort' THEN 70000 WHEN 'taxi-xl' THEN 90000 ELSE 45000 END,
 		         0 FROM services s
 		  WHERE NOT EXISTS (SELECT 1 FROM service_tariffs t WHERE t.service_id = s.id AND t.valid_until IS NULL)`, nil},
-		{`INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id)
-		  SELECT '00000000-0000-0000-0000-0000000000a4', 'approved', 'LD-45-21-AF', 'Toyota Corolla Branco', s.id FROM services s WHERE s.slug = 'taxi'
+		{`INSERT INTO providers (user_id, status, service_id)
+		  SELECT '00000000-0000-0000-0000-0000000000a4', 'approved', s.id FROM services s WHERE s.slug = 'taxi'
 		  ON CONFLICT (user_id) DO NOTHING`, nil},
+		{`INSERT INTO vehicles (provider_id, brand, model, year, color, plate, seats)
+		  VALUES ('00000000-0000-0000-0000-0000000000a4', 'Toyota', 'Corolla', 2020, 'Branco', 'LD-45-21-AF', 5)
+		  ON CONFLICT (provider_id) DO NOTHING`, nil},
 	}
 	for _, statement := range statements {
 		if _, err := pool.Exec(ctx, statement.sql, statement.args...); err != nil {

@@ -12,6 +12,26 @@ import (
 	"github.com/google/uuid"
 )
 
+const countProviderApplications = `-- name: CountProviderApplications :one
+SELECT count(*) FROM providers p WHERE $1::text = '' OR p.status = $1::text
+`
+
+func (q *Queries) CountProviderApplications(ctx context.Context, status string) (int64, error) {
+	row := q.db.QueryRow(ctx, countProviderApplications, status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createProvider = `-- name: CreateProvider :exec
+INSERT INTO providers (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING
+`
+
+func (q *Queries) CreateProvider(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, createProvider, userID)
+	return err
+}
+
 const deleteDeviceToken = `-- name: DeleteDeviceToken :exec
 DELETE FROM device_tokens WHERE token = $1
 `
@@ -46,7 +66,7 @@ func (q *Queries) DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDevic
 
 const filterEligibleProviders = `-- name: FilterEligibleProviders :many
 SELECT p.user_id, p.last_job_completed_at, p.created_at, p.base_lat, p.base_lng, p.service_radius_km, u.phone
-FROM provider_profiles p
+FROM providers p
 JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
 WHERE p.user_id = ANY($1::uuid[]) AND p.status = 'approved' AND p.service_id = $2::uuid
 `
@@ -94,9 +114,37 @@ func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibl
 	return items, nil
 }
 
+const getProvider = `-- name: GetProvider :one
+SELECT user_id, status, base_lat, base_lng, service_radius_km, last_job_completed_at, created_at, updated_at, service_id, requested_service_id, birth_date, id_number, address, status_reason, submitted_at, reviewed_at FROM providers WHERE user_id = $1
+`
+
+func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error) {
+	row := q.db.QueryRow(ctx, getProvider, userID)
+	var i Provider
+	err := row.Scan(
+		&i.UserID,
+		&i.Status,
+		&i.BaseLat,
+		&i.BaseLng,
+		&i.ServiceRadiusKm,
+		&i.LastJobCompletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ServiceID,
+		&i.RequestedServiceID,
+		&i.BirthDate,
+		&i.IDNumber,
+		&i.Address,
+		&i.StatusReason,
+		&i.SubmittedAt,
+		&i.ReviewedAt,
+	)
+	return i, err
+}
+
 const getProviderCategory = `-- name: GetProviderCategory :one
 SELECT c.id, c.slug
-FROM provider_profiles p
+FROM providers p
 JOIN services s ON s.id = p.service_id
 JOIN service_categories c ON c.id = s.category_id
 WHERE p.user_id = $1
@@ -114,41 +162,6 @@ func (q *Queries) GetProviderCategory(ctx context.Context, userID uuid.UUID) (Ge
 	return i, err
 }
 
-const getProviderProfile = `-- name: GetProviderProfile :one
-SELECT user_id, status, vehicle_plate, vehicle_description, base_lat, base_lng, service_radius_km, last_job_completed_at, created_at, updated_at, service_id, requested_service_id, birth_date, id_number, address, vehicle_brand, vehicle_model, vehicle_year, vehicle_color, vehicle_seats, status_reason, submitted_at, reviewed_at FROM provider_profiles WHERE user_id = $1
-`
-
-func (q *Queries) GetProviderProfile(ctx context.Context, userID uuid.UUID) (ProviderProfile, error) {
-	row := q.db.QueryRow(ctx, getProviderProfile, userID)
-	var i ProviderProfile
-	err := row.Scan(
-		&i.UserID,
-		&i.Status,
-		&i.VehiclePlate,
-		&i.VehicleDescription,
-		&i.BaseLat,
-		&i.BaseLng,
-		&i.ServiceRadiusKm,
-		&i.LastJobCompletedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ServiceID,
-		&i.RequestedServiceID,
-		&i.BirthDate,
-		&i.IDNumber,
-		&i.Address,
-		&i.VehicleBrand,
-		&i.VehicleModel,
-		&i.VehicleYear,
-		&i.VehicleColor,
-		&i.VehicleSeats,
-		&i.StatusReason,
-		&i.SubmittedAt,
-		&i.ReviewedAt,
-	)
-	return i, err
-}
-
 const getUserContact = `-- name: GetUserContact :one
 SELECT name, phone FROM users WHERE id = $1
 `
@@ -162,6 +175,28 @@ func (q *Queries) GetUserContact(ctx context.Context, id uuid.UUID) (GetUserCont
 	row := q.db.QueryRow(ctx, getUserContact, id)
 	var i GetUserContactRow
 	err := row.Scan(&i.Name, &i.Phone)
+	return i, err
+}
+
+const getVehicleOfProvider = `-- name: GetVehicleOfProvider :one
+SELECT id, provider_id, brand, model, year, color, plate, seats, created_at, updated_at FROM vehicles WHERE provider_id = $1
+`
+
+func (q *Queries) GetVehicleOfProvider(ctx context.Context, providerID uuid.UUID) (Vehicle, error) {
+	row := q.db.QueryRow(ctx, getVehicleOfProvider, providerID)
+	var i Vehicle
+	err := row.Scan(
+		&i.ID,
+		&i.ProviderID,
+		&i.Brand,
+		&i.Model,
+		&i.Year,
+		&i.Color,
+		&i.Plate,
+		&i.Seats,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -199,6 +234,67 @@ func (q *Queries) ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]str
 			return nil, err
 		}
 		items = append(items, token)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProviderApplications = `-- name: ListProviderApplications :many
+SELECT p.user_id, p.status, p.requested_service_id, p.service_id, p.submitted_at, p.reviewed_at, v.plate AS vehicle_plate, u.name, u.phone, s.name AS requested_service_name
+FROM providers p
+JOIN users u ON u.id = p.user_id
+LEFT JOIN vehicles v ON v.provider_id = p.user_id
+LEFT JOIN services s ON s.id = p.requested_service_id
+WHERE $1::text = '' OR p.status = $1::text
+ORDER BY p.submitted_at NULLS LAST, p.created_at
+LIMIT $3 OFFSET $2
+`
+
+type ListProviderApplicationsParams struct {
+	Status     string `json:"status"`
+	PageOffset int32  `json:"page_offset"`
+	PageLimit  int32  `json:"page_limit"`
+}
+
+type ListProviderApplicationsRow struct {
+	UserID               uuid.UUID  `json:"user_id"`
+	Status               string     `json:"status"`
+	RequestedServiceID   *uuid.UUID `json:"requested_service_id"`
+	ServiceID            *uuid.UUID `json:"service_id"`
+	SubmittedAt          *time.Time `json:"submitted_at"`
+	ReviewedAt           *time.Time `json:"reviewed_at"`
+	VehiclePlate         *string    `json:"vehicle_plate"`
+	Name                 string     `json:"name"`
+	Phone                *string    `json:"phone"`
+	RequestedServiceName *string    `json:"requested_service_name"`
+}
+
+func (q *Queries) ListProviderApplications(ctx context.Context, arg ListProviderApplicationsParams) ([]ListProviderApplicationsRow, error) {
+	rows, err := q.db.Query(ctx, listProviderApplications, arg.Status, arg.PageOffset, arg.PageLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProviderApplicationsRow{}
+	for rows.Next() {
+		var i ListProviderApplicationsRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Status,
+			&i.RequestedServiceID,
+			&i.ServiceID,
+			&i.SubmittedAt,
+			&i.ReviewedAt,
+			&i.VehiclePlate,
+			&i.Name,
+			&i.Phone,
+			&i.RequestedServiceName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -292,7 +388,7 @@ func (q *Queries) RecordNotification(ctx context.Context, arg RecordNotification
 }
 
 const touchProviderJobCompleted = `-- name: TouchProviderJobCompleted :exec
-UPDATE provider_profiles SET last_job_completed_at = $2, updated_at = now() WHERE user_id = $1
+UPDATE providers SET last_job_completed_at = $2, updated_at = now() WHERE user_id = $1
 `
 
 type TouchProviderJobCompletedParams struct {
@@ -306,7 +402,7 @@ func (q *Queries) TouchProviderJobCompleted(ctx context.Context, arg TouchProvid
 }
 
 const updateProviderBase = `-- name: UpdateProviderBase :execrows
-UPDATE provider_profiles SET base_lat = $2, base_lng = $3, service_radius_km = $4, updated_at = now() WHERE user_id = $1
+UPDATE providers SET base_lat = $2, base_lng = $3, service_radius_km = $4, updated_at = now() WHERE user_id = $1
 `
 
 type UpdateProviderBaseParams struct {
@@ -345,56 +441,70 @@ func (q *Queries) UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenPa
 	return err
 }
 
-const upsertProviderProfile = `-- name: UpsertProviderProfile :exec
-INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id, requested_service_id, birth_date, id_number, address,
-    vehicle_brand, vehicle_model, vehicle_year, vehicle_color, vehicle_seats, status_reason, submitted_at, reviewed_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+const upsertProvider = `-- name: UpsertProvider :exec
+INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, address, status_reason, submitted_at, reviewed_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (user_id) DO UPDATE
-SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, service_id = EXCLUDED.service_id,
-    requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date, id_number = EXCLUDED.id_number, address = EXCLUDED.address,
-    vehicle_brand = EXCLUDED.vehicle_brand, vehicle_model = EXCLUDED.vehicle_model, vehicle_year = EXCLUDED.vehicle_year, vehicle_color = EXCLUDED.vehicle_color,
-    vehicle_seats = EXCLUDED.vehicle_seats, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at, reviewed_at = EXCLUDED.reviewed_at, updated_at = now()
+SET status = EXCLUDED.status, service_id = EXCLUDED.service_id, requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date,
+    id_number = EXCLUDED.id_number, address = EXCLUDED.address, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
+    reviewed_at = EXCLUDED.reviewed_at, updated_at = now()
 `
 
-type UpsertProviderProfileParams struct {
+type UpsertProviderParams struct {
 	UserID             uuid.UUID  `json:"user_id"`
 	Status             string     `json:"status"`
-	VehiclePlate       string     `json:"vehicle_plate"`
-	VehicleDescription string     `json:"vehicle_description"`
 	ServiceID          *uuid.UUID `json:"service_id"`
 	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
 	BirthDate          *time.Time `json:"birth_date"`
 	IDNumber           string     `json:"id_number"`
 	Address            string     `json:"address"`
-	VehicleBrand       string     `json:"vehicle_brand"`
-	VehicleModel       string     `json:"vehicle_model"`
-	VehicleYear        *int32     `json:"vehicle_year"`
-	VehicleColor       string     `json:"vehicle_color"`
-	VehicleSeats       *int32     `json:"vehicle_seats"`
 	StatusReason       string     `json:"status_reason"`
 	SubmittedAt        *time.Time `json:"submitted_at"`
 	ReviewedAt         *time.Time `json:"reviewed_at"`
 }
 
-func (q *Queries) UpsertProviderProfile(ctx context.Context, arg UpsertProviderProfileParams) error {
-	_, err := q.db.Exec(ctx, upsertProviderProfile,
+func (q *Queries) UpsertProvider(ctx context.Context, arg UpsertProviderParams) error {
+	_, err := q.db.Exec(ctx, upsertProvider,
 		arg.UserID,
 		arg.Status,
-		arg.VehiclePlate,
-		arg.VehicleDescription,
 		arg.ServiceID,
 		arg.RequestedServiceID,
 		arg.BirthDate,
 		arg.IDNumber,
 		arg.Address,
-		arg.VehicleBrand,
-		arg.VehicleModel,
-		arg.VehicleYear,
-		arg.VehicleColor,
-		arg.VehicleSeats,
 		arg.StatusReason,
 		arg.SubmittedAt,
 		arg.ReviewedAt,
+	)
+	return err
+}
+
+const upsertVehicle = `-- name: UpsertVehicle :exec
+INSERT INTO vehicles (provider_id, brand, model, year, color, plate, seats)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (provider_id) DO UPDATE
+SET brand = EXCLUDED.brand, model = EXCLUDED.model, year = EXCLUDED.year, color = EXCLUDED.color, plate = EXCLUDED.plate, seats = EXCLUDED.seats, updated_at = now()
+`
+
+type UpsertVehicleParams struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	Brand      string    `json:"brand"`
+	Model      string    `json:"model"`
+	Year       *int32    `json:"year"`
+	Color      string    `json:"color"`
+	Plate      string    `json:"plate"`
+	Seats      *int32    `json:"seats"`
+}
+
+func (q *Queries) UpsertVehicle(ctx context.Context, arg UpsertVehicleParams) error {
+	_, err := q.db.Exec(ctx, upsertVehicle,
+		arg.ProviderID,
+		arg.Brand,
+		arg.Model,
+		arg.Year,
+		arg.Color,
+		arg.Plate,
+		arg.Seats,
 	)
 	return err
 }

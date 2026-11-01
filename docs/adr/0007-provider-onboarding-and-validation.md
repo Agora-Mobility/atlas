@@ -70,7 +70,10 @@ them and never creates one.
 - **One service:** the provider chooses a requested service. The approval sets
   `service_id`, which must be sent explicitly: the backoffice proposes the requested one
   and can change it.
-- **Requirements are data:** `service_onboarding` (minimum seats, for example 7 for XL)
+- **A provider is a user:** `providers.user_id` is both the primary key and the foreign
+  key to `users`, with the data of the service provider. The car lives in `vehicles`,
+  one per provider.
+- **Requirements are data:** `service_provider_requirements` (minimum seats, for example 7 for XL)
   and `service_required_documents`. A service with no row there does not accept
   providers yet, so Towing, Maintenance and Removals stay closed for now. Partial
   approval per category no longer exists.

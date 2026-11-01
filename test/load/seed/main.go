@@ -104,7 +104,7 @@ func run() error {
 	}
 	for i := range out.Providers {
 		provider := out.Providers[i]
-		if _, err := pool.Exec(ctx, `INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id) VALUES ($1, 'approved', 'LD-00-00-AA', 'Carga', $2)`, provider.ID, out.ServiceID); err != nil {
+		if _, err := pool.Exec(ctx, `INSERT INTO providers (user_id, status, service_id) VALUES ($1, 'approved', $2)`, provider.ID, out.ServiceID); err != nil {
 			return err
 		}
 	}

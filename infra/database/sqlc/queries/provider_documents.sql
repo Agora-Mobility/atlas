@@ -1,17 +1,14 @@
--- name: CreateProviderProfile :exec
-INSERT INTO provider_profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING;
-
--- name: ListOpenOnboardingServices :many
+-- name: ListServicesOpenToProviders :many
 SELECT s.id, s.slug, s.name, s.description, c.id AS category_id, c.slug AS category_slug, c.name AS category_name, o.requires_vehicle, o.min_vehicle_seats
-FROM service_onboarding o
+FROM service_provider_requirements o
 JOIN services s ON s.id = o.service_id
 JOIN service_categories c ON c.id = s.category_id
 WHERE s.is_active AND c.is_active
 ORDER BY c.display_order, s.display_order;
 
--- name: GetServiceOnboarding :one
+-- name: GetProviderRequirements :one
 SELECT o.service_id, o.requires_vehicle, o.min_vehicle_seats, s.name AS service_name
-FROM service_onboarding o
+FROM service_provider_requirements o
 JOIN services s ON s.id = o.service_id
 JOIN service_categories c ON c.id = s.category_id
 WHERE o.service_id = $1 AND s.is_active AND c.is_active;
@@ -45,15 +42,3 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 ON CONFLICT (provider_id, document_type) DO UPDATE
 SET object_key = EXCLUDED.object_key, content_type = EXCLUDED.content_type, size_bytes = EXCLUDED.size_bytes, status = EXCLUDED.status,
     rejection_reason = EXCLUDED.rejection_reason, reviewed_by = EXCLUDED.reviewed_by, reviewed_at = EXCLUDED.reviewed_at, updated_at = EXCLUDED.updated_at;
-
--- name: ListProviderApplications :many
-SELECT p.user_id, p.status, p.requested_service_id, p.service_id, p.submitted_at, p.reviewed_at, p.vehicle_plate, u.name, u.phone, s.name AS requested_service_name
-FROM provider_profiles p
-JOIN users u ON u.id = p.user_id
-LEFT JOIN services s ON s.id = p.requested_service_id
-WHERE sqlc.arg(status)::text = '' OR p.status = sqlc.arg(status)::text
-ORDER BY p.submitted_at NULLS LAST, p.created_at
-LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
-
--- name: CountProviderApplications :one
-SELECT count(*) FROM provider_profiles p WHERE sqlc.arg(status)::text = '' OR p.status = sqlc.arg(status)::text;

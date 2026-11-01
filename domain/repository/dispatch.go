@@ -47,8 +47,10 @@ type IPricingRepository interface {
 }
 
 type IProviderRepository interface {
-	FindProfile(ctx context.Context, userID uuid.UUID) (*entities.ProviderProfile, error)
-	SaveProfile(ctx context.Context, profile *entities.ProviderProfile) error
+	Create(ctx context.Context, userID uuid.UUID) error
+	Find(ctx context.Context, userID uuid.UUID) (*entities.Provider, error)
+	Save(ctx context.Context, provider *entities.Provider) error
+	Applications(ctx context.Context, status string, limit, offset int) ([]ProviderApplication, int64, error)
 	CategoryOf(ctx context.Context, userID uuid.UUID) (*entities.LiveIndex, error)
 	ClearCoverage(ctx context.Context, providerID uuid.UUID) error
 	FilterEligible(ctx context.Context, serviceID uuid.UUID, providerIDs []uuid.UUID) ([]entities.EligibleProvider, error)

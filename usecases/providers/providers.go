@@ -1,4 +1,4 @@
-package onboarding
+package providers
 
 import (
 	"context"
@@ -21,7 +21,7 @@ import (
 	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/shared/phone"
-	"github.com/Agora-Mobility/atlas/usecases/onboarding/dtos"
+	"github.com/Agora-Mobility/atlas/usecases/providers/dtos"
 )
 
 var (
@@ -51,7 +51,7 @@ func (e *IncompleteError) Error() string {
 
 const (
 	sniffBytes          = 512
-	auditEntityProvider = "provider_profile"
+	auditEntityProvider = "provider"
 	auditEntityDocument = "provider_document"
 )
 
@@ -69,18 +69,18 @@ type CodeSender interface {
 type PasswordRules func(password string) error
 
 type Deps struct {
-	Users      repository.IUserRepository
-	Profiles   repository.IProviderRepository
-	Onboarding repository.IOnboardingRepository
-	Requests   repository.IRequestRepository
-	Locator    repository.IProviderLocator
-	Outbox     repository.IOutboxRepository
-	Audit      repository.IAuditLogRepository
-	Tx         repository.ITransactionManager
-	Hasher     services.IPasswordHasher
-	Codes      CodeSender
-	Storage    services.IObjectStorage
-	Passwords  PasswordRules
+	Users     repository.IUserRepository
+	Providers repository.IProviderRepository
+	Documents repository.IProviderDocumentRepository
+	Requests  repository.IRequestRepository
+	Locator   repository.IProviderLocator
+	Outbox    repository.IOutboxRepository
+	Audit     repository.IAuditLogRepository
+	Tx        repository.ITransactionManager
+	Hasher    services.IPasswordHasher
+	Codes     CodeSender
+	Storage   services.IObjectStorage
+	Passwords PasswordRules
 }
 
 type Usecase struct {
@@ -150,7 +150,7 @@ func (u *Usecase) Register(ctx context.Context, client *entities.Client, in dtos
 				return err
 			}
 		}
-		return u.Onboarding.CreateProfile(ctx, user.ID)
+		return u.Providers.Create(ctx, user.ID)
 	})
 	if err != nil {
 		return nil, err
@@ -162,7 +162,7 @@ func (u *Usecase) Register(ctx context.Context, client *entities.Client, in dtos
 }
 
 func (u *Usecase) OpenServices(ctx context.Context) (*dtos.OpenServices, error) {
-	open, err := u.Onboarding.OpenServices(ctx)
+	open, err := u.Documents.OpenServices(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -181,77 +181,77 @@ func (u *Usecase) OpenServices(ctx context.Context) (*dtos.OpenServices, error) 
 	return result, nil
 }
 
-func (u *Usecase) profileOf(ctx context.Context, providerID uuid.UUID) (*entities.ProviderProfile, error) {
-	profile, err := u.Profiles.FindProfile(ctx, providerID)
-	if err != nil || profile != nil {
-		return profile, err
+func (u *Usecase) providerOf(ctx context.Context, providerID uuid.UUID) (*entities.Provider, error) {
+	provider, err := u.Providers.Find(ctx, providerID)
+	if err != nil || provider != nil {
+		return provider, err
 	}
-	if err := u.Onboarding.CreateProfile(ctx, providerID); err != nil {
+	if err := u.Providers.Create(ctx, providerID); err != nil {
 		return nil, err
 	}
-	return u.Profiles.FindProfile(ctx, providerID)
+	return u.Providers.Find(ctx, providerID)
 }
 
-func (u *Usecase) MyProfile(ctx context.Context, providerID uuid.UUID) (*dtos.ProfileView, error) {
-	profile, err := u.profileOf(ctx, providerID)
+func (u *Usecase) Me(ctx context.Context, providerID uuid.UUID) (*dtos.ProviderView, error) {
+	provider, err := u.providerOf(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	return u.view(ctx, profile, false)
+	return u.view(ctx, provider, false)
 }
 
-func (u *Usecase) editProfile(ctx context.Context, providerID uuid.UUID, change func(*entities.ProviderProfile) error) (*dtos.ProfileView, error) {
-	profile, err := u.profileOf(ctx, providerID)
+func (u *Usecase) editProvider(ctx context.Context, providerID uuid.UUID, change func(*entities.Provider) error) (*dtos.ProviderView, error) {
+	provider, err := u.providerOf(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	if err := change(profile); err != nil {
+	if err := change(provider); err != nil {
 		return nil, err
 	}
-	if err := u.Profiles.SaveProfile(ctx, profile); err != nil {
+	if err := u.Providers.Save(ctx, provider); err != nil {
 		return nil, err
 	}
-	return u.view(ctx, profile, false)
+	return u.view(ctx, provider, false)
 }
 
-func (u *Usecase) RequestService(ctx context.Context, providerID uuid.UUID, in dtos.RequestServiceInput) (*dtos.ProfileView, error) {
-	requirements, err := u.Onboarding.Requirements(ctx, in.ServiceID)
+func (u *Usecase) RequestService(ctx context.Context, providerID uuid.UUID, in dtos.RequestServiceInput) (*dtos.ProviderView, error) {
+	requirements, err := u.Documents.Requirements(ctx, in.ServiceID)
 	if err != nil {
 		return nil, err
 	}
 	if requirements == nil {
 		return nil, ErrServiceNotOpen
 	}
-	return u.editProfile(ctx, providerID, func(profile *entities.ProviderProfile) error {
-		return profile.RequestService(in.ServiceID)
+	return u.editProvider(ctx, providerID, func(provider *entities.Provider) error {
+		return provider.RequestService(in.ServiceID)
 	})
 }
 
-func (u *Usecase) SetPersonalData(ctx context.Context, providerID uuid.UUID, in dtos.PersonalDataInput) (*dtos.ProfileView, error) {
+func (u *Usecase) SetPersonalData(ctx context.Context, providerID uuid.UUID, in dtos.PersonalDataInput) (*dtos.ProviderView, error) {
 	birthDate, err := time.Parse(time.DateOnly, in.BirthDate)
 	if err != nil {
 		return nil, customerrors.FieldError("birth_date", "A data tem de estar no formato AAAA-MM-DD.")
 	}
-	return u.editProfile(ctx, providerID, func(profile *entities.ProviderProfile) error {
-		return profile.SetPersonalData(birthDate, in.IDNumber, in.Address, u.now())
+	return u.editProvider(ctx, providerID, func(provider *entities.Provider) error {
+		return provider.SetPersonalData(birthDate, in.IDNumber, in.Address, u.now())
 	})
 }
 
-func (u *Usecase) SetVehicle(ctx context.Context, providerID uuid.UUID, in dtos.VehicleInput) (*dtos.ProfileView, error) {
-	return u.editProfile(ctx, providerID, func(profile *entities.ProviderProfile) error {
-		return profile.SetVehicle(entities.ProviderVehicle{Brand: in.Brand, Model: in.Model, Year: in.Year, Color: in.Color, Plate: in.Plate, Seats: in.Seats}, u.now())
+func (u *Usecase) SetVehicle(ctx context.Context, providerID uuid.UUID, in dtos.VehicleInput) (*dtos.ProviderView, error) {
+	return u.editProvider(ctx, providerID, func(provider *entities.Provider) error {
+		return provider.SetVehicle(entities.Vehicle{Brand: in.Brand, Model: in.Model, Year: in.Year, Color: in.Color, Plate: in.Plate, Seats: in.Seats}, u.now())
 	})
 }
 
-func (u *Usecase) editableProfile(ctx context.Context, providerID uuid.UUID) (*entities.ProviderProfile, error) {
-	profile, err := u.profileOf(ctx, providerID)
+func (u *Usecase) editableProvider(ctx context.Context, providerID uuid.UUID) (*entities.Provider, error) {
+	provider, err := u.providerOf(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	if !profile.IsEditable() {
+	if !provider.IsEditable() {
 		return nil, entities.ErrProfileLocked
 	}
-	return profile, nil
+	return provider, nil
 }
 
 func objectPrefix(providerID uuid.UUID, documentType string) string {
@@ -259,10 +259,10 @@ func objectPrefix(providerID uuid.UUID, documentType string) string {
 }
 
 func (u *Usecase) UploadURL(ctx context.Context, providerID uuid.UUID, in dtos.UploadURLInput) (*dtos.UploadURLOutput, error) {
-	if _, err := u.editableProfile(ctx, providerID); err != nil {
+	if _, err := u.editableProvider(ctx, providerID); err != nil {
 		return nil, err
 	}
-	documentType, err := u.Onboarding.DocumentType(ctx, in.DocumentType)
+	documentType, err := u.Documents.DocumentType(ctx, in.DocumentType)
 	if err != nil {
 		return nil, err
 	}
@@ -304,12 +304,12 @@ func validObjectKey(key string, providerID uuid.UUID, documentType string) bool 
 	return false
 }
 
-func (u *Usecase) RegisterDocument(ctx context.Context, providerID uuid.UUID, in dtos.RegisterDocumentInput) (*dtos.ProfileView, error) {
-	profile, err := u.editableProfile(ctx, providerID)
+func (u *Usecase) RegisterDocument(ctx context.Context, providerID uuid.UUID, in dtos.RegisterDocumentInput) (*dtos.ProviderView, error) {
+	provider, err := u.editableProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	documentType, err := u.Onboarding.DocumentType(ctx, in.DocumentType)
+	documentType, err := u.Documents.DocumentType(ctx, in.DocumentType)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +340,7 @@ func (u *Usecase) RegisterDocument(ctx context.Context, providerID uuid.UUID, in
 		return nil, ErrContentTypeRejected
 	}
 
-	previous, err := u.Onboarding.Document(ctx, providerID, documentType.Code)
+	previous, err := u.Documents.Document(ctx, providerID, documentType.Code)
 	if err != nil {
 		return nil, err
 	}
@@ -353,13 +353,13 @@ func (u *Usecase) RegisterDocument(ctx context.Context, providerID uuid.UUID, in
 		ID: id, ProviderID: providerID, Type: documentType.Code, ObjectKey: in.ObjectKey, ContentType: detected, SizeBytes: object.SizeBytes,
 		Status: entities.DocumentUploaded, CreatedAt: now, UpdatedAt: now,
 	}
-	if err := u.Onboarding.SaveDocument(ctx, document); err != nil {
+	if err := u.Documents.SaveDocument(ctx, document); err != nil {
 		return nil, err
 	}
 	if previous != nil && previous.ObjectKey != in.ObjectKey {
 		u.discard(ctx, previous.ObjectKey)
 	}
-	return u.view(ctx, profile, false)
+	return u.view(ctx, provider, false)
 }
 
 func (u *Usecase) discard(ctx context.Context, key string) {
@@ -369,7 +369,7 @@ func (u *Usecase) discard(ctx context.Context, key string) {
 }
 
 func (u *Usecase) MyDocumentURL(ctx context.Context, providerID uuid.UUID, documentType string) (*dtos.DocumentURLOutput, error) {
-	document, err := u.Onboarding.Document(ctx, providerID, documentType)
+	document, err := u.Documents.Document(ctx, providerID, documentType)
 	if err != nil {
 		return nil, err
 	}
@@ -383,12 +383,12 @@ func (u *Usecase) MyDocumentURL(ctx context.Context, providerID uuid.UUID, docum
 	return &dtos.DocumentURLOutput{URL: signed.URL, ExpiresAt: signed.ExpiresAt}, nil
 }
 
-func (u *Usecase) Submit(ctx context.Context, providerID uuid.UUID) (*dtos.ProfileView, error) {
-	profile, err := u.editableProfile(ctx, providerID)
+func (u *Usecase) Submit(ctx context.Context, providerID uuid.UUID) (*dtos.ProviderView, error) {
+	provider, err := u.editableProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	missing, err := u.missingFor(ctx, profile)
+	missing, err := u.missingFor(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -396,37 +396,37 @@ func (u *Usecase) Submit(ctx context.Context, providerID uuid.UUID) (*dtos.Profi
 		return nil, &IncompleteError{Code: "PROFILE_INCOMPLETE", Fields: missing}
 	}
 	now := u.now()
-	if err := profile.Submit(now); err != nil {
+	if err := provider.Submit(now); err != nil {
 		return nil, err
 	}
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		if err := u.Profiles.SaveProfile(ctx, profile); err != nil {
+		if err := u.Providers.Save(ctx, provider); err != nil {
 			return err
 		}
-		return u.publish(ctx, events.ProviderReviewV1{Type: events.ProviderApplicationSubmitted, ProviderID: providerID, ServiceID: profile.RequestedServiceID, OccurredAt: now})
+		return u.publish(ctx, events.ProviderReviewV1{Type: events.ProviderApplicationSubmitted, ProviderID: providerID, ServiceID: provider.RequestedServiceID, OccurredAt: now})
 	})
 	if err != nil {
 		return nil, err
 	}
-	return u.view(ctx, profile, false)
+	return u.view(ctx, provider, false)
 }
 
-func (u *Usecase) missingFor(ctx context.Context, profile *entities.ProviderProfile) (map[string]string, error) {
-	user, err := u.Users.FindByID(ctx, profile.UserID)
+func (u *Usecase) missingFor(ctx context.Context, provider *entities.Provider) (map[string]string, error) {
+	user, err := u.Users.FindByID(ctx, provider.UserID)
 	if err != nil {
 		return nil, err
 	}
-	if profile.RequestedServiceID == nil {
+	if provider.RequestedServiceID == nil {
 		return map[string]string{"service": "Escolhe o serviço que queres prestar."}, nil
 	}
-	requirements, err := u.Onboarding.Requirements(ctx, *profile.RequestedServiceID)
+	requirements, err := u.Documents.Requirements(ctx, *provider.RequestedServiceID)
 	if err != nil {
 		return nil, err
 	}
 	if requirements == nil {
 		return map[string]string{"service": "Este serviço já não aceita prestadores. Escolhe outro."}, nil
 	}
-	documents, err := u.Onboarding.Documents(ctx, profile.UserID)
+	documents, err := u.Documents.Documents(ctx, provider.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -434,31 +434,31 @@ func (u *Usecase) missingFor(ctx context.Context, profile *entities.ProviderProf
 	if user != nil {
 		name = user.Name
 	}
-	return requirements.MissingFor(profile, name, documents), nil
+	return requirements.MissingFor(provider, name, documents), nil
 }
 
-func (u *Usecase) view(ctx context.Context, profile *entities.ProviderProfile, withLinks bool) (*dtos.ProfileView, error) {
-	view := &dtos.ProfileView{
-		UserID: profile.UserID, Status: string(profile.Status), StatusReason: profile.StatusReason, RequestedServiceID: profile.RequestedServiceID, ServiceID: profile.ServiceID,
-		IDNumber: profile.IDNumber, Address: profile.Address, SubmittedAt: profile.SubmittedAt, ReviewedAt: profile.ReviewedAt,
+func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLinks bool) (*dtos.ProviderView, error) {
+	view := &dtos.ProviderView{
+		UserID: provider.UserID, Status: string(provider.Status), StatusReason: provider.StatusReason, RequestedServiceID: provider.RequestedServiceID, ServiceID: provider.ServiceID,
+		IDNumber: provider.IDNumber, Address: provider.Address, SubmittedAt: provider.SubmittedAt, ReviewedAt: provider.ReviewedAt,
 		RequiredDocuments: []dtos.RequiredDocumentView{}, Documents: []dtos.DocumentView{}, Missing: map[string]string{},
 	}
-	if profile.BirthDate != nil {
-		view.BirthDate = profile.BirthDate.Format(time.DateOnly)
+	if provider.BirthDate != nil {
+		view.BirthDate = provider.BirthDate.Format(time.DateOnly)
 	}
-	if profile.Vehicle.Plate != "" {
-		v := profile.Vehicle
+	if provider.Vehicle.Plate != "" {
+		v := provider.Vehicle
 		view.Vehicle = &dtos.VehicleView{Brand: v.Brand, Model: v.Model, Year: v.Year, Color: v.Color, Plate: v.Plate, Seats: v.Seats}
 	}
-	user, err := u.Users.FindByID(ctx, profile.UserID)
+	user, err := u.Users.FindByID(ctx, provider.UserID)
 	if err != nil {
 		return nil, err
 	}
 	if user != nil {
 		view.Name, view.Phone, view.Email = user.Name, user.Phone, user.Email
 	}
-	if profile.RequestedServiceID != nil {
-		requirements, err := u.Onboarding.Requirements(ctx, *profile.RequestedServiceID)
+	if provider.RequestedServiceID != nil {
+		requirements, err := u.Documents.Requirements(ctx, *provider.RequestedServiceID)
 		if err != nil {
 			return nil, err
 		}
@@ -470,12 +470,12 @@ func (u *Usecase) view(ctx context.Context, profile *entities.ProviderProfile, w
 			}
 		}
 	}
-	if profile.IsEditable() {
-		if view.Missing, err = u.missingFor(ctx, profile); err != nil {
+	if provider.IsEditable() {
+		if view.Missing, err = u.missingFor(ctx, provider); err != nil {
 			return nil, err
 		}
 	}
-	documents, err := u.Onboarding.Documents(ctx, profile.UserID)
+	documents, err := u.Documents.Documents(ctx, provider.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +498,7 @@ func (u *Usecase) view(ctx context.Context, profile *entities.ProviderProfile, w
 
 func (u *Usecase) ListApplications(ctx context.Context, status string, page pagination.Params) (*dtos.ApplicationList, error) {
 	page = page.Normalize()
-	applications, total, err := u.Onboarding.Applications(ctx, status, int(page.Limit()), int(page.Offset()))
+	applications, total, err := u.Providers.Applications(ctx, status, int(page.Limit()), int(page.Offset()))
 	if err != nil {
 		return nil, err
 	}
@@ -513,34 +513,34 @@ func (u *Usecase) ListApplications(ctx context.Context, status string, page pagi
 	return list, nil
 }
 
-func (u *Usecase) existingProfile(ctx context.Context, providerID uuid.UUID) (*entities.ProviderProfile, error) {
-	profile, err := u.Profiles.FindProfile(ctx, providerID)
+func (u *Usecase) existingProvider(ctx context.Context, providerID uuid.UUID) (*entities.Provider, error) {
+	provider, err := u.Providers.Find(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	if profile == nil {
+	if provider == nil {
 		return nil, ErrProviderNotFound
 	}
-	return profile, nil
+	return provider, nil
 }
 
-func (u *Usecase) GetApplication(ctx context.Context, providerID uuid.UUID) (*dtos.ProfileView, error) {
-	profile, err := u.existingProfile(ctx, providerID)
+func (u *Usecase) GetApplication(ctx context.Context, providerID uuid.UUID) (*dtos.ProviderView, error) {
+	provider, err := u.existingProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	return u.view(ctx, profile, true)
+	return u.view(ctx, provider, true)
 }
 
-func (u *Usecase) ReviewDocument(ctx context.Context, actor entities.Actor, providerID uuid.UUID, documentType string, in dtos.ReviewDocumentInput) (*dtos.ProfileView, error) {
-	profile, err := u.existingProfile(ctx, providerID)
+func (u *Usecase) ReviewDocument(ctx context.Context, actor entities.Actor, providerID uuid.UUID, documentType string, in dtos.ReviewDocumentInput) (*dtos.ProviderView, error) {
+	provider, err := u.existingProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	if profile.Status != entities.ProviderPending {
+	if provider.Status != entities.ProviderPending {
 		return nil, ErrReviewNotAllowed
 	}
-	document, err := u.Onboarding.Document(ctx, providerID, documentType)
+	document, err := u.Documents.Document(ctx, providerID, documentType)
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +551,7 @@ func (u *Usecase) ReviewDocument(ctx context.Context, actor entities.Actor, prov
 		return nil, err
 	}
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		if err := u.Onboarding.SaveDocument(ctx, document); err != nil {
+		if err := u.Documents.SaveDocument(ctx, document); err != nil {
 			return err
 		}
 		return u.audit(ctx, actor, "provider_document.review", auditEntityDocument, document.ID.String(), map[string]string{"type": document.Type, "status": string(document.Status), "reason": document.RejectionReason})
@@ -559,14 +559,14 @@ func (u *Usecase) ReviewDocument(ctx context.Context, actor entities.Actor, prov
 	if err != nil {
 		return nil, err
 	}
-	return u.view(ctx, profile, true)
+	return u.view(ctx, provider, true)
 }
 
-func (u *Usecase) ReviewProvider(ctx context.Context, actor entities.Actor, providerID uuid.UUID, in dtos.ReviewProviderInput) (*dtos.ProfileView, error) {
+func (u *Usecase) ReviewProvider(ctx context.Context, actor entities.Actor, providerID uuid.UUID, in dtos.ReviewProviderInput) (*dtos.ProviderView, error) {
 	if in.Status == string(entities.ProviderApproved) && in.ServiceID == nil {
 		return nil, customerrors.FieldError("service_id", "Um prestador aprovado presta exatamente um serviço.")
 	}
-	profile, err := u.existingProfile(ctx, providerID)
+	provider, err := u.existingProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
@@ -574,50 +574,50 @@ func (u *Usecase) ReviewProvider(ctx context.Context, actor entities.Actor, prov
 	eventType, serviceChanged := "", false
 	switch entities.ProviderStatus(in.Status) {
 	case entities.ProviderApproved:
-		serviceChanged = profile.ServiceID != nil && *profile.ServiceID != *in.ServiceID
-		if err := u.checkApproval(ctx, profile, *in.ServiceID, serviceChanged); err != nil {
+		serviceChanged = provider.ServiceID != nil && *provider.ServiceID != *in.ServiceID
+		if err := u.checkApproval(ctx, provider, *in.ServiceID, serviceChanged); err != nil {
 			return nil, err
 		}
-		err, eventType = profile.Approve(*in.ServiceID, now), events.ProviderApproved
+		err, eventType = provider.Approve(*in.ServiceID, now), events.ProviderApproved
 	case entities.ProviderRejected:
-		err, eventType = profile.Reject(in.Reason, now), events.ProviderRejected
+		err, eventType = provider.Reject(in.Reason, now), events.ProviderRejected
 	default:
-		err, eventType = profile.Suspend(in.Reason, now), events.ProviderSuspended
+		err, eventType = provider.Suspend(in.Reason, now), events.ProviderSuspended
 	}
 	if err != nil {
 		return nil, err
 	}
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		if err := u.Profiles.SaveProfile(ctx, profile); err != nil {
+		if err := u.Providers.Save(ctx, provider); err != nil {
 			return err
 		}
 		if serviceChanged {
-			if err := u.Profiles.ClearCoverage(ctx, providerID); err != nil {
+			if err := u.Providers.ClearCoverage(ctx, providerID); err != nil {
 				return err
 			}
 		}
-		if err := u.publish(ctx, events.ProviderReviewV1{Type: eventType, ProviderID: providerID, ServiceID: profile.ServiceID, Reason: profile.StatusReason, OccurredAt: now}); err != nil {
+		if err := u.publish(ctx, events.ProviderReviewV1{Type: eventType, ProviderID: providerID, ServiceID: provider.ServiceID, Reason: provider.StatusReason, OccurredAt: now}); err != nil {
 			return err
 		}
-		return u.audit(ctx, actor, "provider_profile.review", auditEntityProvider, providerID.String(), map[string]any{"status": in.Status, "service_id": profile.ServiceID, "reason": profile.StatusReason})
+		return u.audit(ctx, actor, "provider.review", auditEntityProvider, providerID.String(), map[string]any{"status": in.Status, "service_id": provider.ServiceID, "reason": provider.StatusReason})
 	})
 	if err != nil {
 		return nil, err
 	}
-	if profile.Status != entities.ProviderApproved || serviceChanged {
+	if provider.Status != entities.ProviderApproved || serviceChanged {
 		if err := u.Locator.SetOffline(ctx, providerID); err != nil {
 			return nil, err
 		}
 	}
-	return u.view(ctx, profile, true)
+	return u.view(ctx, provider, true)
 }
 
-func (u *Usecase) checkApproval(ctx context.Context, profile *entities.ProviderProfile, serviceID uuid.UUID, serviceChanged bool) error {
-	if profile.Status != entities.ProviderPending && profile.Status != entities.ProviderSuspended {
+func (u *Usecase) checkApproval(ctx context.Context, provider *entities.Provider, serviceID uuid.UUID, serviceChanged bool) error {
+	if provider.Status != entities.ProviderPending && provider.Status != entities.ProviderSuspended {
 		return entities.ErrInvalidProviderTransition
 	}
 	if serviceChanged {
-		active, err := u.Requests.ActiveOfProvider(ctx, profile.UserID)
+		active, err := u.Requests.ActiveOfProvider(ctx, provider.UserID)
 		if err != nil {
 			return err
 		}
@@ -625,19 +625,19 @@ func (u *Usecase) checkApproval(ctx context.Context, profile *entities.ProviderP
 			return ErrProviderBusy
 		}
 	}
-	requirements, err := u.Onboarding.Requirements(ctx, serviceID)
+	requirements, err := u.Documents.Requirements(ctx, serviceID)
 	if err != nil {
 		return err
 	}
 	if requirements == nil {
 		return ErrServiceNotOpen
 	}
-	documents, err := u.Onboarding.Documents(ctx, profile.UserID)
+	documents, err := u.Documents.Documents(ctx, provider.UserID)
 	if err != nil {
 		return err
 	}
 	gaps := requirements.NotApproved(documents)
-	if requirements.RequiresVehicle && profile.Vehicle.Seats < requirements.MinVehicleSeats {
+	if requirements.RequiresVehicle && provider.Vehicle.Seats < requirements.MinVehicleSeats {
 		gaps["vehicle.seats"] = fmt.Sprintf("O serviço %s exige pelo menos %d lugares.", requirements.ServiceName, requirements.MinVehicleSeats)
 	}
 	if len(gaps) > 0 {

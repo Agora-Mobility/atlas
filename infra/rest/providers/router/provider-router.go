@@ -1,15 +1,15 @@
-package onboarding_router
+package providers_router
 
 import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
-	"github.com/Agora-Mobility/atlas/infra/rest/onboarding/controllers"
+	"github.com/Agora-Mobility/atlas/infra/rest/providers/controllers"
 )
 
 type Router struct {
-	controller       *controllers.OnboardingController
+	controller       *controllers.ProviderController
 	authenticator    *middleware.Authenticator
 	authorizer       *middleware.Authorizer
 	clientAuthorizer *middleware.ClientAuthorizer
@@ -17,7 +17,7 @@ type Router struct {
 }
 
 func NewRouter(
-	controller *controllers.OnboardingController,
+	controller *controllers.ProviderController,
 	authenticator *middleware.Authenticator,
 	authorizer *middleware.Authorizer,
 	clientAuthorizer *middleware.ClientAuthorizer,
@@ -29,7 +29,7 @@ func NewRouter(
 func (r *Router) Register(api *gin.RouterGroup) {
 	clients := r.clientAuthorizer.RequireClient()
 	api.POST("/providers/register", clients, r.registerLimiter, r.controller.Register)
-	api.GET("/providers/onboarding/services", clients, r.controller.OpenServices)
+	api.GET("/providers/services", clients, r.controller.OpenServices)
 
 	me := api.Group("/providers/me", clients, r.authenticator.RequireAuth())
 	me.GET("/profile", r.controller.MyProfile)

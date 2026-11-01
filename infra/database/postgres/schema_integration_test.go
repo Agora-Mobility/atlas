@@ -25,9 +25,9 @@ var appTables = []string{
 	"audit_log", "block_reasons", "clients", "device_tokens", "dispatch_policies", "eta_observations", "fare_adjustments",
 	"fare_estimates", "invitations", "membership_roles", "memberships", "mfa_recovery_codes", "notifications", "organizations",
 	"outbox", "permissions", "provider_coverage", "provider_document_types", "provider_documents", "provider_location_samples",
-	"provider_profiles", "refresh_tokens", "request_offers", "role_permissions", "roles", "schema_migrations", "service_categories",
-	"service_onboarding", "service_request_events", "service_requests", "service_required_documents", "service_tariffs",
-	"service_zones", "services", "user_block_reasons", "user_blocks", "user_mfa", "users",
+	"providers", "refresh_tokens", "request_offers", "role_permissions", "roles", "schema_migrations", "service_categories",
+	"service_provider_requirements", "service_request_events", "service_requests", "service_required_documents", "service_tariffs",
+	"service_zones", "services", "user_block_reasons", "user_blocks", "user_mfa", "users", "vehicles",
 }
 
 func startPostgres(t *testing.T) string {
@@ -145,7 +145,7 @@ func TestMigrate_MovesALegacyPublicDatabaseKeepingData(t *testing.T) {
 	var version int
 	var dirty bool
 	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
-	assert.Equal(t, 21, version)
+	assert.Equal(t, 22, version)
 	assert.False(t, dirty)
 
 	_, err = pool.Exec(ctx, "UPDATE audit_log SET reason = 'x'")
@@ -156,9 +156,36 @@ func TestMigrate_MovesALegacyPublicDatabaseKeepingData(t *testing.T) {
 	assert.False(t, canCreate, "PUBLIC cannot create objects in schema public")
 }
 
+func TestMigrate_VehiclesMoveToTheirOwnTable(t *testing.T) {
+	url := startPostgres(t)
+	require.NoError(t, postgres.Migrate(url, "up"))
+	require.NoError(t, postgres.Migrate(url, "down"))
+	pool := connect(t, url)
+	ctx := context.Background()
+	const provider = "00000000-0000-0000-0000-000000000001"
+	_, err := pool.Exec(ctx, `INSERT INTO users (id, name, phone, password, status, role) VALUES ($1, 'P', '+244923000001', 'x', 'active', 'provider')`, provider)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `INSERT INTO provider_profiles (user_id, vehicle_plate, vehicle_brand, vehicle_model, vehicle_year, vehicle_color, vehicle_seats) VALUES ($1, 'LD-1', 'Toyota', 'Corolla', 2020, 'Branco', 5)`, provider)
+	require.NoError(t, err)
+
+	require.NoError(t, postgres.Migrate(url, "up"))
+
+	var plate string
+	var seats int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT plate, seats FROM vehicles WHERE provider_id = $1`, provider).Scan(&plate, &seats))
+	assert.Equal(t, "LD-1", plate)
+	assert.Equal(t, 5, seats)
+	_, err = pool.Exec(ctx, `INSERT INTO vehicles (provider_id, brand, model, color, plate) VALUES ($1, 'B', 'M', 'C', 'LD-2')`, provider)
+	assert.Error(t, err, "one provider, one vehicle")
+	var linked int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM providers p JOIN users u ON u.id = p.user_id WHERE p.user_id = $1`, provider).Scan(&linked))
+	assert.Equal(t, 1, linked, "a provider is a user")
+}
+
 func TestMigrate_ProvidersKeepOneServiceOrLoseTheApproval(t *testing.T) {
 	url := startPostgres(t)
 	require.NoError(t, postgres.Migrate(url, "up"))
+	require.NoError(t, postgres.Migrate(url, "down"))
 	require.NoError(t, postgres.Migrate(url, "down"))
 	require.NoError(t, postgres.Migrate(url, "down"))
 	pool := connect(t, url)
@@ -177,12 +204,12 @@ func TestMigrate_ProvidersKeepOneServiceOrLoseTheApproval(t *testing.T) {
 	require.NoError(t, postgres.Migrate(url, "up"))
 
 	var status, slug string
-	require.NoError(t, pool.QueryRow(ctx, `SELECT p.status, s.slug FROM provider_profiles p JOIN services s ON s.id = p.service_id WHERE p.user_id = $1`, withServices).Scan(&status, &slug))
+	require.NoError(t, pool.QueryRow(ctx, `SELECT p.status, s.slug FROM providers p JOIN services s ON s.id = p.service_id WHERE p.user_id = $1`, withServices).Scan(&status, &slug))
 	assert.Equal(t, "approved", status)
 	assert.Equal(t, "taxi", slug, "the first service of the first category is kept")
-	require.NoError(t, pool.QueryRow(ctx, `SELECT status FROM provider_profiles WHERE user_id = $1`, withoutServices).Scan(&status))
+	require.NoError(t, pool.QueryRow(ctx, `SELECT status FROM providers WHERE user_id = $1`, withoutServices).Scan(&status))
 	assert.Equal(t, "draft", status, "without a service the provider goes back to filling the profile")
 
-	_, err = pool.Exec(ctx, `UPDATE provider_profiles SET service_id = NULL WHERE user_id = $1`, withServices)
+	_, err = pool.Exec(ctx, `UPDATE providers SET service_id = NULL WHERE user_id = $1`, withServices)
 	assert.Error(t, err, "an approved provider cannot lose the service")
 }

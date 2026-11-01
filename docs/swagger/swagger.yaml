@@ -1313,7 +1313,18 @@ definitions:
         example: 0
         type: integer
     type: object
-  dtos.ProfileView:
+  dtos.ProviderSummary:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      vehicle_description:
+        type: string
+      vehicle_plate:
+        type: string
+    type: object
+  dtos.ProviderView:
     properties:
       address:
         type: string
@@ -1355,17 +1366,6 @@ definitions:
         type: string
       vehicle:
         $ref: '#/definitions/dtos.VehicleView'
-    type: object
-  dtos.ProviderSummary:
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-      vehicle_description:
-        type: string
-      vehicle_plate:
-        type: string
     type: object
   dtos.QuoteInput:
     properties:
@@ -2692,7 +2692,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ProfileView'
+            $ref: '#/definitions/dtos.ProviderView'
         "404":
           description: Not Found
           schema:
@@ -2728,7 +2728,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ProfileView'
+            $ref: '#/definitions/dtos.ProviderView'
         "404":
           description: PROVIDER_NOT_FOUND
           schema:
@@ -2775,7 +2775,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ProfileView'
+            $ref: '#/definitions/dtos.ProviderView'
         "404":
           description: Not Found
           schema:
@@ -4946,7 +4946,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dtos.ProfileView'
+            $ref: '#/definitions/dtos.ProviderView'
         "409":
           description: PROFILE_LOCKED
           schema:
@@ -4960,7 +4960,7 @@ paths:
       - ClientId: []
       summary: Register an uploaded document
       tags:
-      - Provider onboarding
+      - Providers
   /api/v1/providers/me/documents/{type}/url:
     get:
       parameters:
@@ -4985,7 +4985,7 @@ paths:
       - ClientId: []
       summary: Short-lived link to one of my documents
       tags:
-      - Provider onboarding
+      - Providers
   /api/v1/providers/me/documents/upload-url:
     post:
       consumes:
@@ -5023,7 +5023,7 @@ paths:
       - ClientId: []
       summary: Get a URL to upload a document
       tags:
-      - Provider onboarding
+      - Providers
   /api/v1/providers/me/locations:
     post:
       consumes:
@@ -5109,7 +5109,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ProfileView'
+            $ref: '#/definitions/dtos.ProviderView'
         "409":
           description: PROFILE_LOCKED
           schema:
@@ -5123,7 +5123,7 @@ paths:
       - ClientId: []
       summary: Save the personal data
       tags:
-      - Provider onboarding
+      - Providers
   /api/v1/providers/me/profile:
     get:
       description: Status, data, documents, what the requested service requires and
@@ -5134,13 +5134,13 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ProfileView'
+            $ref: '#/definitions/dtos.ProviderView'
       security:
       - BearerAuth: []
       - ClientId: []
       summary: My provider profile
       tags:
-      - Provider onboarding
+      - Providers
   /api/v1/providers/me/service:
     put:
       consumes:
@@ -5160,7 +5160,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ProfileView'
+            $ref: '#/definitions/dtos.ProviderView'
         "409":
           description: PROFILE_LOCKED
           schema:
@@ -5174,7 +5174,7 @@ paths:
       - ClientId: []
       summary: Choose the service to provide
       tags:
-      - Provider onboarding
+      - Providers
   /api/v1/providers/me/submit:
     post:
       description: Answers 422 PROFILE_INCOMPLETE with the list of what is missing
@@ -5185,7 +5185,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ProfileView'
+            $ref: '#/definitions/dtos.ProviderView'
         "409":
           description: PROFILE_LOCKED
           schema:
@@ -5199,7 +5199,7 @@ paths:
       - ClientId: []
       summary: Submit the profile for review
       tags:
-      - Provider onboarding
+      - Providers
   /api/v1/providers/me/vehicle:
     put:
       consumes:
@@ -5217,7 +5217,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.ProfileView'
+            $ref: '#/definitions/dtos.ProviderView'
         "409":
           description: PROFILE_LOCKED
           schema:
@@ -5231,23 +5231,7 @@ paths:
       - ClientId: []
       summary: Save the vehicle
       tags:
-      - Provider onboarding
-  /api/v1/providers/onboarding/services:
-    get:
-      description: By category, for example Táxi with Económico, Conforto and XL.
-        A service only appears once its requirements are configured.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.OpenServices'
-      security:
-      - ClientId: []
-      summary: Services that accept providers
-      tags:
-      - Provider onboarding
+      - Providers
   /api/v1/providers/register:
     post:
       consumes:
@@ -5286,7 +5270,23 @@ paths:
       - ClientId: []
       summary: Create a provider account
       tags:
-      - Provider onboarding
+      - Providers
+  /api/v1/providers/services:
+    get:
+      description: By category, for example Táxi with Económico, Conforto and XL.
+        A service only appears once its requirements are configured.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OpenServices'
+      security:
+      - ClientId: []
+      summary: Services that accept providers
+      tags:
+      - Providers
   /api/v1/requests:
     get:
       description: Customers only, most recent first.

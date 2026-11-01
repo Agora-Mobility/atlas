@@ -17,7 +17,7 @@ import (
 )
 
 func (u *Usecase) GoOnline(ctx context.Context, providerID uuid.UUID, in dtos.OnlineInput) (*dtos.CadenceView, error) {
-	profile, err := u.Providers.FindProfile(ctx, providerID)
+	profile, err := u.Providers.Find(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (u *Usecase) ReportPositions(ctx context.Context, providerID uuid.UUID, in 
 }
 
 func (u *Usecase) indexesForActiveTrip(ctx context.Context, providerID uuid.UUID) ([]entities.LiveIndex, error) {
-	profile, err := u.Providers.FindProfile(ctx, providerID)
+	profile, err := u.Providers.Find(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func (u *Usecase) SetCoverage(ctx context.Context, providerID uuid.UUID, in dtos
 	if err := base.Validate("base"); err != nil {
 		return nil, err
 	}
-	profile, err := u.Providers.FindProfile(ctx, providerID)
+	profile, err := u.Providers.Find(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}

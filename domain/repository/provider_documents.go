@@ -33,13 +33,11 @@ type ProviderApplication struct {
 	SubmittedAt          *time.Time
 }
 
-type IOnboardingRepository interface {
-	CreateProfile(ctx context.Context, userID uuid.UUID) error
+type IProviderDocumentRepository interface {
 	OpenServices(ctx context.Context) ([]OpenService, error)
-	Requirements(ctx context.Context, serviceID uuid.UUID) (*entities.OnboardingRequirements, error)
+	Requirements(ctx context.Context, serviceID uuid.UUID) (*entities.ProviderRequirements, error)
 	DocumentType(ctx context.Context, code string) (*entities.DocumentType, error)
 	Documents(ctx context.Context, providerID uuid.UUID) ([]*entities.ProviderDocument, error)
 	Document(ctx context.Context, providerID uuid.UUID, documentType string) (*entities.ProviderDocument, error)
 	SaveDocument(ctx context.Context, document *entities.ProviderDocument) error
-	Applications(ctx context.Context, status string, limit, offset int) ([]ProviderApplication, int64, error)
 }

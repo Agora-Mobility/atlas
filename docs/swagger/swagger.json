@@ -759,7 +759,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "404": {
@@ -812,7 +812,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "404": {
@@ -886,7 +886,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "404": {
@@ -4246,7 +4246,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Register an uploaded document",
                 "parameters": [
@@ -4264,7 +4264,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4300,7 +4300,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Get a URL to upload a document",
                 "parameters": [
@@ -4356,7 +4356,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Short-lived link to one of my documents",
                 "parameters": [
@@ -4516,7 +4516,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Save the personal data",
                 "parameters": [
@@ -4534,7 +4534,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4567,14 +4567,14 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "My provider profile",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     }
                 }
@@ -4598,7 +4598,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Choose the service to provide",
                 "parameters": [
@@ -4616,7 +4616,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4649,14 +4649,14 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Submit the profile for review",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4691,7 +4691,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Save the vehicle",
                 "parameters": [
@@ -4709,7 +4709,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.ProfileView"
+                            "$ref": "#/definitions/dtos.ProviderView"
                         }
                     },
                     "409": {
@@ -4722,31 +4722,6 @@
                         "description": "Invalid fields",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/providers/onboarding/services": {
-            "get": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "description": "By category, for example Táxi with Económico, Conforto and XL. A service only appears once its requirements are configured.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Provider onboarding"
-                ],
-                "summary": "Services that accept providers",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.OpenServices"
                         }
                     }
                 }
@@ -4767,7 +4742,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Provider onboarding"
+                    "Providers"
                 ],
                 "summary": "Create a provider account",
                 "parameters": [
@@ -4804,6 +4779,31 @@
                         "description": "Invalid fields",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/services": {
+            "get": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "By category, for example Táxi with Económico, Conforto and XL. A service only appears once its requirements are configured.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Services that accept providers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OpenServices"
                         }
                     }
                 }
@@ -8320,7 +8320,24 @@
                 }
             }
         },
-        "dtos.ProfileView": {
+        "dtos.ProviderSummary": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "vehicle_description": {
+                    "type": "string"
+                },
+                "vehicle_plate": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.ProviderView": {
             "type": "object",
             "properties": {
                 "address": {
@@ -8382,23 +8399,6 @@
                 },
                 "vehicle": {
                     "$ref": "#/definitions/dtos.VehicleView"
-                }
-            }
-        },
-        "dtos.ProviderSummary": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "vehicle_description": {
-                    "type": "string"
-                },
-                "vehicle_plate": {
-                    "type": "string"
                 }
             }
         },
