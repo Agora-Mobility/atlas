@@ -35,6 +35,7 @@ redis.call('XADD', KEYS[1], 'MAXLEN', '~', ARGV[2], '*',
   'event_id', ARGV[4], 'type', ARGV[5], 'class', ARGV[6], 'data', ARGV[7], 'expires_at', ARGV[8])
 redis.call('XTRIM', KEYS[1], 'MINID', '~', ARGV[3])
 redis.call('PEXPIRE', KEYS[1], ARGV[1])
+redis.call('PUBLISH', ARGV[9], ARGV[10])
 return 1`)
 
 type Mailbox struct {
@@ -65,7 +66,7 @@ func positionKey(requestID string) string {
 	return "rt:pos:" + requestID
 }
 
-func (m *Mailbox) Append(ctx context.Context, userID string, message services.MailboxMessage) error {
+func (m *Mailbox) Deliver(ctx context.Context, userID string, message services.MailboxMessage) error {
 	var expiresAt int64
 	if message.ExpiresAt != nil {
 		expiresAt = message.ExpiresAt.UnixMilli()
@@ -73,7 +74,7 @@ func (m *Mailbox) Append(ctx context.Context, userID string, message services.Ma
 	minID := strconv.FormatInt(m.now().Add(-m.retention).UnixMilli(), 10) + millisecondsTag
 	err := appendEntry.Run(ctx, m.rdb, []string{boxKey(userID), seenKey(userID, message.EventID)},
 		m.retention.Milliseconds(), m.maxEntries, minID,
-		message.EventID, message.Type, string(message.Class), message.Data, expiresAt).Err()
+		message.EventID, message.Type, string(message.Class), message.Data, expiresAt, DoorChannel, doorMailbox+doorSeparator+userID).Err()
 	if err != nil {
 		return fmt.Errorf("append to mailbox: %w", err)
 	}
@@ -112,13 +113,6 @@ func (m *Mailbox) CheckCursor(ctx context.Context, userID, cursor string) error 
 	}
 	if compareStreamIDs(cursor, first[0].ID) < 0 {
 		return services.ErrMailboxCursorLost
-	}
-	return nil
-}
-
-func (m *Mailbox) Signal(ctx context.Context, userID string) error {
-	if err := m.rdb.Publish(ctx, DoorChannel, doorMailbox+doorSeparator+userID).Err(); err != nil {
-		return fmt.Errorf("signal door: %w", err)
 	}
 	return nil
 }

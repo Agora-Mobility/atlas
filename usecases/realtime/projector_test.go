@@ -27,11 +27,12 @@ func newMailbox() *recordingMailbox {
 	return &recordingMailbox{appended: map[string][]services.MailboxMessage{}}
 }
 
-func (m *recordingMailbox) Append(_ context.Context, userID string, message services.MailboxMessage) error {
+func (m *recordingMailbox) Deliver(_ context.Context, userID string, message services.MailboxMessage) error {
 	if userID == m.failOn {
 		return errors.New("redis down")
 	}
 	m.appended[userID] = append(m.appended[userID], message)
+	m.signaled = append(m.signaled, userID)
 	return nil
 }
 
@@ -39,10 +40,6 @@ func (m *recordingMailbox) Read(context.Context, string, string, int64) ([]servi
 	return nil, nil
 }
 func (m *recordingMailbox) CheckCursor(context.Context, string, string) error { return nil }
-func (m *recordingMailbox) Signal(_ context.Context, userID string) error {
-	m.signaled = append(m.signaled, userID)
-	return nil
-}
 
 func envelope(t *testing.T, event events.Event) events.Envelope {
 	t.Helper()

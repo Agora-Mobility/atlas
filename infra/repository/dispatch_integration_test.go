@@ -183,7 +183,7 @@ func TestMailboxOrderCapAndCursor(t *testing.T) {
 	ctx := context.Background()
 	user := uuid.NewString()
 	for range 200 {
-		require.NoError(t, mailbox.Append(ctx, user, services.MailboxMessage{EventID: uuid.NewString(), Type: "t", Class: services.ClassState, Data: []byte(`{}`)}))
+		require.NoError(t, mailbox.Deliver(ctx, user, services.MailboxMessage{EventID: uuid.NewString(), Type: "t", Class: services.ClassState, Data: []byte(`{}`)}))
 	}
 	length, err := rdb.XLen(ctx, "rt:box:"+user).Result()
 	require.NoError(t, err)
@@ -211,7 +211,7 @@ func TestMailboxAgedEntriesAreTrimmed(t *testing.T) {
 	message := func() services.MailboxMessage {
 		return services.MailboxMessage{EventID: uuid.NewString(), Type: "t", Class: services.ClassState, Data: []byte(`{}`)}
 	}
-	require.NoError(t, mailbox.Append(ctx, user, message()))
+	require.NoError(t, mailbox.Deliver(ctx, user, message()))
 	assert.LessOrEqual(t, rdb.XLen(ctx, "rt:box:"+user).Val(), int64(1))
 }
 

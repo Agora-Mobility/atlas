@@ -31,10 +31,9 @@ type MailboxEntry struct {
 }
 
 type IMailbox interface {
-	Append(ctx context.Context, userID string, message MailboxMessage) error
+	Deliver(ctx context.Context, userID string, message MailboxMessage) error
 	Read(ctx context.Context, userID, afterID string, count int64) ([]MailboxEntry, error)
 	CheckCursor(ctx context.Context, userID, cursor string) error
-	Signal(ctx context.Context, userID string) error
 }
 
 type IPositionFeed interface {

@@ -25,8 +25,7 @@ type fakeMailbox struct {
 	lost    bool
 }
 
-func (m *fakeMailbox) Append(context.Context, string, services.MailboxMessage) error { return nil }
-func (m *fakeMailbox) Signal(context.Context, string) error                          { return nil }
+func (m *fakeMailbox) Deliver(context.Context, string, services.MailboxMessage) error { return nil }
 
 func (m *fakeMailbox) add(id, event string, class services.MessageClass, data string, expires *time.Time) {
 	m.mu.Lock()

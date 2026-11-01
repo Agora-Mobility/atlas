@@ -76,11 +76,8 @@ func (p *Projector) Handle(ctx context.Context, env events.Envelope) error {
 	}
 	message := services.MailboxMessage{EventID: env.EventID.String(), Type: projected.sseType, Class: projected.class, Data: data, ExpiresAt: projected.expiresAt}
 	for _, recipient := range projected.recipients {
-		if err := p.mailbox.Append(ctx, recipient.String(), message); err != nil {
+		if err := p.mailbox.Deliver(ctx, recipient.String(), message); err != nil {
 			return err
-		}
-		if err := p.mailbox.Signal(ctx, recipient.String()); err != nil {
-			logger.FromContext(ctx).Warn("mailbox signal lost, the stream poll will recover it", zap.Error(err))
 		}
 	}
 	return nil

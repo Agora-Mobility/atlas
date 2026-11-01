@@ -116,6 +116,12 @@ func TestTaxiFullFlowWithFixedPriceTrackingAndHonoredFare(t *testing.T) {
 	completed := driver.post(t, "/api/v1/requests/"+requestID+"/complete", nil)
 	require.Equal(t, http.StatusOK, completed.status, completed.text)
 	customerStream.waitForStatus(t, "completed")
+	previous := 0.0
+	for _, event := range customerStream.ofType("request.status") {
+		version := event.Data["request_version"].(float64)
+		assert.Greater(t, version, previous, "the events of one request arrive in order")
+		previous = version
+	}
 
 	final := customer.get(t, "/api/v1/requests/"+requestID)
 	adjustments := final.body["adjustments"].([]any)
@@ -167,8 +173,7 @@ func TestCriterion2SlowSubscriberReceivesEverythingInOrder(t *testing.T) {
 	const total = 150
 	for i := range total {
 		data := fmt.Appendf(nil, `{"n":%d}`, i)
-		require.NoError(t, mailbox.Append(ctx, customer.id.String(), services.MailboxMessage{EventID: uuid.NewString(), Type: "request.status", Class: services.ClassState, Data: data}))
-		require.NoError(t, mailbox.Signal(ctx, customer.id.String()))
+		require.NoError(t, mailbox.Deliver(ctx, customer.id.String(), services.MailboxMessage{EventID: uuid.NewString(), Type: "request.status", Class: services.ClassState, Data: data}))
 	}
 	require.Eventually(t, func() bool { return len(slow.ofType("request.status")) == total }, 15*time.Second, 20*time.Millisecond)
 	for i, event := range slow.ofType("request.status") {
@@ -180,7 +185,7 @@ func TestResyncWhenTheCursorIsOlderThanTheMailbox(t *testing.T) {
 	customer := newCustomer(t)
 	mailbox := realtime.NewMailbox(env.redisDirect, 200, time.Hour)
 	ctx := context.Background()
-	require.NoError(t, mailbox.Append(ctx, customer.id.String(), services.MailboxMessage{EventID: uuid.NewString(), Type: "request.status", Class: services.ClassState, Data: []byte(`{"n":1}`)}))
+	require.NoError(t, mailbox.Deliver(ctx, customer.id.String(), services.MailboxMessage{EventID: uuid.NewString(), Type: "request.status", Class: services.ClassState, Data: []byte(`{"n":1}`)}))
 
 	stream := customer.listen(t, "1-0")
 	stream.waitFor(t, "resync", nil)
@@ -192,8 +197,8 @@ func TestMailboxAppendIsIdempotentPerRecipient(t *testing.T) {
 	mailbox := realtime.NewMailbox(env.redisDirect, 200, time.Hour)
 	ctx := context.Background()
 	message := services.MailboxMessage{EventID: uuid.NewString(), Type: "request.status", Class: services.ClassState, Data: []byte(`{"n":1}`)}
-	require.NoError(t, mailbox.Append(ctx, user, message))
-	require.NoError(t, mailbox.Append(ctx, user, message))
+	require.NoError(t, mailbox.Deliver(ctx, user, message))
+	require.NoError(t, mailbox.Deliver(ctx, user, message))
 
 	entries, err := mailbox.Read(ctx, user, "", 10)
 	require.NoError(t, err)
