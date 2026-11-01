@@ -31,6 +31,15 @@ type PhoneVerificationConfirmInput struct {
 	Code  string `json:"code" binding:"required,len=6,numeric" example:"123456"`
 }
 
+type LoginCodeRequestInput struct {
+	Phone string `json:"phone" binding:"required,max=32" example:"+244923000000"`
+}
+
+type LoginCodeVerifyInput struct {
+	Phone string `json:"phone" binding:"required,max=32" example:"+244923000000"`
+	Code  string `json:"code" binding:"required,len=6,numeric" example:"123456"`
+}
+
 type RecoveryRequestInput struct {
 	Phone string `json:"phone" binding:"required,max=32" example:"+244923000000"`
 }

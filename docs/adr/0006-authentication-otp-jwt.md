@@ -24,6 +24,10 @@ runs as several stateless instances behind a load balancer.
   organization: staff enter through their oldest active membership in the
   scope of the client, and the token carries it. Passwords are hashed with
   **argon2id**.
+- Customers and providers can also sign in with an **SMS code**, on its own
+  endpoints and with its own OTP purpose, so a sign-up or recovery code never
+  signs anyone in here. Staff clients are closed: an SMS code alone must not
+  replace the password and the MFA of a staff account.
 - Sessions use a **short-lived JWT access token** (15 min, HS256, claims:
   `sub`, `role`, `sid` = session/token family, `cid` = client id) and a
   **rotating refresh token** (opaque, stored hashed in PostgreSQL, 30 days,
@@ -66,8 +70,10 @@ runs as several stateless instances behind a load balancer.
   |---|---|---|---|
   | POST | `/api/v1/auth/register` | client | Sign up with the phone only, sends OTP (resends it while unverified) |
   | POST | `/api/v1/auth/login` | client | Returns a session |
+  | POST | `/api/v1/auth/login/otp/request` | client | Send a sign-in OTP (always 202) |
+  | POST | `/api/v1/auth/login/otp/verify` | client | Sign in with the OTP, returns a session |
   | POST | `/api/v1/auth/refresh` | client | Rotate refresh token |
-  | POST | `/api/v1/auth/phone/verification-code` | client | Resend phone OTP (always 202) |
+  | POST | `/api/v1/auth/phone/verification-code` | client | Resend the OTP of an unverified account (always 202) |
   | POST | `/api/v1/auth/phone/verify` | client | Verify phone, returns a session |
   | POST | `/api/v1/auth/recovery/request` | client | Send reset OTP (always 202) |
   | POST | `/api/v1/auth/recovery/confirm` | client | Reset with OTP, revokes all sessions |

@@ -335,6 +335,34 @@ func TestAuthFlow(t *testing.T) {
 	})
 
 	var adminToken string
+	t.Run("a verified account signs in with an SMS code", func(t *testing.T) {
+		request := func(clientID string) response {
+			return a.call(http.MethodPost, "/api/v1/auth/login/otp/request", clientID, "", map[string]string{"phone": customerPhone})
+		}
+		verify := func(clientID, code string) response {
+			return a.call(http.MethodPost, "/api/v1/auth/login/otp/verify", clientID, "", map[string]string{"phone": customerPhone, "code": code})
+		}
+
+		res := request(customerApp)
+		require.Equal(t, http.StatusAccepted, res.status, res.body)
+		code := sms.code(t, customerPhone)
+
+		res = a.call(http.MethodPost, "/api/v1/auth/phone/verify", customerApp, "", map[string]string{"phone": customerPhone, "code": code})
+		assert.Equal(t, "CODE_EXPIRED", res.code(), "a sign-in code does not serve the phone verification")
+		assert.Equal(t, "CLIENT_NOT_ALLOWED", verify(backofficeApp, code).code())
+
+		res = verify(customerApp, code)
+		require.Equal(t, http.StatusOK, res.status, res.body)
+		token, refreshToken := res.body["access_token"].(string), res.body["refresh_token"].(string)
+		assert.Equal(t, customerApp, res.body["client"])
+		require.Equal(t, http.StatusOK, a.call(http.MethodGet, "/api/v1/users/me", customerApp, token, nil).status)
+
+		res = a.call(http.MethodPost, "/api/v1/auth/refresh", customerApp, "", map[string]string{"refresh_token": refreshToken})
+		require.Equal(t, http.StatusOK, res.status, res.body)
+
+		assert.Equal(t, "CODE_EXPIRED", verify(customerApp, code).code(), "a code works once")
+	})
+
 	t.Run("the first super admin is bootstrapped and must set up MFA", func(t *testing.T) {
 		bootstrap := usecases.NewAdminBootstrap(repository.NewUserRepository(pool), repository.NewOrganizationRepository(pool),
 			repository.NewRoleRepository(pool), repository.NewMembershipRepository(pool), outbox.NewRepository(pool),
