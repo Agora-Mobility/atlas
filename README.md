@@ -212,3 +212,17 @@ make test-integration  # repositories, Redis and backoffice flows (Docker)
 make test-e2e          # full stack and acceptance criteria of the proposal (Docker)
 make test-load         # k6 against a disposable stack (Docker and k6)
 ```
+
+## Provider onboarding
+
+Providers apply in the app and the backoffice reviews them (ADR 0007).
+
+1. `POST /api/v1/providers/register`, then `POST /api/v1/auth/phone/verify`.
+2. `GET /api/v1/providers/onboarding/services`, then `PUT /api/v1/providers/me/service`.
+3. `PUT /api/v1/providers/me/personal` and `PUT /api/v1/providers/me/vehicle`.
+4. For each document: `POST /api/v1/providers/me/documents/upload-url`, PUT the file to
+   the returned URL with the returned headers, then `POST /api/v1/providers/me/documents`.
+5. `POST /api/v1/providers/me/submit`. `GET /api/v1/providers/me/profile` shows what is missing.
+
+`make docker-up` starts MinIO on `localhost:9000` (console on `9001`) with the bucket
+already created, so development needs no R2 credentials.
