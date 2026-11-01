@@ -27,10 +27,10 @@ func signInSuperAdmin(t *testing.T, a api, pool *pgxpool.Pool) string {
 	bootstrap := usecases.NewAdminBootstrap(repository.NewUserRepository(pool), repository.NewOrganizationRepository(pool),
 		repository.NewRoleRepository(pool), repository.NewMembershipRepository(pool), outbox.NewRepository(pool),
 		repository.NewAuditLogRepository(pool), postgres.NewTxManager(pool), password.NewArgon2Hasher(password.DefaultParams))
-	_, err := bootstrap.Run(context.Background(), "Admin", adminEmail, adminPassword)
+	_, err := bootstrap.Run(context.Background(), "Admin", adminEmail, adminPhone, adminPassword)
 	require.NoError(t, err)
 
-	res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"identifier": adminEmail, "password": adminPassword})
+	res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": adminPhone, "password": adminPassword})
 	require.Equal(t, http.StatusAccepted, res.status, res.body)
 	mfaToken := res.body["mfa_token"].(string)
 	return a.verifyMFA(backofficeApp, mfaToken, a.setupMFA(mfaToken), time.Now())

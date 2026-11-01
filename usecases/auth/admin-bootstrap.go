@@ -13,6 +13,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/shared/phone"
 	"github.com/Agora-Mobility/atlas/shared/tenant"
 	"github.com/Agora-Mobility/atlas/usecases/auth/dtos"
 )
@@ -52,7 +53,7 @@ func NewAdminBootstrap(
 	}
 }
 
-func (b *AdminBootstrap) Run(ctx context.Context, name, email, password string) (bool, error) {
+func (b *AdminBootstrap) Run(ctx context.Context, name, email, phoneNumber, password string) (bool, error) {
 	org, err := b.orgRepo.Platform(ctx)
 	if err != nil {
 		return false, err
@@ -74,14 +75,15 @@ func (b *AdminBootstrap) Run(ctx context.Context, name, email, password string) 
 	}
 
 	email = normalizeEmail(email)
-	if err := ensureIdentityIsFree(ctx, b.userRepo, email, ""); err != nil {
+	phoneNumber = phone.Normalize(phoneNumber)
+	if err := ensureIdentityIsFree(ctx, b.userRepo, email, phoneNumber); err != nil {
 		return false, err
 	}
 	hash, err := b.hasher.Hash(password)
 	if err != nil {
 		return false, err
 	}
-	user, err := entities.NewUser(name, email, "", hash, enums.RoleStaff)
+	user, err := entities.NewUser(name, email, phoneNumber, hash, enums.RoleStaff)
 	if err != nil {
 		return false, err
 	}

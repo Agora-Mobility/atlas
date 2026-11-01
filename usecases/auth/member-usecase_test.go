@@ -15,6 +15,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/events"
 	domainrepository "github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/shared/customerrors"
 	"github.com/Agora-Mobility/atlas/shared/enums"
 	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
 	"github.com/Agora-Mobility/atlas/usecases/auth/dtos"
@@ -262,6 +263,16 @@ func TestReplaceRoles_Rejections(t *testing.T) {
 
 		require.ErrorIs(t, err, usecases.ErrMemberNotFound)
 	})
+}
+
+func TestUpdateMember_ThePhoneCannotBeRemoved(t *testing.T) {
+	r := newRBAC()
+	f := newFixture(t)
+
+	_, err := f.members.Update(context.Background(), actorWith(r.partner, r.owner), uuid.New(), dtos.UpdateMemberInput{Phone: ptr("   ")})
+
+	_, isValidation := customerrors.AsValidation(err)
+	assert.True(t, isValidation, "the phone is the only way to sign in")
 }
 
 func TestSuspend_EndsSessionsAtOnce(t *testing.T) {

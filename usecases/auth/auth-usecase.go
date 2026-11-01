@@ -145,7 +145,7 @@ func (uc *AuthUsecase) sendVerificationCode(ctx context.Context, user *entities.
 }
 
 func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *entities.Client, ip, userAgent string) (*dtos.LoginOutput, error) {
-	user, err := uc.resolveUser(ctx, req.Identifier)
+	user, err := uc.userRepo.FindByPhone(ctx, phone.Normalize(req.Phone))
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *e
 	}
 
 	if user.IsStaff() {
-		return uc.staff.Begin(ctx, user, client, req.OrganizationID, ip, userAgent)
+		return uc.staff.Begin(ctx, user, client, ip, userAgent)
 	}
 	session, err := uc.sessions.Start(ctx, user, client, nil, ip, userAgent)
 	if err != nil {
@@ -280,14 +280,6 @@ func ensureIdentityIsFree(ctx context.Context, userRepo repository.IUserReposito
 		return ErrPhoneAlreadyExists
 	}
 	return nil
-}
-
-func (uc *AuthUsecase) resolveUser(ctx context.Context, identifier string) (*entities.User, error) {
-	identifier = strings.TrimSpace(identifier)
-	if strings.Contains(identifier, "@") {
-		return uc.userRepo.FindByEmail(ctx, normalizeEmail(identifier))
-	}
-	return uc.userRepo.FindByPhone(ctx, phone.Normalize(identifier))
 }
 
 func (uc *AuthUsecase) spendPasswordCheck(password string) {

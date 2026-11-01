@@ -14,9 +14,8 @@ type RegisterInput struct {
 }
 
 type LoginInput struct {
-	Identifier     string     `json:"identifier" binding:"required,max=254" example:"+244923000000"`
-	Password       string     `json:"password" binding:"required,max=128" example:"S3gredo!forte"`
-	OrganizationID *uuid.UUID `json:"organization_id,omitempty"`
+	Phone    string `json:"phone" binding:"required,max=32" example:"+244923000000"`
+	Password string `json:"password" binding:"required,max=128" example:"S3gredo!forte"`
 }
 
 type RefreshRequest struct {

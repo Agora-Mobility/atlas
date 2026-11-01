@@ -19,8 +19,11 @@ runs as several stateless instances behind a load balancer.
   sent by SMS (through the notifications module, ADR 0012).
   - OTPs are stored hashed in Redis with a 5-minute TTL, at most 5 attempts,
     and a resend cooldown per phone number.
-- Login uses phone (or e-mail for backoffice users) + password. Passwords are
-  hashed with **argon2id**.
+- Login uses phone + password for every role, on one endpoint; `X-Client-Id`
+  decides which accounts are accepted. The request never names an
+  organization: staff enter through their oldest active membership in the
+  scope of the client, and the token carries it. Passwords are hashed with
+  **argon2id**.
 - Sessions use a **short-lived JWT access token** (15 min, HS256, claims:
   `sub`, `role`, `sid` = session/token family, `cid` = client id) and a
   **rotating refresh token** (opaque, stored hashed in PostgreSQL, 30 days,
@@ -90,7 +93,7 @@ runs as several stateless instances behind a load balancer.
 
 - Login of a user whose phone is not verified fails with
   `PHONE_NOT_VERIFIED` (403), so the app can send the user to the OTP screen.
-- Unknown identifiers still run one argon2id verification, so response time
+- Unknown phone numbers still run one argon2id verification, so response time
   does not reveal which accounts exist. Argon2id runs are bounded by a
   semaphore sized to the CPU count.
 - Hashes use the PHC format; outdated parameters are re-hashed on login.

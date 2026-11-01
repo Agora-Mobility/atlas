@@ -965,7 +965,7 @@
                         "ClientId": []
                     }
                 ],
-                "description": "The identifier is an e-mail or a phone number in E.164 format. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership); organization_id picks one partner when the person belongs to several. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.",
+                "description": "Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership). The organization is never sent: it comes from the membership and travels in the token. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4420,22 +4420,19 @@
         "dtos.LoginInput": {
             "type": "object",
             "required": [
-                "identifier",
-                "password"
+                "password",
+                "phone"
             ],
             "properties": {
-                "identifier": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "example": "+244923000000"
-                },
-                "organization_id": {
-                    "type": "string"
-                },
                 "password": {
                     "type": "string",
                     "maxLength": 128,
                     "example": "S3gredo!forte"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000000"
                 }
             }
         },
