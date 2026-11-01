@@ -122,7 +122,7 @@ func providerParam(ctx *gin.Context) (uuid.UUID, bool) {
 //
 //	@Summary		Create a provider account
 //	@Description	Only through agora-provider-app: the account type comes from the client, never from the payload. Creates the account and a draft profile, and sends an SMS code. Confirm it with POST /api/v1/auth/phone/verify to get a session.
-//	@Tags			Providers
+//	@Tags			Provider account
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.RegisterProviderInput	true	"Account"
@@ -151,7 +151,7 @@ func (c *ProviderController) Register(ctx *gin.Context) {
 //
 //	@Summary		Services that accept providers
 //	@Description	By category, for example Táxi with Económico, Conforto and XL. A service only appears once its requirements are configured.
-//	@Tags			Providers
+//	@Tags			Provider account
 //	@Produce		json
 //	@Success		200	{object}	dtos.OpenServices
 //	@Security		ClientId
@@ -165,7 +165,7 @@ func (c *ProviderController) OpenServices(ctx *gin.Context) {
 //
 //	@Summary		My provider profile
 //	@Description	Status, data, documents, what the requested service requires and what is still missing.
-//	@Tags			Providers
+//	@Tags			Provider account
 //	@Produce		json
 //	@Success		200	{object}	dtos.ProviderView
 //	@Security		BearerAuth
@@ -184,7 +184,7 @@ func (c *ProviderController) MyProfile(ctx *gin.Context) {
 //
 //	@Summary		Choose the service to provide
 //	@Description	Stored as the requested service. The service a provider really takes comes from the approval.
-//	@Tags			Providers
+//	@Tags			Provider account
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.RequestServiceInput	true	"Service"
@@ -211,7 +211,7 @@ func (c *ProviderController) RequestService(ctx *gin.Context) {
 // SetPersonalData godoc
 //
 //	@Summary	Save the personal data
-//	@Tags		Providers
+//	@Tags		Provider account
 //	@Accept		json
 //	@Produce	json
 //	@Param		body	body		dtos.PersonalDataInput	true	"Personal data"
@@ -238,7 +238,7 @@ func (c *ProviderController) SetPersonalData(ctx *gin.Context) {
 // SetVehicle godoc
 //
 //	@Summary	Save the vehicle
-//	@Tags		Providers
+//	@Tags		Provider account
 //	@Accept		json
 //	@Produce	json
 //	@Param		body	body		dtos.VehicleInput	true	"Vehicle"
@@ -266,7 +266,7 @@ func (c *ProviderController) SetVehicle(ctx *gin.Context) {
 //
 //	@Summary		Get a URL to upload a document
 //	@Description	Validates the type and the size. Then PUT the file directly to upload_url with the returned headers, and register it with POST /api/v1/providers/me/documents.
-//	@Tags			Providers
+//	@Tags			Provider account
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.UploadURLInput	true	"File"
@@ -295,7 +295,7 @@ func (c *ProviderController) UploadURL(ctx *gin.Context) {
 //
 //	@Summary		Register an uploaded document
 //	@Description	Confirms that the file exists and that its content really is an accepted type. A new file replaces the previous one of that type, which is how a rejected document is sent again.
-//	@Tags			Providers
+//	@Tags			Provider account
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.RegisterDocumentInput	true	"Document"
@@ -322,7 +322,7 @@ func (c *ProviderController) RegisterDocument(ctx *gin.Context) {
 // MyDocumentURL godoc
 //
 //	@Summary	Short-lived link to one of my documents
-//	@Tags		Providers
+//	@Tags		Provider account
 //	@Produce	json
 //	@Param		type	path		string	true	"Document type"
 //	@Success	200		{object}	dtos.DocumentURLOutput
@@ -343,7 +343,7 @@ func (c *ProviderController) MyDocumentURL(ctx *gin.Context) {
 //
 //	@Summary		Submit the profile for review
 //	@Description	Answers 422 PROFILE_INCOMPLETE with the list of what is missing in details.
-//	@Tags			Providers
+//	@Tags			Provider account
 //	@Produce		json
 //	@Success		200	{object}	dtos.ProviderView
 //	@Failure		409	{object}	shared.ErrorResponse	"PROFILE_LOCKED"

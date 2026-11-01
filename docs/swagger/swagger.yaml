@@ -4483,7 +4483,7 @@ paths:
       - ClientId: []
       summary: Detail of an offer
       tags:
-      - Provider
+      - Provider work
   /api/v1/offers/{id}/accept:
     post:
       consumes:
@@ -4518,7 +4518,7 @@ paths:
       - ClientId: []
       summary: Accept an offer
       tags:
-      - Provider
+      - Provider work
   /api/v1/offers/{id}/delivered:
     post:
       consumes:
@@ -4549,7 +4549,7 @@ paths:
       - ClientId: []
       summary: Acknowledge an offer
       tags:
-      - Provider
+      - Provider work
   /api/v1/offers/{id}/quote:
     post:
       consumes:
@@ -4578,7 +4578,7 @@ paths:
       - ClientId: []
       summary: Answer an offer with a quote
       tags:
-      - Provider
+      - Provider work
   /api/v1/offers/{id}/reject:
     post:
       parameters:
@@ -4599,7 +4599,7 @@ paths:
       - ClientId: []
       summary: Reject an offer
       tags:
-      - Provider
+      - Provider work
   /api/v1/partners:
     get:
       description: Requires partners:read (AGORA only).
@@ -4925,7 +4925,7 @@ paths:
       - ClientId: []
       summary: Set the base and service radius
       tags:
-      - Provider
+      - Provider work
   /api/v1/providers/me/documents:
     post:
       consumes:
@@ -4960,7 +4960,7 @@ paths:
       - ClientId: []
       summary: Register an uploaded document
       tags:
-      - Providers
+      - Provider account
   /api/v1/providers/me/documents/{type}/url:
     get:
       parameters:
@@ -4985,7 +4985,7 @@ paths:
       - ClientId: []
       summary: Short-lived link to one of my documents
       tags:
-      - Providers
+      - Provider account
   /api/v1/providers/me/documents/upload-url:
     post:
       consumes:
@@ -5023,7 +5023,7 @@ paths:
       - ClientId: []
       summary: Get a URL to upload a document
       tags:
-      - Providers
+      - Provider account
   /api/v1/providers/me/locations:
     post:
       consumes:
@@ -5049,7 +5049,7 @@ paths:
       - ClientId: []
       summary: Send a batch of positions
       tags:
-      - Provider
+      - Provider work
   /api/v1/providers/me/offline:
     post:
       produces:
@@ -5064,7 +5064,7 @@ paths:
       - ClientId: []
       summary: Leave the live index
       tags:
-      - Provider
+      - Provider work
   /api/v1/providers/me/online:
     post:
       consumes:
@@ -5091,7 +5091,7 @@ paths:
       - ClientId: []
       summary: Enter the live index
       tags:
-      - Provider
+      - Provider work
   /api/v1/providers/me/personal:
     put:
       consumes:
@@ -5123,7 +5123,7 @@ paths:
       - ClientId: []
       summary: Save the personal data
       tags:
-      - Providers
+      - Provider account
   /api/v1/providers/me/profile:
     get:
       description: Status, data, documents, what the requested service requires and
@@ -5140,7 +5140,7 @@ paths:
       - ClientId: []
       summary: My provider profile
       tags:
-      - Providers
+      - Provider account
   /api/v1/providers/me/service:
     put:
       consumes:
@@ -5174,7 +5174,7 @@ paths:
       - ClientId: []
       summary: Choose the service to provide
       tags:
-      - Providers
+      - Provider account
   /api/v1/providers/me/submit:
     post:
       description: Answers 422 PROFILE_INCOMPLETE with the list of what is missing
@@ -5199,7 +5199,7 @@ paths:
       - ClientId: []
       summary: Submit the profile for review
       tags:
-      - Providers
+      - Provider account
   /api/v1/providers/me/vehicle:
     put:
       consumes:
@@ -5231,7 +5231,7 @@ paths:
       - ClientId: []
       summary: Save the vehicle
       tags:
-      - Providers
+      - Provider account
   /api/v1/providers/register:
     post:
       consumes:
@@ -5270,7 +5270,7 @@ paths:
       - ClientId: []
       summary: Create a provider account
       tags:
-      - Providers
+      - Provider account
   /api/v1/providers/services:
     get:
       description: By category, for example Táxi with Económico, Conforto and XL.
@@ -5286,7 +5286,7 @@ paths:
       - ClientId: []
       summary: Services that accept providers
       tags:
-      - Providers
+      - Provider account
   /api/v1/requests:
     get:
       description: Customers only, most recent first.
@@ -5414,7 +5414,7 @@ paths:
       - ClientId: []
       summary: Provider arrived at the pickup
       tags:
-      - Provider
+      - Provider work
   /api/v1/requests/{id}/boost:
     post:
       consumes:
@@ -5507,7 +5507,7 @@ paths:
       - ClientId: []
       summary: Complete the trip or service
       tags:
-      - Provider
+      - Provider work
   /api/v1/requests/{id}/en-route:
     post:
       parameters:
@@ -5532,7 +5532,7 @@ paths:
       - ClientId: []
       summary: Provider leaves for the pickup
       tags:
-      - Provider
+      - Provider work
   /api/v1/requests/{id}/route:
     post:
       consumes:
@@ -5627,7 +5627,7 @@ paths:
       - ClientId: []
       summary: Start the trip or service
       tags:
-      - Provider
+      - Provider work
   /api/v1/requests/active:
     get:
       description: 'What the app reloads after a resync: the active request and, for

@@ -3509,7 +3509,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Detail of an offer",
                 "parameters": [
@@ -3555,7 +3555,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Accept an offer",
                 "parameters": [
@@ -3607,7 +3607,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Acknowledge an offer",
                 "parameters": [
@@ -3655,7 +3655,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Answer an offer with a quote",
                 "parameters": [
@@ -3700,7 +3700,7 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Reject an offer",
                 "parameters": [
@@ -4211,7 +4211,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Set the base and service radius",
                 "parameters": [
@@ -4253,7 +4253,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "Register an uploaded document",
                 "parameters": [
@@ -4307,7 +4307,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "Get a URL to upload a document",
                 "parameters": [
@@ -4363,7 +4363,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "Short-lived link to one of my documents",
                 "parameters": [
@@ -4409,7 +4409,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Send a batch of positions",
                 "parameters": [
@@ -4447,7 +4447,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Leave the live index",
                 "responses": {
@@ -4477,7 +4477,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Enter the live index",
                 "parameters": [
@@ -4523,7 +4523,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "Save the personal data",
                 "parameters": [
@@ -4574,7 +4574,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "My provider profile",
                 "responses": {
@@ -4605,7 +4605,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "Choose the service to provide",
                 "parameters": [
@@ -4656,7 +4656,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "Submit the profile for review",
                 "responses": {
@@ -4698,7 +4698,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "Save the vehicle",
                 "parameters": [
@@ -4749,7 +4749,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "Create a provider account",
                 "parameters": [
@@ -4803,7 +4803,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "Provider account"
                 ],
                 "summary": "Services that accept providers",
                 "responses": {
@@ -5020,7 +5020,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Provider arrived at the pickup",
                 "parameters": [
@@ -5171,7 +5171,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Complete the trip or service",
                 "parameters": [
@@ -5213,7 +5213,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Provider leaves for the pickup",
                 "parameters": [
@@ -5365,7 +5365,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Provider"
+                    "Provider work"
                 ],
                 "summary": "Start the trip or service",
                 "parameters": [

@@ -230,7 +230,7 @@ func (c *DispatchController) UnregisterDevice(ctx *gin.Context) {
 // GoOnline godoc
 //
 //	@Summary	Enter the live index
-//	@Tags		Provider
+//	@Tags		Provider work
 //	@Accept		json
 //	@Produce	json
 //	@Param		body	body		dtos.OnlineInput	false	"First position"
@@ -258,7 +258,7 @@ func (c *DispatchController) GoOnline(ctx *gin.Context) {
 // GoOffline godoc
 //
 //	@Summary	Leave the live index
-//	@Tags		Provider
+//	@Tags		Provider work
 //	@Produce	json
 //	@Success	200	{object}	dtos.CadenceView
 //	@Security	BearerAuth
@@ -277,7 +277,7 @@ func (c *DispatchController) GoOffline(ctx *gin.Context) {
 //
 //	@Summary		Send a batch of positions
 //	@Description	Points use age_s, seconds before now, so a wrong phone clock does not matter. Implausible points are dropped. The answer carries the next cadence.
-//	@Tags			Provider
+//	@Tags			Provider work
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.LocationsInput	true	"Positions"
@@ -303,7 +303,7 @@ func (c *DispatchController) ReportLocations(ctx *gin.Context) {
 //
 //	@Summary		Set the base and service radius
 //	@Description	Recomputes the H3 coverage cells of the categories dispatched by coverage. Without radius_km the default of the policy applies.
-//	@Tags			Provider
+//	@Tags			Provider work
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.CoverageInput	true	"Base"
@@ -584,7 +584,7 @@ func (c *DispatchController) SelectQuote(ctx *gin.Context) {
 // StartRoute godoc
 //
 //	@Summary	Provider leaves for the pickup
-//	@Tags		Provider
+//	@Tags		Provider work
 //	@Produce	json
 //	@Param		id	path		string	true	"Request id"
 //	@Success	200	{object}	dtos.RequestView
@@ -600,7 +600,7 @@ func (c *DispatchController) StartRoute(ctx *gin.Context) {
 //
 //	@Summary		Provider arrived at the pickup
 //	@Description	Starts counting the waiting time.
-//	@Tags			Provider
+//	@Tags			Provider work
 //	@Produce		json
 //	@Param			id	path		string	true	"Request id"
 //	@Success		200	{object}	dtos.RequestView
@@ -615,7 +615,7 @@ func (c *DispatchController) Arrive(ctx *gin.Context) {
 // StartJob godoc
 //
 //	@Summary	Start the trip or service
-//	@Tags		Provider
+//	@Tags		Provider work
 //	@Produce	json
 //	@Param		id	path		string	true	"Request id"
 //	@Success	200	{object}	dtos.RequestView
@@ -630,7 +630,7 @@ func (c *DispatchController) StartJob(ctx *gin.Context) {
 // CompleteJob godoc
 //
 //	@Summary	Complete the trip or service
-//	@Tags		Provider
+//	@Tags		Provider work
 //	@Produce	json
 //	@Param		id	path		string	true	"Request id"
 //	@Success	200	{object}	dtos.RequestView
@@ -659,7 +659,7 @@ func (c *DispatchController) providerAction(ctx *gin.Context, action providerReq
 //
 //	@Summary		Detail of an offer
 //	@Description	The event only carries the essentials; the rest comes from here.
-//	@Tags			Provider
+//	@Tags			Provider work
 //	@Produce		json
 //	@Param			id	path		string	true	"Offer id"
 //	@Success		200	{object}	dtos.OfferView
@@ -684,7 +684,7 @@ func (c *DispatchController) GetOffer(ctx *gin.Context) {
 //
 //	@Summary		Acknowledge an offer
 //	@Description	Tells the server the offer reached the phone, and through which channel. Without it the watcher moves to the next channel or provider.
-//	@Tags			Provider
+//	@Tags			Provider work
 //	@Accept			json
 //	@Param			id		path	string				true	"Offer id"
 //	@Param			body	body	dtos.DeliveredInput	true	"Channel"
@@ -714,7 +714,7 @@ func (c *DispatchController) OfferDelivered(ctx *gin.Context) {
 //
 //	@Summary		Accept an offer
 //	@Description	Send the version received with the offer. Only one provider wins; the others get 409.
-//	@Tags			Provider
+//	@Tags			Provider work
 //	@Accept			json
 //	@Produce		json
 //	@Param			id		path		string				true	"Offer id"
@@ -745,7 +745,7 @@ func (c *DispatchController) AcceptOffer(ctx *gin.Context) {
 // RejectOffer godoc
 //
 //	@Summary	Reject an offer
-//	@Tags		Provider
+//	@Tags		Provider work
 //	@Param		id	path	string	true	"Offer id"
 //	@Success	204
 //	@Failure	409	{object}	shared.ErrorResponse
@@ -767,7 +767,7 @@ func (c *DispatchController) RejectOffer(ctx *gin.Context) {
 // QuoteOffer godoc
 //
 //	@Summary	Answer an offer with a quote
-//	@Tags		Provider
+//	@Tags		Provider work
 //	@Accept		json
 //	@Param		id		path	string			true	"Offer id"
 //	@Param		body	body	dtos.QuoteInput	true	"Quote"
