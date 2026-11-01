@@ -50,3 +50,28 @@ Cloudflare, a load balancer and Nginx, to several API instances.
 ## Open questions
 
 - How often to push the provider's position to the customer (throttling).
+
+## Update 2026-11-01 (proposal 0001)
+
+This changes the delivery model. The per-instance fan-out queue is **not** used.
+
+- **Write first, then signal.** The projector (`usecases/realtime`, quorum queue
+  `realtime.projector`) appends to the mailbox `rt:box:{user}` and publishes the
+  user id on `rt:door`. Any instance holding a stream of that user reads the
+  mailbox from its own cursor. Replay and live delivery are the same code.
+- **A slow subscriber loses nothing:** signals collapse, data stays in the
+  mailbox. Each stream also polls every 30 s, because Pub/Sub can lose a signal.
+- **Idempotent append per recipient:** a Lua script checks `event_id` and writes
+  atomically, so a partial retry never duplicates entries.
+- **Message classes:** critical (offers: replayed first, never when expired,
+  acknowledged), state, ephemeral (positions: last value only, `rt:pos:{request}`,
+  no id, so they never move the cursor) and control.
+- **`Last-Event-ID` older than the mailbox** gets `event: resync`, and the app
+  reloads through `GET /api/v1/requests/active`.
+- **Heartbeat** every 15 s by default, sent as a comment. The values reach the app
+  in a control message, so they can change without a new app version.
+- **Tokens:** the stream closes 30 s before the token expires with
+  `action: renew_token`.
+- **Deploys:** on shutdown each stream gets `action: reconnect` with a random
+  `retry_in_ms`, so reconnections spread over time.
+- **The ack protects offers, not the heartbeat.** See ADR 0012.

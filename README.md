@@ -191,3 +191,24 @@ before.
 - Branches: work on `develop`, release from `main`, tags `vX.Y.Z` (created by release-please, never by hand).
 - Configuration comes only from environment variables, validated at startup.
 - Never commit `.env` or confidential documents (`*.pdf` is ignored).
+
+## Dispatch and real time
+
+Proposal: `docs/proposals/0001-despacho-geoespacial-e-tempo-real.md`. Decisions:
+ADR 0008 to 0012 and 0016 to 0018.
+
+- `infra/geo/h3index`: the only package that imports H3. The API needs a C compiler
+  (`CGO_ENABLED=1`). After pulling this change, rebuild the dev image: `make docker-up`.
+- `usecases/dispatch`: policies, candidates, offers, quotes, watcher and fares.
+- `usecases/realtime` and `infra/sse`: projector, mailbox, signal and stream.
+- Policies, zones and tariffs are data managed under `/api/v1/admin`. `make seed`
+  creates a rough Luanda zone and illustrative tariffs, for development only.
+
+### Tests
+
+```bash
+make test              # unit
+make test-integration  # repositories, Redis and backoffice flows (Docker)
+make test-e2e          # full stack and acceptance criteria of the proposal (Docker)
+make test-load         # k6 against a disposable stack (Docker and k6)
+```

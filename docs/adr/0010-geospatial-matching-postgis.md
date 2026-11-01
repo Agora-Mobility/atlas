@@ -47,3 +47,25 @@ of location updates is far higher than the read volume of searches.
 
 - Default and maximum radius per category (towing likely needs more than taxi).
 - Location update frequency from the provider app (battery vs. accuracy).
+
+## Update 2026-11-01 (proposal 0001)
+
+The Redis GEO index is replaced. H3 is the index and never the source of truth:
+exact distances are computed in Go and official polygons stay in PostGIS.
+
+- **Live index (Taxi, Towing):** `live:pos:{provider}` hash with the expiring
+  presence, and `live:idx:{category}:r{res}:{cell}` sets. A position only touches
+  the sets when the cell changes. A provider with no valid position is removed
+  from a set on the next read.
+- **Coverage index (Maintenance, Removals):** `provider_coverage` in PostgreSQL,
+  computed once when the provider saves a base and a radius. No H3 extension is
+  needed: cells fit a positive `BIGINT`.
+- **Rings:** `k = ceil(radius / (1.5 × min_edge)) + 1`, with the minimum edge
+  measured in African cities. `infra/geo/h3index` tests this against 17 cities,
+  because a `k` that is too small hides providers without any error.
+- **Zones:** interior H3 cells of each zone are cached in memory; a cell on a
+  border or with no match falls back to `ST_Covers`.
+- `IProviderLocator` is the interface foreseen by this ADR
+  (`domain/repository/dispatch.go`).
+- The open questions are closed by the policy (radii) and by the cadence decided
+  by the server (`entities.CadenceFor`).

@@ -45,3 +45,18 @@ managed from the backoffice, and future categories should not need a release.
 ## Open questions
 
 - Tariff model per category (fixed, distance-based, quote by provider)?
+
+## Update 2026-11-01 (proposal 0001)
+
+- What differs per category is now data in `dispatch_policies`, optionally per
+  zone: candidate source, H3 resolution, radii, offer mode, deadlines, channels,
+  ranking, tracking, what happens when no provider is found, and the pricing
+  mode. No `switch` on the category exists in the code.
+- Migration 000015 seeds one default policy per MVP category, from section 4 of
+  the proposal. Those numbers are starting points to calibrate.
+- Currency is no longer assumed: it lives in `service_zones` and
+  `service_tariffs`.
+- The open question on the tariff model is closed: `fixed` for Taxi and Towing,
+  `call_out` for Maintenance and `quote` for Removals. See ADR 0018. The fee
+  columns of `services` stay as a catalog hint; prices come from
+  `service_tariffs`.

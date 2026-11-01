@@ -53,3 +53,22 @@ to be safe, for example two providers accepting the same request at once.
   the N nearest, first to accept wins?
 - Offer and search timeouts per category.
 - Cancellation rules and fees (depend on payments, parked).
+
+## Update 2026-11-01 (proposal 0001)
+
+- New states: `scheduled` (waits for the search lead time) and `awaiting_choice`
+  (the customer compares quotes). `searching → accepted` exists for operators
+  only, for manual dispatch.
+- Offers live in `request_offers`, one row per request and provider, with their
+  own small state machine (`sent`, `delivered`, `accepted`, `rejected`,
+  `expired`, `no_response`, `quoted`, `cancelled`).
+- The open questions are closed: the strategy and the deadlines come from the
+  policy of each category.
+- Every request needs an `Idempotency-Key`, enforced by a unique index on
+  `(customer_id, idempotency_key)`, so a resend on a bad network never creates a
+  second request. Other actions accept the same header (`middleware.Idempotency`).
+- The watcher (`usecases/dispatch`) runs in the binary with `FOR UPDATE SKIP
+  LOCKED` over `next_action_at`. Any instance can pick up the work of a dead one.
+- Lock order is always request, then offer.
+- Row-level security (ADR 0015) does not apply to these tables. They are not
+  tenant data and the watcher works across users. The usecases check ownership.
