@@ -78,6 +78,9 @@ func (a *Authenticator) RequireAuth() gin.HandlerFunc {
 				MembershipID: *claims.MembershipID, OrganizationID: *claims.OrganizationID, Scope: claims.Scope,
 			})
 		}
+		if claims.ExpiresAt != nil {
+			authenticated = WithTokenExpiry(authenticated, claims.ExpiresAt.Time)
+		}
 		ctx.Request = ctx.Request.WithContext(authenticated)
 		ctx.Next()
 	}
