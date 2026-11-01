@@ -448,11 +448,7 @@ type ProviderProfile struct {
 	LastJobCompletedAt *time.Time `json:"last_job_completed_at"`
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
-}
-
-type ProviderService struct {
-	ProviderID uuid.UUID `json:"provider_id"`
-	ServiceID  uuid.UUID `json:"service_id"`
+	ServiceID          *uuid.UUID `json:"service_id"`
 }
 
 type RefreshToken struct {

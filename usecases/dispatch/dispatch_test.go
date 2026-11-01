@@ -503,3 +503,28 @@ func TestPhaseOfIdleProviderWithAnOffer(t *testing.T) {
 	assert.Equal(t, entities.PhaseOffered, phaseOf(nil, true))
 	assert.Equal(t, entities.PhaseIdle, phaseOf(nil, false))
 }
+
+func TestNearbyProvidersOfAnotherServiceDoNotHideTheRightOne(t *testing.T) {
+	w := newWorld(t, taxi())
+	for range maxCandidatesPerSearch + 10 {
+		other := uuid.New()
+		w.locator.live = append(w.locator.live, repository.LiveCandidate{ProviderID: other, Point: pickupPoint})
+	}
+	right := w.addLiveProvider(0.01, nil)
+
+	w.advance()
+
+	assert.Equal(t, right, w.onlyOffer().ProviderID)
+}
+
+func TestAProviderWhoLostTheServiceCannotAcceptAnOpenOffer(t *testing.T) {
+	w := newWorld(t, taxi())
+	provider := w.addLiveProvider(0.001, nil)
+	w.advance()
+	offer := w.onlyOffer()
+	delete(w.provs.eligible, provider)
+
+	_, err := w.usecase.Accept(context.Background(), provider, offer.ID, w.request.Version)
+
+	assert.ErrorIs(t, err, ErrProviderNotEligible)
+}

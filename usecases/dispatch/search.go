@@ -221,22 +221,23 @@ func (u *Usecase) liveCandidates(ctx context.Context, request *entities.ServiceR
 		return nil, err
 	}
 
-	nearest, distances := nearestWithin(live, request.Pickup.Point, radiusKm*metersPerKm, excluded)
-	reserved, err := u.Locator.ReservedAmong(ctx, nearest)
+	inside, distances := withinRadius(live, request.Pickup.Point, radiusKm*metersPerKm, excluded)
+	if len(inside) == 0 {
+		return nil, nil
+	}
+	eligible, err := u.Providers.FilterEligible(ctx, request.ServiceID, inside)
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]uuid.UUID, 0, len(nearest))
-	for _, id := range nearest {
-		if _, skip := reserved[id]; !skip {
-			ids = append(ids, id)
-		}
+	sort.Slice(eligible, func(i, j int) bool { return distances[eligible[i].UserID] < distances[eligible[j].UserID] })
+	if len(eligible) > maxCandidatesPerSearch {
+		eligible = eligible[:maxCandidatesPerSearch]
 	}
-	if len(ids) == 0 {
-		return nil, nil
+	ids := make([]uuid.UUID, 0, len(eligible))
+	for i := range eligible {
+		ids = append(ids, eligible[i].UserID)
 	}
-
-	eligible, err := u.Providers.FilterEligible(ctx, request.ServiceID, ids)
+	reserved, err := u.Locator.ReservedAmong(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -246,14 +247,16 @@ func (u *Usecase) liveCandidates(ctx context.Context, request *entities.ServiceR
 	}
 	found := make([]candidate, 0, len(eligible))
 	for _, provider := range eligible {
-		if _, isBusy := busy[provider.UserID]; !isBusy {
+		_, isReserved := reserved[provider.UserID]
+		_, isBusy := busy[provider.UserID]
+		if !isReserved && !isBusy {
 			found = append(found, candidate{provider: provider, distanceM: distances[provider.UserID]})
 		}
 	}
 	return found, nil
 }
 
-func nearestWithin(live []repository.LiveCandidate, pickup entities.GeoPoint, radiusMeters float64, excluded map[uuid.UUID]struct{}) ([]uuid.UUID, map[uuid.UUID]float64) {
+func withinRadius(live []repository.LiveCandidate, pickup entities.GeoPoint, radiusMeters float64, excluded map[uuid.UUID]struct{}) ([]uuid.UUID, map[uuid.UUID]float64) {
 	distances := make(map[uuid.UUID]float64, len(live))
 	ids := make([]uuid.UUID, 0, len(live))
 	for _, c := range live {
@@ -265,10 +268,6 @@ func nearestWithin(live []repository.LiveCandidate, pickup entities.GeoPoint, ra
 			distances[c.ProviderID] = distance
 			ids = append(ids, c.ProviderID)
 		}
-	}
-	sort.Slice(ids, func(i, j int) bool { return distances[ids[i]] < distances[ids[j]] })
-	if len(ids) > maxCandidatesPerSearch {
-		ids = ids[:maxCandidatesPerSearch]
 	}
 	return ids, distances
 }

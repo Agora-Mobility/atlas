@@ -21,6 +21,7 @@ func (s ProviderStatus) IsValid() bool {
 type ProviderProfile struct {
 	UserID             uuid.UUID
 	Status             ProviderStatus
+	ServiceID          *uuid.UUID
 	VehiclePlate       string
 	VehicleDescription string
 	Base               *GeoPoint

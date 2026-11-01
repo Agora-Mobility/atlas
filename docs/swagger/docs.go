@@ -697,7 +697,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Requires providers:approve. Sets the status, the vehicle and the services the provider may take.",
+                "description": "Requires providers:approve. Sets the status, the vehicle and the one service the provider takes offers for. An approved provider must have a service. The service cannot change during an active job, and changing it takes the provider offline and clears the coverage.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7516,12 +7516,8 @@ const docTemplate = `{
                 "status"
             ],
             "properties": {
-                "service_ids": {
-                    "type": "array",
-                    "maxItems": 50,
-                    "items": {
-                        "type": "string"
-                    }
+                "service_id": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "string",
@@ -7544,11 +7540,8 @@ const docTemplate = `{
         "dtos.ProviderAdminView": {
             "type": "object",
             "properties": {
-                "service_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "service_id": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "string"

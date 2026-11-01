@@ -12,20 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const addProviderService = `-- name: AddProviderService :exec
-INSERT INTO provider_services (provider_id, service_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
-`
-
-type AddProviderServiceParams struct {
-	ProviderID uuid.UUID `json:"provider_id"`
-	ServiceID  uuid.UUID `json:"service_id"`
-}
-
-func (q *Queries) AddProviderService(ctx context.Context, arg AddProviderServiceParams) error {
-	_, err := q.db.Exec(ctx, addProviderService, arg.ProviderID, arg.ServiceID)
-	return err
-}
-
 const deleteDeviceToken = `-- name: DeleteDeviceToken :exec
 DELETE FROM device_tokens WHERE token = $1
 `
@@ -41,15 +27,6 @@ DELETE FROM provider_coverage WHERE provider_id = $1
 
 func (q *Queries) DeleteProviderCoverage(ctx context.Context, providerID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteProviderCoverage, providerID)
-	return err
-}
-
-const deleteProviderServices = `-- name: DeleteProviderServices :exec
-DELETE FROM provider_services WHERE provider_id = $1
-`
-
-func (q *Queries) DeleteProviderServices(ctx context.Context, providerID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteProviderServices, providerID)
 	return err
 }
 
@@ -70,14 +47,13 @@ func (q *Queries) DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDevic
 const filterEligibleProviders = `-- name: FilterEligibleProviders :many
 SELECT p.user_id, p.last_job_completed_at, p.created_at, p.base_lat, p.base_lng, p.service_radius_km, u.phone
 FROM provider_profiles p
-JOIN provider_services ps ON ps.provider_id = p.user_id AND ps.service_id = $1
 JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
-WHERE p.user_id = ANY($2::uuid[]) AND p.status = 'approved'
+WHERE p.user_id = ANY($1::uuid[]) AND p.status = 'approved' AND p.service_id = $2::uuid
 `
 
 type FilterEligibleProvidersParams struct {
-	ServiceID   uuid.UUID   `json:"service_id"`
 	ProviderIds []uuid.UUID `json:"provider_ids"`
+	ServiceID   uuid.UUID   `json:"service_id"`
 }
 
 type FilterEligibleProvidersRow struct {
@@ -91,7 +67,7 @@ type FilterEligibleProvidersRow struct {
 }
 
 func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibleProvidersParams) ([]FilterEligibleProvidersRow, error) {
-	rows, err := q.db.Query(ctx, filterEligibleProviders, arg.ServiceID, arg.ProviderIds)
+	rows, err := q.db.Query(ctx, filterEligibleProviders, arg.ProviderIds, arg.ServiceID)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +94,28 @@ func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibl
 	return items, nil
 }
 
+const getProviderCategory = `-- name: GetProviderCategory :one
+SELECT c.id, c.slug
+FROM provider_profiles p
+JOIN services s ON s.id = p.service_id
+JOIN service_categories c ON c.id = s.category_id
+WHERE p.user_id = $1
+`
+
+type GetProviderCategoryRow struct {
+	ID   uuid.UUID `json:"id"`
+	Slug string    `json:"slug"`
+}
+
+func (q *Queries) GetProviderCategory(ctx context.Context, userID uuid.UUID) (GetProviderCategoryRow, error) {
+	row := q.db.QueryRow(ctx, getProviderCategory, userID)
+	var i GetProviderCategoryRow
+	err := row.Scan(&i.ID, &i.Slug)
+	return i, err
+}
+
 const getProviderProfile = `-- name: GetProviderProfile :one
-SELECT user_id, status, vehicle_plate, vehicle_description, base_lat, base_lng, service_radius_km, last_job_completed_at, created_at, updated_at FROM provider_profiles WHERE user_id = $1
+SELECT user_id, status, vehicle_plate, vehicle_description, base_lat, base_lng, service_radius_km, last_job_completed_at, created_at, updated_at, service_id FROM provider_profiles WHERE user_id = $1
 `
 
 func (q *Queries) GetProviderProfile(ctx context.Context, userID uuid.UUID) (ProviderProfile, error) {
@@ -136,6 +132,7 @@ func (q *Queries) GetProviderProfile(ctx context.Context, userID uuid.UUID) (Pro
 		&i.LastJobCompletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ServiceID,
 	)
 	return i, err
 }
@@ -190,63 +187,6 @@ func (q *Queries) ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]str
 			return nil, err
 		}
 		items = append(items, token)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listProviderCategories = `-- name: ListProviderCategories :many
-SELECT DISTINCT c.id, c.slug
-FROM provider_services ps
-JOIN services s ON s.id = ps.service_id
-JOIN service_categories c ON c.id = s.category_id
-WHERE ps.provider_id = $1
-`
-
-type ListProviderCategoriesRow struct {
-	ID   uuid.UUID `json:"id"`
-	Slug string    `json:"slug"`
-}
-
-func (q *Queries) ListProviderCategories(ctx context.Context, providerID uuid.UUID) ([]ListProviderCategoriesRow, error) {
-	rows, err := q.db.Query(ctx, listProviderCategories, providerID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListProviderCategoriesRow{}
-	for rows.Next() {
-		var i ListProviderCategoriesRow
-		if err := rows.Scan(&i.ID, &i.Slug); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listProviderServiceIDs = `-- name: ListProviderServiceIDs :many
-SELECT service_id FROM provider_services WHERE provider_id = $1
-`
-
-func (q *Queries) ListProviderServiceIDs(ctx context.Context, providerID uuid.UUID) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, listProviderServiceIDs, providerID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []uuid.UUID{}
-	for rows.Next() {
-		var service_id uuid.UUID
-		if err := rows.Scan(&service_id); err != nil {
-			return nil, err
-		}
-		items = append(items, service_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -394,17 +334,18 @@ func (q *Queries) UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenPa
 }
 
 const upsertProviderProfile = `-- name: UpsertProviderProfile :exec
-INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description)
-VALUES ($1, $2, $3, $4)
+INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (user_id) DO UPDATE
-SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, updated_at = now()
+SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, service_id = EXCLUDED.service_id, updated_at = now()
 `
 
 type UpsertProviderProfileParams struct {
-	UserID             uuid.UUID `json:"user_id"`
-	Status             string    `json:"status"`
-	VehiclePlate       string    `json:"vehicle_plate"`
-	VehicleDescription string    `json:"vehicle_description"`
+	UserID             uuid.UUID  `json:"user_id"`
+	Status             string     `json:"status"`
+	VehiclePlate       string     `json:"vehicle_plate"`
+	VehicleDescription string     `json:"vehicle_description"`
+	ServiceID          *uuid.UUID `json:"service_id"`
 }
 
 func (q *Queries) UpsertProviderProfile(ctx context.Context, arg UpsertProviderProfileParams) error {
@@ -413,6 +354,7 @@ func (q *Queries) UpsertProviderProfile(ctx context.Context, arg UpsertProviderP
 		arg.Status,
 		arg.VehiclePlate,
 		arg.VehicleDescription,
+		arg.ServiceID,
 	)
 	return err
 }

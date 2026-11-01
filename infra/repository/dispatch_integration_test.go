@@ -44,7 +44,7 @@ func redisClient(t *testing.T) *goredis.Client {
 }
 
 func taxiIndex() []entities.LiveIndex {
-	return []entities.LiveIndex{{Slug: "taxi", Resolution: 7}, {Slug: "towing", Resolution: 5}}
+	return []entities.LiveIndex{{Slug: "taxi", Resolution: 7}, {Slug: "taxi", Resolution: 5}}
 }
 
 func TestLocatorKeepsTheIndexOnlyWhereTheProviderIs(t *testing.T) {
@@ -76,17 +76,17 @@ func TestLocatorKeepsTheIndexOnlyWhereTheProviderIs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, members)
 
-	towingCell, err := geo.Cell(far, 5)
+	wideCell, err := geo.Cell(far, 5)
 	require.NoError(t, err)
-	found, err = locator.FindInCells(ctx, "towing", 5, []int64{towingCell})
+	found, err = locator.FindInCells(ctx, "taxi", 5, []int64{wideCell})
 	require.NoError(t, err)
-	assert.Len(t, found, 1, "one position feeds every category of the provider")
+	assert.Len(t, found, 1, "one position feeds every resolution of the category")
 
 	require.NoError(t, locator.SetOffline(ctx, provider))
 	online, err := locator.IsOnline(ctx, provider)
 	require.NoError(t, err)
 	assert.False(t, online)
-	found, err = locator.FindInCells(ctx, "towing", 5, []int64{towingCell})
+	found, err = locator.FindInCells(ctx, "taxi", 5, []int64{wideCell})
 	require.NoError(t, err)
 	assert.Empty(t, found)
 }

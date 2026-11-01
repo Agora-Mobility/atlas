@@ -61,21 +61,17 @@ func (u *Usecase) GoOffline(ctx context.Context, providerID uuid.UUID) (*dtos.Ca
 }
 
 func (u *Usecase) liveIndexesOf(ctx context.Context, providerID uuid.UUID) ([]entities.LiveIndex, error) {
-	categories, err := u.Providers.ListCategories(ctx, providerID)
-	if err != nil {
+	category, err := u.Providers.CategoryOf(ctx, providerID)
+	if err != nil || category == nil {
 		return nil, err
 	}
 	all, err := u.Config.ListLiveIndexes(ctx)
 	if err != nil {
 		return nil, err
 	}
-	owned := make(map[uuid.UUID]struct{}, len(categories))
-	for _, category := range categories {
-		owned[category.CategoryID] = struct{}{}
-	}
-	indexes := make([]entities.LiveIndex, 0, len(all))
+	indexes := make([]entities.LiveIndex, 0, 1)
 	for _, index := range all {
-		if _, ok := owned[index.CategoryID]; ok {
+		if index.CategoryID == category.CategoryID {
 			indexes = append(indexes, index)
 		}
 	}
@@ -228,7 +224,7 @@ func (u *Usecase) SetCoverage(ctx context.Context, providerID uuid.UUID, in dtos
 	if profile == nil || profile.Status != entities.ProviderApproved {
 		return nil, ErrProviderNotApproved
 	}
-	categories, err := u.Providers.ListCategories(ctx, providerID)
+	category, err := u.Providers.CategoryOf(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
@@ -236,31 +232,22 @@ func (u *Usecase) SetCoverage(ctx context.Context, providerID uuid.UUID, in dtos
 	if err != nil {
 		return nil, err
 	}
-	covering := map[uuid.UUID]*entities.DispatchPolicy{}
-	for _, policy := range policies {
-		if policy.ZoneID == nil && policy.CandidateSource == entities.CandidateCoverage {
-			covering[policy.CategoryID] = policy
-		}
-	}
 	radiusKm := in.RadiusKm
 	cellsByCategory := map[uuid.UUID][]int64{}
 	totalCells := 0
-	for _, category := range categories {
-		policy, ok := covering[category.CategoryID]
-		if !ok {
+	for _, policy := range policies {
+		if category == nil || policy.ZoneID != nil || policy.CandidateSource != entities.CandidateCoverage || policy.CategoryID != category.CategoryID {
 			continue
 		}
-		radius := radiusKm
-		if radius == 0 {
-			radius = policy.RadiiKm[0]
-			radiusKm = radius
+		if radiusKm == 0 {
+			radiusKm = policy.RadiiKm[0]
 		}
-		cells, err := u.Geo.Covering(base, radius, policy.H3Resolution)
+		cells, err := u.Geo.Covering(base, radiusKm, policy.H3Resolution)
 		if err != nil {
 			return nil, err
 		}
 		cellsByCategory[category.CategoryID] = cells
-		totalCells += len(cells)
+		totalCells = len(cells)
 	}
 	now := u.now()
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {

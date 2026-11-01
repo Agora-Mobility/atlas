@@ -4,6 +4,7 @@ package postgres_test
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +24,7 @@ import (
 var appTables = []string{
 	"audit_log", "block_reasons", "clients", "device_tokens", "dispatch_policies", "eta_observations", "fare_adjustments",
 	"fare_estimates", "invitations", "membership_roles", "memberships", "mfa_recovery_codes", "notifications", "organizations",
-	"outbox", "permissions", "provider_coverage", "provider_location_samples", "provider_profiles", "provider_services",
+	"outbox", "permissions", "provider_coverage", "provider_location_samples", "provider_profiles",
 	"refresh_tokens", "request_offers", "role_permissions", "roles", "schema_migrations", "service_categories",
 	"service_request_events", "service_requests", "service_tariffs", "service_zones", "services", "user_block_reasons",
 	"user_blocks", "user_mfa", "users",
@@ -144,7 +145,7 @@ func TestMigrate_MovesALegacyPublicDatabaseKeepingData(t *testing.T) {
 	var version int
 	var dirty bool
 	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
-	assert.Equal(t, 19, version)
+	assert.Equal(t, 20, version)
 	assert.False(t, dirty)
 
 	_, err = pool.Exec(ctx, "UPDATE audit_log SET reason = 'x'")
@@ -153,4 +154,34 @@ func TestMigrate_MovesALegacyPublicDatabaseKeepingData(t *testing.T) {
 	var canCreate bool
 	require.NoError(t, pool.QueryRow(ctx, "SELECT has_schema_privilege('public', 'public', 'CREATE')").Scan(&canCreate))
 	assert.False(t, canCreate, "PUBLIC cannot create objects in schema public")
+}
+
+func TestMigrate_ProvidersKeepOneServiceOrGoBackToPending(t *testing.T) {
+	url := startPostgres(t)
+	require.NoError(t, postgres.Migrate(url, "up"))
+	require.NoError(t, postgres.Migrate(url, "down"))
+	pool := connect(t, url)
+	ctx := context.Background()
+
+	const withServices, withoutServices = "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"
+	for i, id := range []string{withServices, withoutServices} {
+		_, err := pool.Exec(ctx, `INSERT INTO users (id, name, phone, password, status, role) VALUES ($1, 'P', $2, 'x', 'active', 'provider')`, id, "+24492300000"+strconv.Itoa(i))
+		require.NoError(t, err)
+		_, err = pool.Exec(ctx, `INSERT INTO provider_profiles (user_id, status) VALUES ($1, 'approved')`, id)
+		require.NoError(t, err)
+	}
+	_, err := pool.Exec(ctx, `INSERT INTO provider_services (provider_id, service_id) SELECT $1, id FROM services`, withServices)
+	require.NoError(t, err)
+
+	require.NoError(t, postgres.Migrate(url, "up"))
+
+	var status, slug string
+	require.NoError(t, pool.QueryRow(ctx, `SELECT p.status, s.slug FROM provider_profiles p JOIN services s ON s.id = p.service_id WHERE p.user_id = $1`, withServices).Scan(&status, &slug))
+	assert.Equal(t, "approved", status)
+	assert.Equal(t, "taxi", slug, "the first service of the first category is kept")
+	require.NoError(t, pool.QueryRow(ctx, `SELECT status FROM provider_profiles WHERE user_id = $1`, withoutServices).Scan(&status))
+	assert.Equal(t, "pending", status, "approval needs a service")
+
+	_, err = pool.Exec(ctx, `UPDATE provider_profiles SET service_id = NULL WHERE user_id = $1`, withServices)
+	assert.Error(t, err, "an approved provider cannot lose the service")
 }

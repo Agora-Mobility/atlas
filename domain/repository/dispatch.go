@@ -48,9 +48,9 @@ type IPricingRepository interface {
 
 type IProviderRepository interface {
 	FindProfile(ctx context.Context, userID uuid.UUID) (*entities.ProviderProfile, error)
-	SaveProfile(ctx context.Context, profile *entities.ProviderProfile, serviceIDs []uuid.UUID) error
-	ListServiceIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
-	ListCategories(ctx context.Context, userID uuid.UUID) ([]entities.LiveIndex, error)
+	SaveProfile(ctx context.Context, profile *entities.ProviderProfile) error
+	CategoryOf(ctx context.Context, userID uuid.UUID) (*entities.LiveIndex, error)
+	ClearCoverage(ctx context.Context, providerID uuid.UUID) error
 	FilterEligible(ctx context.Context, serviceID uuid.UUID, providerIDs []uuid.UUID) ([]entities.EligibleProvider, error)
 	WithActiveJob(ctx context.Context, providerIDs []uuid.UUID, busyUntil time.Time) ([]uuid.UUID, error)
 	ReplaceCoverage(ctx context.Context, providerID uuid.UUID, base entities.GeoPoint, radiusKm float64, cellsByCategory map[uuid.UUID][]int64) error

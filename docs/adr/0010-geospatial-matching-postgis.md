@@ -69,3 +69,7 @@ exact distances are computed in Go and official polygons stay in PostGIS.
   (`domain/repository/dispatch.go`).
 - The open questions are closed by the policy (radii) and by the cadence decided
   by the server (`entities.CadenceFor`).
+- **One provider, one service (2026-11-01):** like Yango and Uber, a provider is tied
+  to one vehicle and one service, set by the backoffice (`provider_profiles.service_id`).
+  Economy and Comfort drivers never receive each other's requests. The live index stays
+  per category, so eligibility is checked before the candidate cap, and again on accept.

@@ -443,13 +443,27 @@ func newProvider(t *testing.T, category string, at point) *person {
 	return provider
 }
 
+func newProviderOfService(t *testing.T, serviceID string, at point) *person {
+	t.Helper()
+	provider := newPerson(t, enums.RoleProvider)
+	_, err := env.owner.Exec(context.Background(), `INSERT INTO provider_profiles (user_id, status, service_id) VALUES ($1, 'approved', $2)`, provider.id, serviceID)
+	require.NoError(t, err)
+	first := positionAt(at)
+	first["age_s"] = 120
+	res := provider.post(t, "/api/v1/providers/me/online", map[string]any{"position": first})
+	require.Equal(t, http.StatusOK, res.status, res.text)
+	return provider
+}
+
 func newApprovedProvider(t *testing.T, category string) *person {
 	t.Helper()
 	provider := newPerson(t, enums.RoleProvider)
 	ctx := context.Background()
-	_, err := env.owner.Exec(ctx, `INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description) VALUES ($1, 'approved', 'LD-45-21-AF', 'Toyota Corolla Branco')`, provider.id)
-	require.NoError(t, err)
-	_, err = env.owner.Exec(ctx, `INSERT INTO provider_services (provider_id, service_id) SELECT $1, s.id FROM services s JOIN service_categories c ON c.id = s.category_id WHERE c.slug = $2`, provider.id, category)
+	_, err := env.owner.Exec(ctx, `
+		INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id)
+		SELECT $1, 'approved', 'LD-45-21-AF', 'Toyota Corolla Branco', s.id
+		FROM services s JOIN service_categories c ON c.id = s.category_id
+		WHERE c.slug = $2 ORDER BY s.display_order, s.created_at LIMIT 1`, provider.id, category)
 	require.NoError(t, err)
 	return provider
 }

@@ -17,7 +17,6 @@ type Querier interface {
 	ActiveRequestOfCustomer(ctx context.Context, customerID uuid.UUID) (ServiceRequest, error)
 	ActiveRequestOfProvider(ctx context.Context, providerID *uuid.UUID) (ServiceRequest, error)
 	AddMembershipRoles(ctx context.Context, arg AddMembershipRolesParams) error
-	AddProviderService(ctx context.Context, arg AddProviderServiceParams) error
 	AddRolePermissions(ctx context.Context, arg AddRolePermissionsParams) error
 	BumpMembershipsWithRole(ctx context.Context, arg BumpMembershipsWithRoleParams) ([]uuid.UUID, error)
 	CloseServiceTariff(ctx context.Context, arg CloseServiceTariffParams) error
@@ -49,7 +48,6 @@ type Querier interface {
 	DeleteDeviceToken(ctx context.Context, token string) error
 	DeleteMembershipRoles(ctx context.Context, membershipID uuid.UUID) error
 	DeleteProviderCoverage(ctx context.Context, providerID uuid.UUID) error
-	DeleteProviderServices(ctx context.Context, providerID uuid.UUID) error
 	DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error
 	DeleteRole(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteRolePermissions(ctx context.Context, roleID uuid.UUID) error
@@ -82,6 +80,7 @@ type Querier interface {
 	GetMembershipInOrganizationForUpdate(ctx context.Context, arg GetMembershipInOrganizationForUpdateParams) (Membership, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetPlatformOrganization(ctx context.Context) (Organization, error)
+	GetProviderCategory(ctx context.Context, userID uuid.UUID) (GetProviderCategoryRow, error)
 	GetProviderProfile(ctx context.Context, userID uuid.UUID) (ProviderProfile, error)
 	GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRequestOffer(ctx context.Context, id uuid.UUID) (RequestOffer, error)
@@ -124,8 +123,6 @@ type Querier interface {
 	ListOperatorQueue(ctx context.Context, arg ListOperatorQueueParams) ([]ServiceRequest, error)
 	ListPartnerOrganizations(ctx context.Context, arg ListPartnerOrganizationsParams) ([]Organization, error)
 	ListPermissionsByScope(ctx context.Context, scope enums.OrganizationType) ([]ListPermissionsByScopeRow, error)
-	ListProviderCategories(ctx context.Context, providerID uuid.UUID) ([]ListProviderCategoriesRow, error)
-	ListProviderServiceIDs(ctx context.Context, providerID uuid.UUID) ([]uuid.UUID, error)
 	ListRequestOffers(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestOffersForUpdate(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOfCustomerParams) ([]ServiceRequest, error)

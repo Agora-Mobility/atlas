@@ -1198,11 +1198,8 @@ definitions:
     type: object
   dtos.ProviderAdminInput:
     properties:
-      service_ids:
-        items:
-          type: string
-        maxItems: 50
-        type: array
+      service_id:
+        type: string
       status:
         enum:
         - pending
@@ -1220,10 +1217,8 @@ definitions:
     type: object
   dtos.ProviderAdminView:
     properties:
-      service_ids:
-        items:
-          type: string
-        type: array
+      service_id:
+        type: string
       status:
         type: string
       user_id:
@@ -2349,7 +2344,9 @@ paths:
       consumes:
       - application/json
       description: Requires providers:approve. Sets the status, the vehicle and the
-        services the provider may take.
+        one service the provider takes offers for. An approved provider must have
+        a service. The service cannot change during an active job, and changing it
+        takes the provider offline and clears the coverage.
       parameters:
       - description: User id of the provider
         in: path

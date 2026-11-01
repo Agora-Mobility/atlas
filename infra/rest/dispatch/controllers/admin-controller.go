@@ -220,7 +220,7 @@ func (c *DispatchController) PublishTariff(ctx *gin.Context) {
 // SaveProvider godoc
 //
 //	@Summary		Set the dispatch profile of a provider
-//	@Description	Requires providers:approve. Sets the status, the vehicle and the services the provider may take.
+//	@Description	Requires providers:approve. Sets the status, the vehicle and the one service the provider takes offers for. An approved provider must have a service. The service cannot change during an active job, and changing it takes the provider offline and clears the coverage.
 //	@Tags			Backoffice dispatch
 //	@Accept			json
 //	@Produce		json

@@ -1008,3 +1008,48 @@ func TestProviderTripSurvivesLosingRedis(t *testing.T) {
 	require.Equal(t, http.StatusOK, back.status, back.text)
 	assert.Equal(t, "en_route", back.str("phase"), "the real state comes back from PostgreSQL")
 }
+
+func TestDriversOnlyReceiveOffersOfTheirOwnService(t *testing.T) {
+	clearOnlineProviders(t)
+	ctx := context.Background()
+	var economyID, comfortID string
+	require.NoError(t, env.owner.QueryRow(ctx, `SELECT id FROM services WHERE slug = 'taxi'`).Scan(&economyID))
+	require.NoError(t, env.owner.QueryRow(ctx, `
+		INSERT INTO services (category_id, slug, name, requires_destination, display_order)
+		SELECT category_id, 'taxi-conforto', 'Conforto', true, 2 FROM services WHERE slug = 'taxi' RETURNING id`).Scan(&comfortID))
+	_, err := env.owner.Exec(ctx, `
+		INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps)
+		VALUES ($1, 'AOA', 60000, 20000, 2000, 80000, 1000)`, comfortID)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := env.owner.Exec(context.Background(), `UPDATE services SET is_active = false WHERE id = $1`, comfortID)
+		require.NoError(t, err)
+	})
+
+	economy := newProviderOfService(t, economyID, point{-8.8391, 13.2341})
+	comfort := newProviderOfService(t, comfortID, point{-8.8392, 13.2342})
+	economyStream, comfortStream := economy.listen(t, ""), comfort.listen(t, "")
+	customer := newCustomer(t)
+	estimate := customer.post(t, "/api/v1/fare-estimates", map[string]any{"category": "taxi", "pickup": pickup, "destination": target})
+	require.Equal(t, http.StatusCreated, estimate.status, estimate.text)
+	options := map[string]string{}
+	for _, raw := range estimate.body["items"].([]any) {
+		item := raw.(map[string]any)
+		options[item["service_id"].(string)] = item["fare_estimate_id"].(string)
+	}
+	require.Len(t, options, 2)
+	order := func(serviceID string) string {
+		res := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": options[serviceID], "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
+		require.Equal(t, http.StatusCreated, res.status, res.text)
+		return res.str("id")
+	}
+
+	comfortRequest := order(comfortID)
+	comfortStream.waitFor(t, "request.offer", func(event sseEvent) bool { return event.Data["request_id"] == comfortRequest })
+	economyRequest := order(economyID)
+	economyStream.waitFor(t, "request.offer", func(event sseEvent) bool { return event.Data["request_id"] == economyRequest })
+
+	time.Sleep(500 * time.Millisecond)
+	assert.Len(t, economyStream.ofType("request.offer"), 1, "Economy never gets a Comfort request")
+	assert.Len(t, comfortStream.ofType("request.offer"), 1, "Comfort never gets an Economy request")
+}

@@ -63,6 +63,9 @@ func (u *Usecase) Accept(ctx context.Context, providerID, offerID uuid.UUID, ver
 		if r.Version != version {
 			return ErrRequestConflict
 		}
+		if err := u.requireEligible(ctx, r, providerID); err != nil {
+			return err
+		}
 		if p.ReserveProvider {
 			active, err := u.Requests.ActiveOfProvider(ctx, providerID)
 			if err != nil {
@@ -104,6 +107,17 @@ func (u *Usecase) Accept(ctx context.Context, providerID, offerID uuid.UUID, ver
 		return nil, err
 	}
 	return &dtos.AcceptResult{Request: *view, Route: u.pickupRoute(ctx, providerID, request)}, nil
+}
+
+func (u *Usecase) requireEligible(ctx context.Context, request *entities.ServiceRequest, providerID uuid.UUID) error {
+	eligible, err := u.Providers.FilterEligible(ctx, request.ServiceID, []uuid.UUID{providerID})
+	if err != nil {
+		return err
+	}
+	if len(eligible) == 0 {
+		return ErrProviderNotEligible
+	}
+	return nil
 }
 
 func (u *Usecase) afterAssignment(ctx context.Context, request *entities.ServiceRequest, policy *entities.DispatchPolicy, released []reservation) {
@@ -190,6 +204,9 @@ func (u *Usecase) SubmitQuote(ctx context.Context, providerID, offerID uuid.UUID
 	return u.withLockedOffer(ctx, providerID, offerID, func(ctx context.Context, request *entities.ServiceRequest, offer *entities.RequestOffer, policy *entities.DispatchPolicy, now time.Time) error {
 		if policy.OfferMode != entities.OfferModeQuote {
 			return ErrQuoteNotAllowed
+		}
+		if err := u.requireEligible(ctx, request, providerID); err != nil {
+			return err
 		}
 		if request.Status != entities.RequestOffered && request.Status != entities.RequestAwaitingChoice {
 			return ErrRequestConflict

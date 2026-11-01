@@ -114,11 +114,15 @@ func TestDispatchBackofficeFlow(t *testing.T) {
 
 		res := a.call(http.MethodPut, "/api/v1/admin/providers/"+customerID, backofficeApp, adminToken, map[string]any{"status": "approved"})
 		assert.Equal(t, "PROVIDER_NOT_ELIGIBLE", res.code())
+		res = a.call(http.MethodPut, "/api/v1/admin/providers/"+providerID, backofficeApp, adminToken, map[string]any{"status": "approved"})
+		assert.Equal(t, http.StatusUnprocessableEntity, res.status, "an approved provider must have one service")
+		res = a.call(http.MethodPut, "/api/v1/admin/providers/"+providerID, backofficeApp, adminToken, map[string]any{"status": "approved", "service_ids": []string{serviceID, serviceID}})
+		assert.Equal(t, http.StatusUnprocessableEntity, res.status, "a list of services does not count as the one service")
 		res = a.call(http.MethodPut, "/api/v1/admin/providers/0192f1d2-7c3a-7b4e-9a10-2f3c4d5e6f70", backofficeApp, adminToken, map[string]any{"status": "approved"})
 		assert.Equal(t, "PROVIDER_NOT_FOUND", res.code())
 
 		res = a.call(http.MethodPut, "/api/v1/admin/providers/"+providerID, backofficeApp, adminToken, map[string]any{
-			"status": "approved", "vehicle_plate": "LD-45-21-AF", "vehicle_description": "Toyota Corolla", "service_ids": []string{serviceID},
+			"status": "approved", "vehicle_plate": "LD-45-21-AF", "vehicle_description": "Toyota Corolla", "service_id": serviceID,
 		})
 		require.Equal(t, http.StatusOK, res.status, res.body)
 		assert.Equal(t, "approved", res.body["status"])

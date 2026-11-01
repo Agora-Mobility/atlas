@@ -36,7 +36,7 @@ func (r *ProviderRepository) FindProfile(ctx context.Context, userID uuid.UUID) 
 		return nil, fmt.Errorf("get provider: %w", err)
 	}
 	profile := &entities.ProviderProfile{
-		UserID: row.UserID, Status: entities.ProviderStatus(row.Status), VehiclePlate: row.VehiclePlate, VehicleDescription: row.VehicleDescription,
+		UserID: row.UserID, Status: entities.ProviderStatus(row.Status), ServiceID: row.ServiceID, VehiclePlate: row.VehiclePlate, VehicleDescription: row.VehicleDescription,
 		ServiceRadiusKm: row.ServiceRadiusKm, LastJobCompletedAt: row.LastJobCompletedAt, CreatedAt: row.CreatedAt,
 	}
 	if row.BaseLat != nil && row.BaseLng != nil {
@@ -45,45 +45,32 @@ func (r *ProviderRepository) FindProfile(ctx context.Context, userID uuid.UUID) 
 	return profile, nil
 }
 
-func (r *ProviderRepository) SaveProfile(ctx context.Context, p *entities.ProviderProfile, serviceIDs []uuid.UUID) error {
-	return r.tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		queries := postgres.Queries(ctx, r.pool)
-		err := queries.UpsertProviderProfile(ctx, gen.UpsertProviderProfileParams{
-			UserID: p.UserID, Status: string(p.Status), VehiclePlate: p.VehiclePlate, VehicleDescription: p.VehicleDescription,
-		})
-		if err != nil {
-			return fmt.Errorf("save provider: %w", err)
-		}
-		if err := queries.DeleteProviderServices(ctx, p.UserID); err != nil {
-			return fmt.Errorf("clear provider services: %w", err)
-		}
-		for _, serviceID := range serviceIDs {
-			if err := queries.AddProviderService(ctx, gen.AddProviderServiceParams{ProviderID: p.UserID, ServiceID: serviceID}); err != nil {
-				return fmt.Errorf("add provider service: %w", err)
-			}
-		}
-		return nil
+func (r *ProviderRepository) SaveProfile(ctx context.Context, p *entities.ProviderProfile) error {
+	err := postgres.Queries(ctx, r.pool).UpsertProviderProfile(ctx, gen.UpsertProviderProfileParams{
+		UserID: p.UserID, Status: string(p.Status), VehiclePlate: p.VehiclePlate, VehicleDescription: p.VehicleDescription, ServiceID: p.ServiceID,
 	})
+	if err != nil {
+		return fmt.Errorf("save provider: %w", err)
+	}
+	return nil
 }
 
-func (r *ProviderRepository) ListServiceIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
-	ids, err := postgres.Queries(ctx, r.pool).ListProviderServiceIDs(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("list provider services: %w", err)
+func (r *ProviderRepository) CategoryOf(ctx context.Context, userID uuid.UUID) (*entities.LiveIndex, error) {
+	row, err := postgres.Queries(ctx, r.pool).GetProviderCategory(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
 	}
-	return ids, nil
+	if err != nil {
+		return nil, fmt.Errorf("get provider category: %w", err)
+	}
+	return &entities.LiveIndex{CategoryID: row.ID, Slug: row.Slug}, nil
 }
 
-func (r *ProviderRepository) ListCategories(ctx context.Context, userID uuid.UUID) ([]entities.LiveIndex, error) {
-	rows, err := postgres.Queries(ctx, r.pool).ListProviderCategories(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("list provider categories: %w", err)
+func (r *ProviderRepository) ClearCoverage(ctx context.Context, providerID uuid.UUID) error {
+	if err := postgres.Queries(ctx, r.pool).DeleteProviderCoverage(ctx, providerID); err != nil {
+		return fmt.Errorf("clear coverage: %w", err)
 	}
-	out := make([]entities.LiveIndex, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, entities.LiveIndex{CategoryID: row.ID, Slug: row.Slug})
-	}
-	return out, nil
+	return nil
 }
 
 func (r *ProviderRepository) FilterEligible(ctx context.Context, serviceID uuid.UUID, providerIDs []uuid.UUID) ([]entities.EligibleProvider, error) {

@@ -2,10 +2,10 @@
 SELECT * FROM provider_profiles WHERE user_id = $1;
 
 -- name: UpsertProviderProfile :exec
-INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description)
-VALUES ($1, $2, $3, $4)
+INSERT INTO provider_profiles (user_id, status, vehicle_plate, vehicle_description, service_id)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (user_id) DO UPDATE
-SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, updated_at = now();
+SET status = EXCLUDED.status, vehicle_plate = EXCLUDED.vehicle_plate, vehicle_description = EXCLUDED.vehicle_description, service_id = EXCLUDED.service_id, updated_at = now();
 
 -- name: UpdateProviderBase :execrows
 UPDATE provider_profiles SET base_lat = $2, base_lng = $3, service_radius_km = $4, updated_at = now() WHERE user_id = $1;
@@ -13,28 +13,18 @@ UPDATE provider_profiles SET base_lat = $2, base_lng = $3, service_radius_km = $
 -- name: TouchProviderJobCompleted :exec
 UPDATE provider_profiles SET last_job_completed_at = $2, updated_at = now() WHERE user_id = $1;
 
--- name: DeleteProviderServices :exec
-DELETE FROM provider_services WHERE provider_id = $1;
-
--- name: AddProviderService :exec
-INSERT INTO provider_services (provider_id, service_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
-
--- name: ListProviderCategories :many
-SELECT DISTINCT c.id, c.slug
-FROM provider_services ps
-JOIN services s ON s.id = ps.service_id
+-- name: GetProviderCategory :one
+SELECT c.id, c.slug
+FROM provider_profiles p
+JOIN services s ON s.id = p.service_id
 JOIN service_categories c ON c.id = s.category_id
-WHERE ps.provider_id = $1;
-
--- name: ListProviderServiceIDs :many
-SELECT service_id FROM provider_services WHERE provider_id = $1;
+WHERE p.user_id = $1;
 
 -- name: FilterEligibleProviders :many
 SELECT p.user_id, p.last_job_completed_at, p.created_at, p.base_lat, p.base_lng, p.service_radius_km, u.phone
 FROM provider_profiles p
-JOIN provider_services ps ON ps.provider_id = p.user_id AND ps.service_id = sqlc.arg(service_id)
 JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
-WHERE p.user_id = ANY(sqlc.arg(provider_ids)::uuid[]) AND p.status = 'approved';
+WHERE p.user_id = ANY(sqlc.arg(provider_ids)::uuid[]) AND p.status = 'approved' AND p.service_id = sqlc.arg(service_id)::uuid;
 
 -- name: ProvidersWithActiveJob :many
 SELECT DISTINCT provider_id::uuid AS provider_id FROM service_requests
