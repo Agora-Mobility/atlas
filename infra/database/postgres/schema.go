@@ -14,7 +14,7 @@ const Schema = "atlas"
 
 // searchPath resolves our objects first and extension objects (public) next.
 // Unqualified CREATE statements in migrations land in Schema.
-const searchPath = Schema + ", public"
+const searchPath = Schema + ",public"
 
 // ensureSchema creates Schema and, on databases migrated before it existed,
 // moves the migrations table into it so the version history is kept.
