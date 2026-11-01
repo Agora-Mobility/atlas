@@ -8,4 +8,5 @@ import (
 
 func SetupRoutes(api *gin.RouterGroup, c *containers.Container) {
 	c.Auth.Router.Register(api)
+	c.Catalog.Router.Register(api)
 }

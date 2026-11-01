@@ -8,3 +8,4 @@ package repository
 //go:generate go tool mockgen -source=audit_log.go -destination=mocks/audit_log_mock.go -package=mocks
 //go:generate go tool mockgen -source=block_reason.go -destination=mocks/block_reason_mock.go -package=mocks
 //go:generate go tool mockgen -source=access.go -destination=mocks/access_mock.go -package=mocks
+//go:generate go tool mockgen -source=catalog.go -destination=mocks/catalog_mock.go -package=mocks
