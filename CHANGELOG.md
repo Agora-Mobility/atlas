@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.0](https://github.com/Agora-Mobility/atlas/compare/v1.1.1...v1.2.0) (2026-11-01)
+
+
+### Features
+
+* **catalog:** add catalog entities, events and repository ([733a72d](https://github.com/Agora-Mobility/atlas/commit/733a72dad281fab21f3dd9a8d05ee00e0c9a255c))
+* **catalog:** add the service catalog schema with the MVP categories ([badd510](https://github.com/Agora-Mobility/atlas/commit/badd51021afd9bed991b3555cae4e211d88bcbcc))
+* **catalog:** manage the catalog in the backoffice and list it in the app ([ac8d806](https://github.com/Agora-Mobility/atlas/commit/ac8d806de0db970eafdb1223ea888c46834e7f60))
+
 ## [1.1.1](https://github.com/Agora-Mobility/atlas/compare/v1.1.0...v1.1.1) (2026-10-31)
 
 
