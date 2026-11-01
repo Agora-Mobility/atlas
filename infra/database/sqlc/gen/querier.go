@@ -139,7 +139,7 @@ type Querier interface {
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error
-	MarkOutboxEventPublished(ctx context.Context, id uuid.UUID) error
+	MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error
 	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)
 	ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithActiveJobParams) ([]uuid.UUID, error)
 	PurgeLocationSamples(ctx context.Context, recordedAt time.Time) (int64, error)

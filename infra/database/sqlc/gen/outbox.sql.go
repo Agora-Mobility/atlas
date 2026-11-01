@@ -122,13 +122,13 @@ func (q *Queries) MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEvent
 	return err
 }
 
-const markOutboxEventPublished = `-- name: MarkOutboxEventPublished :exec
+const markOutboxEventsPublished = `-- name: MarkOutboxEventsPublished :exec
 UPDATE outbox
 SET published_at = now(), attempts = attempts + 1, last_error = NULL
-WHERE id = $1
+WHERE id = ANY($1::uuid[])
 `
 
-func (q *Queries) MarkOutboxEventPublished(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markOutboxEventPublished, id)
+func (q *Queries) MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markOutboxEventsPublished, ids)
 	return err
 }
