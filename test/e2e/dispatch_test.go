@@ -1011,20 +1011,7 @@ func TestProviderTripSurvivesLosingRedis(t *testing.T) {
 
 func TestDriversOnlyReceiveOffersOfTheirOwnService(t *testing.T) {
 	clearOnlineProviders(t)
-	ctx := context.Background()
-	var economyID, comfortID string
-	require.NoError(t, env.owner.QueryRow(ctx, `SELECT id FROM services WHERE slug = 'taxi'`).Scan(&economyID))
-	require.NoError(t, env.owner.QueryRow(ctx, `
-		INSERT INTO services (category_id, slug, name, requires_destination, display_order)
-		SELECT category_id, 'taxi-conforto', 'Conforto', true, 2 FROM services WHERE slug = 'taxi' RETURNING id`).Scan(&comfortID))
-	_, err := env.owner.Exec(ctx, `
-		INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps)
-		VALUES ($1, 'AOA', 60000, 20000, 2000, 80000, 1000)`, comfortID)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_, err := env.owner.Exec(context.Background(), `UPDATE services SET is_active = false WHERE id = $1`, comfortID)
-		require.NoError(t, err)
-	})
+	economyID, comfortID := serviceBySlug(t, "taxi"), comfortWithTariff(t)
 
 	economy := newProviderOfService(t, economyID, point{-8.8391, 13.2341})
 	comfort := newProviderOfService(t, comfortID, point{-8.8392, 13.2342})
