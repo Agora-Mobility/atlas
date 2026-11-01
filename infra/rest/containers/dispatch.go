@@ -34,6 +34,9 @@ type DispatchModule struct {
 	Usecase   *dispatch.Usecase
 	Projector *rtusecase.Projector
 	Notifier  *notifications.RequestNotifier
+
+	projectorWorkers    int
+	notificationWorkers int
 }
 
 type userRoles struct {
@@ -84,13 +87,16 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		c.Authenticator, c.Auth.Authorizer, c.ClientAuthorizer,
 		middleware.NewIdempotency(c.Redis, cfg.Dispatch.IdempotencyTTL),
 	)
-	return &DispatchModule{Router: router, Usecase: uc, Projector: rtusecase.NewProjector(mailbox), Notifier: notifier}
+	return &DispatchModule{
+		Router: router, Usecase: uc, Projector: rtusecase.NewProjector(mailbox), Notifier: notifier,
+		projectorWorkers: cfg.Realtime.ProjectorWorkers, notificationWorkers: cfg.Dispatch.NotificationWorkers,
+	}
 }
 
 func (m *DispatchModule) Consumers() []queue.ConsumerConfig {
 	return []queue.ConsumerConfig{
-		{Queue: "realtime.projector", BindingKeys: rtusecase.BindingKeys(), Handler: m.Projector.Handle},
-		{Queue: "notifications.requests", BindingKeys: notifications.RequestBindingKeys(), Handler: m.Notifier.OnEvent},
+		{Queue: "realtime.projector", BindingKeys: rtusecase.BindingKeys(), Handler: m.Projector.Handle, Workers: m.projectorWorkers},
+		{Queue: "notifications.requests", BindingKeys: notifications.RequestBindingKeys(), Handler: m.Notifier.OnEvent, Workers: m.notificationWorkers},
 	}
 }
 

@@ -702,8 +702,8 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 		HTTP:     config.HTTPConfig{AuthRateLimit: 1000, AuthRateWindow: time.Minute},
 		JWT:      config.JWTConfig{Secret: "test-secret-that-is-at-least-32-characters", Issuer: "atlas", AccessTTL: 15 * time.Minute, RefreshTTL: time.Hour},
 		OTP:      config.OTPConfig{TTL: 5 * time.Minute, MaxAttempts: 5},
-		Dispatch: config.DispatchConfig{WatcherInterval: time.Hour, WatcherBatch: 10, ChannelTimeout: time.Second, FareEstimateTTL: time.Minute, NearbyMinCount: 1, MaxAccuracyM: 100, MaxSpeedKmh: 200, OfferDeepLink: "agora://app", IdempotencyTTL: time.Hour},
-		Realtime: config.RealtimeConfig{Heartbeat: time.Second, PollInterval: time.Second, DeadAfter: 3 * time.Second, MailboxEntries: 200, MailboxTTL: time.Hour},
+		Dispatch: config.DispatchConfig{WatcherInterval: time.Hour, WatcherBatch: 10, ChannelTimeout: time.Second, FareEstimateTTL: time.Minute, NearbyMinCount: 1, MaxAccuracyM: 100, MaxSpeedKmh: 200, OfferDeepLink: "agora://app", IdempotencyTTL: time.Hour, NotificationWorkers: 1},
+		Realtime: config.RealtimeConfig{Heartbeat: time.Second, PollInterval: time.Second, DeadAfter: 3 * time.Second, MailboxEntries: 200, MailboxTTL: time.Hour, ProjectorWorkers: 1},
 		Mapbox:   config.MapboxConfig{Timeout: time.Second, BreakerFailures: 1, BreakerCooldown: time.Second, RoadFactor: 1.4, AverageSpeedKmh: 25},
 		Access: config.AccessConfig{
 			MFAEncryptionKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)), MFAChallengeTTL: 5 * time.Minute, MFAMaxAttempts: 5,

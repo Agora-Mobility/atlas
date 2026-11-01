@@ -36,26 +36,28 @@ type Config struct {
 }
 
 type DispatchConfig struct {
-	WatcherInterval  time.Duration `mapstructure:"DISPATCH_WATCHER_INTERVAL"`
-	WatcherBatch     int           `mapstructure:"DISPATCH_WATCHER_BATCH"`
-	ChannelTimeout   time.Duration `mapstructure:"DISPATCH_CHANNEL_TIMEOUT"`
-	FareEstimateTTL  time.Duration `mapstructure:"FARE_ESTIMATE_TTL"`
-	NearbyMinCount   int           `mapstructure:"NEARBY_MIN_CELL_COUNT"`
-	MaxAccuracyM     float64       `mapstructure:"LOCATION_MAX_ACCURACY_M"`
-	MaxSpeedKmh      float64       `mapstructure:"LOCATION_MAX_SPEED_KMH"`
-	HistoryRetention time.Duration `mapstructure:"LOCATION_HISTORY_RETENTION"`
-	OfferDeepLink    string        `mapstructure:"OFFER_DEEP_LINK_BASE"`
-	OperatorPhone    string        `mapstructure:"OPERATOR_ALERT_PHONE"`
-	IdempotencyTTL   time.Duration `mapstructure:"IDEMPOTENCY_TTL"`
+	WatcherInterval     time.Duration `mapstructure:"DISPATCH_WATCHER_INTERVAL"`
+	WatcherBatch        int           `mapstructure:"DISPATCH_WATCHER_BATCH"`
+	ChannelTimeout      time.Duration `mapstructure:"DISPATCH_CHANNEL_TIMEOUT"`
+	FareEstimateTTL     time.Duration `mapstructure:"FARE_ESTIMATE_TTL"`
+	NearbyMinCount      int           `mapstructure:"NEARBY_MIN_CELL_COUNT"`
+	MaxAccuracyM        float64       `mapstructure:"LOCATION_MAX_ACCURACY_M"`
+	MaxSpeedKmh         float64       `mapstructure:"LOCATION_MAX_SPEED_KMH"`
+	HistoryRetention    time.Duration `mapstructure:"LOCATION_HISTORY_RETENTION"`
+	OfferDeepLink       string        `mapstructure:"OFFER_DEEP_LINK_BASE"`
+	OperatorPhone       string        `mapstructure:"OPERATOR_ALERT_PHONE"`
+	IdempotencyTTL      time.Duration `mapstructure:"IDEMPOTENCY_TTL"`
+	NotificationWorkers int           `mapstructure:"NOTIFICATION_WORKERS"`
 }
 
 type RealtimeConfig struct {
-	Heartbeat       time.Duration `mapstructure:"SSE_HEARTBEAT_INTERVAL"`
-	PollInterval    time.Duration `mapstructure:"SSE_POLL_INTERVAL"`
-	DeadAfter       time.Duration `mapstructure:"SSE_DEAD_AFTER"`
-	MailboxEntries  int64         `mapstructure:"SSE_MAILBOX_MAX_ENTRIES"`
-	MailboxTTL      time.Duration `mapstructure:"SSE_MAILBOX_TTL"`
-	ReconnectSpread time.Duration `mapstructure:"SSE_RECONNECT_SPREAD"`
+	Heartbeat        time.Duration `mapstructure:"SSE_HEARTBEAT_INTERVAL"`
+	PollInterval     time.Duration `mapstructure:"SSE_POLL_INTERVAL"`
+	DeadAfter        time.Duration `mapstructure:"SSE_DEAD_AFTER"`
+	MailboxEntries   int64         `mapstructure:"SSE_MAILBOX_MAX_ENTRIES"`
+	MailboxTTL       time.Duration `mapstructure:"SSE_MAILBOX_TTL"`
+	ReconnectSpread  time.Duration `mapstructure:"SSE_RECONNECT_SPREAD"`
+	ProjectorWorkers int           `mapstructure:"REALTIME_PROJECTOR_WORKERS"`
 }
 
 type MapboxConfig struct {
@@ -242,6 +244,8 @@ var defaults = map[string]any{
 	"OFFER_DEEP_LINK_BASE":         "agoraprovider://app",
 	"OPERATOR_ALERT_PHONE":         "",
 	"IDEMPOTENCY_TTL":              "24h",
+	"NOTIFICATION_WORKERS":         8,
+	"REALTIME_PROJECTOR_WORKERS":   16,
 	"SSE_HEARTBEAT_INTERVAL":       "15s",
 	"SSE_POLL_INTERVAL":            "30s",
 	"SSE_DEAD_AFTER":               "38s",
@@ -390,6 +394,9 @@ func (c *Config) validateDispatch() []error {
 	}
 	if c.Realtime.MailboxEntries <= 0 || c.Realtime.MailboxTTL <= 0 {
 		errs = append(errs, errors.New("SSE_MAILBOX_MAX_ENTRIES and SSE_MAILBOX_TTL must be positive"))
+	}
+	if c.Realtime.ProjectorWorkers <= 0 || c.Dispatch.NotificationWorkers <= 0 {
+		errs = append(errs, errors.New("REALTIME_PROJECTOR_WORKERS and NOTIFICATION_WORKERS must be positive"))
 	}
 	if c.Mapbox.Timeout <= 0 || c.Mapbox.BreakerFailures <= 0 || c.Mapbox.BreakerCooldown <= 0 || strings.TrimSpace(c.Mapbox.BaseURL) == "" {
 		errs = append(errs, errors.New("MAPBOX_TIMEOUT, MAPBOX_BREAKER_FAILURES and MAPBOX_BREAKER_COOLDOWN must be positive and MAPBOX_BASE_URL cannot be empty"))

@@ -123,10 +123,12 @@ func (c *Container) OutboxRelay() *outbox.Relay {
 	return outbox.NewRelay(c.Pool, c.Publisher, c.Config.Outbox.PollInterval, c.Config.Outbox.BatchSize)
 }
 
+const prefetchPerWorker = 4
+
 func (c *Container) Consumers() []*queue.Consumer {
 	consumers := make([]*queue.Consumer, 0)
 	for _, cc := range c.consumerConfigs() {
-		cc.Prefetch = c.Config.RabbitMQ.Prefetch
+		cc.Prefetch = max(c.Config.RabbitMQ.Prefetch, cc.Workers*prefetchPerWorker)
 		cc.MaxRetries = c.Config.RabbitMQ.MaxRetries
 		cc.RetryDelay = c.Config.RabbitMQ.RetryDelay
 		consumers = append(consumers, queue.NewConsumer(c.Queue, c.Deduplicator, cc))
