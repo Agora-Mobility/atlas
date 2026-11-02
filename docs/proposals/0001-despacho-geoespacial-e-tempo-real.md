@@ -141,6 +141,13 @@ As posições **nunca passam pelo outbox nem pelo RabbitMQ**. Uma posição perd
 Esta tabela é o centro da proposta. Torna-se a tabela `dispatch_policies`,
 editável no backoffice e opcionalmente específica por zona.
 
+> **Atualização de 2026-11-02:** as telas mudaram dois serviços. A Manutenção passou
+> a marcações em oficinas e deixou de despachar técnicos (`booking_only`, migração
+> 000031). As Mudanças passaram a preço fixo, sem propostas (`fixed` e `parallel`,
+> migração 000032). As colunas de Manutenção desta tabela ficam só como registo do
+> desenho inicial, e em Mudanças mudam o modo de oferta e a ordenação. As secções
+> 7.4, 7.5 e 16.7 descrevem o modelo atual.
+
 | Parâmetro | Táxi | Reboque | Manutenção | Mudanças |
 |---|---|---|---|---|
 | **Quando** | Imediato | Imediato | Imediato ou agendado | Normalmente agendado |
@@ -642,37 +649,44 @@ Detalhes:
 
 ### 7.4 Manutenção
 
+Substitui o técnico ao local (conflito C2). Não há despacho: o cliente escolhe a
+oficina e o horário.
+
 ```mermaid
 sequenceDiagram
     actor C as Cliente
     participant A as Atlas
     participant DB as PostgreSQL
-    actor T as Técnico
+    actor O as Oficina
 
-    C->>A: Problema, pin e data pretendida
-    alt Agendado
-        A->>A: Estado scheduled até à hora de procura
+    C->>A: Oficina, serviços, viatura e horário
+    A->>DB: Bloqueia a oficina e confere a capacidade
+    alt Horário cheio
+        A-->>C: 409 BOOKING_SLOT_FULL
+    else Com lugar
+        A->>DB: Marcação e pedido de faturação
+        A-->>C: Código MK, SMS e calendário
     end
-    A->>DB: provider_coverage com célula res 6
-    A->>A: Filtrar distância à base e disponibilidade
-    A-->>T: Oferta a 5 técnicos: FCM, SMS e SSE
-    T->>A: Aceita dentro do prazo
-    A-->>C: Técnico atribuído
-    T->>A: Sair para o local
-    A-->>C: Tracking apenas a caminho
-    T->>A: Cheguei e iniciar
-    T->>A: Concluir
-    A-->>C: Serviço concluído
+    O->>A: Viatura recebida, depois Em serviço
+    O->>A: Orçamento extra
+    C->>A: Aprova ou recusa
+    O->>A: Pronta para levantar
+    C->>A: Aprova o serviço concluído
+    C->>A: Paga, e só agora sai o pedido de Express
 ```
 
 Detalhes:
 
-- `requires_destination = false`, por isso não há rota até um destino final.
-- **Cadência de GPS:** só a caminho. Em serviço no local, a posição não é enviada.
-- **Prazo em minutos:** o SMS leva uma ligação que abre a app diretamente na
-  oferta, para o técnico responder mesmo com a app fechada.
+- **Estados próprios:** `bookings` tem o seu fluxo, sem saltos. O pedido associado em
+  `service_requests` nunca é despachado e serve para faturação e listas.
+- **Capacidade:** número de viaturas em simultâneo por oficina, com horário
+  estruturado e dias bloqueáveis.
+- **Referência:** a marcação só confirma depois de paga. Se expirar, o horário fica livre.
+- **Ledger:** conta própria `workshop`, porque a oficina não é um utilizador.
 
 ### 7.5 Mudanças
+
+Substitui as propostas (conflito C3). O preço vem do catálogo e fecha na marcação.
 
 ```mermaid
 sequenceDiagram
@@ -680,25 +694,25 @@ sequenceDiagram
     participant A as Atlas
     actor E as Empresas de mudanças
 
-    C->>A: Origem, destino, data, bens e fotos opcionais
-    A->>A: Cobertura res 6 na origem, estado scheduled
-    A-->>E: Oferta com pormenor via FCM e SMS
-    E->>A: Orçamento dentro do prazo
-    A-->>C: Orçamentos a chegar
-    C->>A: Escolhe um orçamento
-    A-->>E: Vencedor confirmado, restantes cancelados
+    C->>A: Artigos, ajudantes, extras, rota e dia
+    A-->>C: Volume calculado, viatura recomendada e total por viatura
+    C->>A: Marca com estimativa, janela, andares e tipo
+    A->>A: Bloqueia a viatura e confere a capacidade do dia
+    alt Com referência
+        A->>A: Sem procura até estar paga
+    end
+    A-->>E: Oferta antes do dia, via FCM, SMS e SSE
+    E->>A: Aceita, e o parceiro regista a equipa
     Note over A,E: Lembrete antes da data
-    E->>A: A caminho no dia
-    A-->>C: Tracking
-    E->>A: Início e conclusão
+    E->>A: A caminho, início e conclusão
 ```
 
 Detalhes:
 
-- **Fotos:** enviadas à parte para o Cloudflare R2, com compressão na app. O evento
-  transporta apenas referências, nunca os ficheiros.
-- **Distância estimada:** uma chamada de Directions ajuda a orçamentar.
-- **Validação ao aceitar:** a transação confirma que o orçamento ainda é válido.
+- **Volume:** é sempre calculado no servidor. O valor enviado pela app é ignorado.
+- **Rota:** não muda depois da marcação, porque o preço está fechado.
+- **Fotos:** enviadas à parte para o Cloudflare R2. O evento transporta só referências.
+- **Motor de propostas:** continua no código, mas nenhuma política o usa.
 
 ### 7.6 Posição do prestador
 
@@ -1277,13 +1291,13 @@ CREATE TABLE fare_estimates (
 
 ### 16.7 Outros serviços
 
-Sugestão inicial, a detalhar quando estes serviços forem desenhados:
+Modelo implementado, depois das telas:
 
-| Serviço | Modelo sugerido | Porquê |
+| Serviço | Modelo | Porquê |
 |---|---|---|
-| **Reboque** | Preço fixo, como Táxi, com taxa de saída mais alta | O percurso é conhecido; a deslocação até à viatura pesa no custo |
-| **Manutenção** | Taxa de deslocação e orçamento depois do diagnóstico | O trabalho só se conhece no local |
-| **Mudanças** | Orçamento do prestador | Depende dos bens a transportar |
+| **Reboque** | Preço por tipo de viatura, com km incluídos e preço por km a mais | As telas mostram preços por tipo |
+| **Manutenção** | Preço dos serviços da oficina, taxa de domicílio e orçamento extra que o cliente aprova | O cliente escolhe o serviço antes de marcar |
+| **Mudanças** | Viatura, ajudantes e extras, com preço fechado na marcação | As telas mostram preço fixo |
 
 ### 16.8 Em aberto
 
