@@ -30,7 +30,7 @@ func (u *Usecase) prepareTowing(ctx context.Context, request *entities.ServiceRe
 			return err
 		}
 	}
-	if request.VehicleTypeID == nil {
+	if request.VehicleTypeID == nil || isRemovalEstimate(request.Fare) {
 		return nil
 	}
 	if in.Towing == nil || in.Towing.Drivable == nil {

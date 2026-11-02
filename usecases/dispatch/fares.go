@@ -83,6 +83,10 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 	if err != nil {
 		return nil, err
 	}
+	removalVehicles, err := u.Reference.Items(ctx, entities.CatalogRemovalVehicle, in.Category, false)
+	if err != nil {
+		return nil, err
+	}
 	for i := range offered {
 		service := &offered[i]
 		tariff, err := u.Pricing.CurrentTariff(ctx, service.ID, zone.ID)
@@ -90,6 +94,12 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 			return nil, err
 		}
 		if tariff == nil {
+			continue
+		}
+		if len(removalVehicles) > 0 {
+			if err := u.removalEstimates(ctx, list, removalVehicles, service, tariff, customerID, pickup, destination, stops, in, route, now, expiresAt); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		if len(vehicleTypes) > 0 {

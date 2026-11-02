@@ -132,6 +132,7 @@ type RequestFare struct {
 	BoostBps        int
 	Currency        string
 	VehicleTypeID   *uuid.UUID
+	EstimateDetails json.RawMessage
 }
 
 func (f RequestFare) ProviderNetCents() *int64 {
@@ -209,6 +210,8 @@ type ServiceRequest struct {
 	VehicleTypeID   *uuid.UUID
 	WorkshopID      *uuid.UUID
 	Prepay          bool
+	RemovalDay      *time.Time
+	RemovalWindowID *uuid.UUID
 	ExtraDueCents   int64
 	CompletionCode  string
 	CompletionTries int

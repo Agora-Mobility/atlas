@@ -21,18 +21,84 @@ func (p PlaceInput) ToPlace() entities.RequestPlace {
 }
 
 type CreateRequestInput struct {
-	ServiceID      uuid.UUID       `json:"service_id" binding:"required"`
-	Pickup         PlaceInput      `json:"pickup" binding:"required"`
-	Destination    *PlaceInput     `json:"destination"`
-	Stops          []PlaceInput    `json:"stops" binding:"max=20,dive"`
-	ContactPhone   string          `json:"contact_phone" binding:"max=20"`
-	Passenger      *PassengerInput `json:"passenger"`
-	Details        json.RawMessage `json:"details" swaggertype:"object"`
-	ScheduledFor   *time.Time      `json:"scheduled_for"`
-	FareEstimateID *uuid.UUID      `json:"fare_estimate_id"`
-	PaymentMethod  string          `json:"payment_method" binding:"omitempty,oneof=cash gpo reference wallet" example:"cash"`
-	VoucherCode    string          `json:"voucher_code" binding:"max=30" example:"TAXI10"`
-	Towing         *TowingInput    `json:"towing"`
+	ServiceID      uuid.UUID            `json:"service_id" binding:"required"`
+	Pickup         PlaceInput           `json:"pickup" binding:"required"`
+	Destination    *PlaceInput          `json:"destination"`
+	Stops          []PlaceInput         `json:"stops" binding:"max=20,dive"`
+	ContactPhone   string               `json:"contact_phone" binding:"max=20"`
+	Passenger      *PassengerInput      `json:"passenger"`
+	Details        json.RawMessage      `json:"details" swaggertype:"object"`
+	ScheduledFor   *time.Time           `json:"scheduled_for"`
+	FareEstimateID *uuid.UUID           `json:"fare_estimate_id"`
+	PaymentMethod  string               `json:"payment_method" binding:"omitempty,oneof=cash gpo reference wallet" example:"cash"`
+	VoucherCode    string               `json:"voucher_code" binding:"max=30" example:"TAXI10"`
+	Towing         *TowingInput         `json:"towing"`
+	Removal        *RemovalBookingInput `json:"removal"`
+}
+
+type RemovalBookingInput struct {
+	WindowID            uuid.UUID `json:"window_id" binding:"required"`
+	PropertyCode        string    `json:"property_code" binding:"required,max=60" example:"home"`
+	PickupFloor         int       `json:"pickup_floor" binding:"min=-5,max=200"`
+	PickupElevator      bool      `json:"pickup_elevator"`
+	DestinationFloor    int       `json:"destination_floor" binding:"min=-5,max=200"`
+	DestinationElevator bool      `json:"destination_elevator"`
+	ContactName         string    `json:"contact_name" binding:"max=120"`
+	Notes               string    `json:"notes" binding:"max=1000"`
+}
+
+type RemovalOptions struct {
+	Items          []RemovalOption `json:"items"`
+	Vehicles       []RemovalOption `json:"vehicles"`
+	Extras         []RemovalOption `json:"extras"`
+	Windows        []RemovalOption `json:"windows"`
+	Properties     []RemovalOption `json:"properties"`
+	HelperCents    int64           `json:"helper_cents"`
+	MaxHelpers     int             `json:"max_helpers"`
+	InsuranceCents int64           `json:"insurance_cents"`
+	Currency       string          `json:"currency"`
+}
+
+type RemovalOption struct {
+	ID          uuid.UUID  `json:"id"`
+	Code        string     `json:"code"`
+	Label       string     `json:"label"`
+	Group       string     `json:"group,omitempty"`
+	AmountCents int64      `json:"amount_cents,omitempty"`
+	PromoCents  *int64     `json:"promo_amount_cents,omitempty"`
+	PromoUntil  *time.Time `json:"promo_until,omitempty"`
+	VolumeDm3   int64      `json:"volume_dm3,omitempty"`
+	MaxVolumeM3 float64    `json:"max_volume_m3,omitempty"`
+}
+
+type RemovalDayView struct {
+	Date    string          `json:"date"`
+	Status  string          `json:"status" enums:"free,full"`
+	Windows []RemovalOption `json:"windows,omitempty"`
+}
+
+type RemovalCalendar struct {
+	Days []RemovalDayView `json:"days"`
+}
+
+type TeamMemberInput struct {
+	Name     string `json:"name" binding:"required,max=120" example:"Paulo Domingos"`
+	Role     string `json:"role" binding:"required,oneof=lead helper" enums:"lead,helper"`
+	Verified bool   `json:"verified"`
+}
+
+type TeamInput struct {
+	Members []TeamMemberInput `json:"members" binding:"max=20,dive"`
+}
+
+type TeamMemberView struct {
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+	Verified bool   `json:"verified"`
+}
+
+type TeamView struct {
+	Items []TeamMemberView `json:"items"`
 }
 
 type PassengerInput struct {
@@ -63,27 +129,40 @@ type VoucherPreview struct {
 }
 
 type FareEstimateInput struct {
-	Category     string       `json:"category" binding:"required" example:"taxi"`
-	Pickup       PlaceInput   `json:"pickup" binding:"required"`
-	Destination  *PlaceInput  `json:"destination"`
-	Stops        []PlaceInput `json:"stops" binding:"max=20,dive"`
-	ScheduledFor *time.Time   `json:"scheduled_for"`
+	Category     string        `json:"category" binding:"required" example:"taxi"`
+	Pickup       PlaceInput    `json:"pickup" binding:"required"`
+	Destination  *PlaceInput   `json:"destination"`
+	Stops        []PlaceInput  `json:"stops" binding:"max=20,dive"`
+	ScheduledFor *time.Time    `json:"scheduled_for"`
+	Removal      *RemovalInput `json:"removal"`
+}
+
+type RemovalItemInput struct {
+	ItemID uuid.UUID `json:"item_id" binding:"required"`
+	Qty    int       `json:"qty" binding:"required,min=1,max=500" example:"2"`
+}
+
+type RemovalInput struct {
+	Items   []RemovalItemInput `json:"items" binding:"max=200,dive"`
+	Helpers int                `json:"helpers" binding:"min=0,max=50" example:"2"`
+	Extras  []string           `json:"extras" binding:"max=20,dive,max=60" example:"packing"`
 }
 
 type FareEstimateView struct {
-	FareEstimateID uuid.UUID  `json:"fare_estimate_id"`
-	ServiceID      uuid.UUID  `json:"service_id"`
-	ServiceName    string     `json:"service_name"`
-	ServiceSlug    string     `json:"service_slug"`
-	TotalCents     int64      `json:"total_cents"`
-	Currency       string     `json:"currency"`
-	DistanceM      int        `json:"distance_m"`
-	DurationS      int        `json:"duration_s"`
-	RouteSource    string     `json:"route_source"`
-	ExpiresInS     int        `json:"expires_in_s"`
-	VehicleTypeID  *uuid.UUID `json:"vehicle_type_id,omitempty"`
-	VehicleType    string     `json:"vehicle_type,omitempty"`
-	IncludedKm     *int64     `json:"included_km,omitempty"`
+	FareEstimateID uuid.UUID              `json:"fare_estimate_id"`
+	ServiceID      uuid.UUID              `json:"service_id"`
+	ServiceName    string                 `json:"service_name"`
+	ServiceSlug    string                 `json:"service_slug"`
+	TotalCents     int64                  `json:"total_cents"`
+	Currency       string                 `json:"currency"`
+	DistanceM      int                    `json:"distance_m"`
+	DurationS      int                    `json:"duration_s"`
+	RouteSource    string                 `json:"route_source"`
+	ExpiresInS     int                    `json:"expires_in_s"`
+	VehicleTypeID  *uuid.UUID             `json:"vehicle_type_id,omitempty"`
+	VehicleType    string                 `json:"vehicle_type,omitempty"`
+	IncludedKm     *int64                 `json:"included_km,omitempty"`
+	Removal        *entities.RemovalQuote `json:"removal,omitempty"`
 }
 
 type FareEstimateList struct {
@@ -149,6 +228,7 @@ type FareBreakdown struct {
 }
 
 type RequestView struct {
+	Team            []TeamMemberView `json:"team,omitempty"`
 	ID              uuid.UUID        `json:"id"`
 	Code            string           `json:"code" example:"TX-48271"`
 	ServiceName     string           `json:"service_name,omitempty"`

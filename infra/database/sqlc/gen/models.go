@@ -460,6 +460,7 @@ type FareEstimate struct {
 	ScheduledFor    *time.Time      `json:"scheduled_for"`
 	UsedAt          *time.Time      `json:"used_at"`
 	VehicleTypeID   *uuid.UUID      `json:"vehicle_type_id"`
+	Details         json.RawMessage `json:"details"`
 }
 
 type Invitation struct {
@@ -774,6 +775,15 @@ type RequestShare struct {
 	CreatedAt time.Time  `json:"created_at"`
 }
 
+type RequestTeamMember struct {
+	ID        uuid.UUID `json:"id"`
+	RequestID uuid.UUID `json:"request_id"`
+	Name      string    `json:"name"`
+	Role      string    `json:"role"`
+	Verified  bool      `json:"verified"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Role struct {
 	ID             uuid.UUID              `json:"id"`
 	OrganizationID *uuid.UUID             `json:"organization_id"`
@@ -886,6 +896,8 @@ type ServiceRequest struct {
 	WorkshopID           *uuid.UUID      `json:"workshop_id"`
 	Prepay               bool            `json:"prepay"`
 	ExtraDueCents        int64           `json:"extra_due_cents"`
+	RemovalDay           *time.Time      `json:"removal_day"`
+	RemovalWindowID      *uuid.UUID      `json:"removal_window_id"`
 }
 
 type ServiceRequestEvent struct {

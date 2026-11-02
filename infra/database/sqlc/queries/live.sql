@@ -32,3 +32,18 @@ SELECT count(*) FROM sos_alerts WHERE sqlc.arg(status)::text = '' OR status = sq
 
 -- name: ResolveSOSAlert :execrows
 UPDATE sos_alerts SET status = 'resolved', resolved_by = $2, resolved_at = $3 WHERE id = $1 AND status = 'open';
+
+-- name: DeleteRequestTeam :exec
+DELETE FROM request_team_members WHERE request_id = $1;
+
+-- name: InsertRequestTeamMember :exec
+INSERT INTO request_team_members (id, request_id, name, role, verified, created_at) VALUES ($1, $2, $3, $4, $5, $6);
+
+-- name: ListRequestTeam :many
+SELECT * FROM request_team_members WHERE request_id = $1 ORDER BY role = 'lead' DESC, created_at, id;
+
+-- name: LockCatalogItem :one
+SELECT id FROM catalog_items WHERE id = $1 FOR UPDATE;
+
+-- name: CountRemovalsOfDay :one
+SELECT count(*) FROM service_requests WHERE vehicle_type_id = sqlc.arg(vehicle_type_id) AND removal_day = sqlc.arg(day)::date AND status NOT IN ('cancelled', 'expired');

@@ -65,3 +65,10 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Horários | Passo de 30 min (`booking_slot_minutes`) e até 30 dias (`booking_max_days`) (**palpites**). A capacidade é o número de viaturas em simultâneo, por oficina | O brief não indica valores |
 | Chat da marcação | O cliente fala com a oficina, sem ligação a um utilizador concreto. A oficina lê por `/fleet/bookings/{id}/messages`, sem SSE para o painel | O mecânico não tem conta |
 | Técnico ao local | Os pedidos de `maintenance` respondem `USE_BOOKINGS`, por `dispatch_policies.booking_only`. `TestMaintenanceByCoverage...` passa a desligar este valor no teste, para continuar a provar a cobertura, que as Mudanças também usam | Decisão C2 do brief |
+| Mudanças: catálogo | 10 artigos com volume, 3 viaturas com capacidade (6, 18 e 35 m³), duração base e por m³, capacidade diária (6, 4 e 2) e 3 janelas (**palpites**, exceto os preços do brief). Alteráveis em `/admin/catalog/removal_*` | O brief só indica preços |
+| Mudanças: viatura | Cada viatura com lugar para o volume recebe uma estimativa. Viaturas pequenas de mais ficam de fora. A menor que serve vem com `recommended` | O cliente pode preferir uma maior, nunca uma menor |
+| Mudanças: dia cheio | A capacidade é por viatura e por dia, não por janela. Cancelar liberta o lugar | A tela mostra o dia como Livre ou Esgotado |
+| Mudanças: referência | Só começa a procurar prestador depois de paga. Se expirar, o pedido é cancelado sem taxa. Se cancelar paga, volta para a Carteira, menos a taxa | "A marcação só confirma depois de paga" |
+| Mudanças: rota | Depois de marcada, a rota não muda (`ROUTE_CHANGE_FORBIDDEN`) | O preço está fechado |
+| Equipa | Registo informativo. O motorista regista, mas só o parceiro pode marcar `verified` | Verificado é um privilégio, não pode vir do motorista |
+| Propostas | O motor continua no código e nos testes (`TestRemovalsQuote...`, `TestExpiredQuote...`, que ligam o modo `quote` no próprio teste), mas nenhuma política o usa | Decisão C3. Remover o código era um passo à parte |

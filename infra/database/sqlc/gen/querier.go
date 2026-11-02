@@ -43,6 +43,7 @@ type Querier interface {
 	CountPendingOutboxEvents(ctx context.Context) (int64, error)
 	CountProviderApplications(ctx context.Context, arg CountProviderApplicationsParams) (int64, error)
 	CountProviderRatings(ctx context.Context, providerID *uuid.UUID) (int64, error)
+	CountRemovalsOfDay(ctx context.Context, arg CountRemovalsOfDayParams) (int64, error)
 	CountRequestsOfCustomer(ctx context.Context, arg CountRequestsOfCustomerParams) (int64, error)
 	CountSOSAlerts(ctx context.Context, status string) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
@@ -83,6 +84,7 @@ type Querier interface {
 	DeleteMembershipRoles(ctx context.Context, membershipID uuid.UUID) error
 	DeleteProviderCoverage(ctx context.Context, providerID uuid.UUID) error
 	DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error
+	DeleteRequestTeam(ctx context.Context, requestID uuid.UUID) error
 	DeleteRole(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteRolePermissions(ctx context.Context, roleID uuid.UUID) error
 	DeleteServiceRequestStops(ctx context.Context, requestID uuid.UUID) error
@@ -195,6 +197,7 @@ type Querier interface {
 	InsertRating(ctx context.Context, arg InsertRatingParams) (int64, error)
 	InsertRequestMessage(ctx context.Context, arg InsertRequestMessageParams) error
 	InsertRequestShare(ctx context.Context, arg InsertRequestShareParams) error
+	InsertRequestTeamMember(ctx context.Context, arg InsertRequestTeamMemberParams) error
 	InsertSOSAlert(ctx context.Context, arg InsertSOSAlertParams) (int64, error)
 	InsertServiceRequest(ctx context.Context, arg InsertServiceRequestParams) error
 	InsertServiceRequestEvent(ctx context.Context, arg InsertServiceRequestEventParams) error
@@ -259,6 +262,7 @@ type Querier interface {
 	ListRequestOffers(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestOffersForUpdate(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestPlaces(ctx context.Context, requestIds []uuid.UUID) ([]ListRequestPlacesRow, error)
+	ListRequestTeam(ctx context.Context, requestID uuid.UUID) ([]RequestTeamMember, error)
 	ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOfCustomerParams) ([]ServiceRequest, error)
 	ListRequestsWithProviderOnTheWay(ctx context.Context, limit int32) ([]ServiceRequest, error)
 	ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]ListRequiredDocumentsRow, error)
@@ -286,6 +290,7 @@ type Querier interface {
 	ListWorkshopServices(ctx context.Context, workshopID uuid.UUID) ([]WorkshopService, error)
 	ListWorkshops(ctx context.Context, arg ListWorkshopsParams) ([]Workshop, error)
 	LockBooking(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	LockCatalogItem(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockCustomerRequests(ctx context.Context, customerID uuid.UUID) error
 	LockLedgerAccount(ctx context.Context, account string) error
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)

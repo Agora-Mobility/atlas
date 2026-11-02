@@ -5945,6 +5945,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/fleet/requests/{id}/team": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "For the partner of the driver assigned to the request.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Removals"
+                ],
+                "summary": "Set and verify the team of a removal",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Team",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TeamInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TeamView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/fleet/vehicles": {
             "get": {
                 "security": [
@@ -10344,6 +10399,95 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/removals/availability": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Removals"
+                ],
+                "summary": "Free and full days of a vehicle",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Vehicle of the catalog",
+                        "name": "vehicle_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "First day, YYYY-MM-DD",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of days, default 1, at most 62",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RemovalCalendar"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/removals/options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Removals"
+                ],
+                "summary": "Catalog of a removal",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RemovalOptions"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/requests": {
             "get": {
                 "security": [
@@ -11883,6 +12027,67 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.RequestView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/team": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "For the provider of the request. Nobody is marked as verified from here: that is up to the partner.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Removals"
+                ],
+                "summary": "Set the team of a removal",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Team",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TeamInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TeamView"
                         }
                     },
                     "404": {
@@ -15700,6 +15905,9 @@ const docTemplate = `{
                 "pickup": {
                     "$ref": "#/definitions/dtos.PlaceInput"
                 },
+                "removal": {
+                    "$ref": "#/definitions/dtos.RemovalBookingInput"
+                },
                 "scheduled_for": {
                     "type": "string"
                 },
@@ -16206,6 +16414,9 @@ const docTemplate = `{
                 "pickup": {
                     "$ref": "#/definitions/dtos.PlaceInput"
                 },
+                "removal": {
+                    "$ref": "#/definitions/dtos.RemovalInput"
+                },
                 "scheduled_for": {
                     "type": "string"
                 },
@@ -16249,6 +16460,9 @@ const docTemplate = `{
                 },
                 "included_km": {
                     "type": "integer"
+                },
+                "removal": {
+                    "$ref": "#/definitions/entities.RemovalQuote"
                 },
                 "route_source": {
                     "type": "string"
@@ -18581,6 +18795,204 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RemovalBookingInput": {
+            "type": "object",
+            "required": [
+                "property_code",
+                "window_id"
+            ],
+            "properties": {
+                "contact_name": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "destination_elevator": {
+                    "type": "boolean"
+                },
+                "destination_floor": {
+                    "type": "integer",
+                    "maximum": 200,
+                    "minimum": -5
+                },
+                "notes": {
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "pickup_elevator": {
+                    "type": "boolean"
+                },
+                "pickup_floor": {
+                    "type": "integer",
+                    "maximum": 200,
+                    "minimum": -5
+                },
+                "property_code": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "example": "home"
+                },
+                "window_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.RemovalCalendar": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalDayView"
+                    }
+                }
+            }
+        },
+        "dtos.RemovalDayView": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "free",
+                        "full"
+                    ]
+                },
+                "windows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalOption"
+                    }
+                }
+            }
+        },
+        "dtos.RemovalInput": {
+            "type": "object",
+            "properties": {
+                "extras": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "packing"
+                    ]
+                },
+                "helpers": {
+                    "type": "integer",
+                    "maximum": 50,
+                    "minimum": 0,
+                    "example": 2
+                },
+                "items": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalItemInput"
+                    }
+                }
+            }
+        },
+        "dtos.RemovalItemInput": {
+            "type": "object",
+            "required": [
+                "item_id",
+                "qty"
+            ],
+            "properties": {
+                "item_id": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "integer",
+                    "maximum": 500,
+                    "minimum": 1,
+                    "example": 2
+                }
+            }
+        },
+        "dtos.RemovalOption": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "group": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "max_volume_m3": {
+                    "type": "number"
+                },
+                "promo_amount_cents": {
+                    "type": "integer"
+                },
+                "promo_until": {
+                    "type": "string"
+                },
+                "volume_dm3": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.RemovalOptions": {
+            "type": "object",
+            "properties": {
+                "currency": {
+                    "type": "string"
+                },
+                "extras": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalOption"
+                    }
+                },
+                "helper_cents": {
+                    "type": "integer"
+                },
+                "insurance_cents": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalOption"
+                    }
+                },
+                "max_helpers": {
+                    "type": "integer"
+                },
+                "properties": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalOption"
+                    }
+                },
+                "vehicles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalOption"
+                    }
+                },
+                "windows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalOption"
+                    }
+                }
+            }
+        },
         "dtos.RepeatView": {
             "type": "object",
             "properties": {
@@ -18871,6 +19283,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dtos.PlaceView"
+                    }
+                },
+                "team": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.TeamMemberView"
                     }
                 },
                 "version": {
@@ -19609,6 +20027,67 @@ const docTemplate = `{
                 },
                 "zone_id": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.TeamInput": {
+            "type": "object",
+            "properties": {
+                "members": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {
+                        "$ref": "#/definitions/dtos.TeamMemberInput"
+                    }
+                }
+            }
+        },
+        "dtos.TeamMemberInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "role"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Paulo Domingos"
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "lead",
+                        "helper"
+                    ]
+                },
+                "verified": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dtos.TeamMemberView": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "verified": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dtos.TeamView": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.TeamMemberView"
+                    }
                 }
             }
         },
@@ -20897,6 +21376,76 @@ const docTemplate = `{
                 },
                 "timezone": {
                     "type": "string"
+                }
+            }
+        },
+        "entities.RemovalLine": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "integer"
+                },
+                "volume_dm3": {
+                    "type": "integer"
+                }
+            }
+        },
+        "entities.RemovalQuote": {
+            "type": "object",
+            "properties": {
+                "duration_minutes": {
+                    "type": "integer"
+                },
+                "extras": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/entities.RemovalLine"
+                    }
+                },
+                "extras_cents": {
+                    "type": "integer"
+                },
+                "helpers": {
+                    "type": "integer"
+                },
+                "helpers_cents": {
+                    "type": "integer"
+                },
+                "insurance_cents": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/entities.RemovalLine"
+                    }
+                },
+                "recommended": {
+                    "type": "boolean"
+                },
+                "vehicle": {
+                    "type": "string"
+                },
+                "vehicle_cents": {
+                    "type": "integer"
+                },
+                "vehicle_code": {
+                    "type": "string"
+                },
+                "volume_dm3": {
+                    "type": "integer"
+                },
+                "volume_m3_calculated": {
+                    "type": "number"
                 }
             }
         },

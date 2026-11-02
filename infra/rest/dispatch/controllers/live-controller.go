@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -303,4 +304,116 @@ func (c *DispatchController) ResolveSOS(ctx *gin.Context) {
 		return
 	}
 	respond(ctx, http.StatusNoContent, nil, c.dispatch.ResolveSOS(ctx.Request.Context(), actor, id))
+}
+
+// RemovalOptions godoc
+//
+//	@Summary		Catalog of a removal
+//	@Description	Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice.
+//	@Tags			Removals
+//	@Produce		json
+//	@Success		200	{object}	dtos.RemovalOptions
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/removals/options [get]
+func (c *DispatchController) RemovalOptions(ctx *gin.Context) {
+	view, err := c.dispatch.RemovalOptions(ctx.Request.Context())
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// RemovalCalendar godoc
+//
+//	@Summary	Free and full days of a vehicle
+//	@Tags		Removals
+//	@Produce	json
+//	@Param		vehicle_id	query		string	true	"Vehicle of the catalog"
+//	@Param		from		query		string	true	"First day, YYYY-MM-DD"
+//	@Param		days		query		int		false	"Number of days, default 1, at most 62"
+//	@Success	200			{object}	dtos.RemovalCalendar
+//	@Failure	400			{object}	shared.ErrorResponse
+//	@Failure	404			{object}	shared.ErrorResponse
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/removals/availability [get]
+func (c *DispatchController) RemovalCalendar(ctx *gin.Context) {
+	vehicleID, err := uuid.Parse(ctx.Query("vehicle_id"))
+	if err != nil {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid vehicle_id.")
+		return
+	}
+	days := 1
+	if raw := ctx.Query("days"); raw != "" {
+		if days, err = strconv.Atoi(raw); err != nil {
+			shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid days.")
+			return
+		}
+	}
+	view, err := c.dispatch.RemovalCalendar(ctx.Request.Context(), vehicleID, ctx.Query("from"), days)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// SetTeam godoc
+//
+//	@Summary		Set the team of a removal
+//	@Description	For the provider of the request. Nobody is marked as verified from here: that is up to the partner.
+//	@Tags			Removals
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string			true	"Request id"
+//	@Param			body	body		dtos.TeamInput	true	"Team"
+//	@Success		200		{object}	dtos.TeamView
+//	@Failure		404		{object}	shared.ErrorResponse
+//	@Failure		409		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/{id}/team [put]
+func (c *DispatchController) SetTeam(ctx *gin.Context) {
+	userID, ok := signedIn(ctx)
+	if !ok {
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.TeamInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.SetTeamAsProvider(ctx.Request.Context(), userID, id, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// SetTeamAsPartner godoc
+//
+//	@Summary		Set and verify the team of a removal
+//	@Description	For the partner of the driver assigned to the request.
+//	@Tags			Removals
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string			true	"Request id"
+//	@Param			body	body		dtos.TeamInput	true	"Team"
+//	@Success		200		{object}	dtos.TeamView
+//	@Failure		404		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/fleet/requests/{id}/team [put]
+func (c *DispatchController) SetTeamAsPartner(ctx *gin.Context) {
+	access, ok := middleware.AccessFromContext(ctx.Request.Context())
+	if !ok || access.Scope != enums.OrganizationTypePartner {
+		shared.Forbidden(ctx, middleware.CodePermissionDenied, "You do not have permission to perform this action.")
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.TeamInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.SetTeamAsPartner(ctx.Request.Context(), access.OrganizationID, id, in)
+	respond(ctx, http.StatusOK, view, err)
 }

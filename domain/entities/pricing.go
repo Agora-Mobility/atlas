@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"time"
@@ -121,6 +122,7 @@ type FareEstimate struct {
 	ScheduledFor    *time.Time
 	UsedAt          *time.Time
 	VehicleTypeID   *uuid.UUID
+	Details         json.RawMessage
 	DistanceMeters  int
 	DurationSeconds int
 	RouteSource     string

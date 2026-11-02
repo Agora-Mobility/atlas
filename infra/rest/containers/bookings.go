@@ -38,7 +38,8 @@ func newBookingsModule(c *Container) *BookingsModule {
 		Zones:    dispatch.NewZoneCache(config, geo),
 		Refunds:  c.Payments.Usecase,
 	})
-	c.Payments.Usecase.Prepaid = uc
+	c.Payments.Usecase.Prepaid = prepaidRoutes{bookings: uc, removals: c.Dispatch.Usecase}
+	c.Dispatch.Usecase.Refunds = c.Payments.Usecase
 	return &BookingsModule{
 		Usecase: uc,
 		Router:  bookingsrest.NewRouter(bookingsrest.NewController(uc), c.Authenticator, c.Auth.Authorizer, c.ClientAuthorizer, middleware.NewIdempotency(c.Redis, c.Config.Dispatch.IdempotencyTTL)),

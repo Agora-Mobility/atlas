@@ -65,6 +65,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Live:      repository.NewLiveRepository(c.Pool),
 		Reference: repository.NewReferenceRepository(c.Pool),
 		Calls:     newCallBridge(cfg.Calls),
+		Removals:  repository.NewRemovalRepository(c.Pool),
 		Devices:   devices,
 		Locator:   locator,
 		Outbox:    c.Outbox,

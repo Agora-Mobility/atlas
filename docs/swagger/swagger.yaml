@@ -1030,6 +1030,8 @@ definitions:
         type: string
       pickup:
         $ref: '#/definitions/dtos.PlaceInput'
+      removal:
+        $ref: '#/definitions/dtos.RemovalBookingInput'
       scheduled_for:
         type: string
       service_id:
@@ -1383,6 +1385,8 @@ definitions:
         $ref: '#/definitions/dtos.PlaceInput'
       pickup:
         $ref: '#/definitions/dtos.PlaceInput'
+      removal:
+        $ref: '#/definitions/dtos.RemovalInput'
       scheduled_for:
         type: string
       stops:
@@ -1415,6 +1419,8 @@ definitions:
         type: string
       included_km:
         type: integer
+      removal:
+        $ref: '#/definitions/entities.RemovalQuote'
       route_source:
         type: string
       service_id:
@@ -3025,6 +3031,142 @@ definitions:
         example: document
         type: string
     type: object
+  dtos.RemovalBookingInput:
+    properties:
+      contact_name:
+        maxLength: 120
+        type: string
+      destination_elevator:
+        type: boolean
+      destination_floor:
+        maximum: 200
+        minimum: -5
+        type: integer
+      notes:
+        maxLength: 1000
+        type: string
+      pickup_elevator:
+        type: boolean
+      pickup_floor:
+        maximum: 200
+        minimum: -5
+        type: integer
+      property_code:
+        example: home
+        maxLength: 60
+        type: string
+      window_id:
+        type: string
+    required:
+    - property_code
+    - window_id
+    type: object
+  dtos.RemovalCalendar:
+    properties:
+      days:
+        items:
+          $ref: '#/definitions/dtos.RemovalDayView'
+        type: array
+    type: object
+  dtos.RemovalDayView:
+    properties:
+      date:
+        type: string
+      status:
+        enum:
+        - free
+        - full
+        type: string
+      windows:
+        items:
+          $ref: '#/definitions/dtos.RemovalOption'
+        type: array
+    type: object
+  dtos.RemovalInput:
+    properties:
+      extras:
+        example:
+        - packing
+        items:
+          type: string
+        maxItems: 20
+        type: array
+      helpers:
+        example: 2
+        maximum: 50
+        minimum: 0
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/dtos.RemovalItemInput'
+        maxItems: 200
+        type: array
+    type: object
+  dtos.RemovalItemInput:
+    properties:
+      item_id:
+        type: string
+      qty:
+        example: 2
+        maximum: 500
+        minimum: 1
+        type: integer
+    required:
+    - item_id
+    - qty
+    type: object
+  dtos.RemovalOption:
+    properties:
+      amount_cents:
+        type: integer
+      code:
+        type: string
+      group:
+        type: string
+      id:
+        type: string
+      label:
+        type: string
+      max_volume_m3:
+        type: number
+      promo_amount_cents:
+        type: integer
+      promo_until:
+        type: string
+      volume_dm3:
+        type: integer
+    type: object
+  dtos.RemovalOptions:
+    properties:
+      currency:
+        type: string
+      extras:
+        items:
+          $ref: '#/definitions/dtos.RemovalOption'
+        type: array
+      helper_cents:
+        type: integer
+      insurance_cents:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/dtos.RemovalOption'
+        type: array
+      max_helpers:
+        type: integer
+      properties:
+        items:
+          $ref: '#/definitions/dtos.RemovalOption'
+        type: array
+      vehicles:
+        items:
+          $ref: '#/definitions/dtos.RemovalOption'
+        type: array
+      windows:
+        items:
+          $ref: '#/definitions/dtos.RemovalOption'
+        type: array
+    type: object
   dtos.RepeatView:
     properties:
       category:
@@ -3219,6 +3361,10 @@ definitions:
       stops:
         items:
           $ref: '#/definitions/dtos.PlaceView'
+        type: array
+      team:
+        items:
+          $ref: '#/definitions/dtos.TeamMemberView'
         type: array
       version:
         type: integer
@@ -3729,6 +3875,47 @@ definitions:
     required:
     - currency
     - service_id
+    type: object
+  dtos.TeamInput:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/dtos.TeamMemberInput'
+        maxItems: 20
+        type: array
+    type: object
+  dtos.TeamMemberInput:
+    properties:
+      name:
+        example: Paulo Domingos
+        maxLength: 120
+        type: string
+      role:
+        enum:
+        - lead
+        - helper
+        type: string
+      verified:
+        type: boolean
+    required:
+    - name
+    - role
+    type: object
+  dtos.TeamMemberView:
+    properties:
+      name:
+        type: string
+      role:
+        type: string
+      verified:
+        type: boolean
+    type: object
+  dtos.TeamView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.TeamMemberView'
+        type: array
     type: object
   dtos.TicketDetail:
     properties:
@@ -4629,6 +4816,52 @@ definitions:
         type: string
       timezone:
         type: string
+    type: object
+  entities.RemovalLine:
+    properties:
+      amount_cents:
+        type: integer
+      code:
+        type: string
+      label:
+        type: string
+      qty:
+        type: integer
+      volume_dm3:
+        type: integer
+    type: object
+  entities.RemovalQuote:
+    properties:
+      duration_minutes:
+        type: integer
+      extras:
+        items:
+          $ref: '#/definitions/entities.RemovalLine'
+        type: array
+      extras_cents:
+        type: integer
+      helpers:
+        type: integer
+      helpers_cents:
+        type: integer
+      insurance_cents:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/entities.RemovalLine'
+        type: array
+      recommended:
+        type: boolean
+      vehicle:
+        type: string
+      vehicle_cents:
+        type: integer
+      vehicle_code:
+        type: string
+      volume_dm3:
+        type: integer
+      volume_m3_calculated:
+        type: number
     type: object
   enums.MembershipStatus:
     enum:
@@ -8506,6 +8739,40 @@ paths:
       summary: Get a ride of my fleet
       tags:
       - Partner fleet
+  /api/v1/fleet/requests/{id}/team:
+    put:
+      consumes:
+      - application/json
+      description: For the partner of the driver assigned to the request.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Team
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.TeamInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TeamView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set and verify the team of a removal
+      tags:
+      - Removals
   /api/v1/fleet/requests/summary:
     get:
       description: Requires partner.requests:read.
@@ -11337,6 +11604,62 @@ paths:
       summary: Compliments and suggested tips of a service
       tags:
       - Ratings
+  /api/v1/removals/availability:
+    get:
+      parameters:
+      - description: Vehicle of the catalog
+        in: query
+        name: vehicle_id
+        required: true
+        type: string
+      - description: First day, YYYY-MM-DD
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: Number of days, default 1, at most 62
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RemovalCalendar'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Free and full days of a vehicle
+      tags:
+      - Removals
+  /api/v1/removals/options:
+    get:
+      description: Items by room with volume, vehicles, extras, arrival windows, property
+        types, helper price and informative insurance. Everything is managed in the
+        backoffice.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RemovalOptions'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Catalog of a removal
+      tags:
+      - Removals
   /api/v1/requests:
     get:
       description: Customers only, most recent first.
@@ -12308,6 +12631,45 @@ paths:
       summary: Mark the arrival at a stop
       tags:
       - Provider work
+  /api/v1/requests/{id}/team:
+    put:
+      consumes:
+      - application/json
+      description: 'For the provider of the request. Nobody is marked as verified
+        from here: that is up to the partner.'
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Team
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.TeamInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TeamView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set the team of a removal
+      tags:
+      - Removals
   /api/v1/requests/{id}/tickets:
     post:
       consumes:

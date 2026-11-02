@@ -137,29 +137,17 @@ Modelo de marcações, com estados próprios. Prova: `tests/e2e/qa_flows.py` M1 
 
 ## 7. Mudanças (MD01–MD07)
 
-| Tela | Requisito | Estado | Endpoint(s) | Evidência | O que falta |
-|---|---|---|---|---|---|
-| MD01 | Moradas de recolha e entrega | ✅ | `POST /requests` | `test/e2e/dispatch_test.go:680` | |
-| MD01 | Andar e elevador | 🟡 | `POST /requests` (`details`) | JSON livre; `addresses` sem os campos | Campos validados |
-| MD01 | Paragens | ✅ | `POST /requests` | `domain/entities/service_request.go:263-282` | Limite de 3, como no táxi |
-| MD01 | Tipo Casa ou Escritório | 🟡 | `details` | JSON livre | Catálogo |
-| MD02 | Catálogo de artigos por divisão | ❌ | | | Catálogo |
-| MD02 | Volume calculado no servidor | ❌ | | O teste envia volume em `details`: `test/e2e/dispatch_test.go:692` | Cálculo |
-| MD03 | Viatura recomendada pelo volume | ❌ | | `vehicles.capacity_kg` existe, mas sem uso aqui | Regra e tipos |
-| MD03 | Preços de viatura e preço promocional | ❌ | | Política em modo `quote`. Conflito C3 | Preço fixo |
-| MD03 | Ajudantes e extras | ❌ | | | Catálogo e preço |
-| MD04 | Dia Livre ou Esgotado | ❌ | | | Capacidade |
-| MD04 | Janela de chegada | ❌ | | Só `scheduled_for`, um instante | Janela |
-| MD04 | Duração estimada | ❌ | | | Cálculo |
-| MD04 | Contacto no local e notas | 🟡 | `POST /requests` | `contact_phone`, `details` | Falta nome e campos validados |
-| MD05 | Seguro de bens até 500 000 Kz | ❌ | | | Regra e dados |
-| MD05 | Cancelamento grátis até 24 h antes | ❌ | | | Regra por serviço |
-| MD05 | Rever e pagar | 🟡 | `POST /requests/{id}/payments` | Pagamento só depois de concluído | Pagar antes da mudança depende de C3 |
-| MD06 | Equipa e responsável | ❌ | | Um único `provider_id` por pedido | Conflito C4 |
-| MD06 | Viatura e seguimento | 🟡 | `GET /requests/{id}`, SSE | Seguimento por política | Rating e ações, como em RB05 |
-| MD06 | Ajudantes verificados | ❌ | | | Modelo de equipa |
-| MD07 | Resumo | 🟡 | `GET /requests/{id}` | Como TX07 | Discriminação |
-| MD07 | Avaliação e gorjeta | ❌ | | | Secção 4 |
+Preço fixo por viatura, ajudantes e extras. Prova: `tests/e2e/qa_flows.py` D1 a D3 e `test/e2e/removals_test.go`.
+
+| Tela | Requisito | Estado | Endpoint(s) |
+|---|---|---|---|
+| MD01 | Moradas com andar e elevador, paragens, Casa ou Escritório | ✅ | `POST /requests` (`removal`) |
+| MD02 | Artigos por divisão, volume no servidor | ✅ | `GET /removals/options`, `POST /fare-estimates` (`removal.items`) |
+| MD03 | Viatura recomendada, preço promocional, ajudantes e extras | ✅ | `POST /fare-estimates` |
+| MD04 | Dia Livre ou Esgotado, janela, duração, contacto e notas | ✅ | `GET /removals/availability`, `POST /requests` |
+| MD05 | Seguro informativo; referência só confirma depois de paga | ✅ | `insurance_cents`, `POST /requests/{id}/payments` |
+| MD06 | Equipa, responsável, verificados | ✅ | `PUT /requests/{id}/team`, `PUT /fleet/requests/{id}/team` |
+| MD07 | Elogios e gorjetas | ✅ | `GET /rating-options?category=removals` |
 
 ## 8. Pedidos (PD01–PD02)
 

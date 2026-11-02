@@ -101,6 +101,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	if err := u.prepareTowing(ctx, request, policy, in); err != nil {
 		return nil, false, err
 	}
+	if err := u.prepareRemoval(ctx, request, zone, in, now); err != nil {
+		return nil, false, err
+	}
 	if request.PublicCode, err = u.Requests.NextPublicCode(ctx, service.CategoryID); err != nil {
 		return nil, false, err
 	}
@@ -117,6 +120,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		if err := u.Requests.LockCustomer(ctx, customerID); err != nil {
+			return err
+		}
+		if err := u.holdRemovalDay(ctx, request); err != nil {
 			return err
 		}
 		if err := u.Requests.Create(ctx, request); err != nil {
@@ -151,6 +157,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 		}
 		if target == entities.RequestScheduled {
 			request.ScheduleSearch(policy, now)
+			if request.Prepay {
+				request.NextActionAt = nil
+			}
 		} else {
 			request.BeginSearch(policy, now)
 		}
@@ -288,7 +297,7 @@ func (u *Usecase) resolveFare(ctx context.Context, customerID uuid.UUID, service
 	}
 	id := estimate.ID
 	total, commission := estimate.TotalCents, estimate.CommissionCents
-	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency, VehicleTypeID: estimate.VehicleTypeID}, nil
+	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency, VehicleTypeID: estimate.VehicleTypeID, EstimateDetails: estimate.Details}, nil
 }
 
 func (u *Usecase) GetRequest(ctx context.Context, userID, requestID uuid.UUID) (*dtos.RequestView, error) {
@@ -456,6 +465,11 @@ func (u *Usecase) cancel(ctx context.Context, requestID uuid.UUID, order cancelO
 	u.releaseAll(ctx, released)
 	u.clearTrip(ctx, request)
 	businessmetrics.RequestOutcomes.WithLabelValues(request.CategorySlug, string(request.Status)).Inc()
+	if request.Prepay && request.PaymentStatus == entities.RequestPaid && u.Refunds != nil {
+		if err := u.Refunds.RefundPrepaid(ctx, request.ID, "Pedido cancelado"); err != nil {
+			return nil, err
+		}
+	}
 	return request, nil
 }
 
@@ -540,6 +554,9 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 	}
 	if current == nil || !current.IsCustomer(customerID) {
 		return nil, ErrRequestNotFound
+	}
+	if current.RemovalDay != nil {
+		return nil, ErrRouteChangeForbidden
 	}
 	destination := in.Destination.ToPlace()
 	if err := destination.Point.Validate("destination"); err != nil {
@@ -639,6 +656,13 @@ func (u *Usecase) customerSummary(ctx context.Context, request *entities.Service
 	view.ContactPhone = request.ContactPhone
 	view.Details = request.Details
 	view.CompletionCode = request.CompletionCode
+	if request.RemovalDay != nil {
+		team, err := u.teamOf(ctx, request.ID)
+		if err != nil {
+			return nil, err
+		}
+		view.Team = team
+	}
 	provider, err := u.providerSummary(ctx, request.ProviderID)
 	if err != nil {
 		return nil, err

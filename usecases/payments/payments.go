@@ -798,12 +798,24 @@ func (u *Usecase) AdminGet(ctx context.Context, paymentID uuid.UUID) (*dtos.Admi
 }
 
 // RefundPrepaid gives back what a customer paid ahead for a booking that was
-// cancelled. A reference goes to the wallet, because the gateway cannot refund it.
+// cancelled, keeping the cancellation fee if there is one. A reference goes to the
+// wallet, because the gateway cannot refund it.
 func (u *Usecase) RefundPrepaid(ctx context.Context, requestID uuid.UUID, reason string) error {
 	paid, err := u.Payments.PaidOfRequest(ctx, requestID, entities.PaymentKindFare)
 	if err != nil || paid == nil {
 		return err
 	}
-	_, err = u.Refund(ctx, entities.SystemActor(), paid.ID, dtos.RefundInput{Reason: reason})
+	request, err := u.Requests.Find(ctx, requestID)
+	if err != nil {
+		return err
+	}
+	if request == nil {
+		return ErrRequestNotFound
+	}
+	cents := paid.RefundableCents() - request.CancelFeeCents
+	if cents <= 0 {
+		return nil
+	}
+	_, err = u.Refund(ctx, entities.SystemActor(), paid.ID, dtos.RefundInput{AmountCents: cents, Reason: reason})
 	return err
 }

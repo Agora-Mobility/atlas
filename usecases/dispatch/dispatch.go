@@ -104,6 +104,8 @@ type Deps struct {
 	Vouchers  repository.IVoucherRepository
 	Live      repository.ILiveRepository
 	Reference repository.IReferenceRepository
+	Removals  repository.IRemovalRepository
+	Refunds   PrepaidRefunder
 	Calls     services.ICallBridge
 	Devices   repository.IDeviceRepository
 	Locator   repository.IProviderLocator
@@ -114,6 +116,10 @@ type Deps struct {
 	Routing   services.IRoutingProvider
 	Feed      services.IPositionFeed
 	Channels  OfferChannels
+}
+
+type PrepaidRefunder interface {
+	RefundPrepaid(ctx context.Context, requestID uuid.UUID, reason string) error
 }
 
 type Usecase struct {

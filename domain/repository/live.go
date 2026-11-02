@@ -28,3 +28,10 @@ type ILiveRepository interface {
 	ListSOS(ctx context.Context, status string, limit, offset int) ([]entities.SOSAlert, int64, error)
 	ResolveSOS(ctx context.Context, id uuid.UUID, by *uuid.UUID, at time.Time) (bool, error)
 }
+
+type IRemovalRepository interface {
+	ReplaceTeam(ctx context.Context, requestID uuid.UUID, members []entities.TeamMember) error
+	Team(ctx context.Context, requestID uuid.UUID) ([]entities.TeamMember, error)
+	LockVehicle(ctx context.Context, vehicleID uuid.UUID) error
+	CountOfDay(ctx context.Context, vehicleID uuid.UUID, day time.Time) (int64, error)
+}

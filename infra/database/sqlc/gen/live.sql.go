@@ -12,6 +12,22 @@ import (
 	"github.com/google/uuid"
 )
 
+const countRemovalsOfDay = `-- name: CountRemovalsOfDay :one
+SELECT count(*) FROM service_requests WHERE vehicle_type_id = $1 AND removal_day = $2::date AND status NOT IN ('cancelled', 'expired')
+`
+
+type CountRemovalsOfDayParams struct {
+	VehicleTypeID *uuid.UUID `json:"vehicle_type_id"`
+	Day           time.Time  `json:"day"`
+}
+
+func (q *Queries) CountRemovalsOfDay(ctx context.Context, arg CountRemovalsOfDayParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRemovalsOfDay, arg.VehicleTypeID, arg.Day)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countSOSAlerts = `-- name: CountSOSAlerts :one
 SELECT count(*) FROM sos_alerts WHERE $1::text = '' OR status = $1::text
 `
@@ -21,6 +37,15 @@ func (q *Queries) CountSOSAlerts(ctx context.Context, status string) (int64, err
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const deleteRequestTeam = `-- name: DeleteRequestTeam :exec
+DELETE FROM request_team_members WHERE request_id = $1
+`
+
+func (q *Queries) DeleteRequestTeam(ctx context.Context, requestID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteRequestTeam, requestID)
+	return err
 }
 
 const getOpenSOSAlert = `-- name: GetOpenSOSAlert :one
@@ -118,6 +143,31 @@ func (q *Queries) InsertRequestShare(ctx context.Context, arg InsertRequestShare
 	return err
 }
 
+const insertRequestTeamMember = `-- name: InsertRequestTeamMember :exec
+INSERT INTO request_team_members (id, request_id, name, role, verified, created_at) VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type InsertRequestTeamMemberParams struct {
+	ID        uuid.UUID `json:"id"`
+	RequestID uuid.UUID `json:"request_id"`
+	Name      string    `json:"name"`
+	Role      string    `json:"role"`
+	Verified  bool      `json:"verified"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) InsertRequestTeamMember(ctx context.Context, arg InsertRequestTeamMemberParams) error {
+	_, err := q.db.Exec(ctx, insertRequestTeamMember,
+		arg.ID,
+		arg.RequestID,
+		arg.Name,
+		arg.Role,
+		arg.Verified,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const insertSOSAlert = `-- name: InsertSOSAlert :execrows
 INSERT INTO sos_alerts (id, request_id, user_id, lat, lng, note, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (request_id, user_id) WHERE status = 'open' DO NOTHING
@@ -188,6 +238,37 @@ func (q *Queries) ListRequestMessages(ctx context.Context, arg ListRequestMessag
 	return items, nil
 }
 
+const listRequestTeam = `-- name: ListRequestTeam :many
+SELECT id, request_id, name, role, verified, created_at FROM request_team_members WHERE request_id = $1 ORDER BY role = 'lead' DESC, created_at, id
+`
+
+func (q *Queries) ListRequestTeam(ctx context.Context, requestID uuid.UUID) ([]RequestTeamMember, error) {
+	rows, err := q.db.Query(ctx, listRequestTeam, requestID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RequestTeamMember{}
+	for rows.Next() {
+		var i RequestTeamMember
+		if err := rows.Scan(
+			&i.ID,
+			&i.RequestID,
+			&i.Name,
+			&i.Role,
+			&i.Verified,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSOSAlerts = `-- name: ListSOSAlerts :many
 SELECT id, request_id, user_id, lat, lng, note, status, resolved_by, resolved_at, created_at FROM sos_alerts WHERE $1::text = '' OR status = $1::text
 ORDER BY created_at DESC LIMIT $3 OFFSET $2
@@ -228,6 +309,17 @@ func (q *Queries) ListSOSAlerts(ctx context.Context, arg ListSOSAlertsParams) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockCatalogItem = `-- name: LockCatalogItem :one
+SELECT id FROM catalog_items WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockCatalogItem(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockCatalogItem, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
 }
 
 const markRequestMessagesRead = `-- name: MarkRequestMessagesRead :exec
