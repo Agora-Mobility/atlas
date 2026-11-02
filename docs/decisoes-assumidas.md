@@ -42,3 +42,6 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Pagamento em duplicado | Um segundo pagamento confirmado do mesmo pedido vai para a Carteira do cliente | Antes ficava só em log |
 | Liquidação | `payout` paga o que a AGORA deve, `collect` recebe a dívida. Não pode passar do saldo. A mesma `reference` só conta uma vez | Evita pagar duas vezes o mesmo documento |
 | Taxa da AppyPay | Fica `NULL` até alguém a registar a partir do extrato. Não é descontada ao motorista | Vimos 90 Kz em 100 Kz, mas o valor não está confirmado, por isso não é assumido |
+| Catálogos | Elogios, gorjetas, respostas rápidas, tipos de reboque, artigos, extras e temas de ajuda partilham a tabela `catalog_items`, com `attrs` validado por tipo | Evita uma tabela e um CRUD por catálogo, mantendo tudo gerido no backoffice |
+| Gorjeta | Uma por pedido, por Express ou Carteira. Em corrida a dinheiro, o método por omissão é Express. Máximo em `max_tip_cents`, inicial 50 000 Kz (**palpite**) | O brief não indica limite |
+| Gorjetas do Táxi | 200, 500 e 1 000 Kz; Manutenção 500, 1 000 e 2 000 Kz (**palpite**, as telas só indicam Reboque e Mudanças) | Valores do catálogo, alteráveis |

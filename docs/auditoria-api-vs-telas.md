@@ -437,3 +437,11 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 **Alterados:** `POST /requests/{id}/payments` e `PUT /requests/{id}/payment-method` aceitam `wallet`. `GET /requests/{id}` traz `breakdown`. `POST /admin/payments/{id}/refund` passa a aceitar Referência e Carteira, para a Carteira.
 
 **Env nova:** `LEDGER_CURRENCY`.
+
+### Fase 5: avaliação, elogios, reputação e gorjeta
+
+`catalog_items` guarda os catálogos do backoffice (elogios, gorjetas sugeridas e, nas fases seguintes, respostas rápidas, tipos de reboque, artigos e extras). `platform_settings` guarda os limites. `ratings` tem uma avaliação por pedido, com média e contagem em `providers`.
+
+**Endpoints novos:** `GET /rating-options`, `POST /requests/{id}/rating`, `POST /requests/{id}/tips`, `GET /providers/me/ratings`, `GET,POST /admin/catalog/{kind}`, `PUT /admin/catalog/{kind}/{id}`, `GET /admin/settings`, `PUT /admin/settings/{key}`.
+
+**Alterados:** `GET /requests` e `GET /requests/{id}` trazem `can_rate`, `rating` e, no prestador, `rating`, `rating_count` e `completed_requests`.
