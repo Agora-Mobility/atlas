@@ -35,6 +35,17 @@ type Config struct {
 	FCM      FCMConfig      `mapstructure:",squash"`
 	R2       R2Config       `mapstructure:",squash"`
 	AppyPay  AppyPayConfig  `mapstructure:",squash"`
+	Calls    CallsConfig    `mapstructure:",squash"`
+}
+
+type CallsConfig struct {
+	BaseURL string        `mapstructure:"CALLS_BASE_URL"`
+	APIKey  string        `mapstructure:"CALLS_API_KEY"`
+	Timeout time.Duration `mapstructure:"CALLS_TIMEOUT"`
+}
+
+func (c CallsConfig) Enabled() bool {
+	return strings.TrimSpace(c.BaseURL) != "" && strings.TrimSpace(c.APIKey) != ""
 }
 
 type AppyPayConfig struct {
@@ -98,6 +109,7 @@ type DispatchConfig struct {
 	HistoryRetention    time.Duration `mapstructure:"LOCATION_HISTORY_RETENTION"`
 	OfferDeepLink       string        `mapstructure:"OFFER_DEEP_LINK_BASE"`
 	OperatorPhone       string        `mapstructure:"OPERATOR_ALERT_PHONE"`
+	ShareBaseURL        string        `mapstructure:"SHARE_BASE_URL"`
 	IdempotencyTTL      time.Duration `mapstructure:"IDEMPOTENCY_TTL"`
 	NotificationWorkers int           `mapstructure:"NOTIFICATION_WORKERS"`
 }
@@ -330,6 +342,10 @@ var defaults = map[string]any{
 	"PAYMENT_GPO_CHECK_INTERVAL":       "15s",
 	"PAYMENT_REFERENCE_CHECK_INTERVAL": "10m",
 	"LEDGER_CURRENCY":                  "AOA",
+	"CALLS_BASE_URL":                   "",
+	"CALLS_API_KEY":                    "",
+	"CALLS_TIMEOUT":                    "5s",
+	"SHARE_BASE_URL":                   "https://agora.ao/v",
 	"R2_ACCOUNT_ID":                    "",
 	"R2_ACCESS_KEY_ID":                 "",
 	"R2_SECRET_ACCESS_KEY":             "",
@@ -430,6 +446,12 @@ func (c *Config) validate() error {
 	errs = append(errs, c.validateDispatch()...)
 	if c.AppyPay.Timeout <= 0 || c.AppyPay.GPOWindow <= 0 || c.AppyPay.ReferenceTTL <= 0 || c.AppyPay.ReconcileInterval <= 0 || c.AppyPay.ReconcileBatch <= 0 || c.AppyPay.GPOCheckInterval <= 0 || c.AppyPay.ReferenceCheckInterval <= 0 {
 		errs = append(errs, errors.New("APPYPAY_TIMEOUT and the PAYMENT_* settings must be positive"))
+	}
+	if c.Calls.Timeout <= 0 {
+		errs = append(errs, errors.New("CALLS_TIMEOUT must be positive"))
+	}
+	if strings.TrimSpace(c.Dispatch.ShareBaseURL) == "" {
+		errs = append(errs, errors.New("SHARE_BASE_URL cannot be empty"))
 	}
 	if len(c.AppyPay.LedgerCurrency) != 3 {
 		errs = append(errs, errors.New("LEDGER_CURRENCY must have 3 letters"))

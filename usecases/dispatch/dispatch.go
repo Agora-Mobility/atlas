@@ -75,6 +75,7 @@ type Settings struct {
 	RoadFactor       float64
 	AverageSpeedKmh  float64
 	ChannelTimeout   time.Duration
+	ShareBaseURL     string
 }
 
 type OfferChannels interface {
@@ -101,6 +102,9 @@ type Deps struct {
 	Cancels   repository.ICancellationRepository
 	Ratings   repository.IRatingRepository
 	Vouchers  repository.IVoucherRepository
+	Live      repository.ILiveRepository
+	Reference repository.IReferenceRepository
+	Calls     services.ICallBridge
 	Devices   repository.IDeviceRepository
 	Locator   repository.IProviderLocator
 	Outbox    repository.IOutboxRepository

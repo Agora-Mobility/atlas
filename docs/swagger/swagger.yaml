@@ -432,6 +432,13 @@ definitions:
       send_gps:
         type: boolean
     type: object
+  dtos.CallView:
+    properties:
+      expires_at:
+        type: string
+      proxy_number:
+        type: string
+    type: object
   dtos.CancelInput:
     properties:
       expected_fee_cents:
@@ -1033,6 +1040,19 @@ definitions:
       vehicle_plate:
         type: string
     type: object
+  dtos.ETAView:
+    properties:
+      distance_m:
+        type: integer
+      duration_s:
+        type: integer
+      position:
+        $ref: '#/definitions/dtos.PositionView'
+      source:
+        type: string
+      target:
+        type: string
+    type: object
   dtos.EventView:
     properties:
       detail:
@@ -1456,9 +1476,31 @@ definitions:
       user_id:
         type: string
     type: object
+  dtos.MessageList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.MessageView'
+        type: array
+    type: object
   dtos.MessageOutput:
     properties:
       message:
+        type: string
+    type: object
+  dtos.MessageView:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      quick_reply_id:
+        type: string
+      read_at:
+        type: string
+      sender:
         type: string
     type: object
   dtos.MethodList:
@@ -2202,6 +2244,45 @@ definitions:
       vehicle:
         $ref: '#/definitions/dtos.VehicleView'
     type: object
+  dtos.PublicTrip:
+    properties:
+      category:
+        type: string
+      code:
+        type: string
+      destination_address:
+        type: string
+      eta_s:
+        type: integer
+      expires_at:
+        type: string
+      pickup_address:
+        type: string
+      position:
+        $ref: '#/definitions/dtos.PositionView'
+      provider_name:
+        type: string
+      status:
+        type: string
+      vehicle_description:
+        type: string
+      vehicle_plate:
+        type: string
+    type: object
+  dtos.QuickReplyList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.QuickReplyView'
+        type: array
+    type: object
+  dtos.QuickReplyView:
+    properties:
+      id:
+        type: string
+      label:
+        type: string
+    type: object
   dtos.QuoteInput:
     properties:
       amount_cents:
@@ -2852,6 +2933,54 @@ definitions:
       source:
         type: string
     type: object
+  dtos.SOSInput:
+    properties:
+      lat:
+        maximum: 90
+        minimum: -90
+        type: number
+      lng:
+        maximum: 180
+        minimum: -180
+        type: number
+      note:
+        maxLength: 500
+        type: string
+    type: object
+  dtos.SOSList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.SOSView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.SOSView:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      lat:
+        type: number
+      lng:
+        type: number
+      note:
+        type: string
+      request_id:
+        type: string
+      resolved_at:
+        type: string
+      status:
+        type: string
+      user_id:
+        type: string
+    type: object
   dtos.SelectQuoteInput:
     properties:
       offer_id:
@@ -2862,6 +2991,15 @@ definitions:
     required:
     - offer_id
     - version
+    type: object
+  dtos.SendMessageInput:
+    properties:
+      body:
+        example: Estou a chegar
+        maxLength: 1000
+        type: string
+      quick_reply_id:
+        type: string
     type: object
   dtos.ServicePage:
     properties:
@@ -3011,6 +3149,15 @@ definitions:
       balance_cents:
         type: integer
       currency:
+        type: string
+    type: object
+  dtos.ShareView:
+    properties:
+      expires_at:
+        type: string
+      token:
+        type: string
+      url:
         type: string
     type: object
   dtos.TariffInput:
@@ -5470,6 +5617,55 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Change a setting of the platform
+      tags:
+      - Backoffice
+  /api/v1/admin/sos:
+    get:
+      parameters:
+      - description: open or resolved
+        in: query
+        name: status
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SOSList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: SOS alerts
+      tags:
+      - Backoffice
+  /api/v1/admin/sos/{id}/resolve:
+    post:
+      parameters:
+      - description: Alert id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Close an SOS alert
       tags:
       - Backoffice
   /api/v1/admin/support/tickets:
@@ -9512,6 +9708,45 @@ paths:
       summary: Services that accept providers
       tags:
       - Provider account
+  /api/v1/public/trips/{token}:
+    get:
+      description: Public, the token is the permission. Without phone numbers, and
+        with the position only while the trip is active.
+      parameters:
+      - description: Token of the link
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PublicTrip'
+        "404":
+          description: Unknown, revoked or expired
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      summary: A shared trip
+      tags:
+      - Live request
+  /api/v1/quick-replies:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.QuickReplyList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Quick replies of the chat
+      tags:
+      - Live request
   /api/v1/rating-options:
     get:
       parameters:
@@ -9696,6 +9931,41 @@ paths:
       summary: Raise the offer
       tags:
       - Dispatch
+  /api/v1/requests/{id}/call:
+    post:
+      description: The number of each side is not shared. Without a configured provider
+        the answer is 503 CALLS_UNAVAILABLE.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CallView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "503":
+          description: No provider
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Call the other side with a masked number
+      tags:
+      - Live request
   /api/v1/requests/{id}/cancel:
     post:
       consumes:
@@ -9816,6 +10086,114 @@ paths:
       summary: Provider leaves for the pickup
       tags:
       - Provider work
+  /api/v1/requests/{id}/eta:
+    get:
+      description: From the last position of the provider, by route. source tells
+        whether it came from Mapbox or from the fallback.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ETAView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: No position yet
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Time until the provider arrives
+      tags:
+      - Live request
+  /api/v1/requests/{id}/messages:
+    get:
+      description: Marks the messages of the other side as read.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MessageList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Chat of a request
+      tags:
+      - Live request
+    post:
+      consumes:
+      - application/json
+      description: Customer or provider of the request, while it has a provider and
+        is not finished. A quick reply replaces the text. The other side gets it by
+        SSE as request.message. Phone numbers are never shared.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Message
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SendMessageInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.MessageView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: The chat is closed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Send a chat message on a request
+      tags:
+      - Live request
   /api/v1/requests/{id}/payment-method:
     put:
       consumes:
@@ -10141,6 +10519,96 @@ paths:
       summary: Choose a quote
       tags:
       - Dispatch
+  /api/v1/requests/{id}/share:
+    delete:
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Stop sharing the trip
+      tags:
+      - Live request
+    post:
+      description: Customer of an active request. The link shows the state, the provider
+        and the position, never a phone number, and it expires.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.ShareView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Already finished
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Share the trip with a temporary public link
+      tags:
+      - Live request
+  /api/v1/requests/{id}/sos:
+    post:
+      consumes:
+      - application/json
+      description: Customer or provider of the request. The operator is alerted and
+        the alert stays in the backoffice. A second press returns the open alert.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Position and note
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SOSInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.SOSView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Raise an SOS on a request
+      tags:
+      - Live request
   /api/v1/requests/{id}/start:
     post:
       parameters:

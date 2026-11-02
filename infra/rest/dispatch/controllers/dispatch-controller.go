@@ -12,6 +12,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/repository"
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/rest/binding"
 	"github.com/Agora-Mobility/atlas/shared"
@@ -142,6 +143,14 @@ var errorTable = []struct {
 	{entities.ErrVoucherBelowMinimum, http.StatusUnprocessableEntity, "VOUCHER_BELOW_MINIMUM", "The price is below the minimum of this voucher."},
 	{dispatch.ErrReceiptNotReady, http.StatusConflict, "RECEIPT_NOT_READY", "The receipt exists after the request is completed."},
 	{dispatch.ErrStopNotFound, http.StatusNotFound, "STOP_NOT_FOUND", "This stop does not exist."},
+	{entities.ErrChatClosed, http.StatusConflict, "CHAT_CLOSED", "The chat only works while the request has a provider and is not finished."},
+	{entities.ErrCatalogItemNotFound, http.StatusUnprocessableEntity, "QUICK_REPLY_NOT_FOUND", "This quick reply does not exist."},
+	{entities.ErrShareNotAvailable, http.StatusConflict, "SHARE_NOT_AVAILABLE", "Only an active request can be shared."},
+	{entities.ErrShareNotFound, http.StatusNotFound, "SHARE_NOT_FOUND", "This link does not exist or expired."},
+	{entities.ErrSOSNotFound, http.StatusNotFound, "SOS_NOT_FOUND", "Alert not found."},
+	{entities.ErrNoETA, http.StatusConflict, "ETA_NOT_AVAILABLE", "There is no position to calculate the arrival."},
+	{entities.ErrCallNotAvailable, http.StatusConflict, "CALL_NOT_AVAILABLE", "A call needs an active request with a provider."},
+	{services.ErrCallsUnavailable, http.StatusServiceUnavailable, "CALLS_UNAVAILABLE", "Calls are not available."},
 	{dispatch.ErrNoTariff, http.StatusUnprocessableEntity, "NO_TARIFF", "There is no tariff for this service here yet."},
 	{dispatch.ErrRequestConflict, http.StatusConflict, "REQUEST_CONFLICT", "The request changed in the meantime."},
 	{dispatch.ErrProviderNotApproved, http.StatusForbidden, "PROVIDER_NOT_APPROVED", "The provider is not approved for this."},

@@ -8,6 +8,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	domainrepository "github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/infra/calls"
 	"github.com/Agora-Mobility/atlas/infra/geo/h3index"
 	"github.com/Agora-Mobility/atlas/infra/geo/mapbox"
 	"github.com/Agora-Mobility/atlas/infra/geo/routing"
@@ -37,6 +38,13 @@ type DispatchModule struct {
 	notificationWorkers int
 }
 
+func newCallBridge(cfg config.CallsConfig) services.ICallBridge {
+	if !cfg.Enabled() {
+		return calls.Unavailable{}
+	}
+	return calls.NewBridge(cfg.BaseURL, cfg.APIKey, cfg.Timeout)
+}
+
 func newDispatchModule(c *Container, pushSender services.IPushSender, routingProvider services.IRoutingProvider) *DispatchModule {
 	cfg := c.Config
 	geo := h3index.New()
@@ -54,6 +62,9 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Cancels:   repository.NewCancellationRepository(c.Pool),
 		Ratings:   repository.NewRatingRepository(c.Pool),
 		Vouchers:  repository.NewVoucherRepository(c.Pool),
+		Live:      repository.NewLiveRepository(c.Pool),
+		Reference: repository.NewReferenceRepository(c.Pool),
+		Calls:     newCallBridge(cfg.Calls),
 		Devices:   devices,
 		Locator:   locator,
 		Outbox:    c.Outbox,
@@ -65,10 +76,11 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Channels:  notifier,
 	}, dispatch.Settings{
 		WatcherInterval: cfg.Dispatch.WatcherInterval, WatcherBatch: cfg.Dispatch.WatcherBatch, FareEstimateTTL: cfg.Dispatch.FareEstimateTTL,
-		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout,
+		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout, ShareBaseURL: cfg.Dispatch.ShareBaseURL,
 		Limits:     entities.PlausibilityLimits{MaxAccuracyM: cfg.Dispatch.MaxAccuracyM, MaxSpeedMps: cfg.Dispatch.MaxSpeedKmh * kmhToMps},
 		RoadFactor: cfg.Mapbox.RoadFactor, AverageSpeedKmh: cfg.Mapbox.AverageSpeedKmh,
 	})
+	notifier.UseSharer(uc)
 	streamer := sse.NewStreamer(c.SSE, mailbox, mailbox, sse.Settings{
 		Heartbeat: cfg.Realtime.Heartbeat, PollInterval: cfg.Realtime.PollInterval, DeadAfter: cfg.Realtime.DeadAfter,
 	})

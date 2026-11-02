@@ -2419,6 +2419,89 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/sos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "SOS alerts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "open or resolved",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SOSList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/sos/{id}/resolve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Close an SOS alert",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/support/tickets": {
             "get": {
                 "security": [
@@ -8742,6 +8825,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/public/trips/{token}": {
+            "get": {
+                "description": "Public, the token is the permission. Without phone numbers, and with the position only while the trip is active.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "A shared trip",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token of the link",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PublicTrip"
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown, revoked or expired",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/quick-replies": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Quick replies of the chat",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.QuickReplyList"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/rating-options": {
             "get": {
                 "security": [
@@ -9065,6 +9210,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/requests/{id}/call": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The number of each side is not shared. Without a configured provider the answer is 503 CALLS_UNAVAILABLE.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Call the other side with a masked number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CallView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "No provider",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/requests/{id}/cancel": {
             "post": {
                 "security": [
@@ -9246,6 +9446,175 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/eta": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "From the last position of the provider, by route. source tells whether it came from Mapbox or from the fallback.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Time until the provider arrives",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ETAView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "No position yet",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Marks the messages of the other side as read.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Chat of a request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MessageList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer or provider of the request, while it has a provider and is not finished. A quick reply replaces the text. The other side gets it by SSE as request.message. Phone numbers are never shared.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Send a chat message on a request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Message",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SendMessageInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MessageView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "The chat is closed",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -9751,6 +10120,150 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "QUOTE_EXPIRED or REQUEST_CONFLICT",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/share": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer of an active request. The link shows the state, the provider and the position, never a phone number, and it expires.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Share the trip with a temporary public link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ShareView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Already finished",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Stop sharing the trip",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/sos": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer or provider of the request. The operator is alerted and the alert stays in the backoffice. A second press returns the open alert.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Raise an SOS on a request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Position and note",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SOSInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SOSView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -12237,6 +12750,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CallView": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "proxy_number": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.CancelInput": {
             "type": "object",
             "required": [
@@ -13093,6 +13617,26 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ETAView": {
+            "type": "object",
+            "properties": {
+                "distance_m": {
+                    "type": "integer"
+                },
+                "duration_s": {
+                    "type": "integer"
+                },
+                "position": {
+                    "$ref": "#/definitions/dtos.PositionView"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.EventView": {
             "type": "object",
             "properties": {
@@ -13709,10 +14253,44 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.MessageList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.MessageView"
+                    }
+                }
+            }
+        },
         "dtos.MessageOutput": {
             "type": "object",
             "properties": {
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.MessageView": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "quick_reply_id": {
+                    "type": "string"
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "sender": {
                     "type": "string"
                 }
             }
@@ -14779,6 +15357,66 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.PublicTrip": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "destination_address": {
+                    "type": "string"
+                },
+                "eta_s": {
+                    "type": "integer"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "pickup_address": {
+                    "type": "string"
+                },
+                "position": {
+                    "$ref": "#/definitions/dtos.PositionView"
+                },
+                "provider_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "vehicle_description": {
+                    "type": "string"
+                },
+                "vehicle_plate": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.QuickReplyList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.QuickReplyView"
+                    }
+                }
+            }
+        },
+        "dtos.QuickReplyView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.QuoteInput": {
             "type": "object",
             "required": [
@@ -15741,6 +16379,77 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.SOSInput": {
+            "type": "object",
+            "properties": {
+                "lat": {
+                    "type": "number",
+                    "maximum": 90,
+                    "minimum": -90
+                },
+                "lng": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180
+                },
+                "note": {
+                    "type": "string",
+                    "maxLength": 500
+                }
+            }
+        },
+        "dtos.SOSList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.SOSView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.SOSView": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.SelectQuoteInput": {
             "type": "object",
             "required": [
@@ -15754,6 +16463,19 @@ const docTemplate = `{
                 "version": {
                     "type": "integer",
                     "minimum": 1
+                }
+            }
+        },
+        "dtos.SendMessageInput": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Estou a chegar"
+                },
+                "quick_reply_id": {
+                    "type": "string"
                 }
             }
         },
@@ -15969,6 +16691,20 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "currency": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.ShareView": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }

@@ -34,6 +34,7 @@ const (
 	ReminderDue     = "requests.reminder-due"
 	CoverageChanged = "providers.coverage-changed"
 	PaymentChanged  = "payments.changed"
+	RequestMessage  = "requests.message"
 )
 
 type RequestPoint struct {
@@ -240,3 +241,17 @@ func (e PaymentChangedV1) EventType() string     { return PaymentChanged }
 func (e PaymentChangedV1) EventVersion() int     { return 1 }
 func (e PaymentChangedV1) AggregateType() string { return ServiceRequestAggregate }
 func (e PaymentChangedV1) AggregateID() string   { return e.RequestID.String() }
+
+type RequestMessageV1 struct {
+	MessageID   uuid.UUID `json:"message_id"`
+	RequestID   uuid.UUID `json:"request_id"`
+	SenderType  string    `json:"sender_type"`
+	RecipientID uuid.UUID `json:"recipient_id"`
+	Body        string    `json:"body"`
+	OccurredAt  time.Time `json:"occurred_at"`
+}
+
+func (e RequestMessageV1) EventType() string     { return RequestMessage }
+func (e RequestMessageV1) EventVersion() int     { return 1 }
+func (e RequestMessageV1) AggregateType() string { return ServiceRequestAggregate }
+func (e RequestMessageV1) AggregateID() string   { return e.RequestID.String() }

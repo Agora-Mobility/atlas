@@ -195,6 +195,91 @@ func ToPlaceView(p entities.RequestPlace) PlaceView {
 	return PlaceView{AddressID: p.AddressID, Lat: p.Point.Lat, Lng: p.Point.Lng, Reference: p.Reference, Address: p.Address, ArrivedAt: p.ArrivedAt}
 }
 
+type SendMessageInput struct {
+	Body         string     `json:"body" binding:"max=1000" example:"Estou a chegar"`
+	QuickReplyID *uuid.UUID `json:"quick_reply_id"`
+}
+
+type MessageView struct {
+	ID           uuid.UUID  `json:"id"`
+	Sender       string     `json:"sender"`
+	Body         string     `json:"body"`
+	QuickReplyID *uuid.UUID `json:"quick_reply_id,omitempty"`
+	ReadAt       *time.Time `json:"read_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+type MessageList struct {
+	Items []MessageView `json:"items"`
+}
+
+type QuickReplyView struct {
+	ID    uuid.UUID `json:"id"`
+	Label string    `json:"label"`
+}
+
+type QuickReplyList struct {
+	Items []QuickReplyView `json:"items"`
+}
+
+type ShareView struct {
+	URL       string    `json:"url"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+type PublicTrip struct {
+	Code               string        `json:"code"`
+	Status             string        `json:"status"`
+	Category           string        `json:"category"`
+	ProviderName       string        `json:"provider_name,omitempty"`
+	VehiclePlate       string        `json:"vehicle_plate,omitempty"`
+	VehicleDescription string        `json:"vehicle_description,omitempty"`
+	PickupAddress      string        `json:"pickup_address,omitempty"`
+	DestinationAddress string        `json:"destination_address,omitempty"`
+	Position           *PositionView `json:"position,omitempty"`
+	ETASeconds         *int          `json:"eta_s,omitempty"`
+	ExpiresAt          time.Time     `json:"expires_at"`
+}
+
+type ETAView struct {
+	DurationS int           `json:"duration_s"`
+	DistanceM int           `json:"distance_m"`
+	Source    string        `json:"source"`
+	Target    string        `json:"target"`
+	Position  *PositionView `json:"position,omitempty"`
+}
+
+type CallView struct {
+	ProxyNumber string     `json:"proxy_number"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+}
+
+type SOSInput struct {
+	Lat  *float64 `json:"lat" binding:"omitempty,min=-90,max=90"`
+	Lng  *float64 `json:"lng" binding:"omitempty,min=-180,max=180"`
+	Note string   `json:"note" binding:"max=500"`
+}
+
+type SOSView struct {
+	ID         uuid.UUID  `json:"id"`
+	RequestID  uuid.UUID  `json:"request_id"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Lat        *float64   `json:"lat,omitempty"`
+	Lng        *float64   `json:"lng,omitempty"`
+	Note       string     `json:"note,omitempty"`
+	Status     string     `json:"status"`
+	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
+type SOSList struct {
+	Items []SOSView `json:"items"`
+	Total int64     `json:"total"`
+	Page  int       `json:"page"`
+	Size  int       `json:"size"`
+}
+
 type RecentDestination struct {
 	Lat       float64   `json:"lat"`
 	Lng       float64   `json:"lng"`

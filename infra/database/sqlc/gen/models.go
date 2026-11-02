@@ -657,6 +657,17 @@ type RejectionReason struct {
 	CategoryID   *uuid.UUID `json:"category_id"`
 }
 
+type RequestMessage struct {
+	ID           uuid.UUID  `json:"id"`
+	RequestID    uuid.UUID  `json:"request_id"`
+	SenderID     uuid.UUID  `json:"sender_id"`
+	SenderType   string     `json:"sender_type"`
+	Body         string     `json:"body"`
+	QuickReplyID *uuid.UUID `json:"quick_reply_id"`
+	ReadAt       *time.Time `json:"read_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
 type RequestOffer struct {
 	ID             uuid.UUID  `json:"id"`
 	RequestID      uuid.UUID  `json:"request_id"`
@@ -676,6 +687,15 @@ type RequestOffer struct {
 	BoostBps       int32      `json:"boost_bps"`
 	RejectReasonID *uuid.UUID `json:"reject_reason_id"`
 	RejectNote     string     `json:"reject_note"`
+}
+
+type RequestShare struct {
+	ID        uuid.UUID  `json:"id"`
+	RequestID uuid.UUID  `json:"request_id"`
+	TokenHash string     `json:"token_hash"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	RevokedAt *time.Time `json:"revoked_at"`
+	CreatedAt time.Time  `json:"created_at"`
 }
 
 type Role struct {
@@ -841,6 +861,19 @@ type ServiceZone struct {
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type SosAlert struct {
+	ID         uuid.UUID  `json:"id"`
+	RequestID  uuid.UUID  `json:"request_id"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Lat        *float64   `json:"lat"`
+	Lng        *float64   `json:"lng"`
+	Note       string     `json:"note"`
+	Status     string     `json:"status"`
+	ResolvedBy *uuid.UUID `json:"resolved_by"`
+	ResolvedAt *time.Time `json:"resolved_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 type SupportMessage struct {

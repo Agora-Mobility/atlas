@@ -70,6 +70,7 @@ type stack struct {
 	mapbox      *mapboxStub
 	sms         *smsStub
 	appypay     *appypayStub
+	calls       *callStub
 	fcm         *fcmStub
 	api         *instance
 }
@@ -143,6 +144,8 @@ func startStack() (func(), error) {
 	closers = append(closers, mapbox.server.Close)
 	sms := newSMSStub()
 	closers = append(closers, sms.server.Close)
+	calls := newCallStub()
+	closers = append(closers, calls.server.Close)
 	appypay := newAppyPayStub()
 	closers = append(closers, appypay.server.Close)
 	storage := newS3Stub()
@@ -164,7 +167,7 @@ func startStack() (func(), error) {
 		"SSE_DEAD_AFTER": "3s", "SSE_RECONNECT_SPREAD": "1s", "NEARBY_MIN_CELL_COUNT": "2", "MAPBOX_ACCESS_TOKEN": "sk.e2e", "MAPBOX_BASE_URL": mapbox.server.URL,
 		"MAPBOX_TIMEOUT": "300ms", "MAPBOX_BREAKER_FAILURES": "3", "MAPBOX_BREAKER_COOLDOWN": "200ms", "FCM_PROJECT_ID": "agora-e2e", "FCM_BASE_URL": fcm.server.URL,
 		"FCM_CREDENTIALS_JSON": fcm.credentials, "HTTP_SHUTDOWN_TIMEOUT": "5s", "CASTBRICK_API_KEY": "e2e", "CASTBRICK_BASE_URL": sms.server.URL,
-		"APPYPAY_CLIENT_ID": "e2e", "APPYPAY_CLIENT_SECRET": "e2e", "APPYPAY_BASE_URL": appypay.server.URL, "APPYPAY_TOKEN_URL": appypay.server.URL + "/token", "APPYPAY_RESOURCE": "e2e", "APPYPAY_GPO_METHOD": "GPO_e2e", "APPYPAY_REF_METHOD": "REF_e2e", "PAYMENT_RECONCILE_INTERVAL": "100ms", "PAYMENT_GPO_CHECK_INTERVAL": "100ms", "PAYMENT_REFERENCE_CHECK_INTERVAL": "100ms", "OTP_RESEND_COOLDOWN": "0s", "AUTH_RATE_LIMIT_REQUESTS": "100000", "R2_ENDPOINT": storage.server.URL, "R2_ACCESS_KEY_ID": "e2e", "R2_SECRET_ACCESS_KEY": "e2e", "R2_BUCKET_NAME": storageBucket,
+		"CALLS_BASE_URL": calls.server.URL, "CALLS_API_KEY": "e2e", "SHARE_BASE_URL": "https://agora.test/v", "APPYPAY_CLIENT_ID": "e2e", "APPYPAY_CLIENT_SECRET": "e2e", "APPYPAY_BASE_URL": appypay.server.URL, "APPYPAY_TOKEN_URL": appypay.server.URL + "/token", "APPYPAY_RESOURCE": "e2e", "APPYPAY_GPO_METHOD": "GPO_e2e", "APPYPAY_REF_METHOD": "REF_e2e", "PAYMENT_RECONCILE_INTERVAL": "100ms", "PAYMENT_GPO_CHECK_INTERVAL": "100ms", "PAYMENT_REFERENCE_CHECK_INTERVAL": "100ms", "OTP_RESEND_COOLDOWN": "0s", "AUTH_RATE_LIMIT_REQUESTS": "100000", "R2_ENDPOINT": storage.server.URL, "R2_ACCESS_KEY_ID": "e2e", "R2_SECRET_ACCESS_KEY": "e2e", "R2_BUCKET_NAME": storageBucket,
 	}
 	for key, value := range settings {
 		if err := os.Setenv(key, value); err != nil {
@@ -180,7 +183,7 @@ func startStack() (func(), error) {
 	direct := goredis.NewClient(&goredis.Options{Addr: redisEndpoint})
 	closers = append(closers, func() { _ = direct.Close() })
 
-	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, mapbox: mapbox, appypay: appypay, sms: sms, fcm: fcm}
+	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, mapbox: mapbox, appypay: appypay, calls: calls, sms: sms, fcm: fcm}
 	if err := seedPlatform(ctx, owner); err != nil {
 		return cleanup, err
 	}
@@ -262,6 +265,30 @@ func (s *s3Stub) serve(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write(file.content)
 		}
 	}
+}
+
+type callStub struct {
+	server *httptest.Server
+	mu     sync.Mutex
+	last   map[string]string
+	down   atomic.Bool
+}
+
+func newCallStub() *callStub {
+	stub := &callStub{}
+	stub.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if stub.down.Load() {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		var body map[string]string
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		stub.mu.Lock()
+		stub.last = body
+		stub.mu.Unlock()
+		_, _ = w.Write([]byte(`{"proxy_number":"+244900111222"}`))
+	}))
+	return stub
 }
 
 type smsStub struct {

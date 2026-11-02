@@ -64,6 +64,10 @@ func NewRequestNotifier(devices repository.IDeviceRepository, requests repositor
 	return &RequestNotifier{devices: devices, requests: requests, push: push, sms: sms, deepLinkBase: deepLinkBase, operatorPhone: operatorPhone}
 }
 
+func (n *RequestNotifier) UseSharer(sharer TripSharer) {
+	n.shares = sharer
+}
+
 func RequestBindingKeys() []string {
 	types := make([]string, 0, len(statusMessages)+4)
 	for eventType := range statusMessages {

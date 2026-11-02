@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"sync"
 	"testing"
 	"time"
@@ -192,6 +193,12 @@ func TestThePassengerOfAnotherPersonIsKnownToTheDriverAndGetsTheDetails(t *testi
 	assert.Contains(t, text, "táxi")
 	assert.Contains(t, text, "Pessoa Teste", "the driver")
 	assert.Contains(t, text, "LD-45-21-AF", "the plate")
+	match := regexp.MustCompile(`/v/([A-Za-z0-9_-]{20,})`).FindStringSubmatch(text)
+	require.Len(t, match, 2, "the tracking link: %s", text)
+	public := (&person{client: customerClient, api: env.api.baseURL}).get(t, "/api/v1/public/trips/"+match[1])
+	require.Equal(t, http.StatusOK, public.status, public.text)
+	assert.Equal(t, "accepted", public.str("status"))
+	assert.NotContains(t, public.text, phone, "the link shows no phone")
 }
 
 func TestServerFieldsInDetailsAreNotKept(t *testing.T) {

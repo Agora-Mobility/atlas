@@ -25,6 +25,7 @@ const (
 	sseAlert          = "request.alert"
 	sseReminder       = "request.reminder"
 	ssePayment        = "request.payment"
+	sseMessage        = "request.message"
 	maxEventBytes     = 2048
 )
 
@@ -41,7 +42,7 @@ func BindingKeys() []string {
 	types := []string{
 		events.RequestSearching, events.RequestScheduled, events.RequestOffered, events.RequestAwaitingChoice, events.RequestAccepted, events.RequestProviderEnRoute,
 		events.RequestInProgress, events.RequestCompleted, events.RequestExpired, events.RequestCancelled, events.OfferCreated, events.OfferExpired,
-		events.OfferCancelled, events.PaymentChanged, events.QuoteSubmitted, events.FareBoosted, events.RouteChanged, events.OperatorAlerted, events.ReminderDue,
+		events.OfferCancelled, events.RequestMessage, events.PaymentChanged, events.QuoteSubmitted, events.FareBoosted, events.RouteChanged, events.OperatorAlerted, events.ReminderDue,
 	}
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
@@ -104,6 +105,15 @@ func (p *Projector) project(env events.Envelope) (*projection, error) {
 		return &projection{
 			recipients: []uuid.UUID{event.ProviderID}, sseType: sseType, class: class,
 			body: map[string]any{"offer_id": event.OfferID, "request_id": event.RequestID, "request_version": event.Version, "reason": event.Reason},
+		}, nil
+	case events.RequestMessage:
+		var event events.RequestMessageV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		return &projection{
+			recipients: []uuid.UUID{event.RecipientID}, sseType: sseMessage, class: services.ClassState,
+			body: map[string]any{"message_id": event.MessageID, "request_id": event.RequestID, "sender": event.SenderType, "body": event.Body},
 		}, nil
 	case events.PaymentChanged:
 		var event events.PaymentChangedV1
