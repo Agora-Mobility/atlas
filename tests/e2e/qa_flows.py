@@ -620,17 +620,44 @@ def maintenance(admin, partner):
         cancel(customer["tok"], rid)
 
 
+def towing_details(tok):
+    status, options = call("GET", "/towing/options", None, tok, log=False)
+    assert status == 200, options
+    incident = next(i["id"] for i in options["incidents"] if i["code"] == "breakdown")
+    return {"incident_id": incident, "drivable": False}
+
+
+def tow_option(customer, code_="light", dest=DEST):
+    label = sql(f"SELECT label FROM catalog_items WHERE kind='towing_vehicle' AND code='{code_}'")
+    status, res = call("POST", "/fare-estimates", {"category": "towing", "pickup": PICKUP, "destination": dest}, customer["tok"])
+    assert status == 201, res
+    return next(i for i in res["items"] if i.get("vehicle_type") == label)
+
+
 def towing():
     with Scenario("R1", "Preço por tipo de viatura e distância"):
         customer = new_user("customer", "Cliente R1")
-        near, far = estimate(customer, category="towing"), estimate(customer, category="towing", dest={"lat": -8.9200, "lng": 13.1800})
-        chk(far["total_cents"] > near["total_cents"], f"depende da distância: {near['distance_m']} m {near['total_cents']} -> {far['distance_m']} m {far['total_cents']}")
-        status, res = call("POST", "/fare-estimates", {"category": "towing", "pickup": PICKUP, "destination": DEST}, customer["tok"])
-        chk(len(res.get("items", [])) >= 3, f"Ligeiro, SUV e Motociclo com preços diferentes: {[i['service_name'] for i in res.get('items', [])]}")
+        near = {c: tow_option(customer, c) for c in ("light", "suv_pickup", "motorcycle")}
+        prices = {c: near[c]["total_cents"] for c in near}
+        chk(near["light"]["distance_m"] <= 10000 and prices == {"light": 2500000, "suv_pickup": 3200000, "motorcycle": 1500000}, f"dentro dos km incluídos: Ligeiro 25 000, SUV 32 000, Motociclo 15 000 Kz: {prices}")
+        far_dest = {"lat": -8.9400, "lng": 13.1500}
+        far = tow_option(customer, "light", far_dest)
+        extra = round((far["distance_m"] - 10000) * 50000 / 1000)
+        chk(far["distance_m"] > 10000 and abs(far["total_cents"] - (2500000 + extra)) <= 1, f"km a mais: {far['distance_m']} m, {far['total_cents']} = 2 500 000 + {extra}")
+        status, options = call("GET", f"/towing/options?lat={PICKUP['lat']}&lng={PICKUP['lng']}", None, customer["tok"])
+        chk(status == 200 and options.get("incidents") and options.get("recommended_workshop", {}).get("id"), f"incidentes e oficina recomendada: {options.get('recommended_workshop', {}).get('name')}")
+        status, res = create(customer, near["light"])
+        chk(code(res) == "TOWING_DETAILS_REQUIRED", f"o que aconteceu é obrigatório: {status} {code(res)}")
+        details = towing_details(customer["tok"])
+        status, res = create(customer, near["light"], towing={"incident_id": str(uuid.uuid4()), "drivable": True})
+        chk(code(res) == "INCIDENT_NOT_FOUND", f"incidente inexistente: {status} {code(res)}")
+        status, created = create(customer, near["suv_pickup"], towing=details)
+        chk(status == 201 and created.get("fare_cents") == 3200000 and created["details"]["towing"]["vehicle_type"] == "SUV/Pick-up" and created["details"]["towing"]["drivable"] is False, f"pedido com tipo, avaria e se anda: {status} {created.get('fare_cents')}")
+        cancel(customer["tok"], created.get("id"))
 
     with Scenario("R2", "Cancelar durante a procura"):
         customer = new_user("customer", "Cliente R2")
-        status, created = create(customer, estimate(customer, category="towing"))
+        status, created = create(customer, tow_option(customer), towing=towing_details(customer["tok"]))
         chk(status == 201, f"pedido: {status} {created.get('status')}")
         status, preview = call("GET", f"/requests/{created['id']}/cancellation", None, customer["tok"])
         chk(preview.get("fee_cents") == 0, f"pré-aviso durante a procura: custo {preview.get('fee_cents')}")
@@ -640,14 +667,24 @@ def towing():
     with Scenario("R3", "Código de verificação da entrega"):
         customer, driver = new_user("customer", "Cliente R3"), new_user("provider", "Reboque R3", "towing", kind="tow_truck")
         go_online(driver)
-        status, created = create(customer, estimate(customer, category="towing"))
+        status, created = create(customer, tow_option(customer), towing=towing_details(customer["tok"]))
         rid = created["id"]
+        real = created.get("completion_code", "")
+        chk(re.fullmatch(r"\d{4}", real), "o cliente recebe um código de 4 dígitos")
+        chk(sql(f"SELECT completion_code FROM service_requests WHERE id='{rid}'") == real, "código na BD")
         offer = wait_offer(driver, rid)
+        chk(real not in json.dumps(offer), "o motorista não vê o código na oferta")
         accept(driver, offer)
         advance(driver, rid, ("en-route", "arrive", "start"))
-        status, res = call("POST", f"/requests/{rid}/complete", {"code": "0000"}, driver["tok"], PROVIDER)
-        chk(status >= 400, f"código errado deve recusar: {status} {res.get('status')}")
-        chk("verification_code" in json.dumps(created) or "delivery_code" in json.dumps(created), "o cliente recebe um código")
+        wrong = "0000" if real != "0000" else "1111"
+        status, res = call("POST", f"/requests/{rid}/complete", {"code": wrong}, driver["tok"], PROVIDER)
+        chk(code(res) == "COMPLETION_CODE_WRONG", f"código errado recusa: {status} {code(res)}")
+        chk(sql(f"SELECT status FROM service_requests WHERE id='{rid}'") == "in_progress", "o pedido continua em curso (BD)")
+        status, res = call("POST", f"/requests/{rid}/complete", {"code": real}, driver["tok"], PROVIDER)
+        chk(status == 200 and res.get("status") == "completed", f"código certo conclui: {status} {res.get('status')}")
+        status, options = call("GET", "/rating-options?category=towing", None, customer["tok"])
+        chk([c["label"] for c in options.get("compliments", [])] == ["Chegou rápido", "Cuidadoso", "Profissional", "Boa comunicação"], f"elogios do reboque: {[c['label'] for c in options.get('compliments', [])]}")
+        chk([t["amount_cents"] for t in options.get("tips", [])] == [50000, 100000, 200000], f"gorjetas 500, 1 000 e 2 000 Kz: {[t['amount_cents'] for t in options.get('tips', [])]}")
         go_offline(driver)
 
 
@@ -686,7 +723,7 @@ def orders_and_account():
         luanda = dt.timezone(dt.timedelta(hours=1))
         when = (dt.datetime.now(luanda) + dt.timedelta(days=2)).replace(minute=0, second=0, microsecond=0).isoformat()
         status, scheduled = create(customer, estimate(customer, scheduled_for=when), scheduled_for=when)
-        status, tow = create(customer, estimate(customer, category="towing"))
+        status, tow = create(customer, tow_option(customer), towing=towing_details(customer["tok"]))
         status, removal = call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='removals'"), "pickup": PICKUP, "destination": DEST}, customer["tok"], idem=str(uuid.uuid4()))
         status, repair = call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='maintenance'"), "pickup": PICKUP}, customer["tok"], idem=str(uuid.uuid4()))
         ids = lambda res: {i["id"] for i in res.get("items", [])}
@@ -825,11 +862,12 @@ def backoffice(admin, partner):
         sql(f"UPDATE providers SET status='approved', service_id='{service}' WHERE user_id='{uid}'")
         status, res = go_online(driver)
         chk(status == 200, f"aprovado fica online: {status}")
-        status, created = create(customer, estimate(customer, category="towing"))
+        status, created = create(customer, tow_option(customer), towing=towing_details(customer["tok"]))
         rid = created["id"]
         offer = wait_offer(driver, rid)
         accept(driver, offer)
-        advance(driver, rid)
+        advance(driver, rid, ("en-route", "arrive", "start"))
+        call("POST", f"/requests/{rid}/complete", {"code": created["completion_code"]}, driver["tok"], PROVIDER)
         go_offline(driver)
         chk(sql(f"SELECT organization_id FROM service_requests WHERE id='{rid}'") == PARTNER_ORG, "o pedido fica ligado ao parceiro (BD)")
         status, mine = call("GET", "/fleet/requests?category=towing", None, partner, PARTNER)
@@ -979,7 +1017,7 @@ def security(admin, partner):
         customer, one, two = new_user("customer", "Cliente S6"), new_user("provider", "Motorista S6a", "towing", kind="tow_truck"), new_user("provider", "Motorista S6b", "towing", kind="tow_truck")
         go_online(one)
         go_online(two, {"lat": -8.8392, "lng": 13.2342, "accuracy_m": 10, "age_s": 0})
-        status, created = create(customer, estimate(customer, category="towing"))
+        status, created = create(customer, tow_option(customer), towing=towing_details(customer["tok"]))
         rid = created["id"]
         first, second = wait_offer(one, rid), wait_offer(two, rid)
         if not (first and second):
