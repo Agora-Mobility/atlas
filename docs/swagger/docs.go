@@ -10493,7 +10493,7 @@ const docTemplate = `{
                 },
                 "stops": {
                     "type": "array",
-                    "maxItems": 3,
+                    "maxItems": 20,
                     "items": {
                         "$ref": "#/definitions/dtos.PlaceInput"
                     }
@@ -10607,7 +10607,9 @@ const docTemplate = `{
                     "example": "blurry_photo"
                 },
                 "display_order": {
-                    "type": "integer"
+                    "type": "integer",
+                    "maximum": 9999,
+                    "minimum": 0
                 },
                 "label": {
                     "type": "string",
@@ -10670,7 +10672,7 @@ const docTemplate = `{
                 },
                 "stops": {
                     "type": "array",
-                    "maxItems": 3,
+                    "maxItems": 20,
                     "items": {
                         "$ref": "#/definitions/dtos.PlaceInput"
                     }
@@ -10954,9 +10956,12 @@ const docTemplate = `{
                 "pickup": {
                     "$ref": "#/definitions/dtos.PlaceInput"
                 },
+                "scheduled_for": {
+                    "type": "string"
+                },
                 "stops": {
                     "type": "array",
-                    "maxItems": 3,
+                    "maxItems": 20,
                     "items": {
                         "$ref": "#/definitions/dtos.PlaceInput"
                     }
@@ -11028,6 +11033,7 @@ const docTemplate = `{
                 },
                 "capacity_kg": {
                     "type": "integer",
+                    "maximum": 100000,
                     "minimum": 0,
                     "example": 3500
                 },
@@ -11062,10 +11068,14 @@ const docTemplate = `{
                 },
                 "seats": {
                     "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1,
                     "example": 3
                 },
                 "year": {
                     "type": "integer",
+                    "maximum": 2200,
+                    "minimum": 1900,
                     "example": 2020
                 }
             }
@@ -11930,10 +11940,12 @@ const docTemplate = `{
             "properties": {
                 "ack_giveup_seconds": {
                     "type": "integer",
+                    "maximum": 86400,
                     "minimum": 0
                 },
                 "ack_timeout_seconds": {
                     "type": "integer",
+                    "maximum": 86400,
                     "minimum": 1
                 },
                 "allow_boost": {
@@ -11972,6 +11984,11 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "max_stops": {
+                    "type": "integer",
+                    "maximum": 20,
+                    "minimum": 0
+                },
                 "offer_mode": {
                     "type": "string",
                     "enum": [
@@ -11982,6 +11999,7 @@ const docTemplate = `{
                 },
                 "offer_ttl_seconds": {
                     "type": "integer",
+                    "maximum": 2592000,
                     "minimum": 1
                 },
                 "on_exhausted": {
@@ -12029,12 +12047,19 @@ const docTemplate = `{
                     "maximum": 365,
                     "minimum": 0
                 },
+                "schedule_slot_minutes": {
+                    "type": "integer",
+                    "maximum": 60,
+                    "minimum": 1
+                },
                 "search_lead_seconds": {
                     "type": "integer",
+                    "maximum": 2592000,
                     "minimum": 0
                 },
                 "search_ttl_seconds": {
                     "type": "integer",
+                    "maximum": 2592000,
                     "minimum": 1
                 },
                 "sms_on_accept": {
@@ -12080,10 +12105,12 @@ const docTemplate = `{
             "properties": {
                 "ack_giveup_seconds": {
                     "type": "integer",
+                    "maximum": 86400,
                     "minimum": 0
                 },
                 "ack_timeout_seconds": {
                     "type": "integer",
+                    "maximum": 86400,
                     "minimum": 1
                 },
                 "allow_boost": {
@@ -12125,6 +12152,11 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "max_stops": {
+                    "type": "integer",
+                    "maximum": 20,
+                    "minimum": 0
+                },
                 "offer_mode": {
                     "type": "string",
                     "enum": [
@@ -12135,6 +12167,7 @@ const docTemplate = `{
                 },
                 "offer_ttl_seconds": {
                     "type": "integer",
+                    "maximum": 2592000,
                     "minimum": 1
                 },
                 "on_exhausted": {
@@ -12182,12 +12215,19 @@ const docTemplate = `{
                     "maximum": 365,
                     "minimum": 0
                 },
+                "schedule_slot_minutes": {
+                    "type": "integer",
+                    "maximum": 60,
+                    "minimum": 1
+                },
                 "search_lead_seconds": {
                     "type": "integer",
+                    "maximum": 2592000,
                     "minimum": 0
                 },
                 "search_ttl_seconds": {
                     "type": "integer",
+                    "maximum": 2592000,
                     "minimum": 1
                 },
                 "sms_on_accept": {
@@ -12868,6 +12908,9 @@ const docTemplate = `{
                 "passenger_name": {
                     "type": "string"
                 },
+                "passenger_phone": {
+                    "type": "string"
+                },
                 "payment_method": {
                     "type": "string"
                 },
@@ -13270,6 +13313,7 @@ const docTemplate = `{
                 },
                 "free_wait_seconds": {
                     "type": "integer",
+                    "maximum": 86400,
                     "minimum": 0
                 },
                 "minimum_fee_cents": {
@@ -13300,6 +13344,10 @@ const docTemplate = `{
                 },
                 "service_id": {
                     "type": "string"
+                },
+                "stop_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "zone_fee_cents": {
                     "type": "integer",
@@ -13342,6 +13390,7 @@ const docTemplate = `{
                 },
                 "free_wait_seconds": {
                     "type": "integer",
+                    "maximum": 86400,
                     "minimum": 0
                 },
                 "id": {
@@ -13375,6 +13424,10 @@ const docTemplate = `{
                 },
                 "service_id": {
                     "type": "string"
+                },
+                "stop_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "valid_from": {
                     "type": "string"
@@ -13485,7 +13538,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "display_order": {
-                    "type": "integer"
+                    "type": "integer",
+                    "maximum": 9999,
+                    "minimum": 0
                 },
                 "is_active": {
                     "type": "boolean"
@@ -13574,6 +13629,7 @@ const docTemplate = `{
                 },
                 "capacity_kg": {
                     "type": "integer",
+                    "maximum": 100000,
                     "minimum": 0
                 },
                 "color": {
@@ -13602,10 +13658,14 @@ const docTemplate = `{
                     "maxLength": 20
                 },
                 "seats": {
-                    "type": "integer"
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1
                 },
                 "year": {
-                    "type": "integer"
+                    "type": "integer",
+                    "maximum": 2200,
+                    "minimum": 1900
                 }
             }
         },
@@ -13833,6 +13893,7 @@ const docTemplate = `{
                 },
                 "capacity_kg": {
                     "type": "integer",
+                    "maximum": 100000,
                     "minimum": 0,
                     "example": 1500
                 },
@@ -13864,10 +13925,14 @@ const docTemplate = `{
                 },
                 "seats": {
                     "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1,
                     "example": 5
                 },
                 "year": {
                     "type": "integer",
+                    "maximum": 2200,
+                    "minimum": 1900,
                     "example": 2020
                 }
             }
@@ -13938,6 +14003,7 @@ const docTemplate = `{
                 },
                 "home_service_fee_cents": {
                     "type": "integer",
+                    "maximum": 10000000000,
                     "minimum": 0
                 },
                 "is_active": {
@@ -13995,6 +14061,7 @@ const docTemplate = `{
                 },
                 "duration_minutes": {
                     "type": "integer",
+                    "maximum": 10080,
                     "minimum": 0,
                     "example": 45
                 },
@@ -14008,6 +14075,7 @@ const docTemplate = `{
                 },
                 "price_cents": {
                     "type": "integer",
+                    "maximum": 10000000000,
                     "minimum": 0,
                     "example": 2500000
                 }

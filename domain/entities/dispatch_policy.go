@@ -2,6 +2,7 @@ package entities
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -56,6 +57,11 @@ const (
 
 	maxSearchCells  = 400
 	maxH3Resolution = 15
+	maxPolicyStops  = 20
+
+	DefaultMaxStops            = 3
+	DefaultScheduleSlotMinutes = 15
+	maxSlotMinutes             = 60
 )
 
 var (
@@ -89,6 +95,8 @@ type DispatchPolicy struct {
 	AllowBoost        bool
 	RankByETA         bool
 	SMSOnAccept       bool
+	MaxStops          int
+	ScheduleSlotMin   int
 }
 
 func (p *DispatchPolicy) Validate(cellCount func(radiusKm float64, resolution int) int) error {
@@ -120,6 +128,12 @@ func (p *DispatchPolicy) Validate(cellCount func(radiusKm float64, resolution in
 	if p.OfferMode == OfferModeQuote && p.PricingMode != PricingQuote {
 		return validationError("pricing_mode", "O modo de orçamento exige precificação por orçamento.")
 	}
+	if p.MaxStops < 0 || p.MaxStops > maxPolicyStops {
+		return validationError("max_stops", "O limite de paragens tem de estar entre 0 e 20.")
+	}
+	if p.ScheduleSlotMin < 1 || p.ScheduleSlotMin > maxSlotMinutes {
+		return validationError("schedule_slot_minutes", "O intervalo de marcação tem de estar entre 1 e 60 minutos.")
+	}
 	for _, channel := range slices.Concat(p.InitialChannels, p.FallbackChannels) {
 		if channel != ChannelSSE && channel != ChannelFCM && channel != ChannelSMS {
 			return validationError("channels", "Canal desconhecido: "+channel)
@@ -137,6 +151,16 @@ func (p *DispatchPolicy) ValidateSchedule(at, now time.Time) error {
 	}
 	if at.After(now.AddDate(0, 0, p.ScheduleMaxDays)) {
 		return validationError("scheduled_for", "A data está para lá do permitido para este serviço.")
+	}
+	if p.ScheduleSlotMin > 0 && at.Unix()%int64(p.ScheduleSlotMin*secondsPerMinute) != 0 {
+		return validationError("scheduled_for", fmt.Sprintf("Escolhe uma hora em blocos de %d minutos.", p.ScheduleSlotMin))
+	}
+	return nil
+}
+
+func (p *DispatchPolicy) ValidateStops(count int) error {
+	if count > p.MaxStops {
+		return validationError("stops", fmt.Sprintf("Só podes adicionar até %d paragens.", p.MaxStops))
 	}
 	return nil
 }

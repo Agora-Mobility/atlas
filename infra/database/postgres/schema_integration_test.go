@@ -120,7 +120,7 @@ func TestMigrate_NewDatabaseLivesInAtlas(t *testing.T) {
 	var version int
 	var dirty bool
 	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
-	assert.Equal(t, 21, version)
+	assert.Equal(t, 22, version)
 	assert.False(t, dirty)
 
 	var inMeters float64

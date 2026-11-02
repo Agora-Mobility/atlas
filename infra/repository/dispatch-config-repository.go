@@ -154,7 +154,7 @@ func (r *DispatchConfigRepository) CreatePolicy(ctx context.Context, p *entities
 		InitialChannels: p.InitialChannels, FallbackChannels: p.FallbackChannels, Ranking: string(p.Ranking),
 		TrackingStatuses: statusStrings(p.TrackingStatuses), OnExhausted: string(p.OnExhausted), ReserveProvider: p.ReserveProvider,
 		ScheduleMaxDays: int32(p.ScheduleMaxDays), SearchLeadSeconds: int32(p.SearchLeadSeconds), PricingMode: string(p.PricingMode), // #nosec G115 -- validated by the entity
-		AllowBoost: p.AllowBoost, RankByEta: p.RankByETA, SmsOnAccept: p.SMSOnAccept,
+		AllowBoost: p.AllowBoost, RankByEta: p.RankByETA, SmsOnAccept: p.SMSOnAccept, MaxStops: int16(p.MaxStops), ScheduleSlotMinutes: int16(p.ScheduleSlotMin), // #nosec G115 -- validated by the entity
 	})
 	if err != nil {
 		return fmt.Errorf("create policy: %w", err)
@@ -170,7 +170,7 @@ func (r *DispatchConfigRepository) UpdatePolicy(ctx context.Context, p *entities
 		InitialChannels: p.InitialChannels, FallbackChannels: p.FallbackChannels, Ranking: string(p.Ranking),
 		TrackingStatuses: statusStrings(p.TrackingStatuses), OnExhausted: string(p.OnExhausted), ReserveProvider: p.ReserveProvider,
 		ScheduleMaxDays: int32(p.ScheduleMaxDays), SearchLeadSeconds: int32(p.SearchLeadSeconds), PricingMode: string(p.PricingMode), // #nosec G115 -- validated by the entity
-		AllowBoost: p.AllowBoost, RankByEta: p.RankByETA, SmsOnAccept: p.SMSOnAccept,
+		AllowBoost: p.AllowBoost, RankByEta: p.RankByETA, SmsOnAccept: p.SMSOnAccept, MaxStops: int16(p.MaxStops), ScheduleSlotMinutes: int16(p.ScheduleSlotMin), // #nosec G115 -- validated by the entity
 	})
 	if err != nil {
 		return fmt.Errorf("update policy: %w", err)
@@ -242,7 +242,7 @@ func toPolicy(row *gen.DispatchPolicy) *entities.DispatchPolicy {
 		AckGiveUpSeconds: int(row.AckGiveupSeconds), InitialChannels: row.InitialChannels, FallbackChannels: row.FallbackChannels,
 		Ranking: entities.Ranking(row.Ranking), TrackingStatuses: tracking, OnExhausted: entities.ExhaustedAction(row.OnExhausted),
 		ReserveProvider: row.ReserveProvider, ScheduleMaxDays: int(row.ScheduleMaxDays), SearchLeadSeconds: int(row.SearchLeadSeconds),
-		PricingMode: entities.PricingMode(row.PricingMode), AllowBoost: row.AllowBoost, RankByETA: row.RankByEta, SMSOnAccept: row.SmsOnAccept,
+		PricingMode: entities.PricingMode(row.PricingMode), AllowBoost: row.AllowBoost, RankByETA: row.RankByEta, SMSOnAccept: row.SmsOnAccept, MaxStops: int(row.MaxStops), ScheduleSlotMin: int(row.ScheduleSlotMinutes),
 	}
 }
 

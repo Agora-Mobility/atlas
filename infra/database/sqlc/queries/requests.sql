@@ -215,3 +215,18 @@ SELECT from_status, to_status, version, actor_type, actor_id, reason, occurred_a
 
 -- name: GetRequestOrganization :one
 SELECT organization_id FROM service_requests WHERE id = $1;
+
+-- name: LockCustomerRequests :exec
+SELECT pg_advisory_xact_lock(hashtextextended(sqlc.arg(customer_id)::uuid::text, 0));
+
+-- name: ListActiveRequestsOfCustomerService :many
+SELECT * FROM service_requests
+WHERE customer_id = $1 AND service_id = $2 AND status NOT IN ('completed', 'cancelled', 'expired');
+
+-- name: GetPassengerNotice :one
+SELECT c.passenger_sms, COALESCE(u.name, '') AS provider_name, COALESCE(v.plate, '') AS vehicle_plate
+FROM service_requests r
+JOIN service_categories c ON c.id = r.category_id
+LEFT JOIN users u ON u.id = r.provider_id
+LEFT JOIN vehicles v ON v.provider_id = r.provider_id
+WHERE r.id = $1;

@@ -393,6 +393,28 @@ func (q *Queries) FindServiceRequestByIdempotencyKey(ctx context.Context, arg Fi
 	return i, err
 }
 
+const getPassengerNotice = `-- name: GetPassengerNotice :one
+SELECT c.passenger_sms, COALESCE(u.name, '') AS provider_name, COALESCE(v.plate, '') AS vehicle_plate
+FROM service_requests r
+JOIN service_categories c ON c.id = r.category_id
+LEFT JOIN users u ON u.id = r.provider_id
+LEFT JOIN vehicles v ON v.provider_id = r.provider_id
+WHERE r.id = $1
+`
+
+type GetPassengerNoticeRow struct {
+	PassengerSms string `json:"passenger_sms"`
+	ProviderName string `json:"provider_name"`
+	VehiclePlate string `json:"vehicle_plate"`
+}
+
+func (q *Queries) GetPassengerNotice(ctx context.Context, id uuid.UUID) (GetPassengerNoticeRow, error) {
+	row := q.db.QueryRow(ctx, getPassengerNotice, id)
+	var i GetPassengerNoticeRow
+	err := row.Scan(&i.PassengerSms, &i.ProviderName, &i.VehiclePlate)
+	return i, err
+}
+
 const getRequestOffer = `-- name: GetRequestOffer :one
 SELECT id, request_id, provider_id, status, sent_at, delivered_at, delivered_via, expires_at, responded_at, next_action_at, fallback_step, quote_cents, quote_note, distance_m, net_cents, boost_bps FROM request_offers WHERE id = $1
 `
@@ -739,6 +761,80 @@ type InsertServiceRequestStopParams struct {
 func (q *Queries) InsertServiceRequestStop(ctx context.Context, arg InsertServiceRequestStopParams) error {
 	_, err := q.db.Exec(ctx, insertServiceRequestStop, arg.RequestID, arg.Position, arg.AddressID)
 	return err
+}
+
+const listActiveRequestsOfCustomerService = `-- name: ListActiveRequestsOfCustomerService :many
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status FROM service_requests
+WHERE customer_id = $1 AND service_id = $2 AND status NOT IN ('completed', 'cancelled', 'expired')
+`
+
+type ListActiveRequestsOfCustomerServiceParams struct {
+	CustomerID uuid.UUID `json:"customer_id"`
+	ServiceID  uuid.UUID `json:"service_id"`
+}
+
+func (q *Queries) ListActiveRequestsOfCustomerService(ctx context.Context, arg ListActiveRequestsOfCustomerServiceParams) ([]ServiceRequest, error) {
+	rows, err := q.db.Query(ctx, listActiveRequestsOfCustomerService, arg.CustomerID, arg.ServiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ServiceRequest{}
+	for rows.Next() {
+		var i ServiceRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.CategoryID,
+			&i.CategorySlug,
+			&i.ServiceID,
+			&i.ZoneID,
+			&i.PolicyID,
+			&i.Status,
+			&i.Version,
+			&i.PickupAddressID,
+			&i.ContactPhone,
+			&i.PickupH3R8,
+			&i.DestinationAddressID,
+			&i.DestinationH3R8,
+			&i.PassengerName,
+			&i.PassengerPhone,
+			&i.Details,
+			&i.ScheduledFor,
+			&i.SearchRound,
+			&i.SearchExtended,
+			&i.SearchDeadlineAt,
+			&i.NextActionAt,
+			&i.ReminderAt,
+			&i.ProviderID,
+			&i.OrganizationID,
+			&i.FareEstimateID,
+			&i.FareCents,
+			&i.CommissionCents,
+			&i.BoostBps,
+			&i.Currency,
+			&i.NeedsOperator,
+			&i.OperatorReason,
+			&i.IdempotencyKey,
+			&i.CancelReason,
+			&i.CancelledBy,
+			&i.AcceptedAt,
+			&i.ArrivedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PaymentMethod,
+			&i.PaymentStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAdminRequests = `-- name: ListAdminRequests :many
@@ -1354,6 +1450,15 @@ func (q *Queries) ListServiceRequestEvents(ctx context.Context, requestID uuid.U
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockCustomerRequests = `-- name: LockCustomerRequests :exec
+SELECT pg_advisory_xact_lock(hashtextextended($1::uuid::text, 0))
+`
+
+func (q *Queries) LockCustomerRequests(ctx context.Context, customerID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockCustomerRequests, customerID)
+	return err
 }
 
 const purgeLocationSamples = `-- name: PurgeLocationSamples :execrows

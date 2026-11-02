@@ -2,8 +2,8 @@ package dispatch
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +19,8 @@ import (
 )
 
 const analyticsResolution = 8
+
+var serverOnlyDetails = []string{"volume_m3", "fare_cents", "price_cents", "total_cents"}
 
 func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idempotencyKey string, in dtos.CreateRequestInput) (*dtos.RequestView, bool, error) {
 	existing, err := u.Requests.FindByIdempotencyKey(ctx, customerID, idempotencyKey)
@@ -84,7 +86,7 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	}
 	request, err := entities.NewServiceRequest(entities.NewRequestInput{
 		ID: id, CustomerID: customerID, Service: *service, Policy: policy, Zone: zone, Pickup: pickup, Destination: destination, Stops: stops,
-		ContactPhone: in.ContactPhone, PassengerName: passengerName, PassengerPhone: passengerPhone, Details: in.Details,
+		ContactPhone: in.ContactPhone, PassengerName: passengerName, PassengerPhone: passengerPhone, Details: withoutServerFields(in.Details),
 		ScheduledFor: in.ScheduledFor, Fare: fare, PaymentMethod: paymentMethod, IdempotencyKey: idempotencyKey, Now: now,
 	})
 	if err != nil {
@@ -102,8 +104,23 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	}
 
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := u.Requests.LockCustomer(ctx, customerID); err != nil {
+			return err
+		}
 		if err := u.Requests.Create(ctx, request); err != nil {
 			return err
+		}
+		if err := u.rejectDuplicate(ctx, request); err != nil {
+			return err
+		}
+		if request.Fare.EstimateID != nil {
+			fresh, err := u.Pricing.UseEstimate(ctx, *request.Fare.EstimateID, now)
+			if err != nil {
+				return err
+			}
+			if !fresh {
+				return ErrFareEstimateUsed
+			}
 		}
 		created := &entities.RequestStatusChange{To: entities.RequestCreated, Version: request.Version, Actor: entities.RequestActor{Type: entities.RequestActorCustomer, ID: &customerID}, At: now}
 		if err := u.announceTransition(ctx, request, created, policy); err != nil {
@@ -149,6 +166,41 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	}
 	view, err := u.customerView(ctx, request)
 	return view, true, err
+}
+
+func (u *Usecase) rejectDuplicate(ctx context.Context, request *entities.ServiceRequest) error {
+	active, err := u.Requests.ActiveOfCustomerService(ctx, request.CustomerID, request.ServiceID)
+	if err != nil {
+		return err
+	}
+	var destination *entities.GeoPoint
+	if request.Destination != nil {
+		destination = &request.Destination.Point
+	}
+	for _, other := range active {
+		if other.ID != request.ID && other.IsSameTrip(request.ServiceID, request.Pickup.Point, destination, request.Stops, request.ScheduledFor) {
+			return ErrDuplicateRequest
+		}
+	}
+	return nil
+}
+
+func withoutServerFields(details json.RawMessage) json.RawMessage {
+	if len(details) == 0 {
+		return details
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(details, &fields); err != nil {
+		return details
+	}
+	for _, name := range serverOnlyDetails {
+		delete(fields, name)
+	}
+	cleaned, err := json.Marshal(fields)
+	if err != nil {
+		return details
+	}
+	return cleaned
 }
 
 func (u *Usecase) checkPayment(ctx context.Context, customerID, categoryID uuid.UUID, requested string) (entities.PaymentMethod, error) {
@@ -202,11 +254,18 @@ func (u *Usecase) resolveFare(ctx context.Context, customerID uuid.UUID, service
 	if destination != nil {
 		destinationPoint = &destination.Point
 	}
-	if estimate == nil || estimate.CustomerID != customerID || estimate.ServiceID != service.ID || !estimate.Matches(pickup.Point, destinationPoint) {
+	stopPoints := make([]entities.GeoPoint, 0, len(in.Stops))
+	for _, stop := range in.Stops {
+		stopPoints = append(stopPoints, entities.GeoPoint{Lat: stop.Lat, Lng: stop.Lng})
+	}
+	if estimate == nil || estimate.CustomerID != customerID || estimate.ServiceID != service.ID || !estimate.MatchesRoute(pickup.Point, destinationPoint, stopPoints, in.ScheduledFor) {
 		return fare, ErrFareEstimateInvalid
 	}
+	if estimate.UsedAt != nil {
+		return fare, ErrFareEstimateUsed
+	}
 	if estimate.IsExpired(now) {
-		fresh, err := u.CreateEstimates(ctx, customerID, dtos.FareEstimateInput{Category: service.CategorySlug, Pickup: in.Pickup, Destination: in.Destination, Stops: in.Stops})
+		fresh, err := u.CreateEstimates(ctx, customerID, dtos.FareEstimateInput{Category: service.CategorySlug, Pickup: in.Pickup, Destination: in.Destination, Stops: in.Stops, ScheduledFor: in.ScheduledFor})
 		if err != nil {
 			return fare, err
 		}
@@ -488,10 +547,18 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 		if zone != nil {
 			location = zone.Location()
 		}
-		base := tariff.FareFor(route.DistanceMeters, route.Duration, now.In(location))
+		priceAt := now
+		if request.ScheduledFor != nil {
+			priceAt = *request.ScheduledFor
+		}
+		base := tariff.FareForRoute(route.DistanceMeters, route.Duration, priceAt.In(location), len(stops))
 		boosted := base + base*int64(request.Fare.BoostBps)/10_000
 		difference := boosted - *request.Fare.Cents
-		if err := request.ChangeRoute(destination, stops, boosted, tariff.CommissionFor(base)); err != nil {
+		policy, err := u.policyOf(ctx, request)
+		if err != nil {
+			return err
+		}
+		if err := request.ChangeRoute(destination, stops, policy, boosted, tariff.CommissionFor(base)); err != nil {
 			return err
 		}
 		cell, err := u.Geo.Cell(destination.Point, analyticsResolution)
@@ -519,6 +586,7 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 func (u *Usecase) customerSummary(ctx context.Context, request *entities.ServiceRequest) (*dtos.RequestView, error) {
 	view := baseRequestView(request)
 	view.PassengerName = request.PassengerName
+	view.PassengerPhone = request.PassengerPhone
 	view.ContactPhone = request.ContactPhone
 	view.Details = request.Details
 	provider, err := u.providerSummary(ctx, request.ProviderID)
@@ -567,6 +635,7 @@ func (u *Usecase) providerView(ctx context.Context, request *entities.ServiceReq
 	if !request.Status.IsTerminal() {
 		view.ContactPhone = request.ContactPhone
 		view.PassengerName = request.PassengerName
+		view.PassengerPhone = request.PassengerPhone
 	}
 	return u.withAdjustments(ctx, &view, request)
 }

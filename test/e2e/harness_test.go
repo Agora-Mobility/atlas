@@ -284,6 +284,18 @@ func newSMSStub() *smsStub {
 
 var otpPattern = regexp.MustCompile(`\b\d{6}\b`)
 
+func (s *smsStub) messagesTo(phone string) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []string
+	for _, body := range s.bodies {
+		if strings.Contains(body, strings.TrimPrefix(phone, "+")) {
+			out = append(out, body)
+		}
+	}
+	return out
+}
+
 func (s *smsStub) lastCode(t *testing.T, phone string) string {
 	t.Helper()
 	s.mu.Lock()
@@ -825,7 +837,7 @@ func setPolicy(t *testing.T, category, assignments string) {
 			UPDATE dispatch_policies p SET
 				offer_ttl_seconds = (s.j->>'offer_ttl_seconds')::int, search_ttl_seconds = (s.j->>'search_ttl_seconds')::int,
 				ack_timeout_seconds = (s.j->>'ack_timeout_seconds')::int, ack_giveup_seconds = (s.j->>'ack_giveup_seconds')::int,
-				search_lead_seconds = (s.j->>'search_lead_seconds')::int
+				search_lead_seconds = (s.j->>'search_lead_seconds')::int, max_stops = (s.j->>'max_stops')::smallint, schedule_slot_minutes = (s.j->>'schedule_slot_minutes')::smallint
 			FROM (SELECT $1::jsonb AS j) s WHERE p.id = (s.j->>'id')::uuid`, restore[0])
 		require.NoError(t, err)
 	})

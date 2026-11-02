@@ -22,6 +22,8 @@ var (
 	ErrFareEstimateRequired = errors.New("this service needs a fare estimate")
 	ErrFareEstimateInvalid  = errors.New("the fare estimate does not match this request")
 	ErrNoTariff             = errors.New("no tariff for this service in this zone")
+	ErrFareEstimateUsed     = errors.New("the fare estimate was already used")
+	ErrDuplicateRequest     = errors.New("the customer already has this request active")
 	ErrRequestConflict      = repository.ErrRequestVersionConflict
 	ErrProviderNotApproved  = errors.New("the provider is not approved")
 	ErrProviderBusy         = errors.New("the provider already has an active job")

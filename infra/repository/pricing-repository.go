@@ -71,7 +71,7 @@ func (r *PricingRepository) ReplaceTariff(ctx context.Context, t *entities.Servi
 		ID: t.ID, ServiceID: t.ServiceID, ZoneID: t.ZoneID, Currency: t.Currency, BaseFeeCents: t.BaseFeeCents, PerKmFeeCents: t.PerKmFeeCents,
 		PerMinuteFeeCents: t.PerMinuteFeeCents, MinimumFeeCents: t.MinimumFeeCents, ZoneFeeCents: t.ZoneFeeCents, NightFeeCents: t.NightFeeCents,
 		NightStartHour: int16(t.NightStartHour), NightEndHour: int16(t.NightEndHour), FreeWaitSeconds: int32(t.FreeWaitSeconds), // #nosec G115 -- validated by the entity
-		CommissionBps: int32(t.CommissionBps), ValidFrom: t.ValidFrom, // #nosec G115 -- validated by the entity
+		CommissionBps: int32(t.CommissionBps), ValidFrom: t.ValidFrom, StopFeeCents: t.StopFeeCents, // #nosec G115 -- validated by the entity
 	})
 	if err != nil {
 		return fmt.Errorf("create tariff: %w", err)
@@ -92,7 +92,7 @@ func (r *PricingRepository) CreateEstimate(ctx context.Context, e *entities.Fare
 		ID: e.ID, CustomerID: e.CustomerID, TariffID: e.TariffID, ServiceID: e.ServiceID, OriginLat: e.Origin.Lat, OriginLng: e.Origin.Lng,
 		DestinationLat: destinationLat, DestinationLng: destinationLng, Stops: stops, DistanceM: int32(e.DistanceMeters), // #nosec G115 -- a route fits in int32
 		DurationS: int32(e.DurationSeconds), RouteSource: e.RouteSource, TotalCents: e.TotalCents, CommissionCents: e.CommissionCents, // #nosec G115 -- a route fits in int32
-		Currency: e.Currency, ExpiresAt: e.ExpiresAt, CreatedAt: e.CreatedAt,
+		Currency: e.Currency, ExpiresAt: e.ExpiresAt, CreatedAt: e.CreatedAt, ScheduledFor: e.ScheduledFor,
 	})
 	if err != nil {
 		return fmt.Errorf("create estimate: %w", err)
@@ -112,7 +112,7 @@ func (r *PricingRepository) FindEstimate(ctx context.Context, id uuid.UUID) (*en
 		ID: row.ID, CustomerID: row.CustomerID, TariffID: row.TariffID, ServiceID: row.ServiceID,
 		Origin: entities.GeoPoint{Lat: row.OriginLat, Lng: row.OriginLng}, DistanceMeters: int(row.DistanceM), DurationSeconds: int(row.DurationS),
 		RouteSource: row.RouteSource, TotalCents: row.TotalCents, CommissionCents: row.CommissionCents, Currency: row.Currency,
-		ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
+		ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt, ScheduledFor: row.ScheduledFor, UsedAt: row.UsedAt,
 	}
 	if row.DestinationLat != nil && row.DestinationLng != nil {
 		estimate.Destination = &entities.GeoPoint{Lat: *row.DestinationLat, Lng: *row.DestinationLng}
@@ -121,6 +121,14 @@ func (r *PricingRepository) FindEstimate(ctx context.Context, id uuid.UUID) (*en
 		return nil, fmt.Errorf("decode stops: %w", err)
 	}
 	return estimate, nil
+}
+
+func (r *PricingRepository) UseEstimate(ctx context.Context, id uuid.UUID, now time.Time) (bool, error) {
+	rows, err := postgres.Queries(ctx, r.pool).UseFareEstimate(ctx, gen.UseFareEstimateParams{ID: id, UsedAt: &now})
+	if err != nil {
+		return false, fmt.Errorf("use estimate: %w", err)
+	}
+	return rows > 0, nil
 }
 
 func (r *PricingRepository) RecordETA(ctx context.Context, originCell, destinationCell int64, hourBand int, duration time.Duration) error {
@@ -149,7 +157,7 @@ func (r *PricingRepository) LearnedETA(ctx context.Context, originCell, destinat
 func toTariff(row *gen.ServiceTariff) *entities.ServiceTariff {
 	return &entities.ServiceTariff{
 		ID: row.ID, ServiceID: row.ServiceID, ZoneID: row.ZoneID, Currency: row.Currency, BaseFeeCents: row.BaseFeeCents, PerKmFeeCents: row.PerKmFeeCents,
-		PerMinuteFeeCents: row.PerMinuteFeeCents, MinimumFeeCents: row.MinimumFeeCents, ZoneFeeCents: row.ZoneFeeCents, NightFeeCents: row.NightFeeCents,
+		PerMinuteFeeCents: row.PerMinuteFeeCents, MinimumFeeCents: row.MinimumFeeCents, ZoneFeeCents: row.ZoneFeeCents, NightFeeCents: row.NightFeeCents, StopFeeCents: row.StopFeeCents,
 		NightStartHour: int(row.NightStartHour), NightEndHour: int(row.NightEndHour), FreeWaitSeconds: int(row.FreeWaitSeconds), CommissionBps: int(row.CommissionBps),
 		ValidFrom: row.ValidFrom, ValidUntil: row.ValidUntil,
 	}

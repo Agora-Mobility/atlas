@@ -43,7 +43,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 	mailbox := realtime.NewMailbox(c.Redis, cfg.Realtime.MailboxEntries, cfg.Realtime.MailboxTTL)
 	devices := repository.NewDeviceRepository(c.Pool)
 	locator := repository.NewProviderLocator(c.Redis, geo)
-	notifier := notifications.NewRequestNotifier(devices, pushSender, c.SMS, cfg.Dispatch.OfferDeepLink, cfg.Dispatch.OperatorPhone)
+	notifier := notifications.NewRequestNotifier(devices, repository.NewRequestRepository(c.Pool), pushSender, c.SMS, cfg.Dispatch.OfferDeepLink, cfg.Dispatch.OperatorPhone)
 	uc := dispatch.NewUsecase(dispatch.Deps{
 		Config:    repository.NewDispatchConfigRepository(c.Pool),
 		Pricing:   repository.NewPricingRepository(c.Pool),

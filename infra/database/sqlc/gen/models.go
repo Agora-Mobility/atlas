@@ -301,32 +301,34 @@ type DeviceToken struct {
 }
 
 type DispatchPolicy struct {
-	ID                uuid.UUID  `json:"id"`
-	CategoryID        uuid.UUID  `json:"category_id"`
-	ZoneID            *uuid.UUID `json:"zone_id"`
-	CandidateSource   string     `json:"candidate_source"`
-	H3Resolution      int16      `json:"h3_resolution"`
-	RadiiKm           []float64  `json:"radii_km"`
-	OfferMode         string     `json:"offer_mode"`
-	BatchSize         int16      `json:"batch_size"`
-	OfferTtlSeconds   int32      `json:"offer_ttl_seconds"`
-	SearchTtlSeconds  int32      `json:"search_ttl_seconds"`
-	AckTimeoutSeconds int32      `json:"ack_timeout_seconds"`
-	AckGiveupSeconds  int32      `json:"ack_giveup_seconds"`
-	InitialChannels   []string   `json:"initial_channels"`
-	FallbackChannels  []string   `json:"fallback_channels"`
-	Ranking           string     `json:"ranking"`
-	TrackingStatuses  []string   `json:"tracking_statuses"`
-	OnExhausted       string     `json:"on_exhausted"`
-	ReserveProvider   bool       `json:"reserve_provider"`
-	ScheduleMaxDays   int32      `json:"schedule_max_days"`
-	SearchLeadSeconds int32      `json:"search_lead_seconds"`
-	PricingMode       string     `json:"pricing_mode"`
-	AllowBoost        bool       `json:"allow_boost"`
-	RankByEta         bool       `json:"rank_by_eta"`
-	SmsOnAccept       bool       `json:"sms_on_accept"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID                  uuid.UUID  `json:"id"`
+	CategoryID          uuid.UUID  `json:"category_id"`
+	ZoneID              *uuid.UUID `json:"zone_id"`
+	CandidateSource     string     `json:"candidate_source"`
+	H3Resolution        int16      `json:"h3_resolution"`
+	RadiiKm             []float64  `json:"radii_km"`
+	OfferMode           string     `json:"offer_mode"`
+	BatchSize           int16      `json:"batch_size"`
+	OfferTtlSeconds     int32      `json:"offer_ttl_seconds"`
+	SearchTtlSeconds    int32      `json:"search_ttl_seconds"`
+	AckTimeoutSeconds   int32      `json:"ack_timeout_seconds"`
+	AckGiveupSeconds    int32      `json:"ack_giveup_seconds"`
+	InitialChannels     []string   `json:"initial_channels"`
+	FallbackChannels    []string   `json:"fallback_channels"`
+	Ranking             string     `json:"ranking"`
+	TrackingStatuses    []string   `json:"tracking_statuses"`
+	OnExhausted         string     `json:"on_exhausted"`
+	ReserveProvider     bool       `json:"reserve_provider"`
+	ScheduleMaxDays     int32      `json:"schedule_max_days"`
+	SearchLeadSeconds   int32      `json:"search_lead_seconds"`
+	PricingMode         string     `json:"pricing_mode"`
+	AllowBoost          bool       `json:"allow_boost"`
+	RankByEta           bool       `json:"rank_by_eta"`
+	SmsOnAccept         bool       `json:"sms_on_accept"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+	MaxStops            int16      `json:"max_stops"`
+	ScheduleSlotMinutes int16      `json:"schedule_slot_minutes"`
 }
 
 type EtaObservation struct {
@@ -365,6 +367,8 @@ type FareEstimate struct {
 	Currency        string          `json:"currency"`
 	ExpiresAt       time.Time       `json:"expires_at"`
 	CreatedAt       time.Time       `json:"created_at"`
+	ScheduledFor    *time.Time      `json:"scheduled_for"`
+	UsedAt          *time.Time      `json:"used_at"`
 }
 
 type Invitation struct {
@@ -645,6 +649,7 @@ type ServiceCategory struct {
 	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+	PassengerSms string    `json:"passenger_sms"`
 }
 
 type ServiceProviderRequirement struct {
@@ -742,6 +747,7 @@ type ServiceTariff struct {
 	ValidFrom         time.Time  `json:"valid_from"`
 	ValidUntil        *time.Time `json:"valid_until"`
 	CreatedAt         time.Time  `json:"created_at"`
+	StopFeeCents      int64      `json:"stop_fee_cents"`
 }
 
 type ServiceZone struct {

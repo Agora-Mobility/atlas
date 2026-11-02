@@ -18,6 +18,12 @@ import (
 	"github.com/Agora-Mobility/atlas/usecases/notifications"
 )
 
+type fakeNotices struct{ repository.IRequestRepository }
+
+func (fakeNotices) PassengerNotice(context.Context, uuid.UUID) (*repository.PassengerNotice, error) {
+	return &repository.PassengerNotice{Template: "AGORA: reboque de {provider}, matrícula {plate}. {link}", ProviderName: "João", VehiclePlate: "LD-1"}, nil
+}
+
 type fakeDevices struct {
 	mu      sync.Mutex
 	tokens  map[uuid.UUID][]string
@@ -76,7 +82,7 @@ func TestOfferChannelsFollowThePolicy(t *testing.T) {
 	provider := uuid.New()
 	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}, phones: map[uuid.UUID]string{provider: "+244900000000"}}
 	push, sms := &fakePush{}, &fakeSMS{sent: map[string]string{}}
-	notifier := notifications.NewRequestNotifier(devices, push, sms, "agora://app", "")
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, sms, "agora://app", "")
 	event := events.RequestOfferV1{
 		Type: events.OfferCreated, OfferID: uuid.New(), RequestID: uuid.New(), ProviderID: provider, Category: "maintenance",
 		ExpiresAt: time.Now().Add(10 * time.Minute), Channels: []string{"fcm", "sms", "sse"},
@@ -93,7 +99,7 @@ func TestOfferChannelsFollowThePolicy(t *testing.T) {
 func TestTaxiOfferStartsOnSSEOnly(t *testing.T) {
 	provider := uuid.New()
 	push, sms := &fakePush{}, &fakeSMS{sent: map[string]string{}}
-	notifier := notifications.NewRequestNotifier(&fakeDevices{}, push, sms, "agora://app", "")
+	notifier := notifications.NewRequestNotifier(&fakeDevices{}, fakeNotices{}, push, sms, "agora://app", "")
 	event := events.RequestOfferV1{Type: events.OfferCreated, OfferID: uuid.New(), ProviderID: provider, ExpiresAt: time.Now().Add(time.Minute), Channels: []string{"sse"}}
 
 	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
@@ -106,7 +112,7 @@ func TestAnOfferRetriedAfterItsDeadlineIsDropped(t *testing.T) {
 	provider := uuid.New()
 	push, sms := &fakePush{}, &fakeSMS{sent: map[string]string{}}
 	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}, phones: map[uuid.UUID]string{provider: "+244900000000"}}
-	notifier := notifications.NewRequestNotifier(devices, push, sms, "agora://app", "")
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, sms, "agora://app", "")
 	event := events.RequestOfferV1{Type: events.OfferCreated, OfferID: uuid.New(), ProviderID: provider, ExpiresAt: time.Now().Add(-time.Second), Channels: []string{"fcm", "sms"}}
 
 	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
@@ -119,7 +125,7 @@ func TestFallbackGoesThroughTheRequestedChannel(t *testing.T) {
 	provider := uuid.New()
 	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}, phones: map[uuid.UUID]string{provider: "+244900000000"}}
 	push, sms := &fakePush{}, &fakeSMS{sent: map[string]string{}}
-	notifier := notifications.NewRequestNotifier(devices, push, sms, "agora://app", "")
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, sms, "agora://app", "")
 	notice := dispatch.OfferNotice{OfferID: uuid.New(), ProviderID: provider, Category: "taxi", ExpiresIn: 17}
 
 	require.NoError(t, notifier.SendOffer(context.Background(), "fcm", notice))
@@ -134,7 +140,7 @@ func TestFallbackGoesThroughTheRequestedChannel(t *testing.T) {
 func TestInvalidTokenIsRemoved(t *testing.T) {
 	provider := uuid.New()
 	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"gone"}}}
-	notifier := notifications.NewRequestNotifier(devices, &fakePush{err: services.ErrPushTokenInvalid}, &fakeSMS{}, "", "")
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, &fakePush{err: services.ErrPushTokenInvalid}, &fakeSMS{}, "", "")
 
 	require.NoError(t, notifier.SendOffer(context.Background(), "fcm", dispatch.OfferNotice{ProviderID: provider}))
 
@@ -145,7 +151,7 @@ func TestInvalidTokenIsRemoved(t *testing.T) {
 func TestPushOutageSurfacesForRetry(t *testing.T) {
 	provider := uuid.New()
 	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}}
-	notifier := notifications.NewRequestNotifier(devices, &fakePush{err: errors.New("fcm down")}, &fakeSMS{}, "", "")
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, &fakePush{err: errors.New("fcm down")}, &fakeSMS{}, "", "")
 
 	assert.Error(t, notifier.SendOffer(context.Background(), "fcm", dispatch.OfferNotice{ProviderID: provider}))
 }
@@ -154,18 +160,18 @@ func TestAcceptedConfirmsBySMSWhenThePolicyAsksAndTellsThePassenger(t *testing.T
 	customer := uuid.New()
 	devices := &fakeDevices{phones: map[uuid.UUID]string{customer: "+244911111111"}}
 	sms := &fakeSMS{sent: map[string]string{}}
-	notifier := notifications.NewRequestNotifier(devices, &fakePush{}, sms, "", "")
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, &fakePush{}, sms, "", "")
 	event := events.RequestTransitionV1{Type: events.RequestAccepted, RequestID: uuid.New(), CustomerID: customer, To: "accepted", SMSOnAccept: true, PassengerPhone: "+244922222222"}
 
 	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
 
 	assert.Contains(t, sms.sent["+244911111111"], "aceite")
-	assert.Contains(t, sms.sent["+244922222222"], "táxi")
+	assert.Equal(t, "AGORA: reboque de João, matrícula LD-1.", sms.sent["+244922222222"], "the text comes from the category, with the driver and the plate")
 }
 
 func TestOperatorAlertUsesTheConfiguredPhone(t *testing.T) {
 	sms := &fakeSMS{sent: map[string]string{}}
-	notifier := notifications.NewRequestNotifier(&fakeDevices{}, &fakePush{}, sms, "", "+244933333333")
+	notifier := notifications.NewRequestNotifier(&fakeDevices{}, fakeNotices{}, &fakePush{}, sms, "", "+244933333333")
 	event := events.OperatorAlertedV1{RequestID: uuid.New(), Category: "towing", Reason: "no_provider"}
 
 	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))

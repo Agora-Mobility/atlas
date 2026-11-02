@@ -112,6 +112,8 @@ var errorTable = []struct {
 	{dispatch.ErrOutsideServiceArea, http.StatusUnprocessableEntity, "OUTSIDE_SERVICE_AREA", "The service is not available at this location yet."},
 	{dispatch.ErrFareEstimateRequired, http.StatusUnprocessableEntity, "FARE_ESTIMATE_REQUIRED", "This service needs a fare estimate."},
 	{dispatch.ErrFareEstimateInvalid, http.StatusConflict, "FARE_ESTIMATE_INVALID", "The price does not match this route. Ask for a new one."},
+	{dispatch.ErrFareEstimateUsed, http.StatusConflict, "FARE_ESTIMATE_USED", "This price was already used. Ask for a new one."},
+	{dispatch.ErrDuplicateRequest, http.StatusConflict, "DUPLICATE_REQUEST", "You already have this request active."},
 	{dispatch.ErrNoTariff, http.StatusUnprocessableEntity, "NO_TARIFF", "There is no tariff for this service here yet."},
 	{dispatch.ErrRequestConflict, http.StatusConflict, "REQUEST_CONFLICT", "The request changed in the meantime."},
 	{dispatch.ErrProviderNotApproved, http.StatusForbidden, "PROVIDER_NOT_APPROVED", "The provider is not approved for this."},

@@ -321,6 +321,33 @@ func (r *RequestRepository) History(ctx context.Context, requestID uuid.UUID) ([
 	return out, nil
 }
 
+func (r *RequestRepository) LockCustomer(ctx context.Context, customerID uuid.UUID) error {
+	if err := postgres.Queries(ctx, r.pool).LockCustomerRequests(ctx, customerID); err != nil {
+		return fmt.Errorf("lock customer requests: %w", err)
+	}
+	return nil
+}
+
+func (r *RequestRepository) ActiveOfCustomerService(ctx context.Context, customerID, serviceID uuid.UUID) ([]*entities.ServiceRequest, error) {
+	queries := postgres.Queries(ctx, r.pool)
+	rows, err := queries.ListActiveRequestsOfCustomerService(ctx, gen.ListActiveRequestsOfCustomerServiceParams{CustomerID: customerID, ServiceID: serviceID})
+	if err != nil {
+		return nil, fmt.Errorf("list active requests of service: %w", err)
+	}
+	return toRequests(ctx, queries, rows)
+}
+
+func (r *RequestRepository) PassengerNotice(ctx context.Context, requestID uuid.UUID) (*repository.PassengerNotice, error) {
+	row, err := postgres.Queries(ctx, r.pool).GetPassengerNotice(ctx, requestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get passenger notice: %w", err)
+	}
+	return &repository.PassengerNotice{Template: row.PassengerSms, ProviderName: row.ProviderName, VehiclePlate: row.VehiclePlate}, nil
+}
+
 func (r *RequestRepository) OrganizationOf(ctx context.Context, requestID uuid.UUID) (*uuid.UUID, error) {
 	organizationID, err := postgres.Queries(ctx, r.pool).GetRequestOrganization(ctx, requestID)
 	if errors.Is(err, pgx.ErrNoRows) {

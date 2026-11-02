@@ -15,6 +15,7 @@ const (
 	metersPerKm           = 1000
 	secondsPerMinute      = 60
 	maxPinDriftMeters     = 300
+	maxFreeWaitSeconds    = 86_400
 )
 
 var (
@@ -33,6 +34,7 @@ type ServiceTariff struct {
 	MinimumFeeCents   int64
 	ZoneFeeCents      int64
 	NightFeeCents     int64
+	StopFeeCents      int64
 	NightStartHour    int
 	NightEndHour      int
 	FreeWaitSeconds   int
@@ -42,7 +44,7 @@ type ServiceTariff struct {
 }
 
 func (t *ServiceTariff) Validate() error {
-	fees := []int64{t.BaseFeeCents, t.PerKmFeeCents, t.PerMinuteFeeCents, t.MinimumFeeCents, t.ZoneFeeCents, t.NightFeeCents}
+	fees := []int64{t.BaseFeeCents, t.PerKmFeeCents, t.PerMinuteFeeCents, t.MinimumFeeCents, t.ZoneFeeCents, t.NightFeeCents, t.StopFeeCents}
 	for _, fee := range fees {
 		if fee < 0 || fee > MaxFeeCents {
 			return validationError("fees", "Os valores da tarifa não são válidos.")
@@ -57,8 +59,8 @@ func (t *ServiceTariff) Validate() error {
 	if t.NightStartHour < 0 || t.NightStartHour > 23 || t.NightEndHour < 0 || t.NightEndHour > 23 {
 		return validationError("night", "As horas da noite têm de estar entre 0 e 23.")
 	}
-	if t.FreeWaitSeconds < 0 {
-		return validationError("free_wait_seconds", "A espera gratuita não pode ser negativa.")
+	if t.FreeWaitSeconds < 0 || t.FreeWaitSeconds > maxFreeWaitSeconds {
+		return validationError("free_wait_seconds", "A espera gratuita tem de estar entre 0 e 86400 segundos.")
 	}
 	return nil
 }
@@ -75,6 +77,10 @@ func (t *ServiceTariff) FareFor(distanceMeters int, duration time.Duration, loca
 		fare += t.NightFeeCents
 	}
 	return fare
+}
+
+func (t *ServiceTariff) FareForRoute(distanceMeters int, duration time.Duration, localTime time.Time, stops int) int64 {
+	return t.FareFor(distanceMeters, duration, localTime) + int64(stops)*t.StopFeeCents
 }
 
 func (t *ServiceTariff) CommissionFor(fareCents int64) int64 {
@@ -112,6 +118,8 @@ type FareEstimate struct {
 	Origin          GeoPoint
 	Destination     *GeoPoint
 	Stops           []GeoPoint
+	ScheduledFor    *time.Time
+	UsedAt          *time.Time
 	DistanceMeters  int
 	DurationSeconds int
 	RouteSource     string
@@ -134,6 +142,21 @@ func (e *FareEstimate) Matches(pickup GeoPoint, destination *GeoPoint) bool {
 		return false
 	}
 	return e.Destination == nil || DistanceMeters(*e.Destination, *destination) <= maxPinDriftMeters
+}
+
+func (e *FareEstimate) MatchesRoute(pickup GeoPoint, destination *GeoPoint, stops []GeoPoint, scheduledFor *time.Time) bool {
+	if !e.Matches(pickup, destination) || len(e.Stops) != len(stops) {
+		return false
+	}
+	for i := range stops {
+		if DistanceMeters(e.Stops[i], stops[i]) > maxPinDriftMeters {
+			return false
+		}
+	}
+	if (e.ScheduledFor == nil) != (scheduledFor == nil) {
+		return false
+	}
+	return e.ScheduledFor == nil || e.ScheduledFor.Equal(*scheduledFor)
 }
 
 type FareAdjustmentReason string

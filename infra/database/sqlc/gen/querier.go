@@ -99,6 +99,7 @@ type Querier interface {
 	GetMembershipInOrganizationForUpdate(ctx context.Context, arg GetMembershipInOrganizationForUpdateParams) (Membership, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetPaidPaymentOfRequest(ctx context.Context, requestID uuid.UUID) (Payment, error)
+	GetPassengerNotice(ctx context.Context, id uuid.UUID) (GetPassengerNoticeRow, error)
 	GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
 	GetPaymentByMerchantID(ctx context.Context, merchantID string) (Payment, error)
 	GetPaymentByProviderCharge(ctx context.Context, providerChargeID *string) (Payment, error)
@@ -150,6 +151,7 @@ type Querier interface {
 	ListActiveBlockReasonsByIDs(ctx context.Context, ids []uuid.UUID) ([]BlockReason, error)
 	ListActiveMembershipsForSignIn(ctx context.Context, arg ListActiveMembershipsForSignInParams) ([]Membership, error)
 	ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListActiveRejectionReasonsByIDsParams) ([]RejectionReason, error)
+	ListActiveRequestsOfCustomerService(ctx context.Context, arg ListActiveRequestsOfCustomerServiceParams) ([]ServiceRequest, error)
 	ListActiveServicesOfActiveCategories(ctx context.Context) ([]Service, error)
 	ListActiveServicesOfCategory(ctx context.Context, slug string) ([]ListActiveServicesOfCategoryRow, error)
 	ListAdminPayments(ctx context.Context, arg ListAdminPaymentsParams) ([]ListAdminPaymentsRow, error)
@@ -195,6 +197,7 @@ type Querier interface {
 	ListVehicles(ctx context.Context, arg ListVehiclesParams) ([]ListVehiclesRow, error)
 	ListWorkshopServices(ctx context.Context, workshopID uuid.UUID) ([]WorkshopService, error)
 	ListWorkshops(ctx context.Context, arg ListWorkshopsParams) ([]Workshop, error)
+	LockCustomerRequests(ctx context.Context, customerID uuid.UUID) error
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error
 	MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error
@@ -241,6 +244,7 @@ type Querier interface {
 	UpsertProvider(ctx context.Context, arg UpsertProviderParams) error
 	UpsertRequestOffer(ctx context.Context, arg UpsertRequestOfferParams) (int64, error)
 	UpsertVehicle(ctx context.Context, arg UpsertVehicleParams) error
+	UseFareEstimate(ctx context.Context, arg UseFareEstimateParams) (int64, error)
 	UseRecoveryCode(ctx context.Context, arg UseRecoveryCodeParams) (int64, error)
 	UseUserMFAStep(ctx context.Context, arg UseUserMFAStepParams) (int64, error)
 	UserHasMembershipOutside(ctx context.Context, arg UserHasMembershipOutsideParams) (bool, error)

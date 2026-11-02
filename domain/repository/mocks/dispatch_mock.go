@@ -407,6 +407,21 @@ func (mr *MockIPricingRepositoryMockRecorder) ReplaceTariff(ctx, tariff any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceTariff", reflect.TypeOf((*MockIPricingRepository)(nil).ReplaceTariff), ctx, tariff)
 }
 
+// UseEstimate mocks base method.
+func (m *MockIPricingRepository) UseEstimate(ctx context.Context, id uuid.UUID, now time.Time) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UseEstimate", ctx, id, now)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UseEstimate indicates an expected call of UseEstimate.
+func (mr *MockIPricingRepositoryMockRecorder) UseEstimate(ctx, id, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UseEstimate", reflect.TypeOf((*MockIPricingRepository)(nil).UseEstimate), ctx, id, now)
+}
+
 // MockIProviderRepository is a mock of IProviderRepository interface.
 type MockIProviderRepository struct {
 	ctrl     *gomock.Controller
@@ -660,6 +675,21 @@ func (mr *MockIRequestRepositoryMockRecorder) ActiveOfCustomer(ctx, customerID a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActiveOfCustomer", reflect.TypeOf((*MockIRequestRepository)(nil).ActiveOfCustomer), ctx, customerID)
 }
 
+// ActiveOfCustomerService mocks base method.
+func (m *MockIRequestRepository) ActiveOfCustomerService(ctx context.Context, customerID, serviceID uuid.UUID) ([]*entities.ServiceRequest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ActiveOfCustomerService", ctx, customerID, serviceID)
+	ret0, _ := ret[0].([]*entities.ServiceRequest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ActiveOfCustomerService indicates an expected call of ActiveOfCustomerService.
+func (mr *MockIRequestRepositoryMockRecorder) ActiveOfCustomerService(ctx, customerID, serviceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActiveOfCustomerService", reflect.TypeOf((*MockIRequestRepository)(nil).ActiveOfCustomerService), ctx, customerID, serviceID)
+}
+
 // ActiveOfProvider mocks base method.
 func (m *MockIRequestRepository) ActiveOfProvider(ctx context.Context, providerID uuid.UUID) (*entities.ServiceRequest, error) {
 	m.ctrl.T.Helper()
@@ -870,6 +900,20 @@ func (mr *MockIRequestRepositoryMockRecorder) ListWithProviderOnTheWay(ctx, limi
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListWithProviderOnTheWay", reflect.TypeOf((*MockIRequestRepository)(nil).ListWithProviderOnTheWay), ctx, limit)
 }
 
+// LockCustomer mocks base method.
+func (m *MockIRequestRepository) LockCustomer(ctx context.Context, customerID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LockCustomer", ctx, customerID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// LockCustomer indicates an expected call of LockCustomer.
+func (mr *MockIRequestRepositoryMockRecorder) LockCustomer(ctx, customerID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockCustomer", reflect.TypeOf((*MockIRequestRepository)(nil).LockCustomer), ctx, customerID)
+}
+
 // OperatorQueue mocks base method.
 func (m *MockIRequestRepository) OperatorQueue(ctx context.Context, limit, offset int) ([]*entities.ServiceRequest, error) {
 	m.ctrl.T.Helper()
@@ -898,6 +942,21 @@ func (m *MockIRequestRepository) OrganizationOf(ctx context.Context, requestID u
 func (mr *MockIRequestRepositoryMockRecorder) OrganizationOf(ctx, requestID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OrganizationOf", reflect.TypeOf((*MockIRequestRepository)(nil).OrganizationOf), ctx, requestID)
+}
+
+// PassengerNotice mocks base method.
+func (m *MockIRequestRepository) PassengerNotice(ctx context.Context, requestID uuid.UUID) (*repository.PassengerNotice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PassengerNotice", ctx, requestID)
+	ret0, _ := ret[0].(*repository.PassengerNotice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PassengerNotice indicates an expected call of PassengerNotice.
+func (mr *MockIRequestRepositoryMockRecorder) PassengerNotice(ctx, requestID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PassengerNotice", reflect.TypeOf((*MockIRequestRepository)(nil).PassengerNotice), ctx, requestID)
 }
 
 // RecordChange mocks base method.

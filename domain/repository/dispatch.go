@@ -42,6 +42,7 @@ type IPricingRepository interface {
 	ReplaceTariff(ctx context.Context, tariff *entities.ServiceTariff) error
 	CreateEstimate(ctx context.Context, estimate *entities.FareEstimate) error
 	FindEstimate(ctx context.Context, id uuid.UUID) (*entities.FareEstimate, error)
+	UseEstimate(ctx context.Context, id uuid.UUID, now time.Time) (bool, error)
 	RecordETA(ctx context.Context, originCell, destinationCell int64, hourBand int, duration time.Duration) error
 	LearnedETA(ctx context.Context, originCell, destinationCell int64, hourBand int) (time.Duration, int, error)
 }
@@ -84,6 +85,15 @@ type IRequestRepository interface {
 	Summary(ctx context.Context, filter AdminRequestFilter) ([]RequestSummaryRow, error)
 	History(ctx context.Context, requestID uuid.UUID) ([]RequestHistoryEntry, error)
 	OrganizationOf(ctx context.Context, requestID uuid.UUID) (*uuid.UUID, error)
+	LockCustomer(ctx context.Context, customerID uuid.UUID) error
+	ActiveOfCustomerService(ctx context.Context, customerID, serviceID uuid.UUID) ([]*entities.ServiceRequest, error)
+	PassengerNotice(ctx context.Context, requestID uuid.UUID) (*PassengerNotice, error)
+}
+
+type PassengerNotice struct {
+	Template     string
+	ProviderName string
+	VehiclePlate string
 }
 
 type AdminRequestFilter struct {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,8 +44,14 @@ var statusMessages = map[string]struct{ title, body string }{
 	events.RequestCancelled:       {"Pedido cancelado", "O pedido foi cancelado."},
 }
 
+type TripSharer interface {
+	ShareLink(ctx context.Context, requestID uuid.UUID) (string, error)
+}
+
 type RequestNotifier struct {
 	devices       repository.IDeviceRepository
+	requests      repository.IRequestRepository
+	shares        TripSharer
 	push          services.IPushSender
 	sms           services.ISMSSender
 	deepLinkBase  string
@@ -53,8 +60,8 @@ type RequestNotifier struct {
 
 var _ dispatch.OfferChannels = (*RequestNotifier)(nil)
 
-func NewRequestNotifier(devices repository.IDeviceRepository, push services.IPushSender, sms services.ISMSSender, deepLinkBase, operatorPhone string) *RequestNotifier {
-	return &RequestNotifier{devices: devices, push: push, sms: sms, deepLinkBase: deepLinkBase, operatorPhone: operatorPhone}
+func NewRequestNotifier(devices repository.IDeviceRepository, requests repository.IRequestRepository, push services.IPushSender, sms services.ISMSSender, deepLinkBase, operatorPhone string) *RequestNotifier {
+	return &RequestNotifier{devices: devices, requests: requests, push: push, sms: sms, deepLinkBase: deepLinkBase, operatorPhone: operatorPhone}
 }
 
 func RequestBindingKeys() []string {
@@ -177,9 +184,35 @@ func (n *RequestNotifier) onTransition(ctx context.Context, env events.Envelope)
 		failures = append(failures, n.smsToUser(ctx, event.CustomerID, templateAssigned, "AGORA: o teu pedido foi aceite. O prestador está a preparar-se para ir ter contigo."))
 	}
 	if event.PassengerPhone != "" {
-		failures = append(failures, n.smsToPhone(ctx, nil, event.PassengerPhone, templateAssigned, "AGORA: pediram um táxi para ti. O motorista está a caminho."))
+		text, err := n.passengerText(ctx, event.RequestID)
+		if err != nil {
+			return errors.Join(append(failures, err)...)
+		}
+		failures = append(failures, n.smsToPhone(ctx, nil, event.PassengerPhone, templateAssigned, text))
 	}
 	return errors.Join(failures...)
+}
+
+func (n *RequestNotifier) passengerText(ctx context.Context, requestID uuid.UUID) (string, error) {
+	notice, err := n.requests.PassengerNotice(ctx, requestID)
+	if err != nil {
+		return "", err
+	}
+	if notice == nil {
+		return "", dispatch.ErrRequestNotFound
+	}
+	link := ""
+	if n.shares != nil {
+		if link, err = n.shares.ShareLink(ctx, requestID); err != nil {
+			return "", err
+		}
+	}
+	return passengerSMS(notice, link), nil
+}
+
+func passengerSMS(notice *repository.PassengerNotice, link string) string {
+	text := strings.NewReplacer("{provider}", notice.ProviderName, "{plate}", notice.VehiclePlate, "{link}", link).Replace(notice.Template)
+	return strings.Join(strings.Fields(text), " ")
 }
 
 func (n *RequestNotifier) onQuote(ctx context.Context, env events.Envelope) error {

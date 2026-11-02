@@ -53,15 +53,15 @@ WHERE p.candidate_source = 'live';
 -- name: CreateDispatchPolicy :exec
 INSERT INTO dispatch_policies (id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size,
     offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking,
-    tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24);
+    tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, max_stops, schedule_slot_minutes)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26);
 
 -- name: UpdateDispatchPolicy :execrows
 UPDATE dispatch_policies
 SET candidate_source = $2, h3_resolution = $3, radii_km = $4, offer_mode = $5, batch_size = $6, offer_ttl_seconds = $7,
     search_ttl_seconds = $8, ack_timeout_seconds = $9, ack_giveup_seconds = $10, initial_channels = $11, fallback_channels = $12,
     ranking = $13, tracking_statuses = $14, on_exhausted = $15, reserve_provider = $16, schedule_max_days = $17,
-    search_lead_seconds = $18, pricing_mode = $19, allow_boost = $20, rank_by_eta = $21, sms_on_accept = $22, updated_at = now()
+    search_lead_seconds = $18, pricing_mode = $19, allow_boost = $20, rank_by_eta = $21, sms_on_accept = $22, max_stops = $23, schedule_slot_minutes = $24, updated_at = now()
 WHERE id = $1;
 
 -- name: CurrentServiceTariff :one
@@ -82,16 +82,19 @@ WHERE service_id = $1 AND zone_id IS NOT DISTINCT FROM $2 AND valid_until IS NUL
 
 -- name: CreateServiceTariff :exec
 INSERT INTO service_tariffs (id, service_id, zone_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents,
-    zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
+    zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from, stop_fee_cents)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
 
 -- name: CreateFareEstimate :exec
 INSERT INTO fare_estimates (id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops,
-    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
+    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);
 
 -- name: GetFareEstimate :one
 SELECT * FROM fare_estimates WHERE id = $1;
+
+-- name: UseFareEstimate :execrows
+UPDATE fare_estimates SET used_at = $2 WHERE id = $1 AND used_at IS NULL;
 
 -- name: RecordETAObservation :exec
 INSERT INTO eta_observations (origin_h3_r8, destination_h3_r8, hour_band, samples, total_seconds)

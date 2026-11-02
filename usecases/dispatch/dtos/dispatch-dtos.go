@@ -24,7 +24,7 @@ type CreateRequestInput struct {
 	ServiceID      uuid.UUID       `json:"service_id" binding:"required"`
 	Pickup         PlaceInput      `json:"pickup" binding:"required"`
 	Destination    *PlaceInput     `json:"destination"`
-	Stops          []PlaceInput    `json:"stops" binding:"max=3,dive"`
+	Stops          []PlaceInput    `json:"stops" binding:"max=20,dive"`
 	ContactPhone   string          `json:"contact_phone" binding:"max=20"`
 	Passenger      *PassengerInput `json:"passenger"`
 	Details        json.RawMessage `json:"details" swaggertype:"object"`
@@ -39,10 +39,11 @@ type PassengerInput struct {
 }
 
 type FareEstimateInput struct {
-	Category    string       `json:"category" binding:"required" example:"taxi"`
-	Pickup      PlaceInput   `json:"pickup" binding:"required"`
-	Destination *PlaceInput  `json:"destination"`
-	Stops       []PlaceInput `json:"stops" binding:"max=3,dive"`
+	Category     string       `json:"category" binding:"required" example:"taxi"`
+	Pickup       PlaceInput   `json:"pickup" binding:"required"`
+	Destination  *PlaceInput  `json:"destination"`
+	Stops        []PlaceInput `json:"stops" binding:"max=20,dive"`
+	ScheduledFor *time.Time   `json:"scheduled_for"`
 }
 
 type FareEstimateView struct {
@@ -110,6 +111,7 @@ type RequestView struct {
 	Currency        string           `json:"currency"`
 	PaymentMethod   string           `json:"payment_method"`
 	PaymentStatus   string           `json:"payment_status"`
+	PassengerPhone  string           `json:"passenger_phone,omitempty"`
 	CanBoost        bool             `json:"can_boost"`
 	NeedsOperator   bool             `json:"needs_operator,omitempty"`
 	OperatorReason  string           `json:"operator_reason,omitempty"`
@@ -208,7 +210,7 @@ type CancelInput struct {
 
 type ChangeRouteInput struct {
 	Destination PlaceInput   `json:"destination" binding:"required"`
-	Stops       []PlaceInput `json:"stops" binding:"max=3,dive"`
+	Stops       []PlaceInput `json:"stops" binding:"max=20,dive"`
 }
 
 type OnlineInput struct {
@@ -301,10 +303,10 @@ type PolicyInput struct {
 	RadiiKm           []float64  `json:"radii_km" binding:"required,min=1,max=6"`
 	OfferMode         string     `json:"offer_mode" binding:"required,oneof=sequential parallel quote"`
 	BatchSize         int        `json:"batch_size" binding:"required,min=1,max=50"`
-	OfferTTLSeconds   int        `json:"offer_ttl_seconds" binding:"required,min=1"`
-	SearchTTLSeconds  int        `json:"search_ttl_seconds" binding:"required,min=1"`
-	AckTimeoutSeconds int        `json:"ack_timeout_seconds" binding:"required,min=1"`
-	AckGiveUpSeconds  int        `json:"ack_giveup_seconds" binding:"min=0"`
+	OfferTTLSeconds   int        `json:"offer_ttl_seconds" binding:"required,min=1,max=2592000"`
+	SearchTTLSeconds  int        `json:"search_ttl_seconds" binding:"required,min=1,max=2592000"`
+	AckTimeoutSeconds int        `json:"ack_timeout_seconds" binding:"required,min=1,max=86400"`
+	AckGiveUpSeconds  int        `json:"ack_giveup_seconds" binding:"min=0,max=86400"`
 	InitialChannels   []string   `json:"initial_channels" binding:"required,min=1"`
 	FallbackChannels  []string   `json:"fallback_channels"`
 	Ranking           string     `json:"ranking" binding:"required,oneof=distance_idle distance base_distance customer_choice"`
@@ -312,11 +314,13 @@ type PolicyInput struct {
 	OnExhausted       string     `json:"on_exhausted" binding:"required,oneof=suggest_retry alert_operator operator_queue extend_or_queue"`
 	ReserveProvider   bool       `json:"reserve_provider"`
 	ScheduleMaxDays   int        `json:"schedule_max_days" binding:"min=0,max=365"`
-	SearchLeadSeconds int        `json:"search_lead_seconds" binding:"min=0"`
+	SearchLeadSeconds int        `json:"search_lead_seconds" binding:"min=0,max=2592000"`
 	PricingMode       string     `json:"pricing_mode" binding:"required,oneof=fixed call_out quote"`
 	AllowBoost        bool       `json:"allow_boost"`
 	RankByETA         bool       `json:"rank_by_eta"`
 	SMSOnAccept       bool       `json:"sms_on_accept"`
+	MaxStops          *int       `json:"max_stops" binding:"omitempty,min=0,max=20"`
+	ScheduleSlotMin   *int       `json:"schedule_slot_minutes" binding:"omitempty,min=1,max=60"`
 }
 
 type PolicyList struct {
@@ -338,9 +342,10 @@ type TariffInput struct {
 	MinimumFeeCents   int64      `json:"minimum_fee_cents" binding:"min=0"`
 	ZoneFeeCents      int64      `json:"zone_fee_cents" binding:"min=0"`
 	NightFeeCents     int64      `json:"night_fee_cents" binding:"min=0"`
+	StopFeeCents      int64      `json:"stop_fee_cents" binding:"min=0"`
 	NightStartHour    int        `json:"night_start_hour" binding:"min=0,max=23"`
 	NightEndHour      int        `json:"night_end_hour" binding:"min=0,max=23"`
-	FreeWaitSeconds   int        `json:"free_wait_seconds" binding:"min=0"`
+	FreeWaitSeconds   int        `json:"free_wait_seconds" binding:"min=0,max=86400"`
 	CommissionBps     int        `json:"commission_bps" binding:"min=0,max=10000"`
 }
 

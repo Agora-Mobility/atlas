@@ -349,3 +349,36 @@ func TestPolicyValidation(t *testing.T) {
 	channel.FallbackChannels = []string{"telegram"}
 	assert.Error(t, channel.Validate(cells))
 }
+
+func TestEstimateRouteHasToMatchStopsAndSchedule(t *testing.T) {
+	destination := entities.GeoPoint{Lat: -8.8, Lng: 13.2}
+	stop := entities.GeoPoint{Lat: -8.82, Lng: 13.21}
+	at := time.Date(2026, 11, 3, 7, 30, 0, 0, time.UTC)
+	estimate := entities.FareEstimate{Origin: entities.GeoPoint{Lat: -8.84, Lng: 13.23}, Destination: &destination, Stops: []entities.GeoPoint{stop}, ScheduledFor: &at}
+
+	assert.True(t, estimate.MatchesRoute(estimate.Origin, &destination, []entities.GeoPoint{stop}, &at))
+	assert.False(t, estimate.MatchesRoute(estimate.Origin, &destination, nil, &at), "the estimate has one stop more")
+	assert.False(t, estimate.MatchesRoute(estimate.Origin, &destination, []entities.GeoPoint{stop, stop}, &at), "the request has one stop more")
+	assert.False(t, estimate.MatchesRoute(estimate.Origin, &destination, []entities.GeoPoint{{Lat: -8.9, Lng: 13.3}}, &at), "another stop")
+	assert.False(t, estimate.MatchesRoute(estimate.Origin, &destination, []entities.GeoPoint{stop}, nil), "a price for later does not serve for now")
+	later := at.Add(time.Hour)
+	assert.False(t, estimate.MatchesRoute(estimate.Origin, &destination, []entities.GeoPoint{stop}, &later), "the price depends on the hour")
+}
+
+func TestStopFeeIsAddedAfterTheMinimum(t *testing.T) {
+	tariff := entities.ServiceTariff{BaseFeeCents: 100, MinimumFeeCents: 500, StopFeeCents: 200}
+	day := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+
+	assert.EqualValues(t, 500, tariff.FareForRoute(0, 0, day, 0))
+	assert.EqualValues(t, 900, tariff.FareForRoute(0, 0, day, 2))
+}
+
+func TestScheduleFollowsTheSlotsOfThePolicy(t *testing.T) {
+	policy := entities.DispatchPolicy{ScheduleMaxDays: 7, ScheduleSlotMin: 15}
+	now := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+
+	assert.NoError(t, policy.ValidateSchedule(now.Add(30*time.Minute), now))
+	assert.Error(t, policy.ValidateSchedule(now.Add(37*time.Minute), now), "07:37 is not a 15 minute slot")
+	policy.ScheduleSlotMin = 1
+	assert.NoError(t, policy.ValidateSchedule(now.Add(37*time.Minute), now), "the slot is configurable")
+}

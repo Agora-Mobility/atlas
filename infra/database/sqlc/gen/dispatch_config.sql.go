@@ -32,35 +32,37 @@ func (q *Queries) CloseServiceTariff(ctx context.Context, arg CloseServiceTariff
 const createDispatchPolicy = `-- name: CreateDispatchPolicy :exec
 INSERT INTO dispatch_policies (id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size,
     offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking,
-    tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+    tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, max_stops, schedule_slot_minutes)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
 `
 
 type CreateDispatchPolicyParams struct {
-	ID                uuid.UUID  `json:"id"`
-	CategoryID        uuid.UUID  `json:"category_id"`
-	ZoneID            *uuid.UUID `json:"zone_id"`
-	CandidateSource   string     `json:"candidate_source"`
-	H3Resolution      int16      `json:"h3_resolution"`
-	RadiiKm           []float64  `json:"radii_km"`
-	OfferMode         string     `json:"offer_mode"`
-	BatchSize         int16      `json:"batch_size"`
-	OfferTtlSeconds   int32      `json:"offer_ttl_seconds"`
-	SearchTtlSeconds  int32      `json:"search_ttl_seconds"`
-	AckTimeoutSeconds int32      `json:"ack_timeout_seconds"`
-	AckGiveupSeconds  int32      `json:"ack_giveup_seconds"`
-	InitialChannels   []string   `json:"initial_channels"`
-	FallbackChannels  []string   `json:"fallback_channels"`
-	Ranking           string     `json:"ranking"`
-	TrackingStatuses  []string   `json:"tracking_statuses"`
-	OnExhausted       string     `json:"on_exhausted"`
-	ReserveProvider   bool       `json:"reserve_provider"`
-	ScheduleMaxDays   int32      `json:"schedule_max_days"`
-	SearchLeadSeconds int32      `json:"search_lead_seconds"`
-	PricingMode       string     `json:"pricing_mode"`
-	AllowBoost        bool       `json:"allow_boost"`
-	RankByEta         bool       `json:"rank_by_eta"`
-	SmsOnAccept       bool       `json:"sms_on_accept"`
+	ID                  uuid.UUID  `json:"id"`
+	CategoryID          uuid.UUID  `json:"category_id"`
+	ZoneID              *uuid.UUID `json:"zone_id"`
+	CandidateSource     string     `json:"candidate_source"`
+	H3Resolution        int16      `json:"h3_resolution"`
+	RadiiKm             []float64  `json:"radii_km"`
+	OfferMode           string     `json:"offer_mode"`
+	BatchSize           int16      `json:"batch_size"`
+	OfferTtlSeconds     int32      `json:"offer_ttl_seconds"`
+	SearchTtlSeconds    int32      `json:"search_ttl_seconds"`
+	AckTimeoutSeconds   int32      `json:"ack_timeout_seconds"`
+	AckGiveupSeconds    int32      `json:"ack_giveup_seconds"`
+	InitialChannels     []string   `json:"initial_channels"`
+	FallbackChannels    []string   `json:"fallback_channels"`
+	Ranking             string     `json:"ranking"`
+	TrackingStatuses    []string   `json:"tracking_statuses"`
+	OnExhausted         string     `json:"on_exhausted"`
+	ReserveProvider     bool       `json:"reserve_provider"`
+	ScheduleMaxDays     int32      `json:"schedule_max_days"`
+	SearchLeadSeconds   int32      `json:"search_lead_seconds"`
+	PricingMode         string     `json:"pricing_mode"`
+	AllowBoost          bool       `json:"allow_boost"`
+	RankByEta           bool       `json:"rank_by_eta"`
+	SmsOnAccept         bool       `json:"sms_on_accept"`
+	MaxStops            int16      `json:"max_stops"`
+	ScheduleSlotMinutes int16      `json:"schedule_slot_minutes"`
 }
 
 func (q *Queries) CreateDispatchPolicy(ctx context.Context, arg CreateDispatchPolicyParams) error {
@@ -89,14 +91,16 @@ func (q *Queries) CreateDispatchPolicy(ctx context.Context, arg CreateDispatchPo
 		arg.AllowBoost,
 		arg.RankByEta,
 		arg.SmsOnAccept,
+		arg.MaxStops,
+		arg.ScheduleSlotMinutes,
 	)
 	return err
 }
 
 const createFareEstimate = `-- name: CreateFareEstimate :exec
 INSERT INTO fare_estimates (id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops,
-    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 `
 
 type CreateFareEstimateParams struct {
@@ -117,6 +121,7 @@ type CreateFareEstimateParams struct {
 	Currency        string          `json:"currency"`
 	ExpiresAt       time.Time       `json:"expires_at"`
 	CreatedAt       time.Time       `json:"created_at"`
+	ScheduledFor    *time.Time      `json:"scheduled_for"`
 }
 
 func (q *Queries) CreateFareEstimate(ctx context.Context, arg CreateFareEstimateParams) error {
@@ -138,14 +143,15 @@ func (q *Queries) CreateFareEstimate(ctx context.Context, arg CreateFareEstimate
 		arg.Currency,
 		arg.ExpiresAt,
 		arg.CreatedAt,
+		arg.ScheduledFor,
 	)
 	return err
 }
 
 const createServiceTariff = `-- name: CreateServiceTariff :exec
 INSERT INTO service_tariffs (id, service_id, zone_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents,
-    zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from, stop_fee_cents)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 `
 
 type CreateServiceTariffParams struct {
@@ -164,6 +170,7 @@ type CreateServiceTariffParams struct {
 	FreeWaitSeconds   int32      `json:"free_wait_seconds"`
 	CommissionBps     int32      `json:"commission_bps"`
 	ValidFrom         time.Time  `json:"valid_from"`
+	StopFeeCents      int64      `json:"stop_fee_cents"`
 }
 
 func (q *Queries) CreateServiceTariff(ctx context.Context, arg CreateServiceTariffParams) error {
@@ -183,6 +190,7 @@ func (q *Queries) CreateServiceTariff(ctx context.Context, arg CreateServiceTari
 		arg.FreeWaitSeconds,
 		arg.CommissionBps,
 		arg.ValidFrom,
+		arg.StopFeeCents,
 	)
 	return err
 }
@@ -218,7 +226,7 @@ func (q *Queries) CreateServiceZone(ctx context.Context, arg CreateServiceZonePa
 }
 
 const currentServiceTariff = `-- name: CurrentServiceTariff :one
-SELECT id, service_id, zone_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from, valid_until, created_at FROM service_tariffs
+SELECT id, service_id, zone_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from, valid_until, created_at, stop_fee_cents FROM service_tariffs
 WHERE service_id = $1 AND (zone_id = $2 OR zone_id IS NULL) AND valid_until IS NULL
 ORDER BY zone_id NULLS LAST
 LIMIT 1
@@ -250,6 +258,7 @@ func (q *Queries) CurrentServiceTariff(ctx context.Context, arg CurrentServiceTa
 		&i.ValidFrom,
 		&i.ValidUntil,
 		&i.CreatedAt,
+		&i.StopFeeCents,
 	)
 	return i, err
 }
@@ -274,7 +283,7 @@ func (q *Queries) FindZoneCoveringPoint(ctx context.Context, arg FindZoneCoverin
 }
 
 const getCategoryBySlug = `-- name: GetCategoryBySlug :one
-SELECT id, slug, name, description, icon, display_order, is_active, created_at, updated_at FROM service_categories WHERE slug = $1
+SELECT id, slug, name, description, icon, display_order, is_active, created_at, updated_at, passenger_sms FROM service_categories WHERE slug = $1
 `
 
 func (q *Queries) GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error) {
@@ -290,12 +299,13 @@ func (q *Queries) GetCategoryBySlug(ctx context.Context, slug string) (ServiceCa
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PassengerSms,
 	)
 	return i, err
 }
 
 const getDispatchPolicy = `-- name: GetDispatchPolicy :one
-SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at FROM dispatch_policies WHERE id = $1
+SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at, max_stops, schedule_slot_minutes FROM dispatch_policies WHERE id = $1
 `
 
 func (q *Queries) GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error) {
@@ -328,6 +338,8 @@ func (q *Queries) GetDispatchPolicy(ctx context.Context, id uuid.UUID) (Dispatch
 		&i.SmsOnAccept,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaxStops,
+		&i.ScheduleSlotMinutes,
 	)
 	return i, err
 }
@@ -356,7 +368,7 @@ func (q *Queries) GetETAObservation(ctx context.Context, arg GetETAObservationPa
 }
 
 const getFareEstimate = `-- name: GetFareEstimate :one
-SELECT id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops, distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at FROM fare_estimates WHERE id = $1
+SELECT id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops, distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, used_at FROM fare_estimates WHERE id = $1
 `
 
 func (q *Queries) GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstimate, error) {
@@ -380,6 +392,8 @@ func (q *Queries) GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstima
 		&i.Currency,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.ScheduledFor,
+		&i.UsedAt,
 	)
 	return i, err
 }
@@ -414,7 +428,7 @@ func (q *Queries) GetServiceForDispatch(ctx context.Context, id uuid.UUID) (GetS
 }
 
 const getServiceTariff = `-- name: GetServiceTariff :one
-SELECT id, service_id, zone_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from, valid_until, created_at FROM service_tariffs WHERE id = $1
+SELECT id, service_id, zone_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from, valid_until, created_at, stop_fee_cents FROM service_tariffs WHERE id = $1
 `
 
 func (q *Queries) GetServiceTariff(ctx context.Context, id uuid.UUID) (ServiceTariff, error) {
@@ -438,6 +452,7 @@ func (q *Queries) GetServiceTariff(ctx context.Context, id uuid.UUID) (ServiceTa
 		&i.ValidFrom,
 		&i.ValidUntil,
 		&i.CreatedAt,
+		&i.StopFeeCents,
 	)
 	return i, err
 }
@@ -533,7 +548,7 @@ func (q *Queries) ListActiveServicesOfCategory(ctx context.Context, slug string)
 }
 
 const listCurrentServiceTariffs = `-- name: ListCurrentServiceTariffs :many
-SELECT id, service_id, zone_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from, valid_until, created_at FROM service_tariffs WHERE valid_until IS NULL ORDER BY service_id, zone_id NULLS FIRST
+SELECT id, service_id, zone_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, zone_fee_cents, night_fee_cents, night_start_hour, night_end_hour, free_wait_seconds, commission_bps, valid_from, valid_until, created_at, stop_fee_cents FROM service_tariffs WHERE valid_until IS NULL ORDER BY service_id, zone_id NULLS FIRST
 `
 
 func (q *Queries) ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error) {
@@ -563,6 +578,7 @@ func (q *Queries) ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTarif
 			&i.ValidFrom,
 			&i.ValidUntil,
 			&i.CreatedAt,
+			&i.StopFeeCents,
 		); err != nil {
 			return nil, err
 		}
@@ -575,7 +591,7 @@ func (q *Queries) ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTarif
 }
 
 const listDispatchPolicies = `-- name: ListDispatchPolicies :many
-SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at FROM dispatch_policies ORDER BY category_id, zone_id NULLS FIRST
+SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at, max_stops, schedule_slot_minutes FROM dispatch_policies ORDER BY category_id, zone_id NULLS FIRST
 `
 
 func (q *Queries) ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error) {
@@ -614,6 +630,8 @@ func (q *Queries) ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, e
 			&i.SmsOnAccept,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.MaxStops,
+			&i.ScheduleSlotMinutes,
 		); err != nil {
 			return nil, err
 		}
@@ -733,7 +751,7 @@ func (q *Queries) RecordETAObservation(ctx context.Context, arg RecordETAObserva
 }
 
 const resolveDispatchPolicy = `-- name: ResolveDispatchPolicy :one
-SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at FROM dispatch_policies
+SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at, max_stops, schedule_slot_minutes FROM dispatch_policies
 WHERE category_id = $1 AND (zone_id = $2 OR zone_id IS NULL)
 ORDER BY zone_id NULLS LAST
 LIMIT 1
@@ -774,6 +792,8 @@ func (q *Queries) ResolveDispatchPolicy(ctx context.Context, arg ResolveDispatch
 		&i.SmsOnAccept,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaxStops,
+		&i.ScheduleSlotMinutes,
 	)
 	return i, err
 }
@@ -783,33 +803,35 @@ UPDATE dispatch_policies
 SET candidate_source = $2, h3_resolution = $3, radii_km = $4, offer_mode = $5, batch_size = $6, offer_ttl_seconds = $7,
     search_ttl_seconds = $8, ack_timeout_seconds = $9, ack_giveup_seconds = $10, initial_channels = $11, fallback_channels = $12,
     ranking = $13, tracking_statuses = $14, on_exhausted = $15, reserve_provider = $16, schedule_max_days = $17,
-    search_lead_seconds = $18, pricing_mode = $19, allow_boost = $20, rank_by_eta = $21, sms_on_accept = $22, updated_at = now()
+    search_lead_seconds = $18, pricing_mode = $19, allow_boost = $20, rank_by_eta = $21, sms_on_accept = $22, max_stops = $23, schedule_slot_minutes = $24, updated_at = now()
 WHERE id = $1
 `
 
 type UpdateDispatchPolicyParams struct {
-	ID                uuid.UUID `json:"id"`
-	CandidateSource   string    `json:"candidate_source"`
-	H3Resolution      int16     `json:"h3_resolution"`
-	RadiiKm           []float64 `json:"radii_km"`
-	OfferMode         string    `json:"offer_mode"`
-	BatchSize         int16     `json:"batch_size"`
-	OfferTtlSeconds   int32     `json:"offer_ttl_seconds"`
-	SearchTtlSeconds  int32     `json:"search_ttl_seconds"`
-	AckTimeoutSeconds int32     `json:"ack_timeout_seconds"`
-	AckGiveupSeconds  int32     `json:"ack_giveup_seconds"`
-	InitialChannels   []string  `json:"initial_channels"`
-	FallbackChannels  []string  `json:"fallback_channels"`
-	Ranking           string    `json:"ranking"`
-	TrackingStatuses  []string  `json:"tracking_statuses"`
-	OnExhausted       string    `json:"on_exhausted"`
-	ReserveProvider   bool      `json:"reserve_provider"`
-	ScheduleMaxDays   int32     `json:"schedule_max_days"`
-	SearchLeadSeconds int32     `json:"search_lead_seconds"`
-	PricingMode       string    `json:"pricing_mode"`
-	AllowBoost        bool      `json:"allow_boost"`
-	RankByEta         bool      `json:"rank_by_eta"`
-	SmsOnAccept       bool      `json:"sms_on_accept"`
+	ID                  uuid.UUID `json:"id"`
+	CandidateSource     string    `json:"candidate_source"`
+	H3Resolution        int16     `json:"h3_resolution"`
+	RadiiKm             []float64 `json:"radii_km"`
+	OfferMode           string    `json:"offer_mode"`
+	BatchSize           int16     `json:"batch_size"`
+	OfferTtlSeconds     int32     `json:"offer_ttl_seconds"`
+	SearchTtlSeconds    int32     `json:"search_ttl_seconds"`
+	AckTimeoutSeconds   int32     `json:"ack_timeout_seconds"`
+	AckGiveupSeconds    int32     `json:"ack_giveup_seconds"`
+	InitialChannels     []string  `json:"initial_channels"`
+	FallbackChannels    []string  `json:"fallback_channels"`
+	Ranking             string    `json:"ranking"`
+	TrackingStatuses    []string  `json:"tracking_statuses"`
+	OnExhausted         string    `json:"on_exhausted"`
+	ReserveProvider     bool      `json:"reserve_provider"`
+	ScheduleMaxDays     int32     `json:"schedule_max_days"`
+	SearchLeadSeconds   int32     `json:"search_lead_seconds"`
+	PricingMode         string    `json:"pricing_mode"`
+	AllowBoost          bool      `json:"allow_boost"`
+	RankByEta           bool      `json:"rank_by_eta"`
+	SmsOnAccept         bool      `json:"sms_on_accept"`
+	MaxStops            int16     `json:"max_stops"`
+	ScheduleSlotMinutes int16     `json:"schedule_slot_minutes"`
 }
 
 func (q *Queries) UpdateDispatchPolicy(ctx context.Context, arg UpdateDispatchPolicyParams) (int64, error) {
@@ -836,6 +858,8 @@ func (q *Queries) UpdateDispatchPolicy(ctx context.Context, arg UpdateDispatchPo
 		arg.AllowBoost,
 		arg.RankByEta,
 		arg.SmsOnAccept,
+		arg.MaxStops,
+		arg.ScheduleSlotMinutes,
 	)
 	if err != nil {
 		return 0, err
@@ -868,6 +892,23 @@ func (q *Queries) UpdateServiceZone(ctx context.Context, arg UpdateServiceZonePa
 		arg.Geojson,
 		arg.ID,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const useFareEstimate = `-- name: UseFareEstimate :execrows
+UPDATE fare_estimates SET used_at = $2 WHERE id = $1 AND used_at IS NULL
+`
+
+type UseFareEstimateParams struct {
+	ID     uuid.UUID  `json:"id"`
+	UsedAt *time.Time `json:"used_at"`
+}
+
+func (q *Queries) UseFareEstimate(ctx context.Context, arg UseFareEstimateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, useFareEstimate, arg.ID, arg.UsedAt)
 	if err != nil {
 		return 0, err
 	}

@@ -52,7 +52,6 @@ var (
 const (
 	maxReferenceLength = 140
 	maxAddressLength   = 200
-	maxStops           = 3
 	maxReasonLength    = 200
 )
 
@@ -219,7 +218,7 @@ func NewServiceRequest(in NewRequestInput) (*ServiceRequest, error) {
 		}
 		destination = &normalized
 	}
-	stops, err := normalizedStops(in.Stops, in.Service.RequiresDestination)
+	stops, err := normalizedStops(in.Stops, in.Service.RequiresDestination, in.Policy)
 	if err != nil {
 		return nil, err
 	}
@@ -269,15 +268,15 @@ func NewServiceRequest(in NewRequestInput) (*ServiceRequest, error) {
 	}, nil
 }
 
-func normalizedStops(stops []RequestPlace, requiresDestination bool) ([]RequestPlace, error) {
+func normalizedStops(stops []RequestPlace, requiresDestination bool, policy *DispatchPolicy) ([]RequestPlace, error) {
 	if len(stops) == 0 {
 		return []RequestPlace{}, nil
 	}
 	if !requiresDestination {
 		return nil, validationError("stops", "Este serviço não tem paragens.")
 	}
-	if len(stops) > maxStops {
-		return nil, validationError("stops", "Só podes adicionar até 3 paragens.")
+	if err := policy.ValidateStops(len(stops)); err != nil {
+		return nil, err
 	}
 	out := make([]RequestPlace, 0, len(stops))
 	for _, stop := range stops {
@@ -433,12 +432,12 @@ func (r *ServiceRequest) ScheduleSearch(policy *DispatchPolicy, now time.Time) {
 	r.NextActionAt = &at
 }
 
-func (r *ServiceRequest) ChangeRoute(destination RequestPlace, stops []RequestPlace, fareCents, commissionCents int64) error {
+func (r *ServiceRequest) ChangeRoute(destination RequestPlace, stops []RequestPlace, policy *DispatchPolicy, fareCents, commissionCents int64) error {
 	normalized, err := destination.normalized("destination")
 	if err != nil {
 		return err
 	}
-	normalizedAll, err := normalizedStops(stops, true)
+	normalizedAll, err := normalizedStops(stops, true, policy)
 	if err != nil {
 		return err
 	}
@@ -448,6 +447,24 @@ func (r *ServiceRequest) ChangeRoute(destination RequestPlace, stops []RequestPl
 	r.Fare.Cents = &fareCents
 	r.Fare.CommissionCents = &commissionCents
 	return nil
+}
+
+func (r *ServiceRequest) IsSameTrip(serviceID uuid.UUID, pickup GeoPoint, destination *GeoPoint, stops []RequestPlace, scheduledFor *time.Time) bool {
+	if r.ServiceID != serviceID || DistanceMeters(r.Pickup.Point, pickup) > maxPinDriftMeters || (r.Destination == nil) != (destination == nil) || len(r.Stops) != len(stops) {
+		return false
+	}
+	if r.Destination != nil && DistanceMeters(r.Destination.Point, *destination) > maxPinDriftMeters {
+		return false
+	}
+	for i := range stops {
+		if DistanceMeters(r.Stops[i].Point, stops[i].Point) > maxPinDriftMeters {
+			return false
+		}
+	}
+	if (r.ScheduledFor == nil) != (scheduledFor == nil) {
+		return false
+	}
+	return r.ScheduledFor == nil || r.ScheduledFor.Equal(*scheduledFor)
 }
 
 func (r *ServiceRequest) AddToFare(cents int64) {

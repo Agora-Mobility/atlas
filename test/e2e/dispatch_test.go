@@ -688,7 +688,7 @@ func TestRemovalsQuoteChoiceAndScheduleReachesTheSearch(t *testing.T) {
 	customer := newCustomer(t)
 	customerStream := customer.listen(t, "")
 
-	soon := time.Now().Add(1800 * time.Second).UTC().Format(time.RFC3339)
+	soon := time.Now().Add(30 * time.Minute).UTC().Truncate(15 * time.Minute).Format(time.RFC3339)
 	created := requestCategory(t, customer, "removals", map[string]any{"destination": target, "scheduled_for": soon, "details": map[string]any{"volume_m3": 12}})
 	id := created.str("id")
 
@@ -733,13 +733,14 @@ func TestExpiredQuoteCannotBeChosen(t *testing.T) {
 
 func TestScheduledRequestStartsSearchingAtTheLeadTime(t *testing.T) {
 	clearOnlineProviders(t)
-	setPolicy(t, "taxi", "search_lead_seconds = 1798")
+	at := time.Now().Add(30 * time.Minute).UTC().Truncate(time.Minute)
+	setPolicy(t, "taxi", fmt.Sprintf("schedule_slot_minutes = 1, search_lead_seconds = %d", int(time.Until(at).Seconds())-2))
 	driver := newProvider(t, "taxi", point{-8.84, 13.235})
 	stream := driver.listen(t, "")
 	customer := newCustomer(t)
-	estimateID, serviceID := estimateFor(t, customer, "taxi")
-	at := time.Now().Add(1800 * time.Second).UTC().Format(time.RFC3339)
-	created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target, "scheduled_for": at}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	scheduled := at.Format(time.RFC3339)
+	option := taxiQuote(t, customer, map[string]any{"scheduled_for": scheduled})
+	created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": option["service_id"], "fare_estimate_id": option["fare_estimate_id"], "pickup": pickup, "destination": target, "scheduled_for": scheduled}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	require.Equal(t, http.StatusCreated, created.status, created.text)
 	assert.Equal(t, "scheduled", created.str("status"))
 	assert.Empty(t, stream.ofType("request.offer"))

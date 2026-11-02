@@ -139,6 +139,7 @@ func (u *Usecase) ListPolicies(ctx context.Context) (*dtos.PolicyList, error) {
 
 func (u *Usecase) CreatePolicy(ctx context.Context, actor entities.Actor, in dtos.PolicyInput) (*dtos.PolicyView, error) {
 	policy := fromPolicyInput(uuid.Nil, in)
+	applyPolicyLimits(policy, in)
 	if err := u.validatePolicy(policy); err != nil {
 		return nil, err
 	}
@@ -169,6 +170,8 @@ func (u *Usecase) UpdatePolicy(ctx context.Context, actor entities.Actor, id uui
 	}
 	policy := fromPolicyInput(id, in)
 	policy.CategoryID, policy.ZoneID = current.CategoryID, current.ZoneID
+	policy.MaxStops, policy.ScheduleSlotMin = current.MaxStops, current.ScheduleSlotMin
+	applyPolicyLimits(policy, in)
 	if err := u.validatePolicy(policy); err != nil {
 		return nil, err
 	}
@@ -206,7 +209,16 @@ func fromPolicyInput(id uuid.UUID, in dtos.PolicyInput) *entities.DispatchPolicy
 		AckTimeoutSeconds: in.AckTimeoutSeconds, AckGiveUpSeconds: in.AckGiveUpSeconds, InitialChannels: in.InitialChannels, FallbackChannels: fallback,
 		Ranking: entities.Ranking(in.Ranking), TrackingStatuses: tracking, OnExhausted: entities.ExhaustedAction(in.OnExhausted), ReserveProvider: in.ReserveProvider,
 		ScheduleMaxDays: in.ScheduleMaxDays, SearchLeadSeconds: in.SearchLeadSeconds, PricingMode: entities.PricingMode(in.PricingMode), AllowBoost: in.AllowBoost,
-		RankByETA: in.RankByETA, SMSOnAccept: in.SMSOnAccept,
+		RankByETA: in.RankByETA, SMSOnAccept: in.SMSOnAccept, MaxStops: entities.DefaultMaxStops, ScheduleSlotMin: entities.DefaultScheduleSlotMinutes,
+	}
+}
+
+func applyPolicyLimits(policy *entities.DispatchPolicy, in dtos.PolicyInput) {
+	if in.MaxStops != nil {
+		policy.MaxStops = *in.MaxStops
+	}
+	if in.ScheduleSlotMin != nil {
+		policy.ScheduleSlotMin = *in.ScheduleSlotMin
 	}
 }
 
@@ -220,7 +232,7 @@ func toPolicyView(p *entities.DispatchPolicy) dtos.PolicyView {
 		BatchSize: p.BatchSize, OfferTTLSeconds: p.OfferTTLSeconds, SearchTTLSeconds: p.SearchTTLSeconds, AckTimeoutSeconds: p.AckTimeoutSeconds, AckGiveUpSeconds: p.AckGiveUpSeconds,
 		InitialChannels: p.InitialChannels, FallbackChannels: p.FallbackChannels, Ranking: string(p.Ranking), TrackingStatuses: tracking, OnExhausted: string(p.OnExhausted),
 		ReserveProvider: p.ReserveProvider, ScheduleMaxDays: p.ScheduleMaxDays, SearchLeadSeconds: p.SearchLeadSeconds, PricingMode: string(p.PricingMode), AllowBoost: p.AllowBoost,
-		RankByETA: p.RankByETA, SMSOnAccept: p.SMSOnAccept,
+		RankByETA: p.RankByETA, SMSOnAccept: p.SMSOnAccept, MaxStops: &p.MaxStops, ScheduleSlotMin: &p.ScheduleSlotMin,
 	}}
 }
 
@@ -243,7 +255,7 @@ func (u *Usecase) PublishTariff(ctx context.Context, actor entities.Actor, in dt
 	}
 	tariff := &entities.ServiceTariff{
 		ID: id, ServiceID: in.ServiceID, ZoneID: in.ZoneID, Currency: strings.ToUpper(in.Currency), BaseFeeCents: in.BaseFeeCents, PerKmFeeCents: in.PerKmFeeCents,
-		PerMinuteFeeCents: in.PerMinuteFeeCents, MinimumFeeCents: in.MinimumFeeCents, ZoneFeeCents: in.ZoneFeeCents, NightFeeCents: in.NightFeeCents,
+		PerMinuteFeeCents: in.PerMinuteFeeCents, MinimumFeeCents: in.MinimumFeeCents, ZoneFeeCents: in.ZoneFeeCents, NightFeeCents: in.NightFeeCents, StopFeeCents: in.StopFeeCents,
 		NightStartHour: in.NightStartHour, NightEndHour: in.NightEndHour, FreeWaitSeconds: in.FreeWaitSeconds, CommissionBps: in.CommissionBps, ValidFrom: u.now(),
 	}
 	if err := tariff.Validate(); err != nil {
@@ -272,7 +284,7 @@ func (u *Usecase) PublishTariff(ctx context.Context, actor entities.Actor, in dt
 func toTariffView(t *entities.ServiceTariff) dtos.TariffView {
 	return dtos.TariffView{ID: t.ID, ValidFrom: t.ValidFrom, TariffInput: dtos.TariffInput{
 		ServiceID: t.ServiceID, ZoneID: t.ZoneID, Currency: t.Currency, BaseFeeCents: t.BaseFeeCents, PerKmFeeCents: t.PerKmFeeCents, PerMinuteFeeCents: t.PerMinuteFeeCents,
-		MinimumFeeCents: t.MinimumFeeCents, ZoneFeeCents: t.ZoneFeeCents, NightFeeCents: t.NightFeeCents, NightStartHour: t.NightStartHour, NightEndHour: t.NightEndHour,
+		MinimumFeeCents: t.MinimumFeeCents, ZoneFeeCents: t.ZoneFeeCents, NightFeeCents: t.NightFeeCents, StopFeeCents: t.StopFeeCents, NightStartHour: t.NightStartHour, NightEndHour: t.NightEndHour,
 		FreeWaitSeconds: t.FreeWaitSeconds, CommissionBps: t.CommissionBps,
 	}}
 }

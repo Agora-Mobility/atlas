@@ -53,8 +53,25 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 		stops = append(stops, point)
 	}
 
+	policy, err := u.Config.ResolvePolicy(ctx, offered[0].CategoryID, zone.ID)
+	if err != nil {
+		return nil, err
+	}
+	if policy == nil {
+		return nil, ErrServiceNotOffered
+	}
+	if err := policy.ValidateStops(len(stops)); err != nil {
+		return nil, err
+	}
 	now := u.now()
-	local := now.In(zone.Location())
+	priceAt := now
+	if in.ScheduledFor != nil {
+		if err := policy.ValidateSchedule(*in.ScheduledFor, now); err != nil {
+			return nil, err
+		}
+		priceAt = *in.ScheduledFor
+	}
+	local := priceAt.In(zone.Location())
 	route, err := u.routeFor(ctx, pickup, destination, stops, local.Hour())
 	if err != nil {
 		return nil, err
@@ -71,13 +88,13 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 		if tariff == nil {
 			continue
 		}
-		total := tariff.FareFor(route.DistanceMeters, route.Duration, local)
+		total := tariff.FareForRoute(route.DistanceMeters, route.Duration, local, len(stops))
 		id, err := newUUID()
 		if err != nil {
 			return nil, err
 		}
 		estimate := &entities.FareEstimate{
-			ID: id, CustomerID: customerID, TariffID: tariff.ID, ServiceID: service.ID, Origin: pickup, Destination: destination, Stops: stops,
+			ID: id, CustomerID: customerID, TariffID: tariff.ID, ServiceID: service.ID, Origin: pickup, Destination: destination, Stops: stops, ScheduledFor: in.ScheduledFor,
 			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source),
 			TotalCents: total, CommissionCents: tariff.CommissionFor(total), Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
 		}
