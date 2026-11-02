@@ -404,3 +404,9 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 | Dinheiro em Express | `CASH_NOT_EXPECTED` | `TestADriverCannotConfirmCashOnARequestPaidDigitally` |
 
 **Endpoints:** nenhum novo. `POST /fare-estimates` aceita `scheduled_for`. Respostas novas: `409 FARE_ESTIMATE_USED`, `409 DUPLICATE_REQUEST`, `409 CASH_NOT_EXPECTED`.
+
+### Fase 2: testes permanentes
+
+`test/e2e/fleet_test.go` cobre frota (limites, IDOR entre parceiros, parceiro nas rotas da plataforma), oficinas (taxas, duração, IDOR), `/admin/requests` e `/fleet/requests` (corrida real, filtros que filtram, resumo com a soma certa, telefone do cliente escondido) e motivos (inexistente, de outro âmbito, inativo, nota obrigatória).
+
+**Endpoints:** nenhum novo.
