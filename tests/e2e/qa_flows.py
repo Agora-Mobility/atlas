@@ -874,32 +874,177 @@ def towing():
         go_offline(driver)
 
 
+def removal_options(customer):
+    status, options = call("GET", "/removals/options", None, customer["tok"], log=False)
+    assert status == 200, options
+    return options
+
+
+def removal_estimate(customer, when=None, helpers=0, extras=None, items=None, vehicle="Camião 3,5 t"):
+    body = {"category": "removals", "pickup": PICKUP, "destination": DEST, "removal": {"helpers": helpers, "extras": extras or [], "items": items or []}}
+    if when:
+        body["scheduled_for"] = when
+    status, res = call("POST", "/fare-estimates", body, customer["tok"])
+    assert status == 201, res
+    return next(i for i in res["items"] if i["vehicle_type"] == vehicle) if vehicle else res["items"]
+
+
+def window_at(options, code_, days_ahead=10):
+    luanda = dt.timezone(dt.timedelta(hours=1))
+    window = next(w for w in options["windows"] if w["code"] == code_)
+    minutes = {"morning": 480, "midday": 660, "afternoon": 840}[code_]
+    day = dt.datetime.now(luanda).date() + dt.timedelta(days=days_ahead)
+    return window, dt.datetime.combine(day, dt.time(minutes // 60, minutes % 60), luanda).isoformat()
+
+
+def removal_request(customer, est, window, when, method="gpo", **fields):
+    body = {"service_id": est["service_id"], "pickup": PICKUP, "destination": DEST, "fare_estimate_id": est["fare_estimate_id"], "scheduled_for": when, "payment_method": method,
+            "removal": {"window_id": window["id"], "property_code": "home", "pickup_floor": 3, "pickup_elevator": False, "destination_floor": 1, "destination_elevator": True, "contact_name": "Ana", "notes": "Portão azul"}}
+    body.update(fields)
+    return call("POST", "/requests", body, customer["tok"], idem=str(uuid.uuid4()))
+
+
 def removals():
     with Scenario("D1", "Volume e viatura recomendada"):
         customer = new_user("customer", "Cliente D1")
-        service = sql("SELECT id FROM services WHERE slug='removals'")
-        body = {"service_id": service, "pickup": PICKUP, "destination": DEST, "details": {"items": [{"name": "Sofá", "qty": 1}], "volume_m3": 999}}
-        status, created = call("POST", "/requests", body, customer["tok"], idem=str(uuid.uuid4()))
+        options = removal_options(customer)
+        chk(len(options["items"]) >= 10 and {i["group"] for i in options["items"]} >= {"Sala", "Quarto", "Cozinha"}, f"catálogo por divisão: {len(options['items'])}")
+        by_code = {i["code"]: i for i in options["items"]}
+        items = [{"item_id": by_code["sofa"]["id"], "qty": 2}, {"item_id": by_code["bed"]["id"], "qty": 1}, {"item_id": by_code["wardrobe"]["id"], "qty": 2}, {"item_id": by_code["box"]["id"], "qty": 10}]
+        volume = 2 * 1500 + 1600 + 2 * 1800 + 10 * 100
+        window, when = window_at(options, "morning")
+        status, quoted = call("POST", "/fare-estimates", {"category": "removals", "pickup": PICKUP, "destination": DEST, "scheduled_for": when, "removal": {"items": items, "helpers": 0, "extras": []}}, customer["tok"])
+        chk(status == 201 and all(q["removal"]["volume_dm3"] == volume for q in quoted["items"]), f"volume no servidor: {[q['removal']['volume_dm3'] for q in quoted.get('items', [])]} = {volume}")
+        chk([q["vehicle_type"] for q in quoted["items"] if q["removal"]["recommended"]] == ["Camião 3,5 t"], f"recomendada: {[q['vehicle_type'] for q in quoted['items'] if q['removal']['recommended']]}")
+        chk("Carrinha" not in [q["vehicle_type"] for q in quoted["items"]], "a carrinha não leva 9,2 m³")
+        chk(any("item" in p or "volume" in p or "removals/options" in p for p in OPENAPI), "catálogo de artigos e cálculo de volume")
+        est = next(q for q in quoted["items"] if q["removal"]["recommended"])
+        status, created = removal_request(customer, est, window, when, details={"items": [{"name": "Sofá", "qty": 1}], "volume_m3": 999, "total_cents": 1})
         chk(status == 201, f"pedido: {status} {created.get('status')}")
-        chk(created.get("details", {}).get("volume_m3") != 999, "o volume não pode vir da app: guardou o valor enviado (999)")
-        chk(any("item" in p or "volume" in p for p in OPENAPI), "catálogo de artigos e cálculo de volume")
-        if created.get("id"):
-            cancel(customer["tok"], created['id'])
+        chk(created.get("details", {}).get("volume_m3") != 999, "o volume não pode vir da app: ignorou o valor enviado (999)")
+        chk(created.get("details", {}).get("removal", {}).get("volume_dm3") == volume, f"guardou o volume do servidor: {created.get('details', {}).get('removal', {}).get('volume_dm3')}")
+        chk(created.get("fare_cents") == est["total_cents"], f"preço fechado: {created.get('fare_cents')}")
+        places = created.get("details", {}).get("removal", {}).get("places", {})
+        chk(places.get("pickup_floor") == 3 and places.get("destination_elevator") is True and created["details"]["removal"].get("property") == "Casa", f"andar, elevador e tipo: {places}")
+        chk(created["details"]["removal"].get("duration_minutes") == 180 + 10 * volume // 1000 and created["details"]["removal"].get("insurance_cents") == 50000000, "duração e seguro informativo")
+        status, res = call("POST", "/fare-estimates", {"category": "removals", "pickup": PICKUP, "destination": DEST, "removal": {"items": [{"item_id": str(uuid.uuid4()), "qty": 1}]}}, customer["tok"])
+        chk(code(res) == "REMOVAL_ITEM_NOT_FOUND", f"artigo inexistente: {status} {code(res)}")
+        status, res = call("POST", "/fare-estimates", {"category": "removals", "pickup": PICKUP, "destination": DEST, "removal": {"items": [{"item_id": by_code["wardrobe"]["id"], "qty": 400}]}}, customer["tok"])
+        chk(code(res) == "REMOVAL_TOO_LARGE", f"maior do que qualquer viatura: {status} {code(res)}")
+        cancel(customer["tok"], created["id"])
 
     with Scenario("D2", "Total de viatura, ajudantes e extras"):
         customer = new_user("customer", "Cliente D2")
-        status, res = call("POST", "/fare-estimates", {"category": "removals", "pickup": PICKUP, "destination": DEST, "helpers": 2, "extras": ["packing"]}, customer["tok"])
+        status, res = call("POST", "/fare-estimates", {"category": "removals", "pickup": PICKUP, "destination": DEST, "removal": {"helpers": 2, "extras": ["packing"]}}, customer["tok"])
         chk(status == 201 and any(i["total_cents"] == 11000000 for i in res.get("items", [])), f"85 000 + 2×5 000 + 15 000 = 110 000 Kz; API: {[i['total_cents'] for i in res.get('items', [])]}")
         info("política de mudanças: " + sql("SELECT pricing_mode,offer_mode FROM dispatch_policies p JOIN service_categories c ON c.id=p.category_id WHERE c.slug='removals'"))
+        chk(sql("SELECT pricing_mode||'/'||offer_mode FROM dispatch_policies p JOIN service_categories c ON c.id=p.category_id WHERE c.slug='removals'") == "fixed/parallel", "propostas aposentadas: preço fixo")
+        prices = {i["vehicle_type"]: i["removal"]["vehicle_cents"] for i in res["items"]}
+        chk(prices == {"Carrinha": 4500000, "Camião 3,5 t": 8500000, "Camião 7 t": 14000000}, f"preços das viaturas: {prices}")
+        status, too_many = call("POST", "/fare-estimates", {"category": "removals", "pickup": PICKUP, "destination": DEST, "removal": {"helpers": 7}}, customer["tok"])
+        chk(code(too_many) == "REMOVAL_TOO_MANY_HELPERS", f"limite de ajudantes: {status} {code(too_many)}")
+        status, wrong = call("POST", "/fare-estimates", {"category": "removals", "pickup": PICKUP, "destination": DEST, "removal": {"extras": ["ouro"]}}, customer["tok"])
+        chk(code(wrong) == "REMOVAL_EXTRA_NOT_FOUND", f"extra inexistente: {status} {code(wrong)}")
+        van = sql("SELECT id FROM catalog_items WHERE kind='removal_vehicle' AND code='van'")
+        until = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=2)).isoformat()
+        status, _ = call("PUT", f"/admin/catalog/removal_vehicle/{van}", {"code": "van", "label": "Carrinha", "description": "Até 6 m³", "amount_cents": 4500000, "promo_amount_cents": 4000000, "promo_until": until, "display_order": 1, "attrs": {"max_volume_dm3": 6000, "base_minutes": 120, "minutes_per_m3": 10, "daily_capacity": 6}}, ADMIN[0], BACKOFFICE)
+        chk(status == 200, f"promoção da viatura no backoffice: {status}")
+        promo = removal_estimate(customer, vehicle="Carrinha")
+        chk(promo["total_cents"] == 4000000, f"preço promocional: {promo['total_cents']}")
+        call("PUT", f"/admin/catalog/removal_vehicle/{van}", {"code": "van", "label": "Carrinha", "description": "Até 6 m³", "amount_cents": 4500000, "display_order": 1, "attrs": {"max_volume_dm3": 6000, "base_minutes": 120, "minutes_per_m3": 10, "daily_capacity": 6}}, ADMIN[0], BACKOFFICE, log=False)
+        final = removal_estimate(customer, helpers=2, extras=["packing"], when=None)
+        options = removal_options(customer)
+        window, when = window_at(options, "midday", 11)
+        sched = removal_estimate(customer, when=when, helpers=2, extras=["packing"])
+        status, created = removal_request(customer, sched, window, when)
+        chk(status == 201 and created.get("fare_cents") == 11000000, f"preço fechado na marcação: {created.get('fare_cents')}")
+        sql(f"UPDATE catalog_items SET amount_cents=amount_cents+100 WHERE kind='removal_vehicle' AND code='truck_3t'")
+        _, view = call("GET", f"/requests/{created['id']}", None, customer["tok"])
+        sql(f"UPDATE catalog_items SET amount_cents=amount_cents-100 WHERE kind='removal_vehicle' AND code='truck_3t'")
+        chk(view.get("fare_cents") == 11000000, f"mudar o catálogo não muda a marcação: {view.get('fare_cents')}")
+        status, res = call("POST", f"/requests/{created['id']}/route", {"destination": STOPS[0]}, customer["tok"])
+        chk(status >= 400, f"o preço fechado não muda com a rota: {status} {code(res)}")
+        cancel(customer["tok"], created["id"])
 
     with Scenario("D3", "Janelas e cancelamento a 24 h"):
         customer = new_user("customer", "Cliente D3")
         service = sql("SELECT id FROM services WHERE slug='removals'")
-        when = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=12)).isoformat()
-        status, created = call("POST", "/requests", {"service_id": service, "pickup": PICKUP, "destination": DEST, "scheduled_for": when}, customer["tok"], idem=str(uuid.uuid4()))
+        options = removal_options(customer)
+        luanda = dt.timezone(dt.timedelta(hours=1))
+        now_local = dt.datetime.now(luanda)
+        soon = None
+        for offset in (0, 1):
+            for w in options["windows"]:
+                minutes = {"morning": 480, "midday": 660, "afternoon": 840}[w["code"]]
+                candidate = dt.datetime.combine(now_local.date() + dt.timedelta(days=offset), dt.time(minutes // 60, minutes % 60), luanda)
+                if dt.timedelta(hours=1) < candidate - now_local < dt.timedelta(hours=23):
+                    soon, soon_window = candidate.isoformat(), w
+                    break
+            if soon:
+                break
+        est = removal_estimate(customer, when=soon)
+        status, created = removal_request(customer, est, soon_window, soon)
+        chk(status == 201, f"marcar a menos de 24 h: {status} {code(created)}")
+        status, preview = call("GET", f"/requests/{created['id']}/cancellation", None, customer["tok"])
+        chk(preview.get("fee_cents") == 1500000, f"a menos de 24 h paga a taxa: {preview.get('fee_cents')}")
+        reason = preview["reasons"][0]["id"]
+        status, res = call("POST", f"/requests/{created['id']}/cancel", {"reason_id": reason}, customer["tok"])
+        chk(status == 409 and code(res) == "CANCEL_FEE_CHANGED", f"sem confirmar a taxa não cancela: {status} {code(res)}")
         status, res = cancel(customer["tok"], created.get('id'))
-        chk(status == 200 and ("fee_cents" in res or "cancel_fee_cents" in res), f"a menos de 24 h aplica a regra: {status}, sem taxa")
-        chk(any("window" in p or "slot" in p for p in OPENAPI), "janelas com capacidade")
+        chk(status == 200 and ("fee_cents" in res or "cancel_fee_cents" in res) and res.get("cancel_fee_cents") == 1500000, f"a menos de 24 h aplica a regra: {status}, taxa {res.get('cancel_fee_cents')}")
+        chk(any("window" in p or "slot" in p or "availability" in p for p in OPENAPI), "janelas com capacidade")
+        far_customer = new_user("customer", "Cliente D3b")
+        window, when = window_at(options, "morning", 20)
+        est = removal_estimate(far_customer, when=when)
+        status, far = removal_request(far_customer, est, window, when)
+        status, preview = call("GET", f"/requests/{far['id']}/cancellation", None, far_customer["tok"])
+        chk(preview.get("fee_cents") == 0, f"a mais de 24 h é grátis: {preview.get('fee_cents')}")
+        _, wrong_when = window_at(options, "afternoon", 20)
+        wrong_est = removal_estimate(far_customer, when=wrong_when)
+        status, res = removal_request(far_customer, wrong_est, window, wrong_when)
+        chk(code(res) == "REMOVAL_WINDOW_INVALID", f"hora fora da janela: {status} {code(res)}")
+        status, res = call("POST", "/requests", {"service_id": service, "pickup": PICKUP, "destination": DEST, "fare_estimate_id": wrong_est["fare_estimate_id"], "scheduled_for": wrong_when}, far_customer["tok"], idem=str(uuid.uuid4()))
+        chk(status >= 400, f"sem janela nem tipo recusa: {status} {code(res)}")
+        cancel(far_customer["tok"], far["id"])
+        truck = sql("SELECT id FROM catalog_items WHERE kind='removal_vehicle' AND code='truck_7t'")
+        capacity = int(sql(f"SELECT attrs->>'daily_capacity' FROM catalog_items WHERE id='{truck}'"))
+        window, when = window_at(options, "afternoon", 30)
+        day = when[:10]
+        rivals = [new_user("customer", f"Rival D3 {i}") for i in range(capacity + 3)]
+        estimates = {r["id"]: removal_estimate(r, when=when, vehicle="Camião 7 t") for r in rivals}
+        with cf.ThreadPoolExecutor(len(rivals)) as pool:
+            outcomes = list(pool.map(lambda r: removal_request(r, estimates[r["id"]], window, when), rivals))
+        statuses = [o[0] for o in outcomes]
+        chk(statuses.count(201) == capacity and sum(1 for o in outcomes if code(o[1]) == "REMOVAL_DAY_FULL") == 3, f"capacidade diária sob concorrência: {statuses}")
+        status, cal = call("GET", f"/removals/availability?vehicle_id={truck}&from={day}", None, customer["tok"])
+        chk(cal["days"][0]["status"] == "full", f"dia Esgotado: {cal['days'][0]['status']}")
+        for r, o in zip(rivals, outcomes):
+            if o[0] == 201:
+                cancel(r["tok"], o[1]["id"])
+        status, cal = call("GET", f"/removals/availability?vehicle_id={truck}&from={day}", None, customer["tok"])
+        chk(cal["days"][0]["status"] == "free", f"cancelar liberta o dia: {cal['days'][0]['status']}")
+        ref = new_user("customer", "Cliente D3c")
+        window, when = window_at(options, "morning", 25)
+        est = removal_estimate(ref, when=when)
+        status, res = removal_request(ref, est, window, when, method="reference")
+        rid = res.get("id")
+        chk(status == 201 and sql(f"SELECT next_action_at IS NULL FROM service_requests WHERE id='{rid}'") == "t", f"com referência não procura motorista antes de pagar: {status}")
+        status, gpo = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, ref["tok"])
+        chk(status == 409, f"antes do fim, só a referência: {status} {code(gpo)}")
+        cancel(ref["tok"], rid)
+        team_customer, team_driver = new_user("customer", "Cliente D3d"), new_user("provider", "Equipa D3", "removals", kind="truck")
+        window, when = window_at(options, "morning", 26)
+        est = removal_estimate(team_customer, when=when)
+        status, created = removal_request(team_customer, est, window, when)
+        sql(f"UPDATE service_requests SET provider_id='{team_driver['id']}', status='accepted', next_action_at=NULL WHERE id='{created['id']}'")
+        members = {"members": [{"name": "Paulo", "role": "lead", "verified": True}, {"name": "João", "role": "helper"}]}
+        status, res = call("PUT", f"/requests/{created['id']}/team", members, team_driver["tok"], PROVIDER)
+        chk(status == 200 and all(m["verified"] is False for m in res.get("items", [])), f"o motorista não verifica ninguém: {status} {res.get('items')}")
+        chk(call("PUT", f"/requests/{created['id']}/team", members, new_user("provider", "Outro D3", "removals", kind="truck")["tok"], PROVIDER)[0] == 404, "outro motorista não altera")
+        _, view = call("GET", f"/requests/{created['id']}", None, team_customer["tok"])
+        chk([m["name"] for m in view.get("team", [])] == ["Paulo", "João"], f"o cliente vê a equipa: {view.get('team')}")
+        status, opts = call("GET", "/rating-options?category=removals", None, team_customer["tok"])
+        chk([c["label"] for c in opts.get("compliments", [])] == ["Pontuais", "Cuidadosos", "Rápidos", "Simpáticos"] and [t["amount_cents"] for t in opts.get("tips", [])] == [200000, 500000, 1000000], "elogios e gorjetas das mudanças")
 
 
 def orders_and_account():
@@ -910,7 +1055,8 @@ def orders_and_account():
         when = (dt.datetime.now(luanda) + dt.timedelta(days=2)).replace(minute=0, second=0, microsecond=0).isoformat()
         status, scheduled = create(customer, estimate(customer, scheduled_for=when), scheduled_for=when)
         status, tow = create(customer, tow_option(customer), towing=towing_details(customer["tok"]))
-        status, removal = call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='removals'"), "pickup": PICKUP, "destination": DEST}, customer["tok"], idem=str(uuid.uuid4()))
+        moving_window, moving_when = window_at(removal_options(customer), "morning", 3)
+        status, removal = removal_request(customer, removal_estimate(customer, when=moving_when), moving_window, moving_when)
         shop, shop_service = workshop_fixture(PARTNER_TOKEN[0], capacity=3)
         status, repair_booking = book(customer, shop, [shop_service], slot_of(shop, shop_service, customer))
         repair = {"id": repair_booking["request_id"]}
@@ -919,9 +1065,10 @@ def orders_and_account():
         _, history = call("GET", "/requests?status=completed,cancelled,expired", None, customer["tok"])
         _, marked = call("GET", "/requests?status=scheduled", None, customer["tok"])
         chk(tow["id"] in ids(active) and done not in ids(active), f"Em curso: {len(ids(active))} pedidos, inclui reboque")
-        chk(removal["id"] in ids(active), "Em curso junta as mudanças")
+        _, removal_view = call("GET", f"/requests/{removal['id']}", None, customer["tok"])
+        chk(removal_view.get("status") == "searching" and removal["id"] in ids(active) or removal["id"] in ids(marked), f"as mudanças aparecem em Em curso ou Marcados: {removal_view.get('status')}")
         chk(done in ids(history) and tow["id"] not in ids(history), "Histórico tem a concluída")
-        chk(ids(marked) == {scheduled["id"], repair["id"]}, "Marcados junta a corrida marcada e a marcação de oficina")
+        chk(ids(marked) - {removal["id"]} == {scheduled["id"], repair["id"]}, "Marcados junta a corrida marcada e a marcação de oficina")
         _, only = call("GET", "/requests?category=towing", None, customer["tok"])
         chk(ids(only) == {tow["id"]}, "filtro por serviço")
         for item in (scheduled, tow, removal):

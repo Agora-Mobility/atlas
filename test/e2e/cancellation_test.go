@@ -139,6 +139,7 @@ func TestCancellingFollowsTheCatalogueAndTheFeeRule(t *testing.T) {
 }
 
 func TestScheduledCancellationRespectsTheWindowOfTheService(t *testing.T) {
+	setPolicy(t, "removals", "pricing_mode = 'quote', offer_mode = 'quote', ranking = 'customer_choice'")
 	clearOnlineProviders(t)
 	admin := staffToken(t)
 	customer := newCustomer(t)

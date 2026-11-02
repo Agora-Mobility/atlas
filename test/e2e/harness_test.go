@@ -395,7 +395,7 @@ func seedPlatform(ctx context.Context, owner *pgxpool.Pool) error {
 	_, err := owner.Exec(ctx, `
 		INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps, free_wait_seconds)
 		SELECT s.id, 'AOA', t.base, t.km, t.minute, t.minimum, 1000, 2
-		FROM services s JOIN (VALUES ('taxi', 30000, 13000, 1500, 45000), ('towing', 2500000, 50000, 0, 2500000), ('maintenance', 500000, 0, 0, 500000)) AS t (slug, base, km, minute, minimum) ON t.slug = s.slug`)
+		FROM services s JOIN (VALUES ('taxi', 30000, 13000, 1500, 45000), ('towing', 2500000, 50000, 0, 2500000), ('maintenance', 500000, 0, 0, 500000), ('removals', 4500000, 0, 0, 4500000)) AS t (slug, base, km, minute, minimum) ON t.slug = s.slug`)
 	return err
 }
 
@@ -864,7 +864,7 @@ func setPolicy(t *testing.T, category, assignments string) {
 			UPDATE dispatch_policies p SET
 				offer_ttl_seconds = (s.j->>'offer_ttl_seconds')::int, search_ttl_seconds = (s.j->>'search_ttl_seconds')::int,
 				ack_timeout_seconds = (s.j->>'ack_timeout_seconds')::int, ack_giveup_seconds = (s.j->>'ack_giveup_seconds')::int,
-				search_lead_seconds = (s.j->>'search_lead_seconds')::int, booking_only = (s.j->>'booking_only')::boolean, max_stops = (s.j->>'max_stops')::smallint, schedule_slot_minutes = (s.j->>'schedule_slot_minutes')::smallint
+				search_lead_seconds = (s.j->>'search_lead_seconds')::int, booking_only = (s.j->>'booking_only')::boolean, offer_mode = s.j->>'offer_mode', pricing_mode = s.j->>'pricing_mode', ranking = s.j->>'ranking', max_stops = (s.j->>'max_stops')::smallint, schedule_slot_minutes = (s.j->>'schedule_slot_minutes')::smallint
 			FROM (SELECT $1::jsonb AS j) s WHERE p.id = (s.j->>'id')::uuid`, restore[0])
 		require.NoError(t, err)
 	})

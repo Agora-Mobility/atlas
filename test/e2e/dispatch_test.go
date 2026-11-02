@@ -680,7 +680,7 @@ func TestMaintenanceByCoverageWithoutTrackingOnSite(t *testing.T) {
 
 func TestRemovalsQuoteChoiceAndScheduleReachesTheSearch(t *testing.T) {
 	clearOnlineProviders(t)
-	setPolicy(t, "removals", "search_lead_seconds = 3600")
+	setPolicy(t, "removals", "search_lead_seconds = 3600, offer_mode = 'quote', pricing_mode = 'quote', ranking = 'customer_choice'")
 	cheap, costly := newApprovedProvider(t, "removals"), newApprovedProvider(t, "removals")
 	for _, company := range []*person{cheap, costly} {
 		require.Equal(t, http.StatusOK, company.do(t, http.MethodPut, "/api/v1/providers/me/coverage", map[string]any{"lat": -8.85, "lng": 13.25}, nil).status)
@@ -716,6 +716,7 @@ func TestRemovalsQuoteChoiceAndScheduleReachesTheSearch(t *testing.T) {
 }
 
 func TestExpiredQuoteCannotBeChosen(t *testing.T) {
+	setPolicy(t, "removals", "offer_mode = 'quote', pricing_mode = 'quote', ranking = 'customer_choice'")
 	clearOnlineProviders(t)
 	company := newApprovedProvider(t, "removals")
 	require.Equal(t, http.StatusOK, company.do(t, http.MethodPut, "/api/v1/providers/me/coverage", map[string]any{"lat": -8.85, "lng": 13.25}, nil).status)
@@ -882,7 +883,7 @@ func TestPolicyTableMatchesTheProposal(t *testing.T) {
 		"taxi":        {"live", 7, []float64{3, 5, 10}, "sequential", 1, 20, 180, 3, 8, []string{"sse"}, []string{"fcm"}, "distance_idle", "suggest_retry"},
 		"towing":      {"live", 5, []float64{10, 30, 80}, "parallel", 3, 45, 600, 5, 30, []string{"sse"}, []string{"fcm", "sms"}, "distance", "alert_operator"},
 		"maintenance": {"coverage", 6, []float64{30}, "parallel", 5, 600, 7200, 60, 0, []string{"fcm", "sms", "sse"}, []string{}, "base_distance", "operator_queue"},
-		"removals":    {"coverage", 6, []float64{50}, "quote", 10, 7200, 86400, 300, 0, []string{"fcm", "sms", "sse"}, []string{}, "customer_choice", "extend_or_queue"},
+		"removals":    {"coverage", 6, []float64{50}, "parallel", 10, 7200, 86400, 300, 0, []string{"fcm", "sms", "sse"}, []string{}, "base_distance", "extend_or_queue"},
 	}
 	for slug, want := range expected {
 		var raw string
