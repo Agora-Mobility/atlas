@@ -142,7 +142,7 @@ func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibl
 }
 
 const getProvider = `-- name: GetProvider :one
-SELECT user_id, status, organization_id, requested_service_id, service_id, birth_date, id_number, home_address_id, base_address_id, service_radius_km, status_reason, submitted_at, reviewed_at, last_job_completed_at, created_at, updated_at FROM providers WHERE user_id = $1
+SELECT user_id, status, organization_id, requested_service_id, service_id, birth_date, id_number, home_address_id, base_address_id, service_radius_km, status_reason, submitted_at, reviewed_at, last_job_completed_at, created_at, updated_at, cancelled_requests FROM providers WHERE user_id = $1
 `
 
 func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error) {
@@ -165,6 +165,7 @@ func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, 
 		&i.LastJobCompletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CancelledRequests,
 	)
 	return i, err
 }

@@ -274,6 +274,15 @@ type BlockReason struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type CancellationRule struct {
+	ServiceID              uuid.UUID `json:"service_id"`
+	FeeCents               int64     `json:"fee_cents"`
+	FreeAfterAssignSeconds int32     `json:"free_after_assign_seconds"`
+	ScheduledFreeSeconds   int32     `json:"scheduled_free_seconds"`
+	ChargeWithoutProvider  bool      `json:"charge_without_provider"`
+	UpdatedAt              time.Time `json:"updated_at"`
+}
+
 type CategoryPaymentMethod struct {
 	CategoryID   uuid.UUID `json:"category_id"`
 	Method       string    `json:"method"`
@@ -507,6 +516,7 @@ type Provider struct {
 	LastJobCompletedAt *time.Time `json:"last_job_completed_at"`
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
+	CancelledRequests  int32      `json:"cancelled_requests"`
 }
 
 type ProviderCoverage struct {
@@ -575,34 +585,37 @@ type RefreshToken struct {
 }
 
 type RejectionReason struct {
-	ID           uuid.UUID `json:"id"`
-	Scope        string    `json:"scope"`
-	Code         string    `json:"code"`
-	Label        string    `json:"label"`
-	RequiresNote bool      `json:"requires_note"`
-	IsActive     bool      `json:"is_active"`
-	DisplayOrder int32     `json:"display_order"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           uuid.UUID  `json:"id"`
+	Scope        string     `json:"scope"`
+	Code         string     `json:"code"`
+	Label        string     `json:"label"`
+	RequiresNote bool       `json:"requires_note"`
+	IsActive     bool       `json:"is_active"`
+	DisplayOrder int32      `json:"display_order"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	CategoryID   *uuid.UUID `json:"category_id"`
 }
 
 type RequestOffer struct {
-	ID           uuid.UUID  `json:"id"`
-	RequestID    uuid.UUID  `json:"request_id"`
-	ProviderID   uuid.UUID  `json:"provider_id"`
-	Status       string     `json:"status"`
-	SentAt       time.Time  `json:"sent_at"`
-	DeliveredAt  *time.Time `json:"delivered_at"`
-	DeliveredVia *string    `json:"delivered_via"`
-	ExpiresAt    time.Time  `json:"expires_at"`
-	RespondedAt  *time.Time `json:"responded_at"`
-	NextActionAt *time.Time `json:"next_action_at"`
-	FallbackStep int16      `json:"fallback_step"`
-	QuoteCents   *int64     `json:"quote_cents"`
-	QuoteNote    string     `json:"quote_note"`
-	DistanceM    *int32     `json:"distance_m"`
-	NetCents     *int64     `json:"net_cents"`
-	BoostBps     int32      `json:"boost_bps"`
+	ID             uuid.UUID  `json:"id"`
+	RequestID      uuid.UUID  `json:"request_id"`
+	ProviderID     uuid.UUID  `json:"provider_id"`
+	Status         string     `json:"status"`
+	SentAt         time.Time  `json:"sent_at"`
+	DeliveredAt    *time.Time `json:"delivered_at"`
+	DeliveredVia   *string    `json:"delivered_via"`
+	ExpiresAt      time.Time  `json:"expires_at"`
+	RespondedAt    *time.Time `json:"responded_at"`
+	NextActionAt   *time.Time `json:"next_action_at"`
+	FallbackStep   int16      `json:"fallback_step"`
+	QuoteCents     *int64     `json:"quote_cents"`
+	QuoteNote      string     `json:"quote_note"`
+	DistanceM      *int32     `json:"distance_m"`
+	NetCents       *int64     `json:"net_cents"`
+	BoostBps       int32      `json:"boost_bps"`
+	RejectReasonID *uuid.UUID `json:"reject_reason_id"`
+	RejectNote     string     `json:"reject_note"`
 }
 
 type Role struct {
@@ -704,6 +717,8 @@ type ServiceRequest struct {
 	UpdatedAt            time.Time       `json:"updated_at"`
 	PaymentMethod        string          `json:"payment_method"`
 	PaymentStatus        string          `json:"payment_status"`
+	CancelReasonID       *uuid.UUID      `json:"cancel_reason_id"`
+	CancelFeeCents       int64           `json:"cancel_fee_cents"`
 }
 
 type ServiceRequestEvent struct {

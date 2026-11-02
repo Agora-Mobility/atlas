@@ -121,7 +121,7 @@ func (r *ProviderDocumentRepository) SaveDocument(ctx context.Context, d *entiti
 
 func toRejectionReason(row *gen.RejectionReason) entities.RejectionReason {
 	return entities.RejectionReason{
-		ID: row.ID, Scope: entities.RejectionScope(row.Scope), Code: row.Code, Label: row.Label, RequiresNote: row.RequiresNote, IsActive: row.IsActive, DisplayOrder: int(row.DisplayOrder),
+		ID: row.ID, Scope: entities.RejectionScope(row.Scope), Code: row.Code, Label: row.Label, RequiresNote: row.RequiresNote, IsActive: row.IsActive, CategoryID: row.CategoryID, DisplayOrder: int(row.DisplayOrder),
 	}
 }
 
@@ -163,7 +163,7 @@ func (r *ProviderDocumentRepository) FindReason(ctx context.Context, id uuid.UUI
 
 func (r *ProviderDocumentRepository) CreateReason(ctx context.Context, reason *entities.RejectionReason) error {
 	err := postgres.Queries(ctx, r.pool).CreateRejectionReason(ctx, gen.CreateRejectionReasonParams{
-		ID: reason.ID, Scope: string(reason.Scope), Code: reason.Code, Label: reason.Label, RequiresNote: reason.RequiresNote, IsActive: reason.IsActive, DisplayOrder: int32(reason.DisplayOrder), // #nosec G115 -- small value
+		ID: reason.ID, Scope: string(reason.Scope), Code: reason.Code, Label: reason.Label, RequiresNote: reason.RequiresNote, IsActive: reason.IsActive, CategoryID: reason.CategoryID, DisplayOrder: int32(reason.DisplayOrder), // #nosec G115 -- small value
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {

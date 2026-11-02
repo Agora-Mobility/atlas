@@ -243,7 +243,7 @@ func TestGPOIsPaidOnlyWhenTheGatewayConfirms(t *testing.T) {
 
 	again := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	assert.Equal(t, http.StatusCreated, again.status, again.text)
-	cancelled := customer.post(t, "/api/v1/requests/"+again.str("id")+"/cancel", map[string]string{"reason": "Fim do teste"})
+	cancelled := cancelAs(t, customer, "customer", again.str("id"))
 	assert.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
 }
 
@@ -366,7 +366,7 @@ func TestPaymentRulesAndBackoffice(t *testing.T) {
 		path := "/api/v1/requests/" + created.str("id") + "/payments"
 		assert.Equal(t, "REQUEST_NOT_PAYABLE", buyer.post(t, path, map[string]string{"method": "gpo", "phone_number": "900000000"}).code())
 		assert.Equal(t, http.StatusNotFound, newCustomer(t).post(t, path, map[string]string{"method": "gpo", "phone_number": "900000000"}).status)
-		require.Equal(t, http.StatusOK, buyer.post(t, "/api/v1/requests/"+created.str("id")+"/cancel", map[string]string{"reason": "Fim do teste"}).status)
+		require.Equal(t, http.StatusOK, cancelAs(t, buyer, "customer", created.str("id")).status)
 	})
 
 	t.Run("a reference is paid and cannot be refunded", func(t *testing.T) {

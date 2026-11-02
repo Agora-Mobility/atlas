@@ -265,7 +265,8 @@ func (q *Queries) GetPendingPaymentOfRequest(ctx context.Context, requestID uuid
 const hasOutstandingPayment = `-- name: HasOutstandingPayment :one
 SELECT EXISTS (
     SELECT 1 FROM service_requests
-    WHERE customer_id = $1 AND status = 'completed' AND payment_method <> 'cash' AND payment_status IN ('unpaid', 'pending')
+    WHERE customer_id = $1 AND payment_status IN ('unpaid', 'pending')
+      AND ((status = 'completed' AND payment_method <> 'cash') OR (status = 'cancelled' AND cancel_fee_cents > 0))
 )
 `
 

@@ -202,7 +202,7 @@ func (u *Usecase) Pay(ctx context.Context, customerID, requestID uuid.UUID, in d
 		if request == nil || !request.IsCustomer(customerID) {
 			return ErrRequestNotFound
 		}
-		if request.Status != entities.RequestCompleted {
+		if request.AmountDueCents() <= 0 {
 			return entities.ErrPaymentNotPayable
 		}
 		if request.PaymentStatus == entities.RequestPaid || request.PaymentStatus == entities.RequestFullyRefunded {

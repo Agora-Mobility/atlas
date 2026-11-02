@@ -501,7 +501,7 @@ func TestTaxiSequentialRejectionMovesToTheNextAndBoostGoesToTheDriver(t *testing
 
 	first := nearestStream.waitFor(t, "request.offer", nil)
 	assert.True(t, created.body["can_boost"].(bool) || customer.get(t, "/api/v1/requests/"+requestID).body["can_boost"].(bool))
-	require.Equal(t, http.StatusNoContent, nearest.post(t, "/api/v1/offers/"+first.Data["offer_id"].(string)+"/reject", nil).status)
+	require.Equal(t, http.StatusNoContent, nearest.post(t, "/api/v1/offers/"+first.Data["offer_id"].(string)+"/reject", map[string]any{"reason_id": cancelReason(t, nearest, "offer", "taxi", "too_far")}).status)
 
 	require.Eventually(t, func() bool {
 		return customer.get(t, "/api/v1/requests/"+requestID).str("status") == "searching"
@@ -756,7 +756,7 @@ func TestCancellationReleasesTheProviderForTheNextRequest(t *testing.T) {
 	stream.waitFor(t, "request.offer", nil)
 
 	assert.Equal(t, http.StatusUnprocessableEntity, customer.post(t, "/api/v1/requests/"+created.str("id")+"/cancel", map[string]string{}).status)
-	cancelled := customer.post(t, "/api/v1/requests/"+created.str("id")+"/cancel", map[string]string{"reason": "Mudei de planos"})
+	cancelled := customer.post(t, "/api/v1/requests/"+created.str("id")+"/cancel", map[string]any{"reason_id": cancelReason(t, customer, "customer", "taxi", "changed_plans")})
 	require.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
 	stream.waitFor(t, "request.offer_cancelled", nil)
 
@@ -776,7 +776,7 @@ func TestOtherPeopleCannotSeeOrActOnARequest(t *testing.T) {
 	otherDriver := newApprovedProvider(t, "taxi")
 
 	assert.Equal(t, "REQUEST_NOT_FOUND", intruder.get(t, "/api/v1/requests/"+created.str("id")).code())
-	assert.Equal(t, "REQUEST_NOT_FOUND", intruder.post(t, "/api/v1/requests/"+created.str("id")+"/cancel", map[string]string{"reason": "x"}).code())
+	assert.Equal(t, "REQUEST_NOT_FOUND", intruder.post(t, "/api/v1/requests/"+created.str("id")+"/cancel", map[string]any{"reason_id": cancelReason(t, customer, "customer", "taxi", "changed_plans")}).code())
 	assert.Equal(t, "OFFER_NOT_FOUND", acceptOffer(t, otherDriver, offer).code())
 	assert.Equal(t, http.StatusForbidden, customer.post(t, "/api/v1/offers/"+offer.Data["offer_id"].(string)+"/accept", map[string]any{"version": 1}).status)
 	assert.Equal(t, http.StatusUnauthorized, (&person{client: customerClient, api: env.api.baseURL, token: "nope"}).get(t, "/api/v1/requests/active").status)

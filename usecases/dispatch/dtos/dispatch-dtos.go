@@ -120,6 +120,8 @@ type RequestView struct {
 	Quotes          []QuoteView      `json:"quotes,omitempty"`
 	Adjustments     []AdjustmentView `json:"adjustments,omitempty"`
 	CancelReason    string           `json:"cancel_reason,omitempty"`
+	CancelReasonID  *uuid.UUID       `json:"cancel_reason_id,omitempty"`
+	CancelFeeCents  int64            `json:"cancel_fee_cents"`
 	CancelledBy     string           `json:"cancelled_by,omitempty"`
 	AcceptedAt      *time.Time       `json:"accepted_at,omitempty"`
 	ArrivedAt       *time.Time       `json:"arrived_at,omitempty"`
@@ -205,7 +207,68 @@ type BoostInput struct {
 }
 
 type CancelInput struct {
+	ReasonID         uuid.UUID `json:"reason_id" binding:"required"`
+	Note             string    `json:"note" binding:"max=400" example:"Tive um imprevisto"`
+	ExpectedFeeCents *int64    `json:"expected_fee_cents" binding:"omitempty,min=0,max=10000000000"`
+}
+
+type RejectOfferInput struct {
+	ReasonID uuid.UUID `json:"reason_id" binding:"required"`
+	Note     string    `json:"note" binding:"max=400"`
+}
+
+type OperatorCancelInput struct {
 	Reason string `json:"reason" binding:"required,max=200"`
+}
+
+type ReasonOption struct {
+	ID           uuid.UUID `json:"id"`
+	Code         string    `json:"code"`
+	Label        string    `json:"label"`
+	RequiresNote bool      `json:"requires_note"`
+}
+
+type ReasonOptions struct {
+	Items []ReasonOption `json:"items"`
+}
+
+type CancellationPreview struct {
+	FeeCents  int64          `json:"fee_cents"`
+	Currency  string         `json:"currency"`
+	FreeUntil *time.Time     `json:"free_until,omitempty"`
+	Reasons   []ReasonOption `json:"reasons"`
+}
+
+type CancellationRuleInput struct {
+	FeeCents               int64 `json:"fee_cents" binding:"min=0,max=10000000000"`
+	FreeAfterAssignSeconds int   `json:"free_after_assign_seconds" binding:"min=0,max=604800"`
+	ScheduledFreeSeconds   int   `json:"scheduled_free_seconds" binding:"min=0,max=2592000"`
+	ChargeWithoutProvider  bool  `json:"charge_without_provider"`
+}
+
+type CancellationRuleView struct {
+	ServiceID   uuid.UUID `json:"service_id"`
+	ServiceSlug string    `json:"service_slug,omitempty"`
+	ServiceName string    `json:"service_name,omitempty"`
+	CancellationRuleInput
+}
+
+type CancellationRuleList struct {
+	Items []CancellationRuleView `json:"items"`
+}
+
+type CancellationReportRow struct {
+	ReasonID uuid.UUID `json:"reason_id"`
+	Code     string    `json:"code"`
+	Label    string    `json:"label"`
+	Category string    `json:"category"`
+	Total    int64     `json:"total"`
+	FeeCents int64     `json:"fee_cents"`
+}
+
+type CancellationReport struct {
+	Scope string                  `json:"scope"`
+	Items []CancellationReportRow `json:"items"`
 }
 
 type ChangeRouteInput struct {

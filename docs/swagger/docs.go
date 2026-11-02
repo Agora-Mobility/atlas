@@ -61,6 +61,87 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/cancellation-rules": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Cancellation rules of every service",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CancellationRuleList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/cancellation-rules/{serviceId}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Set the cancellation rule of a service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service id",
+                        "name": "serviceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rule",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CancellationRuleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CancellationRuleView"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/categories": {
             "get": {
                 "security": [
@@ -625,7 +706,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dtos.CancelInput"
+                            "$ref": "#/definitions/dtos.OperatorCancelInput"
                         }
                     }
                 ],
@@ -1341,6 +1422,67 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "REJECTION_REASON_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/reports/cancellations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Grouped by the reason id, so a label can change without breaking the report.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Requests cancelled or offers refused, per reason",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "customer_cancel, provider_cancel or offer_reject",
+                        "name": "scope",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "RFC3339",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "RFC3339",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CancellationReport"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -3286,6 +3428,56 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cancellation-reasons": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "List managed in the backoffice, per actor and category.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Reasons to cancel or refuse",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "customer, provider or offer",
+                        "name": "actor",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ReasonOptions"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -5496,6 +5688,10 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
+                "description": "The reason comes from GET /cancellation-reasons?actor=offer and is kept for the reports.",
+                "consumes": [
+                    "application/json"
+                ],
                 "tags": [
                     "Provider work"
                 ],
@@ -5507,6 +5703,15 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Reason",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RejectOfferInput"
+                        }
                     }
                 ],
                 "responses": {
@@ -5515,6 +5720,12 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -7950,6 +8161,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
+                "description": "Customer or provider of the request. The reason comes from GET /cancellation-reasons, and a reason that needs a note needs the note. When the customer owes a fee, expected_fee_cents must be the fee shown by GET /requests/{id}/cancellation, or the answer is 409 CANCEL_FEE_CHANGED with the current fee. A provider who cancels never makes the customer pay.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7986,7 +8198,56 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Not possible in this state",
+                        "description": "Not possible in this state, or the fee changed",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unknown reason or missing note",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/cancellation": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The fee the customer would pay at this moment, until when it is free, and the reasons to choose from. A provider sees the provider reasons and fee 0.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Cost of a cancellation now",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CancellationPreview"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -10319,12 +10580,144 @@ const docTemplate = `{
         "dtos.CancelInput": {
             "type": "object",
             "required": [
-                "reason"
+                "reason_id"
             ],
             "properties": {
-                "reason": {
+                "expected_fee_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 0
+                },
+                "note": {
                     "type": "string",
-                    "maxLength": 200
+                    "maxLength": 400,
+                    "example": "Tive um imprevisto"
+                },
+                "reason_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.CancellationPreview": {
+            "type": "object",
+            "properties": {
+                "currency": {
+                    "type": "string"
+                },
+                "fee_cents": {
+                    "type": "integer"
+                },
+                "free_until": {
+                    "type": "string"
+                },
+                "reasons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ReasonOption"
+                    }
+                }
+            }
+        },
+        "dtos.CancellationReport": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CancellationReportRow"
+                    }
+                },
+                "scope": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.CancellationReportRow": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "fee_cents": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "reason_id": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.CancellationRuleInput": {
+            "type": "object",
+            "properties": {
+                "charge_without_provider": {
+                    "type": "boolean"
+                },
+                "fee_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 0
+                },
+                "free_after_assign_seconds": {
+                    "type": "integer",
+                    "maximum": 604800,
+                    "minimum": 0
+                },
+                "scheduled_free_seconds": {
+                    "type": "integer",
+                    "maximum": 2592000,
+                    "minimum": 0
+                }
+            }
+        },
+        "dtos.CancellationRuleList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CancellationRuleView"
+                    }
+                }
+            }
+        },
+        "dtos.CancellationRuleView": {
+            "type": "object",
+            "properties": {
+                "charge_without_provider": {
+                    "type": "boolean"
+                },
+                "fee_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 0
+                },
+                "free_after_assign_seconds": {
+                    "type": "integer",
+                    "maximum": 604800,
+                    "minimum": 0
+                },
+                "scheduled_free_seconds": {
+                    "type": "integer",
+                    "maximum": 2592000,
+                    "minimum": 0
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "service_slug": {
+                    "type": "string"
                 }
             }
         },
@@ -10601,6 +10994,9 @@ const docTemplate = `{
                 "scope"
             ],
             "properties": {
+                "category_id": {
+                    "type": "string"
+                },
                 "code": {
                     "type": "string",
                     "maxLength": 40,
@@ -10624,7 +11020,10 @@ const docTemplate = `{
                     "enum": [
                         "document",
                         "provider",
-                        "suspension"
+                        "suspension",
+                        "customer_cancel",
+                        "provider_cancel",
+                        "offer_reject"
                     ]
                 }
             }
@@ -11614,6 +12013,18 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.OperatorCancelInput": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "maxLength": 200
+                }
+            }
+        },
         "dtos.OrganizationPage": {
             "type": "object",
             "properties": {
@@ -12452,6 +12863,34 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ReasonOption": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "requires_note": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dtos.ReasonOptions": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ReasonOption"
+                    }
+                }
+            }
+        },
         "dtos.RecoveryCodesOutput": {
             "type": "object",
             "properties": {
@@ -12681,6 +13120,21 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RejectOfferInput": {
+            "type": "object",
+            "required": [
+                "reason_id"
+            ],
+            "properties": {
+                "note": {
+                    "type": "string",
+                    "maxLength": 400
+                },
+                "reason_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.RejectionReasonList": {
             "type": "object",
             "properties": {
@@ -12695,6 +13149,9 @@ const docTemplate = `{
         "dtos.RejectionReasonView": {
             "type": "object",
             "properties": {
+                "category_id": {
+                    "type": "string"
+                },
                 "code": {
                     "type": "string",
                     "example": "illegible"
@@ -12863,7 +13320,13 @@ const docTemplate = `{
                 "can_boost": {
                     "type": "boolean"
                 },
+                "cancel_fee_cents": {
+                    "type": "integer"
+                },
                 "cancel_reason": {
+                    "type": "string"
+                },
+                "cancel_reason_id": {
                     "type": "string"
                 },
                 "cancelled_by": {

@@ -321,7 +321,7 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 		assert.Equal(t, "LD-45-21-AF", view.body["provider"].(map[string]any)["vehicle_plate"])
 		assert.Equal(t, "Pedro Cunga", view.body["provider"].(map[string]any)["name"])
 		assert.Equal(t, "Toyota Corolla Branco", view.body["provider"].(map[string]any)["vehicle_description"])
-		require.Equal(t, http.StatusOK, pedro.post(t, "/api/v1/requests/"+comfortRequest+"/cancel", map[string]string{"reason": "Fim do teste"}).status)
+		require.Equal(t, http.StatusOK, cancelAs(t, pedro, "provider", comfortRequest).status)
 	})
 
 	t.Run("the decisions reach him and the audit trail", func(t *testing.T) {

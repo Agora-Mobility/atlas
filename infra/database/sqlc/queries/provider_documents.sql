@@ -57,7 +57,7 @@ ORDER BY display_order, label;
 SELECT * FROM rejection_reasons WHERE id = $1;
 
 -- name: CreateRejectionReason :exec
-INSERT INTO rejection_reasons (id, scope, code, label, requires_note, is_active, display_order) VALUES ($1, $2, $3, $4, $5, $6, $7);
+INSERT INTO rejection_reasons (id, scope, code, label, requires_note, is_active, display_order, category_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: UpdateRejectionReason :exec
 UPDATE rejection_reasons SET label = $2, requires_note = $3, is_active = $4, display_order = $5, updated_at = now() WHERE id = $1;
@@ -80,6 +80,6 @@ INSERT INTO provider_document_rejection_reasons (provider_id, document_type, rea
 SELECT sqlc.arg(provider_id)::uuid, sqlc.arg(document_type)::text, unnest(sqlc.arg(reason_ids)::uuid[]);
 
 -- name: ListDocumentRejectionReasons :many
-SELECT dr.document_type, r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order
+SELECT dr.document_type, r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order, r.category_id
 FROM provider_document_rejection_reasons dr JOIN rejection_reasons r ON r.id = dr.reason_id
 WHERE dr.provider_id = $1 ORDER BY r.display_order, r.label;

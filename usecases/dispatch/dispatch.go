@@ -23,6 +23,9 @@ var (
 	ErrFareEstimateInvalid  = errors.New("the fare estimate does not match this request")
 	ErrNoTariff             = errors.New("no tariff for this service in this zone")
 	ErrFareEstimateUsed     = errors.New("the fare estimate was already used")
+	ErrReasonNotApplicable  = errors.New("this reason does not exist or does not apply here")
+	ErrUnknownReasonActor   = errors.New("actor must be customer, provider or offer")
+	ErrReportScope          = errors.New("scope must be customer_cancel, provider_cancel or offer_reject")
 	ErrDuplicateRequest     = errors.New("the customer already has this request active")
 	ErrRequestConflict      = repository.ErrRequestVersionConflict
 	ErrProviderNotApproved  = errors.New("the provider is not approved")
@@ -93,6 +96,7 @@ type Deps struct {
 	Requests  repository.IRequestRepository
 	Offers    repository.IOfferRepository
 	Payments  repository.IPaymentRepository
+	Cancels   repository.ICancellationRepository
 	Devices   repository.IDeviceRepository
 	Locator   repository.IProviderLocator
 	Outbox    repository.IOutboxRepository

@@ -368,25 +368,7 @@ func (u *Usecase) ActiveRequestIDFor(ctx context.Context, userID uuid.UUID, isPr
 	return request.ID.String(), nil
 }
 
-func (u *Usecase) CancelByCustomer(ctx context.Context, customerID, requestID uuid.UUID, reason string) (*dtos.RequestView, error) {
-	actor := entities.RequestActor{Type: entities.RequestActorCustomer, ID: &customerID}
-	request, err := u.cancel(ctx, requestID, actor, reason, func(r *entities.ServiceRequest) bool { return r.IsCustomer(customerID) })
-	if err != nil {
-		return nil, err
-	}
-	return u.customerView(ctx, request)
-}
-
-func (u *Usecase) CancelByProvider(ctx context.Context, providerID, requestID uuid.UUID, reason string) (*dtos.RequestView, error) {
-	actor := entities.RequestActor{Type: entities.RequestActorProvider, ID: &providerID}
-	request, err := u.cancel(ctx, requestID, actor, reason, func(r *entities.ServiceRequest) bool { return r.IsProvider(providerID) })
-	if err != nil {
-		return nil, err
-	}
-	return u.providerView(ctx, request)
-}
-
-func (u *Usecase) cancel(ctx context.Context, requestID uuid.UUID, actor entities.RequestActor, reason string, allowed func(*entities.ServiceRequest) bool) (*entities.ServiceRequest, error) {
+func (u *Usecase) cancel(ctx context.Context, requestID uuid.UUID, order cancelOrder) (*entities.ServiceRequest, error) {
 	var request *entities.ServiceRequest
 	var released []reservation
 	err := u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
@@ -395,20 +377,41 @@ func (u *Usecase) cancel(ctx context.Context, requestID uuid.UUID, actor entitie
 		if err != nil {
 			return err
 		}
-		if request == nil || !allowed(request) {
+		if request == nil || !order.allowed(request) {
 			return ErrRequestNotFound
 		}
 		now := u.now()
-		change, err := request.Transition(entities.RequestCancelled, actor, reason, now)
+		reason := order.text
+		if order.reasonID != nil {
+			if reason, err = u.resolveReason(ctx, *order.reasonID, order.scope, request.CategoryID, order.note); err != nil {
+				return err
+			}
+		}
+		fee := int64(0)
+		if order.actor.Type == entities.RequestActorCustomer {
+			if fee, err = u.cancelFee(ctx, request, now); err != nil {
+				return err
+			}
+			if fee > 0 && (order.expectedFee == nil || *order.expectedFee != fee) {
+				return &CancelFeeChangedError{FeeCents: fee, Currency: request.Fare.Currency}
+			}
+		}
+		change, err := request.Transition(entities.RequestCancelled, order.actor, reason, now)
 		if err != nil {
 			return err
 		}
+		request.CancelReasonID, request.CancelFeeCents = order.reasonID, fee
 		policy, err := u.policyOf(ctx, request)
 		if err != nil {
 			return err
 		}
 		if err := u.recordTransition(ctx, request, change, policy); err != nil {
 			return err
+		}
+		if order.actor.Type == entities.RequestActorProvider && order.actor.ID != nil {
+			if err := u.Cancels.CountProviderCancellation(ctx, *order.actor.ID); err != nil {
+				return err
+			}
 		}
 		released, err = u.closeOffers(ctx, request, nil, "request_cancelled", now)
 		return err
@@ -659,7 +662,7 @@ func baseRequestView(r *entities.ServiceRequest) dtos.RequestView {
 	view := dtos.RequestView{
 		ID: r.ID, Status: string(r.Status), Version: r.Version, Category: r.CategorySlug, ServiceID: r.ServiceID, Pickup: dtos.ToPlaceView(r.Pickup), Stops: stops,
 		ScheduledFor: r.ScheduledFor, FareCents: r.Fare.Cents, BoostBps: r.Fare.BoostBps, Currency: r.Fare.Currency, PaymentMethod: string(r.PaymentMethod), PaymentStatus: string(r.PaymentStatus), NeedsOperator: r.NeedsOperator, OperatorReason: r.OperatorReason,
-		CancelReason: r.CancelReason, CancelledBy: r.CancelledBy, AcceptedAt: r.AcceptedAt, ArrivedAt: r.ArrivedAt, StartedAt: r.StartedAt, CompletedAt: r.CompletedAt, CreatedAt: r.CreatedAt,
+		CancelReason: r.CancelReason, CancelledBy: r.CancelledBy, CancelReasonID: r.CancelReasonID, CancelFeeCents: r.CancelFeeCents, AcceptedAt: r.AcceptedAt, ArrivedAt: r.ArrivedAt, StartedAt: r.StartedAt, CompletedAt: r.CompletedAt, CreatedAt: r.CreatedAt,
 	}
 	if r.Destination != nil {
 		destination := dtos.ToPlaceView(*r.Destination)

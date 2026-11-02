@@ -858,3 +858,26 @@ func reasonID(t *testing.T, admin *person, scope, code string) string {
 	require.Failf(t, "unknown rejection reason", "%s/%s", scope, code)
 	return ""
 }
+
+func cancelReason(t *testing.T, actor *person, kind, category, code string) string {
+	t.Helper()
+	list := actor.get(t, "/api/v1/cancellation-reasons?actor="+kind+"&category="+category)
+	require.Equal(t, http.StatusOK, list.status, list.text)
+	for _, item := range list.body["items"].([]any) {
+		reason := item.(map[string]any)
+		if reason["code"] == code {
+			return reason["id"].(string)
+		}
+	}
+	require.Failf(t, "unknown reason", "%s/%s/%s", kind, category, code)
+	return ""
+}
+
+func cancelAs(t *testing.T, actor *person, kind, requestID string) result {
+	t.Helper()
+	preview := actor.get(t, "/api/v1/requests/"+requestID+"/cancellation")
+	require.Equal(t, http.StatusOK, preview.status, preview.text)
+	reasons := preview.body["reasons"].([]any)
+	require.NotEmpty(t, reasons, kind)
+	return actor.post(t, "/api/v1/requests/"+requestID+"/cancel", map[string]any{"reason_id": reasons[0].(map[string]any)["id"], "expected_fee_cents": preview.num("fee_cents")})
+}

@@ -368,7 +368,7 @@ func (u *Usecase) AssignManually(ctx context.Context, actor entities.Actor, requ
 
 func (u *Usecase) CancelByOperator(ctx context.Context, actor entities.Actor, requestID uuid.UUID, reason string) (*dtos.RequestView, error) {
 	operatorActor := entities.RequestActor{Type: entities.RequestActorOperator, ID: actor.ID}
-	request, err := u.cancel(ctx, requestID, operatorActor, reason, func(*entities.ServiceRequest) bool { return true })
+	request, err := u.cancel(ctx, requestID, cancelOrder{actor: operatorActor, text: reason, allowed: func(*entities.ServiceRequest) bool { return true }})
 	if err != nil {
 		return nil, err
 	}

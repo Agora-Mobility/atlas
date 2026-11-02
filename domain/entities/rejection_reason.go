@@ -15,6 +15,10 @@ const (
 	RejectionScopeProvider   RejectionScope = "provider"
 	RejectionScopeSuspension RejectionScope = "suspension"
 
+	RejectionScopeCustomerCancel RejectionScope = "customer_cancel"
+	RejectionScopeProviderCancel RejectionScope = "provider_cancel"
+	RejectionScopeOfferReject    RejectionScope = "offer_reject"
+
 	maxReasonLabelLength = 120
 	maxReasonNoteLength  = 400
 	maxReasonOrder       = 9_999
@@ -33,11 +37,24 @@ type RejectionReason struct {
 	RequiresNote bool
 	IsActive     bool
 	DisplayOrder int
+	CategoryID   *uuid.UUID
+}
+
+func IsRejectionScope(scope RejectionScope) bool {
+	switch scope {
+	case RejectionScopeDocument, RejectionScopeProvider, RejectionScopeSuspension, RejectionScopeCustomerCancel, RejectionScopeProviderCancel, RejectionScopeOfferReject:
+		return true
+	}
+	return false
+}
+
+func (r *RejectionReason) AppliesTo(categoryID uuid.UUID) bool {
+	return r.CategoryID == nil || *r.CategoryID == categoryID
 }
 
 func (r RejectionReason) Validated() (RejectionReason, error) {
-	if r.Scope != RejectionScopeDocument && r.Scope != RejectionScopeProvider && r.Scope != RejectionScopeSuspension {
-		return r, validationError("scope", "O âmbito tem de ser document, provider ou suspension.")
+	if !IsRejectionScope(r.Scope) {
+		return r, validationError("scope", "O âmbito não é válido.")
 	}
 	if !reasonCodePattern.MatchString(r.Code) {
 		return r, validationError("code", "O código usa letras minúsculas, números e _.")

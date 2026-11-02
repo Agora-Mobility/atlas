@@ -164,15 +164,20 @@ func (u *Usecase) pickupRoute(ctx context.Context, providerID uuid.UUID, request
 	return &dtos.RouteView{DistanceM: route.DistanceMeters, DurationS: int(route.Duration.Seconds()), Geometry: route.Geometry, Source: string(route.Source)}
 }
 
-func (u *Usecase) Reject(ctx context.Context, providerID, offerID uuid.UUID) error {
+func (u *Usecase) Reject(ctx context.Context, providerID, offerID uuid.UUID, in dtos.RejectOfferInput) error {
 	var release *reservation
 	again := false
 	var requestID uuid.UUID
 	err := u.withLockedOffer(ctx, providerID, offerID, func(ctx context.Context, request *entities.ServiceRequest, offer *entities.RequestOffer, policy *entities.DispatchPolicy, now time.Time) error {
 		requestID = request.ID
+		note, err := u.reasonNote(ctx, in.ReasonID, entities.RejectionScopeOfferReject, request.CategoryID, in.Note)
+		if err != nil {
+			return err
+		}
 		if err := offer.Respond(entities.OfferRejected, now); err != nil {
 			return err
 		}
+		offer.RejectReason, offer.RejectNote = &in.ReasonID, note
 		if err := u.Offers.Update(ctx, offer); err != nil {
 			return err
 		}
@@ -184,7 +189,6 @@ func (u *Usecase) Reject(ctx context.Context, providerID, offerID uuid.UUID) err
 		if request.Status != entities.RequestOffered {
 			return nil
 		}
-		var err error
 		again, err = u.reconcile(ctx, request, policy, now)
 		return err
 	})

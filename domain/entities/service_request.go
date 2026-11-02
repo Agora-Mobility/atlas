@@ -52,7 +52,7 @@ var (
 const (
 	maxReferenceLength = 140
 	maxAddressLength   = 200
-	maxReasonLength    = 200
+	maxReasonLength    = 600
 )
 
 var allowedTransitions = map[RequestStatus][]RequestStatus{
@@ -194,6 +194,8 @@ type ServiceRequest struct {
 	RouteChanged   bool
 	CancelReason   string
 	CancelledBy    string
+	CancelReasonID *uuid.UUID
+	CancelFeeCents int64
 	AcceptedAt     *time.Time
 	ArrivedAt      *time.Time
 	StartedAt      *time.Time
@@ -309,7 +311,7 @@ func (r *ServiceRequest) Transition(to RequestStatus, actor RequestActor, reason
 		return nil, ErrCancelReasonMissing
 	}
 	if len([]rune(reason)) > maxReasonLength {
-		return nil, validationError("reason", "O motivo tem no máximo 200 caracteres.")
+		return nil, validationError("reason", "O motivo tem no máximo 600 caracteres.")
 	}
 	change := &RequestStatusChange{From: r.Status, To: to, Actor: actor, Reason: reason, At: now}
 	expected := r.Version
@@ -473,4 +475,14 @@ func (r *ServiceRequest) AddToFare(cents int64) {
 	}
 	total := *r.Fare.Cents + cents
 	r.Fare.Cents = &total
+}
+
+func (r *ServiceRequest) AmountDueCents() int64 {
+	if r.Status == RequestCancelled {
+		return r.CancelFeeCents
+	}
+	if r.Status != RequestCompleted || r.Fare.Cents == nil {
+		return 0
+	}
+	return *r.Fare.Cents
 }

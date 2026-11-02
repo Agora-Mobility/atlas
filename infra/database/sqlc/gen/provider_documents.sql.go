@@ -66,17 +66,18 @@ func (q *Queries) ClearProviderRejectionReasons(ctx context.Context, providerID 
 }
 
 const createRejectionReason = `-- name: CreateRejectionReason :exec
-INSERT INTO rejection_reasons (id, scope, code, label, requires_note, is_active, display_order) VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO rejection_reasons (id, scope, code, label, requires_note, is_active, display_order, category_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateRejectionReasonParams struct {
-	ID           uuid.UUID `json:"id"`
-	Scope        string    `json:"scope"`
-	Code         string    `json:"code"`
-	Label        string    `json:"label"`
-	RequiresNote bool      `json:"requires_note"`
-	IsActive     bool      `json:"is_active"`
-	DisplayOrder int32     `json:"display_order"`
+	ID           uuid.UUID  `json:"id"`
+	Scope        string     `json:"scope"`
+	Code         string     `json:"code"`
+	Label        string     `json:"label"`
+	RequiresNote bool       `json:"requires_note"`
+	IsActive     bool       `json:"is_active"`
+	DisplayOrder int32      `json:"display_order"`
+	CategoryID   *uuid.UUID `json:"category_id"`
 }
 
 func (q *Queries) CreateRejectionReason(ctx context.Context, arg CreateRejectionReasonParams) error {
@@ -88,6 +89,7 @@ func (q *Queries) CreateRejectionReason(ctx context.Context, arg CreateRejection
 		arg.RequiresNote,
 		arg.IsActive,
 		arg.DisplayOrder,
+		arg.CategoryID,
 	)
 	return err
 }
@@ -198,7 +200,7 @@ func (q *Queries) GetProviderRequirements(ctx context.Context, serviceID uuid.UU
 }
 
 const getRejectionReason = `-- name: GetRejectionReason :one
-SELECT id, scope, code, label, requires_note, is_active, display_order, created_at, updated_at FROM rejection_reasons WHERE id = $1
+SELECT id, scope, code, label, requires_note, is_active, display_order, created_at, updated_at, category_id FROM rejection_reasons WHERE id = $1
 `
 
 func (q *Queries) GetRejectionReason(ctx context.Context, id uuid.UUID) (RejectionReason, error) {
@@ -214,12 +216,13 @@ func (q *Queries) GetRejectionReason(ctx context.Context, id uuid.UUID) (Rejecti
 		&i.DisplayOrder,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
 
 const listActiveRejectionReasonsByIDs = `-- name: ListActiveRejectionReasonsByIDs :many
-SELECT id, scope, code, label, requires_note, is_active, display_order, created_at, updated_at FROM rejection_reasons
+SELECT id, scope, code, label, requires_note, is_active, display_order, created_at, updated_at, category_id FROM rejection_reasons
 WHERE is_active AND scope = $1::text AND id = ANY($2::uuid[])
 ORDER BY display_order, label
 `
@@ -248,6 +251,7 @@ func (q *Queries) ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListA
 			&i.DisplayOrder,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -260,20 +264,21 @@ func (q *Queries) ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListA
 }
 
 const listDocumentRejectionReasons = `-- name: ListDocumentRejectionReasons :many
-SELECT dr.document_type, r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order
+SELECT dr.document_type, r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order, r.category_id
 FROM provider_document_rejection_reasons dr JOIN rejection_reasons r ON r.id = dr.reason_id
 WHERE dr.provider_id = $1 ORDER BY r.display_order, r.label
 `
 
 type ListDocumentRejectionReasonsRow struct {
-	DocumentType string    `json:"document_type"`
-	ID           uuid.UUID `json:"id"`
-	Scope        string    `json:"scope"`
-	Code         string    `json:"code"`
-	Label        string    `json:"label"`
-	RequiresNote bool      `json:"requires_note"`
-	IsActive     bool      `json:"is_active"`
-	DisplayOrder int32     `json:"display_order"`
+	DocumentType string     `json:"document_type"`
+	ID           uuid.UUID  `json:"id"`
+	Scope        string     `json:"scope"`
+	Code         string     `json:"code"`
+	Label        string     `json:"label"`
+	RequiresNote bool       `json:"requires_note"`
+	IsActive     bool       `json:"is_active"`
+	DisplayOrder int32      `json:"display_order"`
+	CategoryID   *uuid.UUID `json:"category_id"`
 }
 
 func (q *Queries) ListDocumentRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]ListDocumentRejectionReasonsRow, error) {
@@ -294,6 +299,7 @@ func (q *Queries) ListDocumentRejectionReasons(ctx context.Context, providerID u
 			&i.RequiresNote,
 			&i.IsActive,
 			&i.DisplayOrder,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -364,7 +370,7 @@ func (q *Queries) ListProviderDocuments(ctx context.Context, providerID uuid.UUI
 }
 
 const listProviderRejectionReasons = `-- name: ListProviderRejectionReasons :many
-SELECT r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order, r.created_at, r.updated_at FROM provider_rejection_reasons pr JOIN rejection_reasons r ON r.id = pr.reason_id
+SELECT r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order, r.created_at, r.updated_at, r.category_id FROM provider_rejection_reasons pr JOIN rejection_reasons r ON r.id = pr.reason_id
 WHERE pr.provider_id = $1 ORDER BY r.display_order, r.label
 `
 
@@ -387,6 +393,7 @@ func (q *Queries) ListProviderRejectionReasons(ctx context.Context, providerID u
 			&i.DisplayOrder,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -399,7 +406,7 @@ func (q *Queries) ListProviderRejectionReasons(ctx context.Context, providerID u
 }
 
 const listRejectionReasons = `-- name: ListRejectionReasons :many
-SELECT id, scope, code, label, requires_note, is_active, display_order, created_at, updated_at FROM rejection_reasons
+SELECT id, scope, code, label, requires_note, is_active, display_order, created_at, updated_at, category_id FROM rejection_reasons
 WHERE ($1::text = '' OR scope = $1::text) AND ($2::boolean OR is_active)
 ORDER BY scope, display_order, label
 `
@@ -428,6 +435,7 @@ func (q *Queries) ListRejectionReasons(ctx context.Context, arg ListRejectionRea
 			&i.DisplayOrder,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}

@@ -14,3 +14,4 @@ package repository
 //go:generate go tool mockgen -source=address.go -destination=mocks/address_mock.go -package=mocks
 //go:generate go tool mockgen -source=fleet.go -destination=mocks/fleet_mock.go -package=mocks
 //go:generate go tool mockgen -source=payments.go -destination=mocks/payments_mock.go -package=mocks
+//go:generate go tool mockgen -source=cancellation.go -destination=mocks/cancellation_mock.go -package=mocks

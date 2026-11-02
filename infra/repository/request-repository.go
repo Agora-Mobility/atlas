@@ -105,7 +105,7 @@ func (r *RequestRepository) Update(ctx context.Context, s *entities.ServiceReque
 		ID: s.ID, ExpectedVersion: int32(expectedVersion), Status: string(s.Status), Version: int32(s.Version), DestinationH3R8: s.DestinationH3, // #nosec G115 -- small counter
 		SearchRound: int16(s.SearchRound), SearchExtended: s.SearchExtended, SearchDeadlineAt: s.SearchDeadline, NextActionAt: s.NextActionAt, ReminderAt: s.ReminderAt, // #nosec G115 -- small counter
 		ProviderID: s.ProviderID, FareCents: s.Fare.Cents, CommissionCents: s.Fare.CommissionCents, BoostBps: int32(s.Fare.BoostBps), NeedsOperator: s.NeedsOperator, // #nosec G115 -- 0 to 2000
-		OperatorReason: s.OperatorReason, CancelReason: s.CancelReason, CancelledBy: s.CancelledBy, AcceptedAt: s.AcceptedAt, ArrivedAt: s.ArrivedAt,
+		OperatorReason: s.OperatorReason, CancelReason: s.CancelReason, CancelledBy: s.CancelledBy, CancelReasonID: s.CancelReasonID, CancelFeeCents: s.CancelFeeCents, AcceptedAt: s.AcceptedAt, ArrivedAt: s.ArrivedAt,
 		StartedAt: s.StartedAt, CompletedAt: s.CompletedAt, UpdatedAt: s.UpdatedAt,
 	}
 	if s.Destination != nil {
@@ -415,7 +415,7 @@ func toRequest(row *gen.ServiceRequest) *entities.ServiceRequest {
 		Details: row.Details, ScheduledFor: row.ScheduledFor, SearchRound: int(row.SearchRound), SearchExtended: row.SearchExtended, SearchDeadline: row.SearchDeadlineAt,
 		NextActionAt: row.NextActionAt, ReminderAt: row.ReminderAt, ProviderID: row.ProviderID,
 		Fare:          entities.RequestFare{EstimateID: row.FareEstimateID, Cents: row.FareCents, CommissionCents: row.CommissionCents, BoostBps: int(row.BoostBps), Currency: row.Currency},
-		NeedsOperator: row.NeedsOperator, OperatorReason: row.OperatorReason, IdempotencyKey: row.IdempotencyKey, CancelReason: row.CancelReason, CancelledBy: row.CancelledBy,
+		NeedsOperator: row.NeedsOperator, OperatorReason: row.OperatorReason, IdempotencyKey: row.IdempotencyKey, CancelReason: row.CancelReason, CancelledBy: row.CancelledBy, CancelReasonID: row.CancelReasonID, CancelFeeCents: row.CancelFeeCents,
 		AcceptedAt: row.AcceptedAt, ArrivedAt: row.ArrivedAt, StartedAt: row.StartedAt, CompletedAt: row.CompletedAt, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 	}
 }
@@ -466,7 +466,7 @@ func (r *OfferRepository) Update(ctx context.Context, o *entities.RequestOffer) 
 	}
 	err := postgres.Queries(ctx, r.pool).UpdateRequestOffer(ctx, gen.UpdateRequestOfferParams{
 		ID: o.ID, Status: string(o.Status), DeliveredAt: o.DeliveredAt, DeliveredVia: via, ExpiresAt: o.ExpiresAt, RespondedAt: o.RespondedAt,
-		NextActionAt: o.NextActionAt, FallbackStep: int16(o.FallbackStep), QuoteCents: o.QuoteCents, QuoteNote: o.QuoteNote, // #nosec G115 -- small counter
+		NextActionAt: o.NextActionAt, FallbackStep: int16(o.FallbackStep), QuoteCents: o.QuoteCents, QuoteNote: o.QuoteNote, RejectReasonID: o.RejectReason, RejectNote: o.RejectNote, // #nosec G115 -- small counter
 	})
 	if err != nil {
 		return fmt.Errorf("update offer: %w", err)

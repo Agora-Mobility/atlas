@@ -22,6 +22,7 @@ type Querier interface {
 	AddRolePermissions(ctx context.Context, arg AddRolePermissionsParams) error
 	AssignVehicleToProvider(ctx context.Context, arg AssignVehicleToProviderParams) (int64, error)
 	BumpMembershipsWithRole(ctx context.Context, arg BumpMembershipsWithRoleParams) ([]uuid.UUID, error)
+	CancellationReport(ctx context.Context, arg CancellationReportParams) ([]CancellationReportRow, error)
 	ClearDocumentRejectionReasons(ctx context.Context, arg ClearDocumentRejectionReasonsParams) error
 	ClearProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) error
 	CloseServiceTariff(ctx context.Context, arg CloseServiceTariffParams) error
@@ -82,7 +83,9 @@ type Querier interface {
 	FindServiceRequestByIdempotencyKey(ctx context.Context, arg FindServiceRequestByIdempotencyKeyParams) (ServiceRequest, error)
 	FindZoneCoveringPoint(ctx context.Context, arg FindZoneCoveringPointParams) (uuid.UUID, error)
 	GetActiveClientByClientID(ctx context.Context, clientID string) (Client, error)
+	GetActiveReason(ctx context.Context, arg GetActiveReasonParams) (RejectionReason, error)
 	GetAddress(ctx context.Context, id uuid.UUID) (GetAddressRow, error)
+	GetCancellationRule(ctx context.Context, serviceID uuid.UUID) (CancellationRule, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error)
 	GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error)
 	GetDocumentType(ctx context.Context, code string) (GetDocumentTypeRow, error)
@@ -135,6 +138,7 @@ type Querier interface {
 	GetWorkshop(ctx context.Context, id uuid.UUID) (Workshop, error)
 	GetWorkshopService(ctx context.Context, id uuid.UUID) (WorkshopService, error)
 	HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error)
+	IncrementProviderCancellations(ctx context.Context, userID uuid.UUID) error
 	InsertFareAdjustment(ctx context.Context, arg InsertFareAdjustmentParams) error
 	InsertLocationSample(ctx context.Context, arg InsertLocationSampleParams) error
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
@@ -156,6 +160,7 @@ type Querier interface {
 	ListActiveServicesOfCategory(ctx context.Context, slug string) ([]ListActiveServicesOfCategoryRow, error)
 	ListAdminPayments(ctx context.Context, arg ListAdminPaymentsParams) ([]ListAdminPaymentsRow, error)
 	ListAdminRequests(ctx context.Context, arg ListAdminRequestsParams) ([]ListAdminRequestsRow, error)
+	ListCancellationRules(ctx context.Context) ([]ListCancellationRulesRow, error)
 	ListCategoryPaymentMethods(ctx context.Context, arg ListCategoryPaymentMethodsParams) ([]ListCategoryPaymentMethodsRow, error)
 	ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error)
 	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
@@ -177,6 +182,7 @@ type Querier interface {
 	ListProviderApplications(ctx context.Context, arg ListProviderApplicationsParams) ([]ListProviderApplicationsRow, error)
 	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error)
 	ListProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]RejectionReason, error)
+	ListReasonsForCategory(ctx context.Context, arg ListReasonsForCategoryParams) ([]RejectionReason, error)
 	ListRejectionReasons(ctx context.Context, arg ListRejectionReasonsParams) ([]RejectionReason, error)
 	ListRequestOffers(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestOffersForUpdate(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
@@ -201,6 +207,7 @@ type Querier interface {
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error
 	MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error
+	OfferRejectionReport(ctx context.Context, arg OfferRejectionReportParams) ([]OfferRejectionReportRow, error)
 	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)
 	ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithActiveJobParams) ([]uuid.UUID, error)
 	PurgeLocationSamples(ctx context.Context, recordedAt time.Time) (int64, error)
@@ -240,6 +247,7 @@ type Querier interface {
 	UpdateServiceZone(ctx context.Context, arg UpdateServiceZoneParams) (int64, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLoginParams) error
+	UpsertCancellationRule(ctx context.Context, arg UpsertCancellationRuleParams) error
 	UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) error
 	UpsertProvider(ctx context.Context, arg UpsertProviderParams) error
 	UpsertRequestOffer(ctx context.Context, arg UpsertRequestOfferParams) (int64, error)

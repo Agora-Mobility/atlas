@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -57,6 +58,15 @@ func requestParam(ctx *gin.Context) (uuid.UUID, bool) {
 	return idParam(ctx, "REQUEST_NOT_FOUND", "Request not found.")
 }
 
+func idParamNamed(ctx *gin.Context, name, code, message string) (uuid.UUID, bool) {
+	id, err := uuid.Parse(ctx.Param(name))
+	if err != nil {
+		shared.NotFound(ctx, code, message)
+		return uuid.Nil, false
+	}
+	return id, true
+}
+
 func offerParam(ctx *gin.Context) (uuid.UUID, bool) {
 	return idParam(ctx, "OFFER_NOT_FOUND", "Offer not found.")
 }
@@ -74,6 +84,14 @@ func respond(ctx *gin.Context, status int, body any, err error) {
 }
 
 func handleError(ctx *gin.Context, err error) {
+	var feeChanged *dispatch.CancelFeeChangedError
+	if errors.As(err, &feeChanged) {
+		ctx.AbortWithStatusJSON(http.StatusConflict, gin.H{
+			"error":     shared.ErrorBody{Code: "CANCEL_FEE_CHANGED", Message: "Confirm the current cancellation fee."},
+			"fee_cents": feeChanged.FeeCents, "currency": feeChanged.Currency,
+		})
+		return
+	}
 	var expired *dispatch.FareEstimateExpiredError
 	if errors.As(err, &expired) {
 		ctx.AbortWithStatusJSON(http.StatusConflict, gin.H{
@@ -114,6 +132,9 @@ var errorTable = []struct {
 	{dispatch.ErrFareEstimateInvalid, http.StatusConflict, "FARE_ESTIMATE_INVALID", "The price does not match this route. Ask for a new one."},
 	{dispatch.ErrFareEstimateUsed, http.StatusConflict, "FARE_ESTIMATE_USED", "This price was already used. Ask for a new one."},
 	{dispatch.ErrDuplicateRequest, http.StatusConflict, "DUPLICATE_REQUEST", "You already have this request active."},
+	{dispatch.ErrReasonNotApplicable, http.StatusUnprocessableEntity, "REASON_NOT_APPLICABLE", "This reason does not exist or does not apply here."},
+	{dispatch.ErrUnknownReasonActor, http.StatusUnprocessableEntity, "UNKNOWN_REASON_ACTOR", "actor must be customer, provider or offer."},
+	{dispatch.ErrReportScope, http.StatusUnprocessableEntity, "INVALID_REPORT_SCOPE", "scope must be customer_cancel, provider_cancel or offer_reject."},
 	{dispatch.ErrNoTariff, http.StatusUnprocessableEntity, "NO_TARIFF", "There is no tariff for this service here yet."},
 	{dispatch.ErrRequestConflict, http.StatusConflict, "REQUEST_CONFLICT", "The request changed in the meantime."},
 	{dispatch.ErrProviderNotApproved, http.StatusForbidden, "PROVIDER_NOT_APPROVED", "The provider is not approved for this."},
@@ -453,17 +474,19 @@ func (c *DispatchController) GetRequest(ctx *gin.Context) {
 
 // CancelRequest godoc
 //
-//	@Summary	Cancel a request
-//	@Tags		Dispatch
-//	@Accept		json
-//	@Produce	json
-//	@Param		id		path		string				true	"Request id"
-//	@Param		body	body		dtos.CancelInput	true	"Reason"
-//	@Success	200		{object}	dtos.RequestView
-//	@Failure	409		{object}	shared.ErrorResponse	"Not possible in this state"
-//	@Security	BearerAuth
-//	@Security	ClientId
-//	@Router		/api/v1/requests/{id}/cancel [post]
+//	@Summary		Cancel a request
+//	@Description	Customer or provider of the request. The reason comes from GET /cancellation-reasons, and a reason that needs a note needs the note. When the customer owes a fee, expected_fee_cents must be the fee shown by GET /requests/{id}/cancellation, or the answer is 409 CANCEL_FEE_CHANGED with the current fee. A provider who cancels never makes the customer pay.
+//	@Tags			Dispatch
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string				true	"Request id"
+//	@Param			body	body		dtos.CancelInput	true	"Reason"
+//	@Success		200		{object}	dtos.RequestView
+//	@Failure		409		{object}	shared.ErrorResponse	"Not possible in this state, or the fee changed"
+//	@Failure		422		{object}	shared.ErrorResponse	"Unknown reason or missing note"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/{id}/cancel [post]
 func (c *DispatchController) CancelRequest(ctx *gin.Context) {
 	reqCtx := ctx.Request.Context()
 	userID, ok := middleware.UserIDFromContext(reqCtx)
@@ -482,12 +505,145 @@ func (c *DispatchController) CancelRequest(ctx *gin.Context) {
 	}
 	role, _ := middleware.RoleFromContext(reqCtx)
 	if role == enums.RoleProvider {
-		view, err := c.dispatch.CancelByProvider(reqCtx, userID, id, in.Reason)
+		view, err := c.dispatch.CancelByProvider(reqCtx, userID, id, in)
 		respond(ctx, http.StatusOK, view, err)
 		return
 	}
-	view, err := c.dispatch.CancelByCustomer(reqCtx, userID, id, in.Reason)
+	view, err := c.dispatch.CancelByCustomer(reqCtx, userID, id, in)
 	respond(ctx, http.StatusOK, view, err)
+}
+
+// CancellationPreview godoc
+//
+//	@Summary		Cost of a cancellation now
+//	@Description	The fee the customer would pay at this moment, until when it is free, and the reasons to choose from. A provider sees the provider reasons and fee 0.
+//	@Tags			Dispatch
+//	@Produce		json
+//	@Param			id	path		string	true	"Request id"
+//	@Success		200	{object}	dtos.CancellationPreview
+//	@Failure		404	{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/{id}/cancellation [get]
+func (c *DispatchController) CancellationPreview(ctx *gin.Context) {
+	reqCtx := ctx.Request.Context()
+	userID, ok := middleware.UserIDFromContext(reqCtx)
+	if !ok {
+		shared.Unauthorized(ctx, shared.CodeUnauthorized, "Authentication required.")
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	view, err := c.dispatch.PreviewCancellation(reqCtx, userID, id)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// CancellationReasons godoc
+//
+//	@Summary		Reasons to cancel or refuse
+//	@Description	List managed in the backoffice, per actor and category.
+//	@Tags			Dispatch
+//	@Produce		json
+//	@Param			actor		query		string	true	"customer, provider or offer"
+//	@Param			category	query		string	true	"Category slug"
+//	@Success		200			{object}	dtos.ReasonOptions
+//	@Failure		422			{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/cancellation-reasons [get]
+func (c *DispatchController) CancellationReasons(ctx *gin.Context) {
+	view, err := c.dispatch.ReasonOptions(ctx.Request.Context(), ctx.Query("actor"), ctx.Query("category"))
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// ListCancellationRules godoc
+//
+//	@Summary	Cancellation rules of every service
+//	@Tags		Backoffice
+//	@Produce	json
+//	@Success	200	{object}	dtos.CancellationRuleList
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/admin/cancellation-rules [get]
+func (c *DispatchController) ListCancellationRules(ctx *gin.Context) {
+	list, err := c.dispatch.ListCancellationRules(ctx.Request.Context())
+	respond(ctx, http.StatusOK, list, err)
+}
+
+// SetCancellationRule godoc
+//
+//	@Summary	Set the cancellation rule of a service
+//	@Tags		Backoffice
+//	@Accept		json
+//	@Produce	json
+//	@Param		serviceId	path		string						true	"Service id"
+//	@Param		body		body		dtos.CancellationRuleInput	true	"Rule"
+//	@Success	200			{object}	dtos.CancellationRuleView
+//	@Failure	422			{object}	shared.ErrorResponse
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/admin/cancellation-rules/{serviceId} [put]
+func (c *DispatchController) SetCancellationRule(ctx *gin.Context) {
+	actor, ok := staffActor(ctx)
+	if !ok {
+		return
+	}
+	id, ok := idParamNamed(ctx, "serviceId", "SERVICE_NOT_FOUND", "Service not found.")
+	if !ok {
+		return
+	}
+	var in dtos.CancellationRuleInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.SetCancellationRule(ctx.Request.Context(), actor, id, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// CancellationReport godoc
+//
+//	@Summary		Requests cancelled or offers refused, per reason
+//	@Description	Grouped by the reason id, so a label can change without breaking the report.
+//	@Tags			Backoffice
+//	@Produce		json
+//	@Param			scope		query		string	true	"customer_cancel, provider_cancel or offer_reject"
+//	@Param			category	query		string	false	"Category slug"
+//	@Param			from		query		string	false	"RFC3339"
+//	@Param			to			query		string	false	"RFC3339"
+//	@Success		200			{object}	dtos.CancellationReport
+//	@Failure		422			{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/reports/cancellations [get]
+func (c *DispatchController) CancellationReport(ctx *gin.Context) {
+	from, to, ok := reportPeriod(ctx)
+	if !ok {
+		return
+	}
+	view, err := c.dispatch.CancellationReport(ctx.Request.Context(), ctx.Query("scope"), ctx.Query("category"), from, to)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+func reportPeriod(ctx *gin.Context) (from, to *time.Time, ok bool) {
+	for _, item := range []struct {
+		name string
+		into **time.Time
+	}{{"from", &from}, {"to", &to}} {
+		raw := ctx.Query(item.name)
+		if raw == "" {
+			continue
+		}
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid "+item.name+".")
+			return nil, nil, false
+		}
+		*item.into = &parsed
+	}
+	return from, to, true
 }
 
 // BoostRequest godoc
@@ -749,14 +905,18 @@ func (c *DispatchController) AcceptOffer(ctx *gin.Context) {
 
 // RejectOffer godoc
 //
-//	@Summary	Reject an offer
-//	@Tags		Provider work
-//	@Param		id	path	string	true	"Offer id"
-//	@Success	204
-//	@Failure	409	{object}	shared.ErrorResponse
-//	@Security	BearerAuth
-//	@Security	ClientId
-//	@Router		/api/v1/offers/{id}/reject [post]
+//	@Summary		Reject an offer
+//	@Description	The reason comes from GET /cancellation-reasons?actor=offer and is kept for the reports.
+//	@Tags			Provider work
+//	@Accept			json
+//	@Param			id		path	string					true	"Offer id"
+//	@Param			body	body	dtos.RejectOfferInput	true	"Reason"
+//	@Success		204
+//	@Failure		409	{object}	shared.ErrorResponse
+//	@Failure		422	{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/offers/{id}/reject [post]
 func (c *DispatchController) RejectOffer(ctx *gin.Context) {
 	providerID, ok := userWithRole(ctx, enums.RoleProvider)
 	if !ok {
@@ -766,7 +926,12 @@ func (c *DispatchController) RejectOffer(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	respond(ctx, http.StatusNoContent, nil, c.dispatch.Reject(ctx.Request.Context(), providerID, id))
+	var in dtos.RejectOfferInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	respond(ctx, http.StatusNoContent, nil, c.dispatch.Reject(ctx.Request.Context(), providerID, id, in))
 }
 
 // QuoteOffer godoc

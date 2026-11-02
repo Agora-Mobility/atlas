@@ -45,6 +45,8 @@ type RequestOffer struct {
 	DistanceM    *int
 	NetCents     *int64
 	BoostBps     int
+	RejectReason *uuid.UUID
+	RejectNote   string
 }
 
 func NewRequestOffer(id, requestID, providerID uuid.UUID, policy *DispatchPolicy, distanceM int, netCents *int64, boostBps int, now time.Time) *RequestOffer {

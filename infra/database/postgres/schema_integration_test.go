@@ -17,7 +17,7 @@ import (
 )
 
 var appTables = []string{
-	"addresses", "audit_log", "block_reasons", "category_payment_methods", "clients", "device_tokens", "dispatch_policies", "eta_observations",
+	"addresses", "audit_log", "block_reasons", "cancellation_rules", "category_payment_methods", "clients", "device_tokens", "dispatch_policies", "eta_observations",
 	"fare_adjustments", "fare_estimates", "invitations", "membership_roles", "memberships", "mfa_recovery_codes", "notifications",
 	"organizations", "outbox", "payment_events", "payment_refunds", "payments", "permissions", "provider_coverage", "provider_document_rejection_reasons", "provider_document_types", "provider_documents",
 	"provider_location_samples", "provider_rejection_reasons", "providers", "refresh_tokens", "rejection_reasons", "request_offers", "role_permissions", "roles", "schema_migrations",
@@ -120,7 +120,7 @@ func TestMigrate_NewDatabaseLivesInAtlas(t *testing.T) {
 	var version int
 	var dirty bool
 	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
-	assert.Equal(t, 22, version)
+	assert.Equal(t, 23, version)
 	assert.False(t, dirty)
 
 	var inMeters float64

@@ -156,13 +156,14 @@ type ReviewProviderInput struct {
 }
 
 type RejectionReasonView struct {
-	ID           uuid.UUID `json:"id"`
-	Scope        string    `json:"scope" example:"document"`
-	Code         string    `json:"code" example:"illegible"`
-	Label        string    `json:"label" example:"Documento ilegível"`
-	RequiresNote bool      `json:"requires_note"`
-	IsActive     bool      `json:"is_active"`
-	DisplayOrder int       `json:"display_order"`
+	ID           uuid.UUID  `json:"id"`
+	Scope        string     `json:"scope" example:"document"`
+	Code         string     `json:"code" example:"illegible"`
+	Label        string     `json:"label" example:"Documento ilegível"`
+	RequiresNote bool       `json:"requires_note"`
+	IsActive     bool       `json:"is_active"`
+	DisplayOrder int        `json:"display_order"`
+	CategoryID   *uuid.UUID `json:"category_id,omitempty"`
 }
 
 type RejectionReasonList struct {
@@ -170,11 +171,12 @@ type RejectionReasonList struct {
 }
 
 type CreateRejectionReasonInput struct {
-	Scope        string `json:"scope" binding:"required,oneof=document provider suspension"`
-	Code         string `json:"code" binding:"required,max=40" example:"blurry_photo"`
-	Label        string `json:"label" binding:"required,max=120" example:"Fotografia desfocada"`
-	RequiresNote bool   `json:"requires_note"`
-	DisplayOrder int    `json:"display_order" binding:"min=0,max=9999"`
+	Scope        string     `json:"scope" binding:"required,oneof=document provider suspension customer_cancel provider_cancel offer_reject"`
+	Code         string     `json:"code" binding:"required,max=40" example:"blurry_photo"`
+	Label        string     `json:"label" binding:"required,max=120" example:"Fotografia desfocada"`
+	RequiresNote bool       `json:"requires_note"`
+	DisplayOrder int        `json:"display_order" binding:"min=0,max=9999"`
+	CategoryID   *uuid.UUID `json:"category_id"`
 }
 
 type UpdateRejectionReasonInput struct {

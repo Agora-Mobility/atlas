@@ -121,10 +121,10 @@ type NewPaymentInput struct {
 }
 
 func NewPayment(in NewPaymentInput) (*Payment, error) {
-	if in.Request.Fare.Cents == nil || *in.Request.Fare.Cents <= 0 {
+	amount := in.Request.AmountDueCents()
+	if amount <= 0 {
 		return nil, ErrPaymentNotPayable
 	}
-	amount := *in.Request.Fare.Cents
 	if in.Method != PaymentCash && amount < MinGatewayCents {
 		return nil, ErrPaymentNotPayable
 	}

@@ -743,7 +743,7 @@ func (u *Usecase) resolveReasons(ctx context.Context, scope entities.RejectionSc
 
 func toReasonView(reason *entities.RejectionReason) dtos.RejectionReasonView {
 	return dtos.RejectionReasonView{
-		ID: reason.ID, Scope: string(reason.Scope), Code: reason.Code, Label: reason.Label, RequiresNote: reason.RequiresNote, IsActive: reason.IsActive, DisplayOrder: reason.DisplayOrder,
+		ID: reason.ID, Scope: string(reason.Scope), Code: reason.Code, Label: reason.Label, RequiresNote: reason.RequiresNote, IsActive: reason.IsActive, DisplayOrder: reason.DisplayOrder, CategoryID: reason.CategoryID,
 	}
 }
 
@@ -769,7 +769,7 @@ func (u *Usecase) CreateRejectionReason(ctx context.Context, actor entities.Acto
 		return nil, err
 	}
 	reason, err := entities.RejectionReason{
-		ID: id, Scope: entities.RejectionScope(in.Scope), Code: in.Code, Label: in.Label, RequiresNote: in.RequiresNote, IsActive: true, DisplayOrder: in.DisplayOrder,
+		ID: id, Scope: entities.RejectionScope(in.Scope), Code: in.Code, Label: in.Label, RequiresNote: in.RequiresNote, IsActive: true, DisplayOrder: in.DisplayOrder, CategoryID: in.CategoryID,
 	}.Validated()
 	if err != nil {
 		return nil, err

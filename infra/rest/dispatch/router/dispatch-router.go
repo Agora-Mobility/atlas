@@ -52,11 +52,13 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	providers.PUT("/coverage", retryable, r.controller.SetCoverage)
 
 	requests := signedIn.Group("/requests")
+	signedIn.GET("/cancellation-reasons", r.controller.CancellationReasons)
 	requests.POST("", r.idempotency.Required(), r.controller.CreateRequest)
 	requests.GET("", r.controller.ListRequests)
 	requests.GET("/active", r.controller.ActiveRequest)
 	requests.GET("/:id", r.controller.GetRequest)
 	requests.POST("/:id/cancel", retryable, r.controller.CancelRequest)
+	requests.GET("/:id/cancellation", r.controller.CancellationPreview)
 	requests.POST("/:id/boost", retryable, r.controller.BoostRequest)
 	requests.POST("/:id/route", retryable, r.controller.ChangeRoute)
 	requests.POST("/:id/select-quote", retryable, r.controller.SelectQuote)
@@ -89,6 +91,9 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	tariffs.GET("", r.controller.ListTariffs)
 	tariffs.POST("", r.controller.PublishTariff)
 
+	admin.GET("/cancellation-rules", can(entities.PermServicesManage), r.controller.ListCancellationRules)
+	admin.PUT("/cancellation-rules/:serviceId", can(entities.PermServicesManage), r.controller.SetCancellationRule)
+	admin.GET("/reports/cancellations", can(entities.PermRequestsRead), r.controller.CancellationReport)
 	admin.GET("/requests", can(entities.PermRequestsRead), r.controller.ListAdminRequests)
 	admin.GET("/requests/summary", can(entities.PermRequestsRead), r.controller.SummarizeAdminRequests)
 	admin.GET("/requests/:id", can(entities.PermRequestsRead), r.controller.GetAdminRequest)

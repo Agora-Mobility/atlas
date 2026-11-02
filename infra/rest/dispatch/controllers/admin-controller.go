@@ -344,8 +344,8 @@ func (c *DispatchController) RetrySearch(ctx *gin.Context) {
 //	@Tags		Backoffice dispatch
 //	@Accept		json
 //	@Produce	json
-//	@Param		id		path		string				true	"Request id"
-//	@Param		body	body		dtos.CancelInput	true	"Reason"
+//	@Param		id		path		string						true	"Request id"
+//	@Param		body	body		dtos.OperatorCancelInput	true	"Reason"
 //	@Success	200		{object}	dtos.RequestView
 //	@Failure	409		{object}	shared.ErrorResponse
 //	@Security	BearerAuth
@@ -360,7 +360,7 @@ func (c *DispatchController) OperatorCancel(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	var in dtos.CancelInput
+	var in dtos.OperatorCancelInput
 	if err := binding.JSON(ctx, &in); err != nil {
 		shared.InvalidRequest(ctx, err)
 		return

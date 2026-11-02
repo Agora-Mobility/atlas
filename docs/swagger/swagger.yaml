@@ -402,11 +402,102 @@ definitions:
     type: object
   dtos.CancelInput:
     properties:
-      reason:
-        maxLength: 200
+      expected_fee_cents:
+        maximum: 10000000000
+        minimum: 0
+        type: integer
+      note:
+        example: Tive um imprevisto
+        maxLength: 400
+        type: string
+      reason_id:
         type: string
     required:
-    - reason
+    - reason_id
+    type: object
+  dtos.CancellationPreview:
+    properties:
+      currency:
+        type: string
+      fee_cents:
+        type: integer
+      free_until:
+        type: string
+      reasons:
+        items:
+          $ref: '#/definitions/dtos.ReasonOption'
+        type: array
+    type: object
+  dtos.CancellationReport:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.CancellationReportRow'
+        type: array
+      scope:
+        type: string
+    type: object
+  dtos.CancellationReportRow:
+    properties:
+      category:
+        type: string
+      code:
+        type: string
+      fee_cents:
+        type: integer
+      label:
+        type: string
+      reason_id:
+        type: string
+      total:
+        type: integer
+    type: object
+  dtos.CancellationRuleInput:
+    properties:
+      charge_without_provider:
+        type: boolean
+      fee_cents:
+        maximum: 10000000000
+        minimum: 0
+        type: integer
+      free_after_assign_seconds:
+        maximum: 604800
+        minimum: 0
+        type: integer
+      scheduled_free_seconds:
+        maximum: 2592000
+        minimum: 0
+        type: integer
+    type: object
+  dtos.CancellationRuleList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.CancellationRuleView'
+        type: array
+    type: object
+  dtos.CancellationRuleView:
+    properties:
+      charge_without_provider:
+        type: boolean
+      fee_cents:
+        maximum: 10000000000
+        minimum: 0
+        type: integer
+      free_after_assign_seconds:
+        maximum: 604800
+        minimum: 0
+        type: integer
+      scheduled_free_seconds:
+        maximum: 2592000
+        minimum: 0
+        type: integer
+      service_id:
+        type: string
+      service_name:
+        type: string
+      service_slug:
+        type: string
     type: object
   dtos.Catalog:
     properties:
@@ -596,6 +687,8 @@ definitions:
     type: object
   dtos.CreateRejectionReasonInput:
     properties:
+      category_id:
+        type: string
       code:
         example: blurry_photo
         maxLength: 40
@@ -615,6 +708,9 @@ definitions:
         - document
         - provider
         - suspension
+        - customer_cancel
+        - provider_cancel
+        - offer_reject
         type: string
     required:
     - code
@@ -1297,6 +1393,14 @@ definitions:
           $ref: '#/definitions/dtos.OpenCategory'
         type: array
     type: object
+  dtos.OperatorCancelInput:
+    properties:
+      reason:
+        maxLength: 200
+        type: string
+    required:
+    - reason
+    type: object
   dtos.OrganizationPage:
     properties:
       items:
@@ -1891,6 +1995,24 @@ definitions:
       valid_for_s:
         type: integer
     type: object
+  dtos.ReasonOption:
+    properties:
+      code:
+        type: string
+      id:
+        type: string
+      label:
+        type: string
+      requires_note:
+        type: boolean
+    type: object
+  dtos.ReasonOptions:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.ReasonOption'
+        type: array
+    type: object
   dtos.RecoveryCodesOutput:
     properties:
       recovery_codes:
@@ -2053,6 +2175,16 @@ definitions:
         example: draft
         type: string
     type: object
+  dtos.RejectOfferInput:
+    properties:
+      note:
+        maxLength: 400
+        type: string
+      reason_id:
+        type: string
+    required:
+    - reason_id
+    type: object
   dtos.RejectionReasonList:
     properties:
       items:
@@ -2062,6 +2194,8 @@ definitions:
     type: object
   dtos.RejectionReasonView:
     properties:
+      category_id:
+        type: string
       code:
         example: illegible
         type: string
@@ -2175,7 +2309,11 @@ definitions:
         type: integer
       can_boost:
         type: boolean
+      cancel_fee_cents:
+        type: integer
       cancel_reason:
+        type: string
+      cancel_reason_id:
         type: string
       cancelled_by:
         type: string
@@ -3220,6 +3358,54 @@ paths:
       summary: List block reasons
       tags:
       - Backoffice users
+  /api/v1/admin/cancellation-rules:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CancellationRuleList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Cancellation rules of every service
+      tags:
+      - Backoffice
+  /api/v1/admin/cancellation-rules/{serviceId}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Service id
+        in: path
+        name: serviceId
+        required: true
+        type: string
+      - description: Rule
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CancellationRuleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CancellationRuleView'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set the cancellation rule of a service
+      tags:
+      - Backoffice
   /api/v1/admin/categories:
     get:
       description: Requires categories:manage. Active and inactive, in display order.
@@ -3562,7 +3748,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/dtos.CancelInput'
+          $ref: '#/definitions/dtos.OperatorCancelInput'
       produces:
       - application/json
       responses:
@@ -4025,6 +4211,45 @@ paths:
       summary: Update a rejection reason
       tags:
       - Backoffice providers
+  /api/v1/admin/reports/cancellations:
+    get:
+      description: Grouped by the reason id, so a label can change without breaking
+        the report.
+      parameters:
+      - description: customer_cancel, provider_cancel or offer_reject
+        in: query
+        name: scope
+        required: true
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: RFC3339
+        in: query
+        name: from
+        type: string
+      - description: RFC3339
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CancellationReport'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Requests cancelled or offers refused, per reason
+      tags:
+      - Backoffice
   /api/v1/admin/requests:
     get:
       description: Requires requests:read. Every category is here; filter by category
@@ -5281,6 +5506,37 @@ paths:
       summary: Register a new user
       tags:
       - Auth
+  /api/v1/cancellation-reasons:
+    get:
+      description: List managed in the backoffice, per actor and category.
+      parameters:
+      - description: customer, provider or offer
+        in: query
+        name: actor
+        required: true
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ReasonOptions'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Reasons to cancel or refuse
+      tags:
+      - Dispatch
   /api/v1/catalog:
     get:
       description: Active categories in display order, each with its active services.
@@ -6684,17 +6940,31 @@ paths:
       - Provider work
   /api/v1/offers/{id}/reject:
     post:
+      consumes:
+      - application/json
+      description: The reason comes from GET /cancellation-reasons?actor=offer and
+        is kept for the reports.
       parameters:
       - description: Offer id
         in: path
         name: id
         required: true
         type: string
+      - description: Reason
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RejectOfferInput'
       responses:
         "204":
           description: No Content
         "409":
           description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
@@ -8234,6 +8504,11 @@ paths:
     post:
       consumes:
       - application/json
+      description: Customer or provider of the request. The reason comes from GET
+        /cancellation-reasons, and a reason that needs a note needs the note. When
+        the customer owes a fee, expected_fee_cents must be the fee shown by GET /requests/{id}/cancellation,
+        or the answer is 409 CANCEL_FEE_CHANGED with the current fee. A provider who
+        cancels never makes the customer pay.
       parameters:
       - description: Request id
         in: path
@@ -8254,13 +8529,45 @@ paths:
           schema:
             $ref: '#/definitions/dtos.RequestView'
         "409":
-          description: Not possible in this state
+          description: Not possible in this state, or the fee changed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unknown reason or missing note
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - BearerAuth: []
       - ClientId: []
       summary: Cancel a request
+      tags:
+      - Dispatch
+  /api/v1/requests/{id}/cancellation:
+    get:
+      description: The fee the customer would pay at this moment, until when it is
+        free, and the reasons to choose from. A provider sees the provider reasons
+        and fee 0.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CancellationPreview'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Cost of a cancellation now
       tags:
       - Dispatch
   /api/v1/requests/{id}/complete:
