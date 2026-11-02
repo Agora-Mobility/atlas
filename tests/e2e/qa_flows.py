@@ -1641,7 +1641,7 @@ def compose(*args):
     subprocess.run(["docker", "compose", *args], stdin=subprocess.DEVNULL, capture_output=True)
 
 
-QA_CUSTOMERS = "SELECT id FROM users WHERE name ~ '^(Cliente|Rival|Intruso|Amigo|Convidado|Motorista|Reboque|Equipa|Outro) '"
+QA_CUSTOMERS = "SELECT id FROM users WHERE name ~ '^(Cliente|Rival|Intruso|Amigo|Convidado|Motorista|Reboque|Equipa|Outro|Dono|Estranho|Rascunho) '"
 
 
 def neutralize_test_data():

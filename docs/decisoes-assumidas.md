@@ -82,3 +82,5 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Método de pagamento | Depois de marcada, não se muda para Referência, e uma marcação por Referência não muda de método (`PAYMENT_METHOD_LOCKED`) | A confirmação depende do método escolhido na marcação |
 | Reembolso | `POST /admin/payments/{id}/refund` passa a exigir `Idempotency-Key`. **O backoffice tem de a enviar** | Dois cliques devolviam dinheiro duas vezes |
 | Limites de validação | Quantidades, tamanho da equipa, andares e dias do calendário ficam no código | São limites de entrada, não regras de negócio. **Rever** se preferires no backoffice |
+| Taxa acima do pago | Se o cliente pagou menos do que a taxa, por voucher ou reembolso, fica só o que foi pago e não há dívida adicional | Nunca se cobra uma segunda vez um pedido cancelado. **Rever** |
+| Mudanças: espera e aumento | Não há taxa de espera nem aumento de preço em Mudanças | "Preço fechado na marcação" |

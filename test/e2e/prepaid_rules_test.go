@@ -225,7 +225,7 @@ func TestABookingNobodyPaysDoesNotHoldTheSlotForever(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, rival.status, rival.text)
 }
 
-func TestALateReferenceAfterACancellationKeepsTheFee(t *testing.T) {
+func TestAReferencePaidAfterACancellationComesBackWhole(t *testing.T) {
 	ctx := context.Background()
 	customer := newCustomer(t)
 	windowID, when := removalWindow(t, "morning")
@@ -242,7 +242,8 @@ func TestALateReferenceAfterACancellationKeepsTheFee(t *testing.T) {
 	settleReference(t, merchantID, amount)
 	require.Eventually(t, func() bool { return walletOf(t, customer) > 0 }, 15*time.Second, 50*time.Millisecond)
 	wallet := walletOf(t, customer)
-	assert.EqualValues(t, amount-fee, wallet, "paid and cancelled late: it comes back minus the fee")
+	assert.Zero(t, fee, "it was not paid when cancelled, so it had no fee")
+	assert.EqualValues(t, amount, wallet, "the late money comes back whole")
 }
 
 func TestACancelledUnpaidRemovalHasNoFee(t *testing.T) {

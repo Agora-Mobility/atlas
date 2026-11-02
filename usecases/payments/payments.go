@@ -686,6 +686,10 @@ func (u *Usecase) ListOfRequest(ctx context.Context, userID, requestID uuid.UUID
 }
 
 func (u *Usecase) Refund(ctx context.Context, actor entities.Actor, paymentID uuid.UUID, in dtos.RefundInput) (*dtos.PaymentView, error) {
+	return u.refund(ctx, actor, paymentID, in, false)
+}
+
+func (u *Usecase) refund(ctx context.Context, actor entities.Actor, paymentID uuid.UUID, in dtos.RefundInput, keepingFee bool) (*dtos.PaymentView, error) {
 	var payment *entities.Payment
 	err := u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		var err error
@@ -735,11 +739,11 @@ func (u *Usecase) Refund(ctx context.Context, actor entities.Actor, paymentID uu
 		if err := u.record(ctx, payment, sourceAdmin, "refund", now); err != nil {
 			return err
 		}
-		if err := u.postRefund(ctx, request, payment, id, cents, now); err != nil {
+		if err := u.postRefund(ctx, request, payment, id, cents, keepingFee, now); err != nil {
 			return err
 		}
 		status := request.PaymentStatus
-		if payment.Kind == entities.PaymentKindFare || payment.Kind == entities.PaymentKindCancellationFee {
+		if status != entities.RequestUnpaid && (payment.Kind == entities.PaymentKindFare || payment.Kind == entities.PaymentKindCancellationFee) {
 			status = entities.RequestPaid
 			if payment.RefundableCents() == 0 {
 				status = entities.RequestFullyRefunded
@@ -826,12 +830,13 @@ func (u *Usecase) RefundPrepaid(ctx context.Context, requestID uuid.UUID, reason
 }
 
 func (u *Usecase) refundKeepingFee(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, reason string, now time.Time) error {
-	if cents := payment.RefundableCents() - request.CancelFeeCents; cents > 0 {
-		if _, err := u.Refund(ctx, entities.SystemActor(), payment.ID, dtos.RefundInput{AmountCents: cents, Reason: reason}); err != nil {
+	kept := min(request.CancelFeeCents, payment.RefundableCents())
+	if cents := payment.RefundableCents() - kept; cents > 0 {
+		if _, err := u.refund(ctx, entities.SystemActor(), payment.ID, dtos.RefundInput{AmountCents: cents, Reason: reason}, true); err != nil {
 			return err
 		}
 	}
-	return u.creditKeptFee(ctx, request, payment, now)
+	return u.creditKeptFee(ctx, request, payment, kept, now)
 }
 
 // ExpireUnpaidPrepaid ends a booking whose customer never asked for the reference,

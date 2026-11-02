@@ -44,6 +44,18 @@ A API do Docker voltava a arrancar com a Castbrick real enquanto havia eventos e
 
 Os testes estão em `test/e2e/prepaid_rules_test.go`.
 
+**Segunda revisão independente (`0a849e2`):** provou mais 8 falhas em cenários combinados, 5 delas vindas da correção anterior. Todas as transações somavam zero; o erro estava em quem ficava com o dinheiro. Testes em `test/e2e/prepaid_combined_test.go`.
+
+| Bug | Correção |
+|---|---|
+| Taxa retida creditada por inteiro, mesmo com menos pago | O motorista só recebe do que ficou mesmo retido |
+| Espera ou aumento numa mudança de preço fechado | Não se aplicam. O motorista recebe do que foi pago |
+| Reembolso de extra ou de taxa não devolvia a comissão | A repartição é desfeita |
+| Reembolsar a taxa retida não a tirava ao motorista | O motorista devolve a sua parte |
+| Reembolso parcial perdoava um extra por pagar | O extra continua em dívida |
+| Prémio de convite depois de reembolso total | Não é pago |
+| Teste que dizia provar a taxa, mas lia taxa 0 | Renomeado para o que prova; a taxa fica provada noutro teste |
+
 ### Alterações às verificações do script
 
 Nenhuma verificação foi retirada para passar. Estas foram alteradas por causa de uma decisão do brief ou de uma rota real:

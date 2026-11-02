@@ -123,13 +123,25 @@ func (u *Usecase) payFromWallet(ctx context.Context, request *entities.ServiceRe
 	return u.persistChange(ctx, payment, sourceAPI, "paid from the wallet", now)
 }
 
-func (u *Usecase) postRefund(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, refundID uuid.UUID, cents int64, now time.Time) error {
+func keptFeeWasCredited(request *entities.ServiceRequest, payment *entities.Payment) bool {
+	return request.Status == entities.RequestCancelled && request.Prepay && request.WorkshopID == nil && request.ProviderID != nil && request.CancelFeeCents > 0 && payment.Kind == entities.PaymentKindFare && request.Fare.Cents != nil && *request.Fare.Cents > 0
+}
+
+func (u *Usecase) postRefund(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, refundID uuid.UUID, cents int64, keepingFee bool, now time.Time) error {
 	commission := int64(0)
-	if payment.Kind == entities.PaymentKindFare {
-		commission = settlementOf(request, payment).CommissionCents - request.DiscountCents
+	if payment.Kind != entities.PaymentKindTip {
+		settlement := settlementOf(request, payment)
+		commission = settlement.CommissionCents - settlement.DiscountCents
 	}
 	payee, payeeType := payeeOf(request)
 	legs := entities.RefundLegsOf(payeeType, payment.RefundsToWallet(), request.CustomerID, payee, cents, payment.AmountCents, commission)
+	if !keepingFee && keptFeeWasCredited(request, payment) {
+		rate := int64(0)
+		if request.Fare.CommissionCents != nil {
+			rate = *request.Fare.CommissionCents
+		}
+		legs = entities.RefundLegsOf(entities.AccountProvider, payment.RefundsToWallet(), request.CustomerID, request.ProviderID, cents, *request.Fare.Cents, rate)
+	}
 	_, err := u.post(ctx, "refund:"+refundID.String(), entities.LedgerRefund, legs, payment.Currency, &request.ID, &payment.ID, nil, "", now)
 	return err
 }
@@ -382,12 +394,13 @@ func (u *Usecase) OnPrepaidCompleted(ctx context.Context, request *entities.Serv
 	if err != nil || paid == nil {
 		return err
 	}
+	if paid.RefundableCents() == 0 {
+		return nil
+	}
 	if request.WorkshopID == nil && request.ProviderID != nil && request.Fare.Cents != nil {
-		commission := int64(0)
-		if request.Fare.CommissionCents != nil {
-			commission = *request.Fare.CommissionCents
-		}
-		earned := (*request.Fare.Cents - commission) * paid.RefundableCents() / paid.AmountCents
+		settled := entities.Payment{AmountCents: paid.AmountCents, Kind: paid.Kind, Method: paid.Method}
+		settlement := settlementOf(request, &settled)
+		earned := (settlement.FareCents - settlement.CommissionCents) * paid.RefundableCents() / paid.AmountCents
 		if err := u.movePlatformToProvider(ctx, "prepaid-release:"+paid.ID.String(), entities.LedgerFarePayment, request, paid, earned, now); err != nil {
 			return err
 		}
@@ -407,15 +420,16 @@ func (u *Usecase) movePlatformToProvider(ctx context.Context, key string, kind e
 	return err
 }
 
-// creditKeptFee gives the assigned provider the fee kept from a prepaid request,
-// minus the same commission of the ride.
-func (u *Usecase) creditKeptFee(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, now time.Time) error {
-	if request.CancelFeeCents <= 0 || request.ProviderID == nil || request.WorkshopID != nil || request.Fare.Cents == nil || *request.Fare.Cents <= 0 {
+// creditKeptFee gives the assigned provider what was really kept of the fee, minus
+// the same commission of the ride. A big voucher or an earlier refund can leave less
+// than the fee, and nobody earns money that was never paid.
+func (u *Usecase) creditKeptFee(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, kept int64, now time.Time) error {
+	if kept <= 0 || !keptFeeWasCredited(request, payment) {
 		return nil
 	}
 	commission := int64(0)
 	if request.Fare.CommissionCents != nil {
-		commission = request.CancelFeeCents * *request.Fare.CommissionCents / *request.Fare.Cents
+		commission = kept * *request.Fare.CommissionCents / *request.Fare.Cents
 	}
-	return u.movePlatformToProvider(ctx, "prepaid-fee:"+request.ID.String(), entities.LedgerCancellationFee, request, payment, request.CancelFeeCents-commission, now)
+	return u.movePlatformToProvider(ctx, "prepaid-fee:"+request.ID.String(), entities.LedgerCancellationFee, request, payment, kept-commission, now)
 }

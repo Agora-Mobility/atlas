@@ -496,7 +496,7 @@ func (u *Usecase) Boost(ctx context.Context, customerID, requestID uuid.UUID, pe
 		if err != nil {
 			return err
 		}
-		if !policy.AllowBoost || !request.Status.IsSearching() {
+		if !policy.AllowBoost || !request.Status.IsSearching() || request.Prepay || request.RemovalDay != nil {
 			return entities.ErrBoostNotAllowed
 		}
 		now := u.now()

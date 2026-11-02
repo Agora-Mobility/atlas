@@ -390,6 +390,9 @@ func (u *Usecase) CompleteJob(ctx context.Context, providerID, requestID uuid.UU
 }
 
 func (u *Usecase) chargeWaiting(ctx context.Context, request *entities.ServiceRequest, actorID uuid.UUID, now time.Time) error {
+	if request.Prepay || request.RemovalDay != nil {
+		return nil
+	}
 	if request.ArrivedAt == nil || request.Fare.EstimateID == nil || request.Fare.Cents == nil {
 		return nil
 	}
