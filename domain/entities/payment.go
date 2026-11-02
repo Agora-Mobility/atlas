@@ -52,6 +52,7 @@ var (
 	ErrPaymentAlreadyPaid       = errors.New("this request is already paid")
 	ErrPaymentPendingElsewhere  = errors.New("this request has a payment waiting for the customer")
 	ErrPaymentMethodLocked      = errors.New("the method of this request cannot change now")
+	ErrCashNotExpected          = errors.New("this request is not paid in cash")
 	ErrRefundNotSupported       = errors.New("this payment cannot be refunded through the gateway")
 	ErrRefundTooLarge           = errors.New("the refund is above what is left of the payment")
 

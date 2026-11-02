@@ -558,6 +558,9 @@ func (u *Usecase) ConfirmCash(ctx context.Context, providerID, requestID uuid.UU
 		if request.PaymentStatus != entities.RequestUnpaid {
 			return entities.ErrPaymentPendingElsewhere
 		}
+		if request.PaymentMethod != entities.PaymentCash {
+			return entities.ErrCashNotExpected
+		}
 		enabled, err := u.Payments.IsMethodEnabled(ctx, request.CategoryID, entities.PaymentCash)
 		if err != nil {
 			return err
