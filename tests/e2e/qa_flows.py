@@ -171,10 +171,12 @@ def go_offline(*drivers):
         call("POST", "/providers/me/offline", None, driver["tok"], PROVIDER, log=False)
 
 
-def estimate(customer, stops=None, category="taxi", slug=None, dest=DEST):
+def estimate(customer, stops=None, category="taxi", slug=None, dest=DEST, scheduled_for=None):
     body = {"category": category, "pickup": PICKUP, "destination": dest}
     if stops is not None:
         body["stops"] = stops
+    if scheduled_for:
+        body["scheduled_for"] = scheduled_for
     status, res = call("POST", "/fare-estimates", body, customer["tok"])
     assert status == 201, res
     items = res["items"]
@@ -244,11 +246,11 @@ def route_missing(*paths):
 open_api_lock, OPENAPI = threading.Lock(), []
 
 
-def expected_fare(slug, distance, seconds):
-    row = sql(f"SELECT t.base_fee_cents,t.per_km_fee_cents,t.per_minute_fee_cents,t.minimum_fee_cents,t.zone_fee_cents,t.night_fee_cents FROM service_tariffs t JOIN services s ON s.id=t.service_id WHERE s.slug='{slug}' AND t.valid_until IS NULL LIMIT 1").split("|")
-    base, km, minute, minimum, zone, night = map(int, row)
+def expected_fare(slug, distance, seconds, stops=0):
+    row = sql(f"SELECT t.base_fee_cents,t.per_km_fee_cents,t.per_minute_fee_cents,t.minimum_fee_cents,t.zone_fee_cents,t.night_fee_cents,t.stop_fee_cents FROM service_tariffs t JOIN services s ON s.id=t.service_id WHERE s.slug='{slug}' AND t.valid_until IS NULL LIMIT 1").split("|")
+    base, km, minute, minimum, zone, night, stop_fee = map(int, row)
     fare = base + round(distance * km / 1000) + round(seconds * minute / 60)
-    return max(fare, minimum) + zone, (base, km, minute, minimum, zone, night)
+    return max(fare, minimum) + zone + stops * stop_fee, (base, km, minute, minimum, zone, night, stop_fee)
 
 
 def taxi():
@@ -257,8 +259,8 @@ def taxi():
         plain, stopped = estimate(customer), estimate(customer, STOPS[:2])
         chk(stopped["total_cents"] != plain["total_cents"], f"preço muda: {plain['total_cents']} -> {stopped['total_cents']} cêntimos")
         chk(stopped["distance_m"] > plain["distance_m"], f"distância: {plain['distance_m']} -> {stopped['distance_m']} m")
-        for label, item in (("sem", plain), ("com", stopped)):
-            want, tariff = expected_fare(item["service_slug"], item["distance_m"], item["duration_s"])
+        for label, item, count in (("sem", plain, 0), ("com", stopped, 2)):
+            want, tariff = expected_fare(item["service_slug"], item["distance_m"], item["duration_s"], count)
             chk(abs(want - item["total_cents"]) <= 1, f"{label} paragens: tarifa {tariff} com {item['distance_m']} m e {item['duration_s']} s dá {want}; API {item['total_cents']}")
         status, created = create(customer, stopped, STOPS[:2])
         chk(status == 201 and created.get("fare_cents") == stopped["total_cents"], f"pedido com a estimativa certa fica a {created.get('fare_cents')}")
@@ -292,23 +294,23 @@ def taxi():
 
     with Scenario("T3", "Agendamento e despacho 30 min antes"):
         customer, driver = new_user("customer", "Cliente T3"), new_user("provider", "Motorista T3", "taxi")
-        est = estimate(customer)
         luanda = dt.timezone(dt.timedelta(hours=1))
         tomorrow = (dt.datetime.now(luanda) + dt.timedelta(days=1)).replace(hour=7, minute=30, second=0, microsecond=0)
+        est = estimate(customer, scheduled_for=tomorrow.isoformat())
         status, created = create(customer, est, scheduled_for=tomorrow.isoformat())
         chk(status == 201 and created.get("status") == "scheduled", f"amanhã 07:30: {status} {created.get('status')}")
         rid = created["id"]
         next_at = sql(f"SELECT next_action_at AT TIME ZONE 'UTC', scheduled_for AT TIME ZONE 'UTC', extract(epoch from scheduled_for-next_action_at) FROM service_requests WHERE id='{rid}'")
         chk(next_at.endswith("|1800") or next_at.split("|")[-1].startswith("1800"), f"job marcado 30 min antes (BD): {next_at}")
-        status, res = create(customer, est, scheduled_for=(dt.datetime.now(luanda) + dt.timedelta(days=8)).isoformat())
-        chk(status == 422, f"8 dias: {status} {code(res)}")
-        status, res = create(customer, est, scheduled_for=(dt.datetime.now(luanda) - dt.timedelta(hours=1)).isoformat())
-        chk(status == 422, f"passado: {status} {code(res)}")
-        odd = (dt.datetime.now(luanda) + dt.timedelta(days=1)).replace(hour=7, minute=37, second=0, microsecond=0)
-        status, oddres = create(customer, est, scheduled_for=odd.isoformat())
-        chk(status == 422, f"fora dos intervalos de 15 min (07:37): {status}")
-        if status == 201:
-            call("POST", f"/requests/{oddres['id']}/cancel", {"reason": "QA"}, customer["tok"])
+        for label, when in (("8 dias", dt.datetime.now(luanda).replace(minute=0, second=0, microsecond=0) + dt.timedelta(days=8)), ("passado", dt.datetime.now(luanda).replace(minute=0, second=0, microsecond=0) - dt.timedelta(hours=1)),
+                            ("fora dos intervalos de 15 min (07:37)", tomorrow.replace(minute=37))):
+            status, res = call("POST", "/fare-estimates", {"category": "taxi", "pickup": PICKUP, "destination": DEST, "scheduled_for": when.isoformat()}, customer["tok"])
+            chk(status == 422, f"estimativa a {label}: {status} {code(res)}")
+            status, res = create(customer, est, scheduled_for=when.isoformat())
+            chk(400 <= status < 500, f"pedido a {label}: {status} {code(res)}")
+        other_hour = estimate(customer, scheduled_for=tomorrow.replace(hour=23).isoformat())
+        status, res = create(customer, other_hour, scheduled_for=tomorrow.isoformat())
+        chk(code(res) == "FARE_ESTIMATE_INVALID", f"estimativa de outra hora não serve: {status} {code(res)}")
         go_online(driver)
         sql(f"UPDATE service_requests SET next_action_at=now() WHERE id='{rid}'")
         offer = wait_offer(driver, rid, 30)
@@ -330,7 +332,7 @@ def taxi():
         accept(driver, offer)
         _, seen = call("GET", f"/requests/{rid}", None, driver["tok"], PROVIDER)
         chk(seen.get("passenger_name") == "Maria Neto", f"motorista vê o nome: {seen.get('passenger_name')}")
-        chk(passenger.lstrip("+") in json.dumps(seen) , f"motorista vê o telemóvel do passageiro: contact_phone={seen.get('contact_phone')!r}, passenger_phone={seen.get('passenger_phone')!r}")
+        chk(seen.get("passenger_phone") == passenger, f"motorista vê o telemóvel do passageiro: passenger_phone={seen.get('passenger_phone')!r}")
         time.sleep(3)
         messages = sms_to(passenger)
         chk(len(messages) >= 1, f"SMS ao passageiro: {len(messages)} mensagem(ns)")
@@ -338,7 +340,8 @@ def taxi():
             text = messages[-1]
             info("texto: " + text[:220])
             plate = sql(f"SELECT plate FROM vehicles WHERE provider_id='{driver['id']}'")
-            chk(plate in text or "Motorista T4" in text, "o SMS traz os detalhes (motorista ou matrícula)")
+            chk(plate in text and "Motorista T4" in text, "o SMS traz o motorista e a matrícula")
+            chk("táxi" in text, "o SMS usa o texto da categoria")
         advance(driver, rid)
         status, payment = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"])
         owner = sql(f"SELECT customer_id FROM payments WHERE request_id='{rid}'")
