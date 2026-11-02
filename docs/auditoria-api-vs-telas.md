@@ -445,3 +445,11 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 **Endpoints novos:** `GET /rating-options`, `POST /requests/{id}/rating`, `POST /requests/{id}/tips`, `GET /providers/me/ratings`, `GET,POST /admin/catalog/{kind}`, `PUT /admin/catalog/{kind}/{id}`, `GET /admin/settings`, `PUT /admin/settings/{key}`.
 
 **Alterados:** `GET /requests` e `GET /requests/{id}` trazem `can_rate`, `rating` e, no prestador, `rating`, `rating_count` e `completed_requests`.
+
+### Fase 6: vouchers
+
+`vouchers` e `voucher_redemptions`. A AGORA paga o desconto: a comissão continua a incidir sobre a tarifa e o motorista recebe como se não houvesse voucher. Cancelar devolve o voucher. O desconto é recalculado se a rota mudar.
+
+**Endpoints novos:** `GET /vouchers`, `POST /vouchers/preview`, `GET,POST /admin/vouchers`, `PUT /admin/vouchers/{id}`.
+
+**Alterados:** `POST /requests` aceita `voucher_code` e recusa os inválidos, em vez de os ignorar (B5). Os pedidos trazem `discount_cents`, `voucher_code` e `amount_due_cents`.
