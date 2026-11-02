@@ -333,8 +333,10 @@ def taxi():
                             ("fora dos intervalos de 15 min (07:37)", tomorrow.replace(minute=37))):
             status, res = call("POST", "/fare-estimates", {"category": "taxi", "pickup": PICKUP, "destination": DEST, "scheduled_for": when.isoformat()}, customer["tok"])
             chk(status == 422, f"estimativa a {label}: {status} {code(res)}")
-            status, res = create(customer, est, scheduled_for=when.isoformat())
-            chk(400 <= status < 500, f"pedido a {label}: {status} {code(res)}")
+            forged = estimate(customer)
+            sql(f"UPDATE fare_estimates SET scheduled_for='{when.isoformat()}' WHERE id='{forged['fare_estimate_id']}'")
+            status, res = create(customer, forged, scheduled_for=when.isoformat())
+            chk(status == 422, f"pedido a {label}, com estimativa da mesma hora: {status} {code(res)}")
         other_hour = estimate(customer, scheduled_for=tomorrow.replace(hour=23).isoformat())
         status, res = create(customer, other_hour, scheduled_for=tomorrow.isoformat())
         chk(code(res) == "FARE_ESTIMATE_INVALID", f"estimativa de outra hora não serve: {status} {code(res)}")
@@ -768,7 +770,7 @@ def maintenance(admin, partner):
         _, chat = call("GET", f"/bookings/{bid}/messages", None, customer["tok"])
         chk(len(chat.get("items", [])) == 2, f"mensagens: {len(chat.get('items', []))}")
         status, res = call("POST", f"/bookings/{bid}/call", None, customer["tok"])
-        chk(status == 503 and code(res) == "CALLS_UNAVAILABLE" or status == 409, f"chamada mascarada sem fornecedor: {status} {code(res)}")
+        chk(status == 503 and code(res) == "CALLS_UNAVAILABLE", f"chamada mascarada sem fornecedor: {status} {code(res)}")
         chk(move("ready")[0] == 200, "Pronta para levantar")
         chk(sql(f"SELECT string_agg(to_status, ',' ORDER BY id) FROM booking_events WHERE booking_id='{bid}'") == "confirmed,vehicle_received,in_service,ready", "histórico de estados (BD)")
 
@@ -787,12 +789,13 @@ def maintenance(admin, partner):
         chk(call("POST", f"/bookings/{bid}/approve", None, new_user("customer", "Intruso M6")["tok"])[0] == 404, "outro cliente não aprova")
         status, view = call("POST", f"/bookings/{bid}/approve", None, customer["tok"])
         chk(status == 200 and view.get("status") == "completed" and view.get("amount_due_cents") == 3500000, f"aprovar: {status} {view.get('status')} {view.get('amount_due_cents')}")
+        sql(f"UPDATE service_requests SET commission_cents=350000 WHERE id='{rid}'")
         status, payment = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK, "amount_cents": 1}, customer["tok"])
         chk(status == 201 and payment.get("amount_cents") == 3500000, f"Express com o valor do servidor: {status} {payment.get('amount_cents')}")
         chk(wait_payment(customer, rid, "paid"), "pago depois da confirmação da AppyPay")
         commission = int(sql(f"SELECT commission_cents FROM service_requests WHERE id='{rid}'"))
         balance = int(sql(f"SELECT COALESCE(sum(amount_cents),0) FROM ledger_entries WHERE account_type='workshop' AND account_id='{workshop_id}'"))
-        chk(balance == 3500000 - commission, f"ledger da oficina: {balance} com comissão {commission}")
+        chk(commission == 350000 and balance == 3500000 - commission, f"ledger da oficina: {balance} com comissão {commission}")
         status, rating = call("POST", f"/requests/{rid}/rating", {"stars": 5, "comment": "Bom"}, customer["tok"])
         chk(status == 201, f"avaliar: {status}")
         _, reviews = call("GET", f"/workshops/{workshop_id}/reviews", None, customer["tok"])
@@ -1067,7 +1070,8 @@ def orders_and_account():
         _, marked = call("GET", "/requests?status=scheduled", None, customer["tok"])
         chk(tow["id"] in ids(active) and done not in ids(active), f"Em curso: {len(ids(active))} pedidos, inclui reboque")
         _, removal_view = call("GET", f"/requests/{removal['id']}", None, customer["tok"])
-        chk(removal_view.get("status") == "searching" and removal["id"] in ids(active) or removal["id"] in ids(marked), f"as mudanças aparecem em Em curso ou Marcados: {removal_view.get('status')}")
+        removal_tab = ids(marked) if removal_view.get("status") == "scheduled" else ids(active)
+        chk(removal["id"] in removal_tab, f"as mudanças aparecem no separador do seu estado: {removal_view.get('status')}")
         chk(done in ids(history) and tow["id"] not in ids(history), "Histórico tem a concluída")
         chk(ids(marked) - {removal["id"]} == {scheduled["id"], repair["id"]}, "Marcados junta a corrida marcada e a marcação de oficina")
         _, only = call("GET", "/requests?category=towing", None, customer["tok"])
@@ -1275,7 +1279,9 @@ def orders_and_account():
         customer, driver, rid = completed_ride("gpo")
         driver_id = driver["id"]
         fare = int(sql(f"SELECT fare_cents FROM service_requests WHERE id='{rid}'"))
-        commission = int(sql(f"SELECT commission_cents FROM service_requests WHERE id='{rid}'"))
+        commission = fare // 10
+        sql(f"UPDATE service_requests SET commission_cents={commission} WHERE id='{rid}'")
+        chk(commission > 0, f"a prova usa uma comissão real: {commission}")
         call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"])
         chk(wait_payment(customer, rid, "paid"), "pago")
         balance = lambda: call("GET", f"/admin/providers/{driver_id}/ledger", None, ADMIN[0], BACKOFFICE, log=False)[1].get("balance_cents")
@@ -1310,12 +1316,12 @@ def payments_real(admin):
         fare = sql(f"SELECT fare_cents FROM service_requests WHERE id='{rid}'")
         chk(status == 201 and str(pending.get("amount_cents")) == fare, f"amount_cents enviado é ignorado: cobra {pending.get('amount_cents')}, fare {fare}")
         chk(wait_payment(customer, rid, "paid"), "fica pago depois da confirmação da AppyPay")
-        status, res = call("POST", f"/admin/payments/{pending['id']}/refund", {"amount_cents": int(fare) + 1, "reason": "QA"}, admin, BACKOFFICE)
+        status, res = call("POST", f"/admin/payments/{pending['id']}/refund", {"amount_cents": int(fare) + 1, "reason": "QA"}, admin, BACKOFFICE, idem=str(uuid.uuid4()))
         chk(code(res) == "REFUND_TOO_LARGE", f"reembolso acima do pago: {status} {code(res)}")
-        status, res = call("POST", f"/admin/payments/{pending['id']}/refund", {"amount_cents": 1000, "reason": "QA"}, admin, BACKOFFICE)
+        status, res = call("POST", f"/admin/payments/{pending['id']}/refund", {"amount_cents": 1000, "reason": "QA"}, admin, BACKOFFICE, idem=str(uuid.uuid4()))
         chk(status == 200 and res.get("refunded_cents") == 1000, f"reembolso parcial real: {status} {res.get('refunded_cents')}")
         with cf.ThreadPoolExecutor(2) as pool:
-            both = list(pool.map(lambda _: call("POST", f"/admin/payments/{pending['id']}/refund", {"reason": "QA"}, admin, BACKOFFICE, log=False)[0], range(2)))
+            both = list(pool.map(lambda _: call("POST", f"/admin/payments/{pending['id']}/refund", {"reason": "QA"}, admin, BACKOFFICE, idem=str(uuid.uuid4()), log=False)[0], range(2)))
         refunded = sql(f"SELECT refunded_cents FROM payments WHERE id='{pending['id']}'")
         chk(sorted(both)[0] == 200 and sorted(both)[1] != 200 and refunded == fare, f"2 reembolsos totais em simultâneo: {both}, reembolsado {refunded} de {fare}")
 
@@ -1634,6 +1640,39 @@ def compose(*args):
     subprocess.run(["docker", "compose", *args], stdin=subprocess.DEVNULL, capture_output=True)
 
 
+QA_CUSTOMERS = "SELECT id FROM users WHERE name ~ '^(Cliente|Rival|Intruso|Amigo|Convidado|Motorista|Reboque|Equipa|Outro) '"
+
+
+def neutralize_test_data():
+    sql(f"UPDATE bookings SET status='cancelled' WHERE status NOT IN ('completed','cancelled') AND customer_id IN ({QA_CUSTOMERS})")
+    sql(f"UPDATE service_requests SET status='cancelled', cancelled_by='system', cancel_reason='QA terminado', next_action_at=NULL, reminder_at=NULL, needs_operator=false, updated_at=now() WHERE status NOT IN ('completed','cancelled','expired') AND customer_id IN ({QA_CUSTOMERS})")
+    sql(f"UPDATE payments SET status='expired', next_check_at=NULL, updated_at=now() WHERE status='pending' AND customer_id IN ({QA_CUSTOMERS})")
+
+
+def events_drained():
+    if sql("SELECT count(*) FROM outbox WHERE published_at IS NULL") != "0":
+        return False
+    out = subprocess.run(["docker", "compose", "exec", "-T", "rabbitmq", "rabbitmqctl", "-q", "list_queues", "name", "messages"], capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    if out.returncode:
+        return False
+    for line in out.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1].isdigit() and int(parts[1]) > 0 and not parts[0].endswith((".dlq", ".unrouted")):
+            return False
+    return True
+
+
+def wait_for_drain(seconds=120):
+    deadline = time.time() + seconds
+    calm = 0
+    while time.time() < deadline:
+        calm = calm + 1 if events_drained() else 0
+        if calm >= 3:
+            return True
+        time.sleep(1)
+    return False
+
+
 def main():
     global OPENAPI
     server = http.server.ThreadingHTTPServer(("127.0.0.1", STUB_PORT), Stub)
@@ -1662,11 +1701,16 @@ def main():
         for name in sys.argv[1:] or groups:
             groups[name]()
     finally:
+        neutralize_test_data()
+        drained = wait_for_drain()
         api.terminate()
         api.wait(timeout=30)
         stamp = time.strftime("%Y%m%d-%H%M%S")
         serialize(os.path.join("tests", "e2e", "evidence", f"run-{stamp}.json"))
-        compose("up", "-d", "api")
+        if drained:
+            compose("up", "-d", "api")
+        else:
+            print("AVISO: ainda há eventos por tratar. A API do Docker fica parada, para não enviar SMS reais a números de teste.", flush=True)
     tally = {}
     for sid, result in results.items():
         tally[result["result"]] = tally.get(result["result"], 0) + 1
