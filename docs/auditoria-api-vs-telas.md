@@ -385,3 +385,22 @@ Atualizado em 2026-11-02. Migração `000021_payments`, módulo `usecases/paymen
 Testes end-to-end com simulador em `test/e2e/payments_test.go`, e testes reais com `make test-appypay`. Na API local com a AppyPay de teste: Express aprovado ficou `paid`, rejeitado voltou a `unpaid` e o novo pagamento ficou `paid`.
 
 **Por verificar:** o webhook com a AppyPay real (precisa de URL público), a Referência paga até ao fim (em teste fica `Pending`) e a produção.
+
+## 17. Evolução por fase
+
+Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 descrevem o estado inicial; o estado final está na secção 18.
+
+### Fase 1: bugs B1 a B7
+
+| Bug | Correção | Prova |
+|---|---|---|
+| B1 | A estimativa compara paragens e hora marcada (`MatchesRoute`) | `TestARequestWithStopsCannotUseThePriceOfARouteWithout`, T1 |
+| B2 | Limites no binding e na entidade para `capacity_kg`, `display_order`, `duration_minutes`, ano e lugares | S7 |
+| B3 | Estimativa de uso único (`used_at`), `DUPLICATE_REQUEST` com bloqueio por cliente | `TestAnEstimateServesOnlyOneRequest`, S5 |
+| B4 | O motorista vê `passenger_phone`. SMS com motorista e matrícula, texto por categoria em `service_categories.passenger_sms` | `TestThePassengerOfAnotherPersonIsKnownToTheDriverAndGetsTheDetails`, T4 |
+| B5 | `volume_m3` e preços retirados de `details`. O resto (motivo da recusa, voucher, preferências) é tratado nas fases 3, 6 e 13 | `TestServerFieldsInDetailsAreNotKept` |
+| B6 | `dispatch_policies.max_stops` e `schedule_slot_minutes`, com `service_tariffs.stop_fee_cents` | `TestStopFeeAndStopLimitComeFromTheDatabase`, T2, T3 |
+| B7 | **Causa:** no arranque, o relay podia publicar antes de as filas estarem ligadas e o evento ia para a fila de não encaminhados. O relay espera agora pela topologia | `TestEventsPublishedBeforeTheBindingAreParkedAndAfterItArrive` |
+| Dinheiro em Express | `CASH_NOT_EXPECTED` | `TestADriverCannotConfirmCashOnARequestPaidDigitally` |
+
+**Endpoints:** nenhum novo. `POST /fare-estimates` aceita `scheduled_for`. Respostas novas: `409 FARE_ESTIMATE_USED`, `409 DUPLICATE_REQUEST`, `409 CASH_NOT_EXPECTED`.

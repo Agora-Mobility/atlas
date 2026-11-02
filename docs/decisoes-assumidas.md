@@ -1,0 +1,34 @@
+# Decisões assumidas
+
+Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-se no backoffice, salvo indicação.
+
+## Decisões do brief
+
+| Tema | Decisão |
+|---|---|
+| Pagamento | Cobra-se no fim do serviço, com o valor final. A AppyPay não tem pré-autorização. Em Manutenção, o pedido de pagamento por Express só sai depois de o cliente aprovar o serviço concluído |
+| Referência | Desligada em Táxi e Reboque. Em Mudanças e Manutenção, a marcação só confirma depois de paga |
+| Reembolso de referência | Vai para a Carteira. A AppyPay só reembolsa Express |
+| Dinheiro | A comissão fica como dívida do motorista no ledger, com liquidação gerida no backoffice |
+| Gorjeta | 100% para o motorista, sem comissão, por método digital, registada no ledger. Possível em corrida paga a dinheiro |
+| Cancelamento | Sem motorista, custo 0. Com motorista, grátis nos primeiros 2 min, depois taxa por serviço. Se o motorista cancelar, o cliente não paga e o cancelamento conta para o motorista. Taxa por pagar entra na dívida do cliente |
+| Marcadas | Grátis até ao despacho (30 min antes). Mudanças: grátis até 24 h antes, depois taxa |
+| Chamadas | O número não é partilhado. Interface de chamada mascarada por env; sem fornecedor, 503 `CALLS_UNAVAILABLE`. Chat só durante o pedido, com respostas rápidas, por SSE |
+| Manutenção | Aposenta o técnico ao local (C2). Modelo próprio de marcações. O mecânico é um registo da oficina, sem conta. Capacidade por oficina, com dias bloqueáveis |
+| Mudanças | Aposenta as propostas (C3). Preço fixo por viatura, ajudantes e extras, fechado na marcação. Equipa como registo informativo |
+| Reboque | Um serviço `towing` com tipos de viatura e preços (C1). Km incluídos por tipo, default 10, com preço por km a mais |
+| Reboque e Mudanças | Só prestadores de parceiros (`self_signup=false`) |
+| Seguro de bens | Informativo, valor configurável, sem fluxo de sinistro |
+| Vouchers e convites | Pagos pela AGORA. A recompensa do convite vai para a Carteira quando o amigo concluir e pagar o primeiro pedido |
+| Valores | Em cêntimos, como estão |
+
+## Decisões tomadas durante a implementação
+
+| Tema | Decisão | Porquê |
+|---|---|---|
+| Estimativa | Uma estimativa serve um único pedido, mesmo que esse pedido seja cancelado. Repetir pede preço novo | É a forma mais simples de impedir corridas duplicadas com a mesma estimativa |
+| Duplicados | Recusa com `DUPLICATE_REQUEST` outro pedido ativo do mesmo cliente, no mesmo serviço, com a mesma rota e a mesma hora. Rotas ou serviços diferentes continuam permitidos, porque a PD01 mostra vários pedidos ativos | Protege o duplo clique sem impedir pedidos legítimos |
+| Pedido marcado | A estimativa tem de ter o mesmo `scheduled_for` do pedido. Uma estimativa "para agora" não serve para mais tarde | O preço depende da hora: taxa noturna |
+| Taxa por paragem | Soma-se depois do mínimo da tarifa, `stop_fee_cents`, por serviço | A tarifa mínima não deve absorver a paragem |
+| Dinheiro em pedido digital | O motorista não pode confirmar dinheiro num pedido cujo método é Express ou Referência (`CASH_NOT_EXPECTED`). O cliente pode mudar para dinheiro antes de concluir | Hoje isto apaga a dívida do cliente, e um motorista não deve poder fazê-lo sozinho |
+| `details` | `volume_m3`, `fare_cents`, `price_cents` e `total_cents` são retirados de `details` antes de gravar | São dados do servidor |
