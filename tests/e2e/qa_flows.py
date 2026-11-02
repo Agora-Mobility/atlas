@@ -191,6 +191,20 @@ def create(customer, est, stops=None, idem=None, **extra):
     return call("POST", "/requests", body, customer["tok"], idem=idem or str(uuid.uuid4()))
 
 
+def reason_id(tok, actor, category, code=None, client=CUSTOMER):
+    status, res = call("GET", f"/cancellation-reasons?actor={actor}&category={category}", None, tok, client, log=False)
+    assert status == 200, res
+    items = res["items"]
+    return next(i["id"] for i in items if code is None or i["code"] == code) if not code else next(i["id"] for i in items if i["code"] == code)
+
+
+def cancel(tok, rid, client=CUSTOMER, log=False):
+    status, preview = call("GET", f"/requests/{rid}/cancellation", None, tok, client, log=False)
+    if status != 200 or not preview.get("reasons"):
+        return status, preview
+    return call("POST", f"/requests/{rid}/cancel", {"reason_id": preview["reasons"][0]["id"], "expected_fee_cents": preview["fee_cents"]}, tok, client, log=log)
+
+
 def wait_offer(driver, rid, seconds=40):
     end = time.time() + seconds
     while time.time() < end:
@@ -253,6 +267,9 @@ def expected_fare(slug, distance, seconds, stops=0):
     return max(fare, minimum) + zone + stops * stop_fee, (base, km, minute, minimum, zone, night, stop_fee)
 
 
+ADMIN = [None]
+
+
 def taxi():
     with Scenario("T1", "Estimativa sem paragens e com 2 paragens"):
         customer = new_user("customer", "Cliente T1")
@@ -264,13 +281,13 @@ def taxi():
             chk(abs(want - item["total_cents"]) <= 1, f"{label} paragens: tarifa {tariff} com {item['distance_m']} m e {item['duration_s']} s dá {want}; API {item['total_cents']}")
         status, created = create(customer, stopped, STOPS[:2])
         chk(status == 201 and created.get("fare_cents") == stopped["total_cents"], f"pedido com a estimativa certa fica a {created.get('fare_cents')}")
-        call("POST", f"/requests/{created.get('id')}/cancel", {"reason": "QA"}, customer["tok"])
+        cancel(customer["tok"], created.get('id'))
         other = new_user("customer", "Cliente T1b")
         cheap = estimate(other)
         status, wrong = create(other, cheap, STOPS[:2])
         chk(status != 201, f"estimativa sem paragens não pode servir a um pedido com 2 paragens: status {status}, fare {wrong.get('fare_cents')} vs. correto {stopped['total_cents']}")
         if status == 201:
-            call("POST", f"/requests/{wrong['id']}/cancel", {"reason": "QA"}, other["tok"])
+            cancel(other["tok"], wrong['id'])
 
     with Scenario("T2", "Remover paragem recalcula; limite de paragens"):
         customer = new_user("customer", "Cliente T2")
@@ -288,7 +305,7 @@ def taxi():
         chk(400 <= status < 500, f"4 paragens na estimativa: {status} {code(res)}")
         status, res = create(customer, est, STOPS[:4])
         chk(400 <= status < 500, f"4 paragens no pedido: {status} {code(res)}")
-        call("POST", f"/requests/{rid}/cancel", {"reason": "QA"}, customer["tok"])
+        cancel(customer["tok"], rid)
         count = sql("SELECT count(*) FROM information_schema.columns WHERE table_schema='atlas' AND column_name ILIKE '%max_stops%'")
         chk(int(count) > 0, f"limite configurável na BD: colunas max_stops={count} (o limite é a constante maxStops)")
 
@@ -317,8 +334,8 @@ def taxi():
         chk(offer is not None, "ao simular a hora, o watcher despacha e o motorista recebe a oferta")
         _, view = call("GET", f"/requests/{rid}", None, customer["tok"])
         info(f"estado depois do despacho: {view.get('status')}")
-        status, cancelled = call("POST", f"/requests/{rid}/cancel", {"reason": "Mudei de planos"}, customer["tok"])
-        chk(status == 200, f"cancelar marcada: {status}")
+        status, cancelled = cancel(customer["tok"], rid, log=True)
+        chk(status == 200 and cancelled.get("cancel_fee_cents") == 0, f"cancelar marcada sem motorista é grátis: {status} {cancelled.get('cancel_fee_cents')}")
         go_offline(driver)
 
     with Scenario("T4", "Pedir para outra pessoa"):
@@ -355,24 +372,59 @@ def taxi():
         status, created = create(customer, est)
         rid = created["id"]
         status, res = call("POST", f"/requests/{rid}/cancel", {"reason": ""}, customer["tok"])
-        chk(400 <= status < 500, f"sem texto: {status} {code(res)}")
-        status, res = call("POST", f"/requests/{rid}/cancel", {"reason": "O motorista está a demorar"}, customer["tok"])
-        chk(status == 200, f"sem motorista: {status}")
-        chk("cancel_fee_cents" in res or "fee_cents" in res, "a resposta indica o custo (0)")
-        chk(sql(f"SELECT cancel_reason FROM service_requests WHERE id='{rid}'") == "O motorista está a demorar", "motivo guardado (BD)")
-        status, _ = call("GET", "/cancellation-reasons", None, customer["tok"])
-        chk(status == 200, f"catálogo de motivos: {status}")
+        chk(400 <= status < 500, f"sem motivo: {status} {code(res)}")
+        status, res = call("POST", f"/requests/{rid}/cancel", {"reason": "texto livre"}, customer["tok"])
+        chk(400 <= status < 500, f"texto livre não substitui o catálogo: {status} {code(res)}")
+        status, res = call("POST", f"/requests/{rid}/cancel", {"reason_id": str(uuid.uuid4())}, customer["tok"])
+        chk(code(res) == "REASON_NOT_APPLICABLE", f"motivo inexistente: {status} {code(res)}")
+        status, res = call("POST", f"/requests/{rid}/cancel", {"reason_id": reason_id(customer["tok"], "provider", "taxi", "customer_no_show")}, customer["tok"])
+        chk(code(res) == "REASON_NOT_APPLICABLE", f"motivo de outro ator: {status} {code(res)}")
+        status, res = call("POST", f"/requests/{rid}/cancel", {"reason_id": reason_id(customer["tok"], "customer", "towing", "solved")}, customer["tok"])
+        chk(code(res) == "REASON_NOT_APPLICABLE", f"motivo de outro serviço: {status} {code(res)}")
+        other = reason_id(customer["tok"], "customer", "taxi", "other")
+        status, res = call("POST", f"/requests/{rid}/cancel", {"reason_id": other}, customer["tok"])
+        chk(status == 422, f"Outro motivo sem texto: {status} {code(res)}")
+        status, preview = call("GET", f"/requests/{rid}/cancellation", None, customer["tok"])
+        chk(status == 200 and preview.get("fee_cents") == 0, f"pré-aviso sem motorista: custo {preview.get('fee_cents')}")
+        status, res = call("POST", f"/requests/{rid}/cancel", {"reason_id": other, "note": "Mudei de ideias"}, customer["tok"])
+        chk(status == 200 and res.get("cancel_fee_cents") == 0, f"sem motorista: {status}, custo {res.get('cancel_fee_cents')}")
+        stored = sql(f"SELECT cancel_reason_id||'|'||cancel_reason FROM service_requests WHERE id='{rid}'")
+        chk(stored.startswith(other) and "Mudei de ideias" in stored, f"motivo guardado por ID e com o texto (BD): {stored}")
         rider, driver = new_user("customer", "Cliente T5b"), new_user("provider", "Motorista T5", "taxi")
         go_online(driver)
         status, created = create(rider, estimate(rider))
-        offer = wait_offer(driver, created["id"])
+        rid = created["id"]
+        offer = wait_offer(driver, rid)
         accept(driver, offer)
-        documented = [p for p in OPENAPI if "cancel" in p and "requests" in p and "admin" not in p]
-        chk(any("preview" in p or "fee" in p for p in documented), f"pré-aviso de custo antes de confirmar; rotas documentadas: {documented}")
-        status, res = call("POST", f"/requests/{created['id']}/cancel", {"reason": "qualquer texto fora do catálogo"}, rider["tok"])
-        chk(status == 200 and ("cancel_fee_cents" in res or "fee_cents" in res), f"com motorista aplica a regra de custo: {status}, sem campo de custo")
-        status, res2 = call("POST", f"/requests/{created['id']}/cancel", {"reason": "de novo"}, rider["tok"])
-        info(f"cancelar duas vezes: {res2 and status} {code(res2)}")
+        status, preview = call("GET", f"/requests/{rid}/cancellation", None, rider["tok"])
+        chk(preview.get("fee_cents") == 0 and preview.get("free_until"), f"nos 2 primeiros minutos é grátis: {preview.get('fee_cents')} até {preview.get('free_until')}")
+        sql(f"UPDATE service_requests SET accepted_at=now()-interval '121 seconds' WHERE id='{rid}'")
+        fee = int(sql("SELECT r.fee_cents FROM cancellation_rules r JOIN services s ON s.id=r.service_id WHERE s.slug='taxi'"))
+        status, preview = call("GET", f"/requests/{rid}/cancellation", None, rider["tok"])
+        chk(preview.get("fee_cents") == fee and fee > 0, f"depois de 2 min: custo {preview.get('fee_cents')}, regra na BD {fee}")
+        reason = reason_id(rider["tok"], "customer", "taxi", "changed_plans")
+        status, res = call("POST", f"/requests/{rid}/cancel", {"reason_id": reason}, rider["tok"])
+        chk(code(res) == "CANCEL_FEE_CHANGED", f"sem confirmar o custo não cancela: {status} {code(res)}")
+        status, res = call("POST", f"/requests/{rid}/cancel", {"reason_id": reason, "expected_fee_cents": fee}, rider["tok"])
+        chk(status == 200 and res.get("cancel_fee_cents") == fee, f"com o custo confirmado: {status} {res.get('cancel_fee_cents')}")
+        next_est = estimate(rider)
+        status, res = create(rider, next_est)
+        chk(code(res) == "PAYMENT_OUTSTANDING", f"a taxa por pagar é dívida: {status} {code(res)}")
+        status, payment = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, rider["tok"])
+        chk(status == 201 and payment.get("amount_cents") == fee, f"paga a taxa, não a tarifa: {status} {payment.get('amount_cents')}")
+        chk(wait_payment(rider, rid, "paid"), "taxa paga na AppyPay de teste")
+        status, res = create(rider, estimate(rider))
+        chk(status == 201, f"sem dívida volta a pedir: {status}")
+        cancel(rider["tok"], res.get("id"))
+        customer2, driver2 = new_user("customer", "Cliente T5c"), driver
+        status, created = create(customer2, estimate(customer2))
+        offer = wait_offer(driver2, created["id"])
+        accept(driver2, offer)
+        sql(f"UPDATE service_requests SET accepted_at=now()-interval '600 seconds' WHERE id='{created['id']}'")
+        before = int(sql(f"SELECT cancelled_requests FROM providers WHERE user_id='{driver2['id']}'"))
+        status, res = call("POST", f"/requests/{created['id']}/cancel", {"reason_id": reason_id(driver2["tok"], "provider", "taxi", "vehicle_problem", PROVIDER)}, driver2["tok"], PROVIDER)
+        after = int(sql(f"SELECT cancelled_requests FROM providers WHERE user_id='{driver2['id']}'"))
+        chk(status == 200 and res.get("cancel_fee_cents") == 0 and after == before + 1, f"o motorista cancela: cliente paga {res.get('cancel_fee_cents')}, contagem {before} -> {after}")
         go_offline(driver)
 
     with Scenario("T6", "Motorista recusa oferta com motivo"):
@@ -384,14 +436,20 @@ def taxi():
         offer = wait_offer(first, rid, 15)
         who, other = (first, second) if offer else (second, first)
         offer = offer or wait_offer(second, rid, 15)
-        status, res = call("POST", f"/offers/{offer['id']}/reject", {"reason": "Muito longe", "reason_id": str(uuid.uuid4())}, who["tok"], PROVIDER)
+        status, res = call("POST", f"/offers/{offer['id']}/reject", {"reason_id": str(uuid.uuid4())}, who["tok"], PROVIDER)
+        chk(code(res) == "REASON_NOT_APPLICABLE", f"motivo inexistente: {status} {code(res)}")
+        status, res = call("POST", f"/offers/{offer['id']}/reject", {}, who["tok"], PROVIDER)
+        chk(status == 422, f"sem motivo: {status}")
+        reason = reason_id(who["tok"], "offer", "taxi", "too_far", PROVIDER)
+        status, res = call("POST", f"/offers/{offer['id']}/reject", {"reason_id": reason, "note": "Do outro lado"}, who["tok"], PROVIDER)
         chk(200 <= status < 300, f"recusar: {status}")
-        columns = sql("SELECT string_agg(column_name,',') FROM information_schema.columns WHERE table_schema='atlas' AND table_name='request_offers'")
-        stored = "Muito longe" in sql(f"SELECT row_to_json(o) FROM request_offers o WHERE id='{offer['id']}'")
-        chk(stored, f"motivo registado na oferta (BD); colunas: {columns}")
+        stored = sql(f"SELECT reject_reason_id||'|'||reject_note FROM request_offers WHERE id='{offer['id']}'")
+        chk(stored == f"{reason}|Do outro lado", f"motivo registado na oferta (BD): {stored}")
+        status, report = call("GET", "/admin/reports/cancellations?scope=offer_reject&category=taxi", None, ADMIN[0], BACKOFFICE)
+        chk(status == 200 and any(i["code"] == "too_far" and i["total"] >= 1 for i in report.get("items", [])), "o relatório agrupa pelo motivo")
         again = wait_offer(other, rid, 30)
         chk(again is not None, "a corrida é oferecida ao outro motorista")
-        call("POST", f"/requests/{rid}/cancel", {"reason": "QA"}, customer["tok"])
+        cancel(customer["tok"], rid)
         go_offline(first, second)
 
     with Scenario("T7", "Avaliação, gorjeta e média"):
@@ -412,7 +470,7 @@ def taxi():
         chk(status == 201 and created.get("fare_cents", 0) < est["total_cents"], f"voucher de 10%: fare {created.get('fare_cents')} vs. {est['total_cents']}")
         chk(any("voucher" in p for p in OPENAPI), "existe rota de vouchers")
         if status == 201:
-            call("POST", f"/requests/{created['id']}/cancel", {"reason": "QA"}, customer["tok"])
+            cancel(customer["tok"], created['id'])
 
 
 def maintenance(admin, partner):
@@ -453,7 +511,7 @@ def maintenance(admin, partner):
         chk(status == 200, f"URL pré-assinada para fotos do pedido: {status}")
         chk(any("photo" in p for p in OPENAPI), "rota de fotos no OpenAPI")
         if rid:
-            call("POST", f"/requests/{rid}/cancel", {"reason": "QA"}, customer["tok"])
+            cancel(customer["tok"], rid)
 
     with Scenario("M5", "Estados e orçamento extra"):
         statuses = sql("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname LIKE 'service_requests_status%' LIMIT 1")
@@ -467,7 +525,7 @@ def maintenance(admin, partner):
         status, res = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"])
         chk(status == 409 and code(res) == "REQUEST_NOT_PAYABLE", f"pedido não concluído não se paga: {status} {code(res)}")
         chk(any("approve" in p and "request" in p for p in OPENAPI), "passo de aprovação do serviço pelo cliente")
-        call("POST", f"/requests/{rid}/cancel", {"reason": "QA"}, customer["tok"])
+        cancel(customer["tok"], rid)
 
 
 def towing():
@@ -482,9 +540,10 @@ def towing():
         customer = new_user("customer", "Cliente R2")
         status, created = create(customer, estimate(customer, category="towing"))
         chk(status == 201, f"pedido: {status} {created.get('status')}")
-        status, res = call("POST", f"/requests/{created['id']}/cancel", {"reason": "Já resolvi"}, customer["tok"])
-        chk(status == 200 and res.get("status") == "cancelled", f"cancelar: {status} {res.get('status')}")
-        info("sem custo porque não existe taxa nenhuma na API")
+        status, preview = call("GET", f"/requests/{created['id']}/cancellation", None, customer["tok"])
+        chk(preview.get("fee_cents") == 0, f"pré-aviso durante a procura: custo {preview.get('fee_cents')}")
+        status, res = call("POST", f"/requests/{created['id']}/cancel", {"reason_id": reason_id(customer["tok"], "customer", "towing", "solved")}, customer["tok"])
+        chk(status == 200 and res.get("status") == "cancelled" and res.get("cancel_fee_cents") == 0, f"cancelar: {status} {res.get('status')}, custo {res.get('cancel_fee_cents')}")
 
     with Scenario("R3", "Código de verificação da entrega"):
         customer, driver = new_user("customer", "Cliente R3"), new_user("provider", "Reboque R3", "towing", kind="tow_truck")
@@ -510,7 +569,7 @@ def removals():
         chk(created.get("details", {}).get("volume_m3") != 999, "o volume não pode vir da app: guardou o valor enviado (999)")
         chk(any("item" in p or "volume" in p for p in OPENAPI), "catálogo de artigos e cálculo de volume")
         if created.get("id"):
-            call("POST", f"/requests/{created['id']}/cancel", {"reason": "QA"}, customer["tok"])
+            cancel(customer["tok"], created['id'])
 
     with Scenario("D2", "Total de viatura, ajudantes e extras"):
         customer = new_user("customer", "Cliente D2")
@@ -523,7 +582,7 @@ def removals():
         service = sql("SELECT id FROM services WHERE slug='removals'")
         when = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=12)).isoformat()
         status, created = call("POST", "/requests", {"service_id": service, "pickup": PICKUP, "destination": DEST, "scheduled_for": when}, customer["tok"], idem=str(uuid.uuid4()))
-        status, res = call("POST", f"/requests/{created.get('id')}/cancel", {"reason": "QA"}, customer["tok"])
+        status, res = cancel(customer["tok"], created.get('id'))
         chk(status == 200 and ("fee_cents" in res or "cancel_fee_cents" in res), f"a menos de 24 h aplica a regra: {status}, sem taxa")
         chk(any("window" in p or "slot" in p for p in OPENAPI), "janelas com capacidade")
 
@@ -548,7 +607,7 @@ def orders_and_account():
         _, only = call("GET", "/requests?category=towing", None, customer["tok"])
         chk(ids(only) == {tow["id"]}, "filtro por serviço")
         for item in (scheduled, tow, removal, repair):
-            call("POST", f"/requests/{item['id']}/cancel", {"reason": "QA"}, customer["tok"], log=False)
+            cancel(customer["tok"], item['id'])
 
     with Scenario("P2", "Recibo PDF e Repetir"):
         customer, _, rid = completed_ride("cash")
@@ -677,7 +736,7 @@ def security(admin, partner):
         chk(call("GET", f"/offers/{offer['id']}", None, stranger["tok"], PROVIDER)[0] == 404, "outro motorista não vê a oferta")
         chk(call("POST", f"/offers/{offer['id']}/accept", {"version": offer["request_version"]}, stranger["tok"], PROVIDER)[0] in (403, 404), "outro motorista não aceita")
         accept(driver, offer)
-        for label, method, path, body in (("ver", "GET", f"/requests/{rid}", None), ("cancelar", "POST", f"/requests/{rid}/cancel", {"reason": "x"}), ("rota", "POST", f"/requests/{rid}/route", {"destination": DEST}),
+        for label, method, path, body in (("ver", "GET", f"/requests/{rid}", None), ("cancelar", "POST", f"/requests/{rid}/cancel", {"reason_id": reason_id(owner["tok"], "customer", "taxi")}), ("rota", "POST", f"/requests/{rid}/route", {"destination": DEST}),
                                           ("boost", "POST", f"/requests/{rid}/boost", {"percent": 10}), ("método", "PUT", f"/requests/{rid}/payment-method", {"method": "cash"}),
                                           ("pagamentos", "GET", f"/requests/{rid}/payments", None), ("pagar", "POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK})):
             status, _ = call(method, path, body, intruder["tok"])
@@ -688,7 +747,7 @@ def security(admin, partner):
         chk(call("GET", "/admin/payments", None, owner["tok"])[0] == 403, "cliente não acede a /admin/payments")
         chk(call("GET", "/admin/requests", None, partner, PARTNER)[0] == 403, "parceiro não acede a /admin/requests")
         chk(call("GET", f"/partners/{PARTNER_ORG}/fleet/vehicles", None, partner, PARTNER)[0] == 403, "parceiro não usa as rotas da plataforma")
-        call("POST", f"/requests/{rid}/cancel", {"reason": "QA"}, owner["tok"])
+        cancel(owner["tok"], rid)
         go_offline(driver)
 
     with Scenario("S2", "Motorista não aprovado"):
@@ -706,7 +765,7 @@ def security(admin, partner):
         status, _ = accept(driver, offer)
         chk(status in (403, 404, 409), f"suspenso com oferta aberta não aceita: {status}")
         sql(f"UPDATE providers SET status='approved' WHERE user_id='{driver['id']}'")
-        call("POST", f"/requests/{created['id']}/cancel", {"reason": "QA"}, customer["tok"])
+        cancel(customer["tok"], created['id'])
         go_offline(driver)
         sql(f"UPDATE vehicles SET provider_id=NULL WHERE provider_id='{driver['id']}'")
         status, _ = go_online(driver)
@@ -729,7 +788,7 @@ def security(admin, partner):
             ("POST", "/requests", {"service_id": service, "pickup": PICKUP, "destination": DEST, "fare_estimate_id": missing}, customer["tok"], CUSTOMER),
             ("POST", "/requests", {"service_id": service, "pickup": PICKUP, "destination": DEST, "payment_method": "cartao"}, customer["tok"], CUSTOMER),
             ("GET", f"/requests/{missing}", None, customer["tok"], CUSTOMER), ("GET", "/requests/nao-e-uuid", None, customer["tok"], CUSTOMER), ("GET", "/requests?page=-1&size=99999999", None, customer["tok"], CUSTOMER),
-            ("POST", f"/requests/{missing}/cancel", {"reason": "x"}, customer["tok"], CUSTOMER), ("POST", f"/requests/{missing}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"], CUSTOMER),
+            ("POST", f"/requests/{missing}/cancel", {"reason_id": missing}, customer["tok"], CUSTOMER), ("POST", f"/requests/{missing}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"], CUSTOMER),
             ("POST", f"/requests/{missing}/payments", {"method": "bitcoin"}, customer["tok"], CUSTOMER), ("POST", f"/requests/{missing}/payments", {}, customer["tok"], CUSTOMER), ("POST", f"/requests/{missing}/payments/cash", None, driver["tok"], PROVIDER),
             ("PUT", f"/requests/{missing}/payment-method", {"method": "gpo"}, customer["tok"], CUSTOMER), ("POST", f"/offers/{missing}/accept", {"version": 1}, driver["tok"], PROVIDER), ("POST", f"/offers/{missing}/reject", None, driver["tok"], PROVIDER),
             ("POST", "/users/me/addresses", {}, customer["tok"], CUSTOMER), ("POST", "/users/me/addresses", {"kind": "home", "lat": 500, "lng": 500}, customer["tok"], CUSTOMER), ("POST", "/webhooks/appypay", {}, None, CUSTOMER),
@@ -763,7 +822,7 @@ def security(admin, partner):
         est = estimate(customer)
         status, created = create(customer, est, fare_cents=1, total_cents=1, commission_cents=0, status="completed", provider_id=str(uuid.uuid4()))
         chk(status == 201 and created.get("fare_cents") == est["total_cents"] and created.get("status") != "completed", f"fare_cents=1 é ignorado: {created.get('fare_cents')} {created.get('status')}")
-        call("POST", f"/requests/{created['id']}/cancel", {"reason": "QA"}, customer["tok"])
+        cancel(customer["tok"], created['id'])
 
     with Scenario("S5", "Duplo clique não duplica corridas nem cobranças"):
         customer = new_user("customer", "Cliente S5")
@@ -781,7 +840,7 @@ def security(admin, partner):
         chk(count == "1", f"mesma estimativa com chaves diferentes: {statuses}, {count} pedidos ativos")
         for uid, tok in ((customer["id"], customer["tok"]), (other["id"], other["tok"])):
             for rid in sql(f"SELECT id FROM service_requests WHERE customer_id='{uid}'").splitlines():
-                call("POST", f"/requests/{rid}/cancel", {"reason": "QA"}, tok, log=False)
+                cancel(tok, rid)
         payer, driver, rid = completed_ride("gpo")
         with cf.ThreadPoolExecutor(5) as pool:
             statuses = list(pool.map(lambda _: call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, payer["tok"], log=False)[0], range(5)))
@@ -806,7 +865,7 @@ def security(admin, partner):
             with cf.ThreadPoolExecutor(2) as pool:
                 statuses = sorted(pool.map(lambda pair: accept(*pair)[0], ((one, first), (two, second))))
             chk(statuses[0] == 200 and statuses[1] != 200, f"aceites em simultâneo: {statuses}")
-        call("POST", f"/requests/{rid}/cancel", {"reason": "QA"}, customer["tok"])
+        cancel(customer["tok"], rid)
         go_offline(one, two)
 
 
@@ -942,6 +1001,7 @@ def main():
         with urllib.request.urlopen(BASE + "/docs/openapi.json") as res:
             OPENAPI = list(json.load(res)["paths"])
         admin, partner = staff("admin@agora.ao", BACKOFFICE), staff("parceiro@agora.ao", PARTNER)
+        ADMIN[0] = admin
         groups = {"taxi": taxi, "maintenance": lambda: maintenance(admin, partner), "towing": towing, "removals": removals, "orders": orders_and_account, "payments": lambda: payments_real(admin),
                   "backoffice": lambda: backoffice(admin, partner), "account": account_and_realtime, "overflow": lambda: overflow(admin, partner), "security": lambda: security(admin, partner)}
         for name in sys.argv[1:] or groups:
