@@ -597,6 +597,16 @@ func (u *Usecase) customerSummary(ctx context.Context, request *entities.Service
 		return nil, err
 	}
 	view.Provider = provider
+	if request.Status == entities.RequestCompleted {
+		rating, err := u.Ratings.OfRequest(ctx, request.ID)
+		if err != nil {
+			return nil, err
+		}
+		view.CanRate = rating == nil
+		if rating != nil {
+			view.Rating = &dtos.GivenRating{Stars: rating.Stars, ComplimentIDs: rating.ComplimentIDs, Comment: rating.Comment, CreatedAt: rating.CreatedAt}
+		}
+	}
 	return &view, nil
 }
 
@@ -689,6 +699,7 @@ func (u *Usecase) providerSummary(ctx context.Context, providerID *uuid.UUID) (*
 	}
 	if profile != nil {
 		summary.VehiclePlate, summary.VehicleDescription = profile.Vehicle.Plate, profile.Vehicle.Description()
+		summary.Rating, summary.RatingCount, summary.CompletedRequests = entities.AverageRating(profile.RatingSum, profile.RatingCount), profile.RatingCount, profile.CompletedRequests
 	}
 	return summary, nil
 }

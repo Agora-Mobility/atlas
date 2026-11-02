@@ -46,7 +46,7 @@ func (r *ProviderRepository) Find(ctx context.Context, userID uuid.UUID) (*entit
 	provider := &entities.Provider{
 		UserID: row.UserID, Status: entities.ProviderStatus(row.Status), OrganizationID: row.OrganizationID, ServiceID: row.ServiceID, RequestedServiceID: row.RequestedServiceID,
 		BirthDate: row.BirthDate, IDNumber: row.IDNumber, StatusReason: row.StatusReason, SubmittedAt: row.SubmittedAt, ReviewedAt: row.ReviewedAt,
-		ServiceRadiusKm: row.ServiceRadiusKm, LastJobCompletedAt: row.LastJobCompletedAt, CreatedAt: row.CreatedAt,
+		ServiceRadiusKm: row.ServiceRadiusKm, LastJobCompletedAt: row.LastJobCompletedAt, CreatedAt: row.CreatedAt, RatingSum: row.RatingSum, RatingCount: int(row.RatingCount), CompletedRequests: int(row.CompletedRequests),
 	}
 	if row.HomeAddressID != nil {
 		if provider.HomeAddress, err = findAddress(ctx, queries, *row.HomeAddressID); err != nil {

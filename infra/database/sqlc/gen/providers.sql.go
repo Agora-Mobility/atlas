@@ -142,7 +142,7 @@ func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibl
 }
 
 const getProvider = `-- name: GetProvider :one
-SELECT user_id, status, organization_id, requested_service_id, service_id, birth_date, id_number, home_address_id, base_address_id, service_radius_km, status_reason, submitted_at, reviewed_at, last_job_completed_at, created_at, updated_at, cancelled_requests FROM providers WHERE user_id = $1
+SELECT user_id, status, organization_id, requested_service_id, service_id, birth_date, id_number, home_address_id, base_address_id, service_radius_km, status_reason, submitted_at, reviewed_at, last_job_completed_at, created_at, updated_at, cancelled_requests, rating_sum, rating_count, completed_requests FROM providers WHERE user_id = $1
 `
 
 func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error) {
@@ -166,6 +166,9 @@ func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CancelledRequests,
+		&i.RatingSum,
+		&i.RatingCount,
+		&i.CompletedRequests,
 	)
 	return i, err
 }
@@ -444,7 +447,7 @@ func (q *Queries) RecordNotification(ctx context.Context, arg RecordNotification
 }
 
 const touchProviderJobCompleted = `-- name: TouchProviderJobCompleted :exec
-UPDATE providers SET last_job_completed_at = $2, updated_at = now() WHERE user_id = $1
+UPDATE providers SET last_job_completed_at = $2, completed_requests = completed_requests + 1, updated_at = now() WHERE user_id = $1
 `
 
 type TouchProviderJobCompletedParams struct {

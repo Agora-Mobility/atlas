@@ -555,6 +555,79 @@ definitions:
         example: taxi
         type: string
     type: object
+  dtos.CatalogItemInput:
+    properties:
+      amount_cents:
+        maximum: 10000000000
+        minimum: 0
+        type: integer
+      attrs:
+        type: object
+      category_id:
+        type: string
+      code:
+        example: fast
+        maxLength: 40
+        type: string
+      description:
+        maxLength: 4000
+        type: string
+      display_order:
+        maximum: 9999
+        minimum: 0
+        type: integer
+      is_active:
+        type: boolean
+      label:
+        example: Chegou rápido
+        maxLength: 200
+        type: string
+      promo_amount_cents:
+        maximum: 10000000000
+        minimum: 0
+        type: integer
+      promo_until:
+        type: string
+    required:
+    - code
+    - label
+    type: object
+  dtos.CatalogItemList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.CatalogItemView'
+        type: array
+    type: object
+  dtos.CatalogItemView:
+    properties:
+      amount_cents:
+        type: integer
+      attrs:
+        type: object
+      category:
+        type: string
+      category_id:
+        type: string
+      code:
+        type: string
+      description:
+        type: string
+      display_order:
+        type: integer
+      id:
+        type: string
+      is_active:
+        type: boolean
+      kind:
+        type: string
+      label:
+        type: string
+      promo_amount_cents:
+        type: integer
+      promo_until:
+        type: string
+    type: object
   dtos.CatalogService:
     properties:
       description:
@@ -1128,6 +1201,19 @@ definitions:
         example: 9000
         maximum: 10000000000
         minimum: 0
+        type: integer
+    type: object
+  dtos.GivenRating:
+    properties:
+      comment:
+        type: string
+      compliment_ids:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      stars:
         type: integer
     type: object
   dtos.HeatCell:
@@ -2027,10 +2113,16 @@ definitions:
     type: object
   dtos.ProviderSummary:
     properties:
+      completed_requests:
+        type: integer
       id:
         type: string
       name:
         type: string
+      rating:
+        type: number
+      rating_count:
+        type: integer
       vehicle_description:
         type: string
       vehicle_plate:
@@ -2109,6 +2201,78 @@ definitions:
       provider:
         $ref: '#/definitions/dtos.ProviderSummary'
       valid_for_s:
+        type: integer
+    type: object
+  dtos.RateInput:
+    properties:
+      comment:
+        maxLength: 1000
+        type: string
+      compliment_ids:
+        items:
+          type: string
+        maxItems: 20
+        type: array
+      stars:
+        example: 5
+        maximum: 5
+        minimum: 1
+        type: integer
+    required:
+    - stars
+    type: object
+  dtos.RatingList:
+    properties:
+      average:
+        type: number
+      items:
+        items:
+          $ref: '#/definitions/dtos.RatingView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.RatingOption:
+    properties:
+      code:
+        type: string
+      id:
+        type: string
+      label:
+        type: string
+    type: object
+  dtos.RatingOptions:
+    properties:
+      compliments:
+        items:
+          $ref: '#/definitions/dtos.RatingOption'
+        type: array
+      max_tip_cents:
+        type: integer
+      tips:
+        items:
+          $ref: '#/definitions/dtos.TipPreset'
+        type: array
+    type: object
+  dtos.RatingView:
+    properties:
+      comment:
+        type: string
+      compliments:
+        items:
+          $ref: '#/definitions/dtos.RatingOption'
+        type: array
+      created_at:
+        type: string
+      id:
+        type: string
+      request_id:
+        type: string
+      stars:
         type: integer
     type: object
   dtos.ReasonOption:
@@ -2428,6 +2592,8 @@ definitions:
         $ref: '#/definitions/dtos.FareBreakdown'
       can_boost:
         type: boolean
+      can_rate:
+        type: boolean
       cancel_fee_cents:
         type: integer
       cancel_reason:
@@ -2480,6 +2646,8 @@ definitions:
         items:
           $ref: '#/definitions/dtos.QuoteView'
         type: array
+      rating:
+        $ref: '#/definitions/dtos.GivenRating'
       scheduled_for:
         type: string
       service_id:
@@ -2722,6 +2890,20 @@ definitions:
     required:
     - password
     type: object
+  dtos.SettingInput:
+    properties:
+      value:
+        example: "5000000"
+        maxLength: 200
+        type: string
+    type: object
+  dtos.SettingList:
+    properties:
+      items:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
   dtos.SettlementInput:
     properties:
       amount_cents:
@@ -2864,6 +3046,33 @@ definitions:
     required:
     - currency
     - service_id
+    type: object
+  dtos.TipInput:
+    properties:
+      amount_cents:
+        example: 50000
+        maximum: 10000000000
+        minimum: 1
+        type: integer
+      method:
+        enum:
+        - gpo
+        - wallet
+        example: gpo
+        type: string
+      phone_number:
+        example: "923000000"
+        maxLength: 20
+        type: string
+    required:
+    - amount_cents
+    type: object
+  dtos.TipPreset:
+    properties:
+      amount_cents:
+        type: integer
+      label:
+        type: string
     type: object
   dtos.UnblockUserInput:
     properties:
@@ -3558,6 +3767,118 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Set the cancellation rule of a service
+      tags:
+      - Backoffice
+  /api/v1/admin/catalog/{kind}:
+    get:
+      description: kind is one of compliment, tip_preset, quick_reply, towing_vehicle,
+        towing_incident, removal_item, removal_vehicle, removal_extra, removal_window,
+        removal_property, help_topic or workshop_category.
+      parameters:
+      - description: Catalog
+        in: path
+        name: kind
+        required: true
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CatalogItemList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List a catalog of the backoffice
+      tags:
+      - Backoffice
+    post:
+      consumes:
+      - application/json
+      description: Prices are integer cents. attrs holds the numbers of each kind,
+        such as included_km on towing_vehicle, and they are validated.
+      parameters:
+      - description: Catalog
+        in: path
+        name: kind
+        required: true
+        type: string
+      - description: Item
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CatalogItemInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.CatalogItemView'
+        "409":
+          description: The code exists
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Add an item to a catalog
+      tags:
+      - Backoffice
+  /api/v1/admin/catalog/{kind}/{id}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Catalog
+        in: path
+        name: kind
+        required: true
+        type: string
+      - description: Item id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Item
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CatalogItemInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CatalogItemView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change an item of a catalog
       tags:
       - Backoffice
   /api/v1/admin/categories:
@@ -4833,6 +5154,54 @@ paths:
       summary: Change a service
       tags:
       - Backoffice catalog
+  /api/v1/admin/settings:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SettingList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Settings of the platform
+      tags:
+      - Backoffice
+  /api/v1/admin/settings/{key}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Value
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SettingInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SettingList'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change a setting of the platform
+      tags:
+      - Backoffice
   /api/v1/admin/tariffs:
     get:
       produces:
@@ -8497,6 +8866,30 @@ paths:
       summary: My provider profile
       tags:
       - Provider account
+  /api/v1/providers/me/ratings:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RatingList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Ratings the provider received
+      tags:
+      - Provider work
   /api/v1/providers/me/service:
     put:
       consumes:
@@ -8643,6 +9036,27 @@ paths:
       summary: Services that accept providers
       tags:
       - Provider account
+  /api/v1/rating-options:
+    get:
+      parameters:
+      - description: Category slug
+        in: query
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RatingOptions'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Compliments and suggested tips of a service
+      tags:
+      - Ratings
   /api/v1/requests:
     get:
       description: Customers only, most recent first.
@@ -9080,6 +9494,49 @@ paths:
       summary: Confirm that the cash was received
       tags:
       - Payments
+  /api/v1/requests/{id}/rating:
+    post:
+      consumes:
+      - application/json
+      description: Customer of the request, once. The stars count for the average
+        of the provider.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rating
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.RatingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Not completed or already rated
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Rate a completed request
+      tags:
+      - Ratings
   /api/v1/requests/{id}/route:
     post:
       consumes:
@@ -9175,6 +9632,50 @@ paths:
       summary: Start the trip or service
       tags:
       - Provider work
+  /api/v1/requests/{id}/tips:
+    post:
+      consumes:
+      - application/json
+      description: Customer of a completed request, once. All of it goes to the provider,
+        without commission. Paid digitally even when the request was paid in cash.
+        The amount cannot pass the maximum in GET /rating-options.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tip
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.TipInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.PaymentView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Not completed, or a tip was already given
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Out of range
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Give a tip to the provider
+      tags:
+      - Ratings
   /api/v1/requests/active:
     get:
       description: 'What the app reloads after a resync: the active request and, for

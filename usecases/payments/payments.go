@@ -52,6 +52,7 @@ type Deps struct {
 	Gateway  services.IPaymentGateway
 	Ledger   repository.ILedgerRepository
 	Rewards  RewardHook
+	Settings repository.IReferenceRepository
 }
 
 type RewardHook interface {

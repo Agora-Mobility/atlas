@@ -29,6 +29,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	signedIn.GET("/requests/:id/payments", r.controller.ListOfRequest)
 	signedIn.POST("/requests/:id/payments", r.controller.Pay)
 	signedIn.POST("/requests/:id/payments/cash", r.controller.ConfirmCash)
+	signedIn.POST("/requests/:id/tips", r.controller.Tip)
 
 	signedIn.GET("/wallet", r.controller.Wallet)
 	signedIn.GET("/providers/me/ledger", r.controller.MyLedger)

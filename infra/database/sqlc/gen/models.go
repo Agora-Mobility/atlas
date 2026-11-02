@@ -283,6 +283,23 @@ type CancellationRule struct {
 	UpdatedAt              time.Time `json:"updated_at"`
 }
 
+type CatalogItem struct {
+	ID               uuid.UUID       `json:"id"`
+	Kind             string          `json:"kind"`
+	CategoryID       *uuid.UUID      `json:"category_id"`
+	Code             string          `json:"code"`
+	Label            string          `json:"label"`
+	Description      string          `json:"description"`
+	AmountCents      int64           `json:"amount_cents"`
+	PromoAmountCents *int64          `json:"promo_amount_cents"`
+	PromoUntil       *time.Time      `json:"promo_until"`
+	Attrs            json.RawMessage `json:"attrs"`
+	DisplayOrder     int32           `json:"display_order"`
+	IsActive         bool            `json:"is_active"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+}
+
 type CategoryPaymentMethod struct {
 	CategoryID   uuid.UUID `json:"category_id"`
 	Method       string    `json:"method"`
@@ -522,6 +539,12 @@ type Permission struct {
 	Scopes      []enums.OrganizationType `json:"scopes"`
 }
 
+type PlatformSetting struct {
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type Provider struct {
 	UserID             uuid.UUID  `json:"user_id"`
 	Status             string     `json:"status"`
@@ -540,6 +563,9 @@ type Provider struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 	CancelledRequests  int32      `json:"cancelled_requests"`
+	RatingSum          int64      `json:"rating_sum"`
+	RatingCount        int32      `json:"rating_count"`
+	CompletedRequests  int32      `json:"completed_requests"`
 }
 
 type ProviderCoverage struct {
@@ -590,6 +616,17 @@ type ProviderLocationSample struct {
 type ProviderRejectionReason struct {
 	ProviderID uuid.UUID `json:"provider_id"`
 	ReasonID   uuid.UUID `json:"reason_id"`
+}
+
+type Rating struct {
+	ID            uuid.UUID   `json:"id"`
+	RequestID     *uuid.UUID  `json:"request_id"`
+	CustomerID    uuid.UUID   `json:"customer_id"`
+	ProviderID    *uuid.UUID  `json:"provider_id"`
+	Stars         int16       `json:"stars"`
+	ComplimentIds []uuid.UUID `json:"compliment_ids"`
+	Comment       string      `json:"comment"`
+	CreatedAt     time.Time   `json:"created_at"`
 }
 
 type RefreshToken struct {

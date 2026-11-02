@@ -262,6 +262,10 @@ func (r etaRouter) ETAs(context.Context, []entities.GeoPoint, entities.GeoPoint)
 	return r.etas, nil
 }
 
+type fakeRatings struct{ repository.IRatingRepository }
+
+func (fakeRatings) OfRequest(context.Context, uuid.UUID) (*entities.Rating, error) { return nil, nil }
+
 type fakePayments struct{ repository.IPaymentRepository }
 
 func (fakePayments) HasOutstanding(context.Context, uuid.UUID) (bool, error) { return false, nil }

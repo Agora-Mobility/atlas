@@ -36,6 +36,7 @@ func newPaymentsModule(c *Container) *PaymentsModule {
 		Tx:       c.TxManager,
 		Gateway:  newPaymentGateway(cfg),
 		Ledger:   repository.NewLedgerRepository(c.Pool),
+		Settings: repository.NewReferenceRepository(c.Pool),
 	}, payments.Settings{
 		Currency:  cfg.LedgerCurrency,
 		GPOWindow: cfg.GPOWindow, ReferenceTTL: cfg.ReferenceTTL, ReconcileInterval: cfg.ReconcileInterval, ReconcileBatch: cfg.ReconcileBatch,

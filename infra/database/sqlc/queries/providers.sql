@@ -57,7 +57,7 @@ WHERE (sqlc.arg(status)::text = '' OR p.status = sqlc.arg(status)::text)
 UPDATE providers SET base_address_id = $2, service_radius_km = $3, updated_at = now() WHERE user_id = $1;
 
 -- name: TouchProviderJobCompleted :exec
-UPDATE providers SET last_job_completed_at = $2, updated_at = now() WHERE user_id = $1;
+UPDATE providers SET last_job_completed_at = $2, completed_requests = completed_requests + 1, updated_at = now() WHERE user_id = $1;
 
 -- name: GetProviderCategory :one
 SELECT c.id, c.slug

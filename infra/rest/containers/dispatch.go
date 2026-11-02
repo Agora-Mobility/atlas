@@ -52,6 +52,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Offers:    repository.NewOfferRepository(c.Pool),
 		Payments:  repository.NewPaymentRepository(c.Pool),
 		Cancels:   repository.NewCancellationRepository(c.Pool),
+		Ratings:   repository.NewRatingRepository(c.Pool),
 		Devices:   devices,
 		Locator:   locator,
 		Outbox:    c.Outbox,

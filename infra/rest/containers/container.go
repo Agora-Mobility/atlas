@@ -53,6 +53,7 @@ type Container struct {
 	Providers     *ProvidersModule
 	Fleet         *FleetModule
 	Payments      *PaymentsModule
+	Experience    *ExperienceModule
 	Addresses     *AddressesModule
 }
 
@@ -123,6 +124,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 	c.Providers = newProvidersModule(c, newObjectStorage(cfg.R2))
 	c.Fleet = newFleetModule(c)
 	c.Payments = newPaymentsModule(c)
+	c.Experience = newExperienceModule(c)
 	c.Addresses = newAddressesModule(c)
 	return c, nil
 }

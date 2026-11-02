@@ -190,3 +190,41 @@ func (c *PaymentController) LedgerSummary(ctx *gin.Context) {
 	view, err := c.payments.LedgerSummary(ctx.Request.Context(), page)
 	respond(ctx, http.StatusOK, view, err)
 }
+
+// Tip godoc
+//
+//	@Summary		Give a tip to the provider
+//	@Description	Customer of a completed request, once. All of it goes to the provider, without commission. Paid digitally even when the request was paid in cash. The amount cannot pass the maximum in GET /rating-options.
+//	@Tags			Ratings
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string			true	"Request id"
+//	@Param			body	body		dtos.TipInput	true	"Tip"
+//	@Success		201		{object}	dtos.PaymentView
+//	@Failure		404		{object}	shared.ErrorResponse
+//	@Failure		409		{object}	shared.ErrorResponse	"Not completed, or a tip was already given"
+//	@Failure		422		{object}	shared.ErrorResponse	"Out of range"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/{id}/tips [post]
+func (c *PaymentController) Tip(ctx *gin.Context) {
+	customerID, ok := userWithRole(ctx, enums.RoleCustomer)
+	if !ok {
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.TipInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, created, err := c.payments.Tip(ctx.Request.Context(), customerID, id, in)
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+	}
+	respond(ctx, status, view, err)
+}

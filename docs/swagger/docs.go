@@ -142,6 +142,181 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/catalog/{kind}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "kind is one of compliment, tip_preset, quick_reply, towing_vehicle, towing_incident, removal_item, removal_vehicle, removal_extra, removal_window, removal_property, help_topic or workshop_category.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "List a catalog of the backoffice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Catalog",
+                        "name": "kind",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogItemList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Add an item to a catalog",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Catalog",
+                        "name": "kind",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Item",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogItemInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogItemView"
+                        }
+                    },
+                    "409": {
+                        "description": "The code exists",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/catalog/{kind}/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Change an item of a catalog",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Catalog",
+                        "name": "kind",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Item id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Item",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogItemInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogItemView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/categories": {
             "get": {
                 "security": [
@@ -2156,6 +2331,87 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Invalid fields or unknown category",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Settings of the platform",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SettingList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/settings/{key}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Change a setting of the platform",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Value",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SettingInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SettingList"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -7877,6 +8133,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/providers/me/ratings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider work"
+                ],
+                "summary": "Ratings the provider received",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RatingList"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/providers/me/service": {
             "put": {
                 "security": [
@@ -8101,6 +8398,42 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.OpenServices"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/rating-options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ratings"
+                ],
+                "summary": "Compliments and suggested tips of a service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RatingOptions"
                         }
                     }
                 }
@@ -8817,6 +9150,73 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/requests/{id}/rating": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer of the request, once. The stars count for the average of the provider.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ratings"
+                ],
+                "summary": "Rate a completed request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rating",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RatingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Not completed or already rated",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/requests/{id}/route": {
             "post": {
                 "security": [
@@ -8962,6 +9362,73 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/tips": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer of a completed request, once. All of it goes to the provider, without commission. Paid digitally even when the request was paid in cash. The amount cannot pass the maximum in GET /rating-options.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ratings"
+                ],
+                "summary": "Give a tip to the provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Tip",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TipInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PaymentView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Not completed, or a tip was already given",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Out of range",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -11089,6 +11556,111 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CatalogItemInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "label"
+            ],
+            "properties": {
+                "amount_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 0
+                },
+                "attrs": {
+                    "type": "object"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "example": "fast"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 4000
+                },
+                "display_order": {
+                    "type": "integer",
+                    "maximum": 9999,
+                    "minimum": 0
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "Chegou rápido"
+                },
+                "promo_amount_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 0
+                },
+                "promo_until": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.CatalogItemList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CatalogItemView"
+                    }
+                }
+            }
+        },
+        "dtos.CatalogItemView": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "attrs": {
+                    "type": "object"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_order": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "promo_amount_cents": {
+                    "type": "integer"
+                },
+                "promo_until": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.CatalogService": {
             "type": "object",
             "properties": {
@@ -11901,6 +12473,26 @@ const docTemplate = `{
                     "maximum": 10000000000,
                     "minimum": 0,
                     "example": 9000
+                }
+            }
+        },
+        "dtos.GivenRating": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "compliment_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "stars": {
+                    "type": "integer"
                 }
             }
         },
@@ -13195,11 +13787,20 @@ const docTemplate = `{
         "dtos.ProviderSummary": {
             "type": "object",
             "properties": {
+                "completed_requests": {
+                    "type": "integer"
+                },
                 "id": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
+                },
+                "rating": {
+                    "type": "number"
+                },
+                "rating_count": {
+                    "type": "integer"
                 },
                 "vehicle_description": {
                     "type": "string"
@@ -13318,6 +13919,114 @@ const docTemplate = `{
                     "$ref": "#/definitions/dtos.ProviderSummary"
                 },
                 "valid_for_s": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.RateInput": {
+            "type": "object",
+            "required": [
+                "stars"
+            ],
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "compliment_ids": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "stars": {
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 1,
+                    "example": 5
+                }
+            }
+        },
+        "dtos.RatingList": {
+            "type": "object",
+            "properties": {
+                "average": {
+                    "type": "number"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RatingView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.RatingOption": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.RatingOptions": {
+            "type": "object",
+            "properties": {
+                "compliments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RatingOption"
+                    }
+                },
+                "max_tip_cents": {
+                    "type": "integer"
+                },
+                "tips": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.TipPreset"
+                    }
+                }
+            }
+        },
+        "dtos.RatingView": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "compliments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RatingOption"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "stars": {
                     "type": "integer"
                 }
             }
@@ -13783,6 +14492,9 @@ const docTemplate = `{
                 "can_boost": {
                     "type": "boolean"
                 },
+                "can_rate": {
+                    "type": "boolean"
+                },
                 "cancel_fee_cents": {
                     "type": "integer"
                 },
@@ -13860,6 +14572,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dtos.QuoteView"
                     }
+                },
+                "rating": {
+                    "$ref": "#/definitions/dtos.GivenRating"
                 },
                 "scheduled_for": {
                     "type": "string"
@@ -14219,6 +14934,27 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.SettingInput": {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "5000000"
+                }
+            }
+        },
+        "dtos.SettingList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "dtos.SettlementInput": {
             "type": "object",
             "required": [
@@ -14411,6 +15147,44 @@ const docTemplate = `{
                     "minimum": 0
                 },
                 "zone_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.TipInput": {
+            "type": "object",
+            "required": [
+                "amount_cents"
+            ],
+            "properties": {
+                "amount_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 1,
+                    "example": 50000
+                },
+                "method": {
+                    "type": "string",
+                    "enum": [
+                        "gpo",
+                        "wallet"
+                    ],
+                    "example": "gpo"
+                },
+                "phone_number": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "923000000"
+                }
+            }
+        },
+        "dtos.TipPreset": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "label": {
                     "type": "string"
                 }
             }

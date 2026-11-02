@@ -11,6 +11,12 @@ type PayInput struct {
 	PhoneNumber string `json:"phone_number" binding:"max=20" example:"923000000"`
 }
 
+type TipInput struct {
+	AmountCents int64  `json:"amount_cents" binding:"required,min=1,max=10000000000" example:"50000"`
+	Method      string `json:"method" binding:"omitempty,oneof=gpo wallet" example:"gpo"`
+	PhoneNumber string `json:"phone_number" binding:"max=20" example:"923000000"`
+}
+
 type ChangeMethodInput struct {
 	Method string `json:"method" binding:"required,oneof=cash gpo reference wallet" example:"gpo"`
 }

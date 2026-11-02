@@ -101,6 +101,9 @@ type Provider struct {
 	ServiceRadiusKm    *float64
 	LastJobCompletedAt *time.Time
 	CreatedAt          time.Time
+	RatingSum          int64
+	RatingCount        int
+	CompletedRequests  int
 }
 
 func (p *Provider) IsEditable() bool {

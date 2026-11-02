@@ -736,6 +736,7 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 	c.Providers = newProvidersModule(c, r2.Unavailable{})
 	c.Fleet = newFleetModule(c)
 	c.Payments = newPaymentsModule(c)
+	c.Experience = newExperienceModule(c)
 	c.Addresses = newAddressesModule(c)
 
 	gin.SetMode(gin.TestMode)
@@ -748,6 +749,7 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 	c.Addresses.Router.Register(r.Group("/api/v1"))
 	c.Fleet.Router.Register(r.Group("/api/v1"))
 	c.Payments.Router.Register(r.Group("/api/v1"))
+	c.Experience.Router.Register(r.Group("/api/v1"))
 	return r
 }
 

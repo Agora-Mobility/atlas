@@ -18,6 +18,7 @@ type Querier interface {
 	ActiveRequestOfProvider(ctx context.Context, providerID *uuid.UUID) (ServiceRequest, error)
 	AddDocumentRejectionReasons(ctx context.Context, arg AddDocumentRejectionReasonsParams) error
 	AddMembershipRoles(ctx context.Context, arg AddMembershipRolesParams) error
+	AddProviderRating(ctx context.Context, arg AddProviderRatingParams) error
 	AddProviderRejectionReasons(ctx context.Context, arg AddProviderRejectionReasonsParams) error
 	AddRolePermissions(ctx context.Context, arg AddRolePermissionsParams) error
 	AssignVehicleToProvider(ctx context.Context, arg AssignVehicleToProviderParams) (int64, error)
@@ -35,6 +36,7 @@ type Querier interface {
 	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
 	CountPendingOutboxEvents(ctx context.Context) (int64, error)
 	CountProviderApplications(ctx context.Context, arg CountProviderApplicationsParams) (int64, error)
+	CountProviderRatings(ctx context.Context, providerID *uuid.UUID) (int64, error)
 	CountRequestsOfCustomer(ctx context.Context, arg CountRequestsOfCustomerParams) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
 	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
@@ -87,6 +89,8 @@ type Querier interface {
 	GetActiveReason(ctx context.Context, arg GetActiveReasonParams) (RejectionReason, error)
 	GetAddress(ctx context.Context, id uuid.UUID) (GetAddressRow, error)
 	GetCancellationRule(ctx context.Context, serviceID uuid.UUID) (CancellationRule, error)
+	GetCatalogItem(ctx context.Context, id uuid.UUID) (GetCatalogItemRow, error)
+	GetCatalogItems(ctx context.Context, ids []uuid.UUID) ([]GetCatalogItemsRow, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error)
 	GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error)
 	GetDocumentType(ctx context.Context, code string) (GetDocumentTypeRow, error)
@@ -110,10 +114,12 @@ type Querier interface {
 	GetPaymentForUpdate(ctx context.Context, id uuid.UUID) (Payment, error)
 	GetPendingPaymentOfRequest(ctx context.Context, arg GetPendingPaymentOfRequestParams) (Payment, error)
 	GetPlatformOrganization(ctx context.Context) (Organization, error)
+	GetPlatformSetting(ctx context.Context, key string) (string, error)
 	GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error)
 	GetProviderCategory(ctx context.Context, userID uuid.UUID) (GetProviderCategoryRow, error)
 	GetProviderDocument(ctx context.Context, arg GetProviderDocumentParams) (GetProviderDocumentRow, error)
 	GetProviderRequirements(ctx context.Context, serviceID uuid.UUID) (GetProviderRequirementsRow, error)
+	GetRatingOfRequest(ctx context.Context, requestID *uuid.UUID) (Rating, error)
 	GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRejectionReason(ctx context.Context, id uuid.UUID) (RejectionReason, error)
 	GetRequestOffer(ctx context.Context, id uuid.UUID) (RequestOffer, error)
@@ -140,6 +146,7 @@ type Querier interface {
 	GetWorkshopService(ctx context.Context, id uuid.UUID) (WorkshopService, error)
 	HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error)
 	IncrementProviderCancellations(ctx context.Context, userID uuid.UUID) error
+	InsertCatalogItem(ctx context.Context, arg InsertCatalogItemParams) error
 	InsertFareAdjustment(ctx context.Context, arg InsertFareAdjustmentParams) error
 	InsertLedgerEntry(ctx context.Context, arg InsertLedgerEntryParams) error
 	InsertLedgerTransaction(ctx context.Context, arg InsertLedgerTransactionParams) (int64, error)
@@ -149,6 +156,7 @@ type Querier interface {
 	InsertPaymentEvent(ctx context.Context, arg InsertPaymentEventParams) error
 	InsertPaymentRefund(ctx context.Context, arg InsertPaymentRefundParams) error
 	InsertProviderCoverage(ctx context.Context, arg InsertProviderCoverageParams) error
+	InsertRating(ctx context.Context, arg InsertRatingParams) (int64, error)
 	InsertServiceRequest(ctx context.Context, arg InsertServiceRequestParams) error
 	InsertServiceRequestEvent(ctx context.Context, arg InsertServiceRequestEventParams) error
 	InsertServiceRequestStop(ctx context.Context, arg InsertServiceRequestStopParams) error
@@ -167,6 +175,7 @@ type Querier interface {
 	ListAdminPayments(ctx context.Context, arg ListAdminPaymentsParams) ([]ListAdminPaymentsRow, error)
 	ListAdminRequests(ctx context.Context, arg ListAdminRequestsParams) ([]ListAdminRequestsRow, error)
 	ListCancellationRules(ctx context.Context) ([]ListCancellationRulesRow, error)
+	ListCatalogItems(ctx context.Context, arg ListCatalogItemsParams) ([]ListCatalogItemsRow, error)
 	ListCategoryPaymentMethods(ctx context.Context, arg ListCategoryPaymentMethodsParams) ([]ListCategoryPaymentMethodsRow, error)
 	ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error)
 	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
@@ -186,8 +195,10 @@ type Querier interface {
 	ListPaymentRefunds(ctx context.Context, paymentID uuid.UUID) ([]PaymentRefund, error)
 	ListPaymentsOfRequest(ctx context.Context, requestID uuid.UUID) ([]Payment, error)
 	ListPermissionsByScope(ctx context.Context, scope enums.OrganizationType) ([]ListPermissionsByScopeRow, error)
+	ListPlatformSettings(ctx context.Context) ([]ListPlatformSettingsRow, error)
 	ListProviderApplications(ctx context.Context, arg ListProviderApplicationsParams) ([]ListProviderApplicationsRow, error)
 	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error)
+	ListProviderRatings(ctx context.Context, arg ListProviderRatingsParams) ([]ListProviderRatingsRow, error)
 	ListProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]RejectionReason, error)
 	ListReasonsForCategory(ctx context.Context, arg ListReasonsForCategoryParams) ([]RejectionReason, error)
 	ListRejectionReasons(ctx context.Context, arg ListRejectionReasonsParams) ([]RejectionReason, error)
@@ -242,6 +253,7 @@ type Querier interface {
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	UnbalancedLedgerTransactions(ctx context.Context) (int64, error)
+	UpdateCatalogItem(ctx context.Context, arg UpdateCatalogItemParams) error
 	UpdateDispatchPolicy(ctx context.Context, arg UpdateDispatchPolicyParams) (int64, error)
 	UpdateFleetVehicle(ctx context.Context, arg UpdateFleetVehicleParams) error
 	UpdateMembership(ctx context.Context, arg UpdateMembershipParams) error
@@ -259,6 +271,7 @@ type Querier interface {
 	UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLoginParams) error
 	UpsertCancellationRule(ctx context.Context, arg UpsertCancellationRuleParams) error
 	UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) error
+	UpsertPlatformSetting(ctx context.Context, arg UpsertPlatformSettingParams) error
 	UpsertProvider(ctx context.Context, arg UpsertProviderParams) error
 	UpsertRequestOffer(ctx context.Context, arg UpsertRequestOfferParams) (int64, error)
 	UpsertVehicle(ctx context.Context, arg UpsertVehicleParams) error

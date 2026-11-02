@@ -56,8 +56,8 @@ func newWorld(t *testing.T, policy *entities.DispatchPolicy) *world {
 		outbox: &fakeOutbox{}, channels: &fakeChannels{},
 	}
 	w.usecase = NewUsecase(Deps{
-		Config:   &fakeConfig{policy: policy, zone: &entities.ServiceZone{ID: uuid.New(), Currency: "AOA", Timezone: "Africa/Luanda"}},
-		Payments: fakePayments{}, Providers: w.provs, Requests: w.requests, Offers: w.offers, Locator: w.locator, Outbox: w.outbox, Tx: fakeTx{}, Audit: fakeAudit{}, Geo: fakeGeo{}, Channels: w.channels,
+		Config:  &fakeConfig{policy: policy, zone: &entities.ServiceZone{ID: uuid.New(), Currency: "AOA", Timezone: "Africa/Luanda"}},
+		Ratings: fakeRatings{}, Payments: fakePayments{}, Providers: w.provs, Requests: w.requests, Offers: w.offers, Locator: w.locator, Outbox: w.outbox, Tx: fakeTx{}, Audit: fakeAudit{}, Geo: fakeGeo{}, Channels: w.channels,
 	}, Settings{ChannelTimeout: time.Second})
 	w.usecase.now = func() time.Time { return w.clock }
 

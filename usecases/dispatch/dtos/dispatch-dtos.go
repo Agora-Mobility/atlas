@@ -68,6 +68,16 @@ type ProviderSummary struct {
 	Name               string    `json:"name"`
 	VehiclePlate       string    `json:"vehicle_plate,omitempty"`
 	VehicleDescription string    `json:"vehicle_description,omitempty"`
+	Rating             float64   `json:"rating"`
+	RatingCount        int       `json:"rating_count"`
+	CompletedRequests  int       `json:"completed_requests"`
+}
+
+type GivenRating struct {
+	Stars         int         `json:"stars"`
+	ComplimentIDs []uuid.UUID `json:"compliment_ids"`
+	Comment       string      `json:"comment,omitempty"`
+	CreatedAt     time.Time   `json:"created_at"`
 }
 
 type PositionView struct {
@@ -132,6 +142,8 @@ type RequestView struct {
 	PaymentMethod   string           `json:"payment_method"`
 	PaymentStatus   string           `json:"payment_status"`
 	Breakdown       *FareBreakdown   `json:"breakdown,omitempty"`
+	CanRate         bool             `json:"can_rate"`
+	Rating          *GivenRating     `json:"rating,omitempty"`
 	PassengerPhone  string           `json:"passenger_phone,omitempty"`
 	CanBoost        bool             `json:"can_boost"`
 	NeedsOperator   bool             `json:"needs_operator,omitempty"`

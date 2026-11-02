@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/repository"
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/usecases/payments/dtos"
 )
@@ -247,4 +249,94 @@ func toBalanceViews(rows []repository.ProviderBalance) []dtos.ProviderBalanceVie
 		out = append(out, dtos.ProviderBalanceView{ProviderID: rows[i].ProviderID, Name: rows[i].Name, BalanceCents: rows[i].BalanceCents})
 	}
 	return out
+}
+
+func (u *Usecase) Tip(ctx context.Context, customerID, requestID uuid.UUID, in dtos.TipInput) (*dtos.PaymentView, bool, error) {
+	var payment *entities.Payment
+	created := false
+	err := u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		request, err := u.Requests.FindForUpdate(ctx, requestID)
+		if err != nil {
+			return err
+		}
+		if request == nil || !request.IsCustomer(customerID) {
+			return ErrRequestNotFound
+		}
+		if request.Status != entities.RequestCompleted || request.ProviderID == nil {
+			return entities.ErrTipNotAllowed
+		}
+		paid, err := u.Payments.PaidOfRequest(ctx, requestID, entities.PaymentKindTip)
+		if err != nil {
+			return err
+		}
+		if paid != nil {
+			return entities.ErrTipAlreadyGiven
+		}
+		if payment, err = u.Payments.PendingOfRequest(ctx, requestID, entities.PaymentKindTip); err != nil || payment != nil {
+			return err
+		}
+		method := entities.PaymentMethod(in.Method)
+		if method == "" {
+			method = request.PaymentMethod
+			if method == entities.PaymentCash || method == entities.PaymentReference {
+				method = entities.PaymentGPO
+			}
+		}
+		maxTip, err := u.maxTipCents(ctx)
+		if err != nil {
+			return err
+		}
+		if in.AmountCents > maxTip || (method.UsesGateway() && in.AmountCents < entities.MinGatewayCents) {
+			return entities.ErrTipOutOfRange
+		}
+		if method.UsesGateway() && !u.Gateway.Enabled() {
+			return services.ErrPaymentsUnavailable
+		}
+		now := u.now()
+		phone := ""
+		if method == entities.PaymentGPO {
+			if phone, err = u.payerPhone(ctx, customerID, in.PhoneNumber); err != nil {
+				return err
+			}
+		}
+		if payment, err = entities.NewPayment(entities.NewPaymentInput{Request: request, Method: method, Phone: phone, Now: now, TipCents: in.AmountCents}); err != nil {
+			return err
+		}
+		created = true
+		in.PhoneNumber = phone
+		if method == entities.PaymentWallet {
+			return u.payFromWallet(ctx, request, payment, now)
+		}
+		expires := now.Add(u.windowOf(method))
+		payment.ExpiresAt = &expires
+		payment.CheckAgainAt(now.Add(u.checkEveryOf(method)), now)
+		if err := u.Payments.Create(ctx, payment); err != nil {
+			return err
+		}
+		if err := u.record(ctx, payment, sourceAPI, "tip created", now); err != nil {
+			return err
+		}
+		return u.publish(ctx, request, payment, method, string(payment.Status), now)
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	if created && payment.Method.UsesGateway() {
+		if err := u.charge(ctx, payment, in.PhoneNumber); err != nil {
+			return nil, false, err
+		}
+		if payment, err = u.Payments.Find(ctx, payment.ID); err != nil {
+			return nil, false, err
+		}
+	}
+	view := toView(payment)
+	return &view, created, nil
+}
+
+func (u *Usecase) maxTipCents(ctx context.Context) (int64, error) {
+	raw, err := u.Settings.Setting(ctx, entities.SettingMaxTipCents)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(raw, 10, 64)
 }
