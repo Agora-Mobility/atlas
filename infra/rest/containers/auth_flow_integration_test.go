@@ -50,6 +50,7 @@ const (
 	operatorPhone = "+244923000020"
 	ownerPhone    = "+244923000030"
 	adminEmail    = "admin@agora.ao"
+	adminPhone    = "+244923000040"
 	adminPassword = "uma-frase-longa-segura"
 )
 
@@ -150,15 +151,15 @@ func (a api) call(method, path, clientID, token string, payload any) response {
 	return out
 }
 
-func (a api) login(clientID, identifier, secret string) (access, refresh string) {
+func (a api) login(clientID, phoneNumber, secret string) (access, refresh string) {
 	a.t.Helper()
-	res := a.call(http.MethodPost, "/api/v1/auth/login", clientID, "", map[string]string{"identifier": identifier, "password": secret})
+	res := a.call(http.MethodPost, "/api/v1/auth/login", clientID, "", map[string]string{"phone": phoneNumber, "password": secret})
 	require.Equal(a.t, http.StatusOK, res.status, res.body)
 	return res.body["access_token"].(string), res.body["refresh_token"].(string)
 }
 
-func (a api) loginToken(clientID, identifier, secret string) string {
-	token, _ := a.login(clientID, identifier, secret)
+func (a api) loginToken(clientID, phoneNumber, secret string) string {
+	token, _ := a.login(clientID, phoneNumber, secret)
 	return token
 }
 
@@ -334,18 +335,46 @@ func TestAuthFlow(t *testing.T) {
 	})
 
 	var adminToken string
+	t.Run("a verified account signs in with an SMS code", func(t *testing.T) {
+		request := func(clientID string) response {
+			return a.call(http.MethodPost, "/api/v1/auth/login/otp/request", clientID, "", map[string]string{"phone": customerPhone})
+		}
+		verify := func(clientID, code string) response {
+			return a.call(http.MethodPost, "/api/v1/auth/login/otp/verify", clientID, "", map[string]string{"phone": customerPhone, "code": code})
+		}
+
+		res := request(customerApp)
+		require.Equal(t, http.StatusAccepted, res.status, res.body)
+		code := sms.code(t, customerPhone)
+
+		res = a.call(http.MethodPost, "/api/v1/auth/phone/verify", customerApp, "", map[string]string{"phone": customerPhone, "code": code})
+		assert.Equal(t, "CODE_EXPIRED", res.code(), "a sign-in code does not serve the phone verification")
+		assert.Equal(t, "CLIENT_NOT_ALLOWED", verify(backofficeApp, code).code())
+
+		res = verify(customerApp, code)
+		require.Equal(t, http.StatusOK, res.status, res.body)
+		token, refreshToken := res.body["access_token"].(string), res.body["refresh_token"].(string)
+		assert.Equal(t, customerApp, res.body["client"])
+		require.Equal(t, http.StatusOK, a.call(http.MethodGet, "/api/v1/users/me", customerApp, token, nil).status)
+
+		res = a.call(http.MethodPost, "/api/v1/auth/refresh", customerApp, "", map[string]string{"refresh_token": refreshToken})
+		require.Equal(t, http.StatusOK, res.status, res.body)
+
+		assert.Equal(t, "CODE_EXPIRED", verify(customerApp, code).code(), "a code works once")
+	})
+
 	t.Run("the first super admin is bootstrapped and must set up MFA", func(t *testing.T) {
 		bootstrap := usecases.NewAdminBootstrap(repository.NewUserRepository(pool), repository.NewOrganizationRepository(pool),
 			repository.NewRoleRepository(pool), repository.NewMembershipRepository(pool), outbox.NewRepository(pool),
 			repository.NewAuditLogRepository(pool), postgres.NewTxManager(pool), password.NewArgon2Hasher(password.DefaultParams))
-		created, err := bootstrap.Run(ctx, "Admin", adminEmail, adminPassword)
+		created, err := bootstrap.Run(ctx, "Admin", adminEmail, adminPhone, adminPassword)
 		require.NoError(t, err)
 		require.True(t, created)
-		created, err = bootstrap.Run(ctx, "Admin", "outro@agora.ao", adminPassword)
+		created, err = bootstrap.Run(ctx, "Admin", "outro@agora.ao", "+244923000041", adminPassword)
 		require.NoError(t, err)
 		assert.False(t, created, "a second run does nothing")
 
-		res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"identifier": adminEmail, "password": adminPassword})
+		res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": adminPhone, "password": adminPassword})
 		require.Equal(t, http.StatusAccepted, res.status, res.body)
 		assert.Equal(t, "setup_required", res.body["status"])
 		assert.NotContains(t, res.body, "access_token", "CA09.1 no session before MFA")
@@ -361,7 +390,7 @@ func TestAuthFlow(t *testing.T) {
 		require.Equal(t, http.StatusOK, res.status, res.body)
 		assert.Contains(t, res.body["permissions"], "roles:manage")
 
-		res = a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"identifier": adminEmail, "password": adminPassword})
+		res = a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": adminPhone, "password": adminPassword})
 		require.Equal(t, http.StatusAccepted, res.status, res.body)
 		assert.Equal(t, "code_required", res.body["status"])
 		replayed, err := totp.CodeAt(adminSecret, time.Now().Add(-30*time.Second))
@@ -397,7 +426,7 @@ func TestAuthFlow(t *testing.T) {
 		assert.Equal(t, "blocked", res.body["status"])
 
 		assert.Equal(t, "SESSION_REVOKED", a.call(http.MethodGet, "/api/v1/users/me", customerApp, customerToken, nil).code())
-		res = a.call(http.MethodPost, "/api/v1/auth/login", customerApp, "", map[string]string{"identifier": customerPhone, "password": "N0vo!segredo"})
+		res = a.call(http.MethodPost, "/api/v1/auth/login", customerApp, "", map[string]string{"phone": customerPhone, "password": "N0vo!segredo"})
 		assert.Equal(t, "ACCOUNT_BLOCKED", res.code())
 
 		var reason string
@@ -439,7 +468,7 @@ func TestAuthFlow(t *testing.T) {
 		require.NoError(t, owner.QueryRow(ctx, "SELECT o.type FROM memberships m JOIN organizations o ON o.id = m.organization_id WHERE m.id = $1", operatorMemberID).Scan(&organizationType))
 		assert.Equal(t, "platform", organizationType, "CAE.2 organization_id in the body is ignored")
 
-		res = a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"identifier": "op@agora.ao", "password": "S3gredo!forte"})
+		res = a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": operatorPhone, "password": "S3gredo!forte"})
 		assert.Equal(t, "INVALID_CREDENTIALS", res.code(), "CA10.1 an invited member cannot sign in")
 
 		res = a.call(http.MethodPost, "/api/v1/invitations/verification-code", backofficeApp, "", map[string]string{"token": token})
@@ -452,7 +481,7 @@ func TestAuthFlow(t *testing.T) {
 		res = a.call(http.MethodPost, "/api/v1/invitations/accept", backofficeApp, "", map[string]string{"token": token, "password": "S3gredo!forte", "code": "123456"})
 		assert.Equal(t, "INVALID_INVITATION", res.code(), "CA08.2 single use")
 
-		operatorToken, _ = a.login(backofficeApp, "op@agora.ao", "S3gredo!forte")
+		operatorToken, _ = a.login(backofficeApp, operatorPhone, "S3gredo!forte")
 	})
 
 	t.Run("permissions decide every endpoint", func(t *testing.T) {
@@ -496,12 +525,12 @@ func TestAuthFlow(t *testing.T) {
 		assert.Equal(t, "suspended", res.body["status"])
 
 		assert.Equal(t, "SESSION_REVOKED", a.call(http.MethodGet, "/api/v1/users/me", backofficeApp, operatorToken, nil).code())
-		res = a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"identifier": "op@agora.ao", "password": "S3gredo!forte"})
+		res = a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": operatorPhone, "password": "S3gredo!forte"})
 		assert.Equal(t, "INVALID_CREDENTIALS", res.code())
 
 		res = a.call(http.MethodPost, "/api/v1/members/"+operatorMemberID+"/reactivate", backofficeApp, adminToken, nil)
 		require.Equal(t, http.StatusOK, res.status, res.body)
-		operatorToken, _ = a.login(backofficeApp, "op@agora.ao", "S3gredo!forte")
+		operatorToken, _ = a.login(backofficeApp, operatorPhone, "S3gredo!forte")
 	})
 
 	t.Run("the last super admin and the actor's own membership are protected", func(t *testing.T) {
@@ -543,7 +572,7 @@ func TestAuthFlow(t *testing.T) {
 		res = a.call(http.MethodPost, "/api/v1/invitations/accept", partnerApp, "", map[string]string{"token": token, "password": "S3gredo!forte", "code": sms.code(t, ownerPhone)})
 		require.Equal(t, http.StatusNoContent, res.status, res.body)
 
-		res = a.call(http.MethodPost, "/api/v1/auth/login", partnerApp, "", map[string]string{"identifier": "dono@kianda.ao", "password": "S3gredo!forte"})
+		res = a.call(http.MethodPost, "/api/v1/auth/login", partnerApp, "", map[string]string{"phone": ownerPhone, "password": "S3gredo!forte"})
 		require.Equal(t, http.StatusAccepted, res.status, res.body)
 		ownerToken := a.verifyMFA(partnerApp, res.body["mfa_token"].(string), a.setupMFAOn(partnerApp, res.body["mfa_token"].(string)), time.Now())
 
@@ -564,7 +593,7 @@ func TestAuthFlow(t *testing.T) {
 
 	t.Run("a lost authenticator is recovered with a single-use code", func(t *testing.T) {
 		login := func() string {
-			res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"identifier": adminEmail, "password": adminPassword})
+			res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": adminPhone, "password": adminPassword})
 			require.Equal(t, http.StatusAccepted, res.status, res.body)
 			return res.body["mfa_token"].(string)
 		}
@@ -628,7 +657,7 @@ func TestAuthFlow(t *testing.T) {
 		res := a.call(http.MethodPost, "/api/v1/members/"+operatorMemberID+"/mfa/reset", backofficeApp, adminToken, nil)
 		require.Equal(t, http.StatusNoContent, res.status, res.body)
 		assert.Equal(t, "SESSION_REVOKED", a.call(http.MethodGet, "/api/v1/users/me", backofficeApp, operatorToken, nil).code())
-		assert.Equal(t, "PERMISSION_DENIED", a.call(http.MethodPost, "/api/v1/members/"+operatorMemberID+"/mfa/reset", backofficeApp, a.loginToken(backofficeApp, "op@agora.ao", "S3gredo!forte"), nil).code())
+		assert.Equal(t, "PERMISSION_DENIED", a.call(http.MethodPost, "/api/v1/members/"+operatorMemberID+"/mfa/reset", backofficeApp, a.loginToken(backofficeApp, operatorPhone, "S3gredo!forte"), nil).code())
 	})
 
 	t.Run("every membership change reaches the outbox", func(t *testing.T) {
@@ -685,7 +714,7 @@ func TestAuthFlow(t *testing.T) {
 		require.Equal(t, http.StatusNoContent, res.status, res.body)
 
 		assert.Equal(t, "SESSION_REVOKED", a.call(http.MethodGet, "/api/v1/users/me", customerApp, token, nil).code())
-		res = a.call(http.MethodPost, "/api/v1/auth/login", customerApp, "", map[string]string{"identifier": customerPhone, "password": "N0vo!segredo"})
+		res = a.call(http.MethodPost, "/api/v1/auth/login", customerApp, "", map[string]string{"phone": customerPhone, "password": "N0vo!segredo"})
 		assert.Equal(t, "INVALID_CREDENTIALS", res.code())
 
 		res = a.call(http.MethodPost, "/api/v1/auth/register", customerApp, "", map[string]string{"phone": customerPhone})

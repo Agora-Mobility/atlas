@@ -19,8 +19,15 @@ runs as several stateless instances behind a load balancer.
   sent by SMS (through the notifications module, ADR 0012).
   - OTPs are stored hashed in Redis with a 5-minute TTL, at most 5 attempts,
     and a resend cooldown per phone number.
-- Login uses phone (or e-mail for backoffice users) + password. Passwords are
-  hashed with **argon2id**.
+- Login uses phone + password for every role, on one endpoint; `X-Client-Id`
+  decides which accounts are accepted. The request never names an
+  organization: staff enter through their oldest active membership in the
+  scope of the client, and the token carries it. Passwords are hashed with
+  **argon2id**.
+- Customers and providers can also sign in with an **SMS code**, on its own
+  endpoints and with its own OTP purpose, so a sign-up or recovery code never
+  signs anyone in here. Staff clients are closed: an SMS code alone must not
+  replace the password and the MFA of a staff account.
 - Sessions use a **short-lived JWT access token** (15 min, HS256, claims:
   `sub`, `role`, `sid` = session/token family, `cid` = client id) and a
   **rotating refresh token** (opaque, stored hashed in PostgreSQL, 30 days,
@@ -63,8 +70,10 @@ runs as several stateless instances behind a load balancer.
   |---|---|---|---|
   | POST | `/api/v1/auth/register` | client | Sign up with the phone only, sends OTP (resends it while unverified) |
   | POST | `/api/v1/auth/login` | client | Returns a session |
+  | POST | `/api/v1/auth/login/otp/request` | client | Send a sign-in OTP (always 202) |
+  | POST | `/api/v1/auth/login/otp/verify` | client | Sign in with the OTP, returns a session |
   | POST | `/api/v1/auth/refresh` | client | Rotate refresh token |
-  | POST | `/api/v1/auth/phone/verification-code` | client | Resend phone OTP (always 202) |
+  | POST | `/api/v1/auth/phone/verification-code` | client | Resend the OTP of an unverified account (always 202) |
   | POST | `/api/v1/auth/phone/verify` | client | Verify phone, returns a session |
   | POST | `/api/v1/auth/recovery/request` | client | Send reset OTP (always 202) |
   | POST | `/api/v1/auth/recovery/confirm` | client | Reset with OTP, revokes all sessions |
@@ -90,7 +99,7 @@ runs as several stateless instances behind a load balancer.
 
 - Login of a user whose phone is not verified fails with
   `PHONE_NOT_VERIFIED` (403), so the app can send the user to the OTP screen.
-- Unknown identifiers still run one argon2id verification, so response time
+- Unknown phone numbers still run one argon2id verification, so response time
   does not reveal which accounts exist. Argon2id runs are bounded by a
   semaphore sized to the CPU count.
 - Hashes use the PHC format; outdated parameters are re-hashed on login.

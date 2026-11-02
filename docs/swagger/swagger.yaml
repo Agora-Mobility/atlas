@@ -333,21 +333,41 @@ definitions:
     - phone
     - role_ids
     type: object
+  dtos.LoginCodeRequestInput:
+    properties:
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
+    required:
+    - phone
+    type: object
+  dtos.LoginCodeVerifyInput:
+    properties:
+      code:
+        example: "123456"
+        type: string
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
+    required:
+    - code
+    - phone
+    type: object
   dtos.LoginInput:
     properties:
-      identifier:
-        example: "+244923000000"
-        maxLength: 254
-        type: string
-      organization_id:
-        type: string
       password:
         example: S3gredo!forte
         maxLength: 128
         type: string
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
     required:
-    - identifier
     - password
+    - phone
     type: object
   dtos.MFAChallengeOutput:
     properties:
@@ -1616,13 +1636,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'The identifier is an e-mail or a phone number in E.164 format.
-        Customers sign in through agora-customer-app and providers through agora-provider-app.
-        Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel
-        (partner membership); organization_id picks one partner when the person belongs
-        to several. When the membership requires MFA, or the person has set it up,
-        the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup
-        and /auth/mfa/verify.'
+      description: 'Every account signs in with its phone number and password; the
+        X-Client-Id header decides which accounts are accepted. Customers sign in
+        through agora-customer-app and providers through agora-provider-app. Staff
+        sign in through agora-backoffice (AGORA membership) or agora-partner-panel
+        (partner membership). The organization is never sent: it comes from the membership
+        and travels in the token. When the membership requires MFA, or the person
+        has set it up, the answer is 202 with an mfa_token instead of a session: continue
+        with /auth/mfa/setup and /auth/mfa/verify.'
       parameters:
       - description: Login payload
         in: body
@@ -1664,6 +1685,101 @@ paths:
       security:
       - ClientId: []
       summary: Authenticate a user
+      tags:
+      - Auth
+  /api/v1/auth/login/otp/request:
+    post:
+      consumes:
+      - application/json
+      description: Customer and provider apps only. Sends an SMS code to the account
+        of the phone. Always answers 202 so the response does not reveal whether the
+        phone is registered. Continue with /auth/login/otp/verify.
+      parameters:
+      - description: Phone payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.LoginCodeRequestInput'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dtos.MessageOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Send a code to sign in without a password
+      tags:
+      - Auth
+  /api/v1/auth/login/otp/verify:
+    post:
+      consumes:
+      - application/json
+      description: Customer and provider apps only. Validates the code from /auth/login/otp/request
+        and returns an access token and a refresh token.
+      parameters:
+      - description: Phone and code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.LoginCodeVerifyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SessionOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Account blocked or client not allowed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid, expired or exhausted code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Sign in with the code sent by SMS
       tags:
       - Auth
   /api/v1/auth/logout:
@@ -1831,9 +1947,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Customer and provider apps only. Serves the first verification
-        and every later sign-in without password. Always answers 202 so the response
-        does not reveal whether the phone is registered.
+      description: 'Customer and provider apps only. Sends nothing to an account already
+        verified: signing in with a code is /auth/login/otp/request. Always answers
+        202 so the response does not reveal whether the phone is registered.'
       parameters:
       - description: Phone payload
         in: body
@@ -1870,15 +1986,15 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Send a phone code to verify or sign in
+      summary: Resend the code that verifies a new account
       tags:
       - Auth
   /api/v1/auth/phone/verify:
     post:
       consumes:
       - application/json
-      description: Customer and provider apps only. Marks the phone verified on the
-        first use.
+      description: Customer and provider apps only. Takes the code sent by /auth/register
+        or /auth/phone/verification-code and marks the phone verified.
       parameters:
       - description: Phone and code
         in: body
@@ -1919,7 +2035,7 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Verify the phone code and start a session
+      summary: Verify a new account and start its first session
       tags:
       - Auth
   /api/v1/auth/recovery/confirm:

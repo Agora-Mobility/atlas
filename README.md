@@ -111,15 +111,15 @@ login answers `202` with an `mfa_token`, then `POST /api/v1/auth/mfa/setup` and
 `POST /api/v1/auth/mfa/verify` start the session.
 
 Protected routes also need `Authorization: Bearer <access_token>` from
-`POST /api/v1/auth/login`. `make seed` creates a customer, a provider, a Super
-Admin (`admin@agora.ao`, asks for MFA), an Operações member
-(`operador@agora.ao`) and the owner of a test partner (`parceiro@agora.ao`),
-all with password `Agora@2026`:
+`POST /api/v1/auth/login`, which takes the phone and the password. `make seed`
+creates a customer, a provider, a Super Admin (`+244923000101`, asks for MFA),
+an Operações member (`+244923000102`) and the owner of a test partner
+(`+244923000105`), all with password `Agora@2026`:
 
 ```bash
 curl -s localhost:8700/api/v1/auth/login \
   -H 'X-Client-Id: agora-backoffice' -H 'Content-Type: application/json' \
-  -d '{"identifier":"operador@agora.ao","password":"Agora@2026"}'
+  -d '{"phone":"+244923000102","password":"Agora@2026"}'
 ```
 
 The API runs every query as the `atlas_app` role, which the migrations create
@@ -127,8 +127,8 @@ and which is subject to row-level security (ADR 0015). In production the
 migration user needs `CREATEROLE`, or the DBA creates the role first.
 
 The seed does not run in production. To create the first Super Admin there,
-run `/bootstrap-admin` from the api image once, with `BOOTSTRAP_ADMIN_EMAIL`
-and `BOOTSTRAP_ADMIN_PASSWORD` (12+ characters) set. It does nothing when an
+run `/bootstrap-admin` from the api image once, with `BOOTSTRAP_ADMIN_EMAIL`,
+`BOOTSTRAP_ADMIN_PHONE` and `BOOTSTRAP_ADMIN_PASSWORD` (12+ characters) set. It does nothing when an
 active Super Admin already exists. Further staff are invited by SMS and
 e-mail (`POST /api/v1/members/invitations`) and accept at
 `POST /api/v1/invitations/accept`.

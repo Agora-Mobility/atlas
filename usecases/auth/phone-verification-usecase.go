@@ -56,18 +56,45 @@ func (uc *PhoneVerificationUsecase) RequestCode(ctx context.Context, req dtos.Ph
 	if err != nil {
 		return err
 	}
-	if user == nil || !client.Allows(user.Role) {
+	if user == nil || user.IsVerified || !client.Allows(user.Role) {
 		return nil
 	}
 	return uc.codeSender.SendSilently(ctx, enums.OTPPurposeVerifyPhone, user.Phone)
 }
 
+// RequestLoginCode answers the same for every phone, so it does not reveal
+// which accounts exist. Staff clients are closed: an SMS code alone must not
+// replace the password and the MFA of a staff account.
+func (uc *PhoneVerificationUsecase) RequestLoginCode(ctx context.Context, req dtos.LoginCodeRequestInput, client *entities.Client) error {
+	if _, ok := client.SignUpRole(); !ok {
+		return nil
+	}
+	user, err := uc.userRepo.FindByPhone(ctx, phone.Normalize(req.Phone))
+	if err != nil {
+		return err
+	}
+	if user == nil || ensureCanSignIn(user, client) != nil {
+		return nil
+	}
+	return uc.codeSender.SendSilently(ctx, enums.OTPPurposeLogin, user.Phone)
+}
+
+func (uc *PhoneVerificationUsecase) VerifyLoginCode(ctx context.Context, req dtos.LoginCodeVerifyInput, client *entities.Client, ip, userAgent string) (*dtos.SessionOutput, error) {
+	return uc.startSessionWithCode(ctx, enums.OTPPurposeLogin, req.Phone, req.Code, client, ip, userAgent)
+}
+
 func (uc *PhoneVerificationUsecase) Confirm(ctx context.Context, req dtos.PhoneVerificationConfirmInput, client *entities.Client, ip, userAgent string) (*dtos.SessionOutput, error) {
+	return uc.startSessionWithCode(ctx, enums.OTPPurposeVerifyPhone, req.Phone, req.Code, client, ip, userAgent)
+}
+
+// startSessionWithCode marks an unverified phone as verified, since a valid
+// code proves that the person holds the number.
+func (uc *PhoneVerificationUsecase) startSessionWithCode(ctx context.Context, purpose enums.OTPPurpose, rawPhone, code string, client *entities.Client, ip, userAgent string) (*dtos.SessionOutput, error) {
 	if _, ok := client.SignUpRole(); !ok {
 		return nil, ErrClientNotAllowed
 	}
-	phoneNumber := phone.Normalize(req.Phone)
-	if err := uc.otp.Verify(ctx, enums.OTPPurposeVerifyPhone, phoneNumber, req.Code); err != nil {
+	phoneNumber := phone.Normalize(rawPhone)
+	if err := uc.otp.Verify(ctx, purpose, phoneNumber, code); err != nil {
 		return nil, err
 	}
 

@@ -972,7 +972,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "The identifier is an e-mail or a phone number in E.164 format. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership); organization_id picks one partner when the person belongs to several. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.",
+                "description": "Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership). The organization is never sent: it comes from the membership and travels in the token. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1021,6 +1021,150 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Account blocked, phone not verified or client not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login/otp/request": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer and provider apps only. Sends an SMS code to the account of the phone. Always answers 202 so the response does not reveal whether the phone is registered. Continue with /auth/login/otp/verify.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Send a code to sign in without a password",
+                "parameters": [
+                    {
+                        "description": "Phone payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.LoginCodeRequestInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MessageOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unknown client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login/otp/verify": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer and provider apps only. Validates the code from /auth/login/otp/request and returns an access token and a refresh token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Sign in with the code sent by SMS",
+                "parameters": [
+                    {
+                        "description": "Phone and code",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.LoginCodeVerifyInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SessionOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unknown client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Account blocked or client not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid, expired or exhausted code",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -1298,7 +1442,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Customer and provider apps only. Serves the first verification and every later sign-in without password. Always answers 202 so the response does not reveal whether the phone is registered.",
+                "description": "Customer and provider apps only. Sends nothing to an account already verified: signing in with a code is /auth/login/otp/request. Always answers 202 so the response does not reveal whether the phone is registered.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1308,7 +1452,7 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Send a phone code to verify or sign in",
+                "summary": "Resend the code that verifies a new account",
                 "parameters": [
                     {
                         "description": "Phone payload",
@@ -1367,7 +1511,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Customer and provider apps only. Marks the phone verified on the first use.",
+                "description": "Customer and provider apps only. Takes the code sent by /auth/register or /auth/phone/verification-code and marks the phone verified.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1377,7 +1521,7 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Verify the phone code and start a session",
+                "summary": "Verify a new account and start its first session",
                 "parameters": [
                     {
                         "description": "Phone and code",
@@ -4424,25 +4568,53 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.LoginCodeRequestInput": {
+            "type": "object",
+            "required": [
+                "phone"
+            ],
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000000"
+                }
+            }
+        },
+        "dtos.LoginCodeVerifyInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "phone"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000000"
+                }
+            }
+        },
         "dtos.LoginInput": {
             "type": "object",
             "required": [
-                "identifier",
-                "password"
+                "password",
+                "phone"
             ],
             "properties": {
-                "identifier": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "example": "+244923000000"
-                },
-                "organization_id": {
-                    "type": "string"
-                },
                 "password": {
                     "type": "string",
                     "maxLength": 128,
                     "example": "S3gredo!forte"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000000"
                 }
             }
         },
