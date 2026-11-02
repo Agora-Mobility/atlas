@@ -768,6 +768,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/ledger/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Per account, the balances of the providers and how many transactions do not add up to zero, which has to be 0.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Totals of the ledger",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page of providers",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.LedgerSummary"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/payment-methods": {
             "get": {
                 "security": [
@@ -964,6 +1006,61 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "PAYMENT_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/payments/{id}/gateway-fee": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The value comes from the AppyPay statement and is never assumed. It is a cost of the platform and can be recorded once per payment.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Record the real fee of the gateway",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fee",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.GatewayFeeInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PaymentView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -1279,6 +1376,109 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "REASON_REQUIRED or UNKNOWN_REJECTION_REASON",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/providers/{id}/ledger": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Statement of a provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AccountStatement"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/providers/{id}/settlements": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "payout pays what AGORA owes and collect receives the debt of the provider. reference is the bank document: the same reference is applied only once.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Settle the balance of a provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Settlement",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SettlementInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SettlementResult"
+                        }
+                    },
+                    "422": {
+                        "description": "Above the balance",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -7439,6 +7639,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/providers/me/ledger": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "A positive balance is what AGORA owes the provider. A negative balance is the commission the provider owes for cash jobs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider work"
+                ],
+                "summary": "Statement of the provider",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AccountStatement"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/providers/me/locations": {
             "post": {
                 "security": [
@@ -9850,6 +10092,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/wallet": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Balance and movements: refunds of references, payments from the wallet and invite rewards.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Wallet of the customer",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AccountStatement"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/webhooks/appypay": {
             "post": {
                 "description": "Called by AppyPay. The body is only a notice: the state always comes from asking AppyPay for the charge.",
@@ -10082,6 +10366,32 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.AccountStatement": {
+            "type": "object",
+            "properties": {
+                "balance_cents": {
+                    "type": "integer"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.LedgerLine"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.ActiveState": {
             "type": "object",
             "properties": {
@@ -10263,6 +10573,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "kind": {
                     "type": "string"
                 },
                 "method": {
@@ -10548,6 +10861,20 @@ const docTemplate = `{
                         10,
                         20
                     ]
+                }
+            }
+        },
+        "dtos.BreakdownItem": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
                 }
             }
         },
@@ -10853,7 +11180,8 @@ const docTemplate = `{
                     "enum": [
                         "cash",
                         "gpo",
-                        "reference"
+                        "reference",
+                        "wallet"
                     ],
                     "example": "gpo"
                 }
@@ -11056,7 +11384,8 @@ const docTemplate = `{
                     "enum": [
                         "cash",
                         "gpo",
-                        "reference"
+                        "reference",
+                        "wallet"
                     ],
                     "example": "cash"
                 },
@@ -11338,6 +11667,47 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.FareBreakdown": {
+            "type": "object",
+            "properties": {
+                "cancel_fee_cents": {
+                    "type": "integer"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "discount_cents": {
+                    "type": "integer"
+                },
+                "fare_cents": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.BreakdownItem"
+                    }
+                },
+                "method": {
+                    "type": "string"
+                },
+                "paid_cents": {
+                    "type": "integer"
+                },
+                "refunded_cents": {
+                    "type": "integer"
+                },
+                "tip_cents": {
+                    "type": "integer"
+                },
+                "total_cents": {
+                    "type": "integer"
+                },
+                "voucher_code": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.FareEstimateInput": {
             "type": "object",
             "required": [
@@ -11523,6 +11893,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.GatewayFeeInput": {
+            "type": "object",
+            "properties": {
+                "fee_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 0,
+                    "example": 9000
+                }
+            }
+        },
         "dtos.HeatCell": {
             "type": "object",
             "properties": {
@@ -11600,6 +11981,66 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "dtos.LedgerLine": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "transaction_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.LedgerSummary": {
+            "type": "object",
+            "properties": {
+                "providers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ProviderBalanceView"
+                    }
+                },
+                "totals": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.LedgerTotal"
+                    }
+                },
+                "unbalanced_transactions": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.LedgerTotal": {
+            "type": "object",
+            "properties": {
+                "account": {
+                    "type": "string"
+                },
+                "total_cents": {
+                    "type": "integer"
                 }
             }
         },
@@ -12105,7 +12546,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "gpo",
-                        "reference"
+                        "reference",
+                        "wallet"
                     ],
                     "example": "gpo"
                 },
@@ -12149,6 +12591,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "kind": {
                     "type": "string"
                 },
                 "method": {
@@ -12733,6 +13178,20 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ProviderBalanceView": {
+            "type": "object",
+            "properties": {
+                "balance_cents": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "provider_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.ProviderSummary": {
             "type": "object",
             "properties": {
@@ -12977,6 +13436,7 @@ const docTemplate = `{
             "properties": {
                 "amount_cents": {
                     "type": "integer",
+                    "maximum": 10000000000,
                     "minimum": 0,
                     "example": 150000
                 },
@@ -13316,6 +13776,9 @@ const docTemplate = `{
                 },
                 "boost_bps": {
                     "type": "integer"
+                },
+                "breakdown": {
+                    "$ref": "#/definitions/dtos.FareBreakdown"
                 },
                 "can_boost": {
                     "type": "boolean"
@@ -13738,7 +14201,8 @@ const docTemplate = `{
                     "enum": [
                         "cash",
                         "gpo",
-                        "reference"
+                        "reference",
+                        "wallet"
                     ]
                 }
             }
@@ -13752,6 +14216,53 @@ const docTemplate = `{
                 "password": {
                     "type": "string",
                     "example": "S3gredo!forte"
+                }
+            }
+        },
+        "dtos.SettlementInput": {
+            "type": "object",
+            "required": [
+                "amount_cents",
+                "direction",
+                "reference"
+            ],
+            "properties": {
+                "amount_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 1,
+                    "example": 500000
+                },
+                "direction": {
+                    "type": "string",
+                    "enum": [
+                        "payout",
+                        "collect"
+                    ],
+                    "example": "payout"
+                },
+                "note": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "reference": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "TRF-2026-0042"
+                }
+            }
+        },
+        "dtos.SettlementResult": {
+            "type": "object",
+            "properties": {
+                "applied": {
+                    "type": "boolean"
+                },
+                "balance_cents": {
+                    "type": "integer"
+                },
+                "currency": {
+                    "type": "string"
                 }
             }
         },

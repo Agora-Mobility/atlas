@@ -391,6 +391,27 @@ type Invitation struct {
 	CreatedAt    time.Time  `json:"created_at"`
 }
 
+type LedgerEntry struct {
+	ID            int64      `json:"id"`
+	TransactionID uuid.UUID  `json:"transaction_id"`
+	AccountType   string     `json:"account_type"`
+	AccountID     *uuid.UUID `json:"account_id"`
+	AmountCents   int64      `json:"amount_cents"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+type LedgerTransaction struct {
+	ID             uuid.UUID  `json:"id"`
+	IdempotencyKey string     `json:"idempotency_key"`
+	Kind           string     `json:"kind"`
+	RequestID      *uuid.UUID `json:"request_id"`
+	PaymentID      *uuid.UUID `json:"payment_id"`
+	Note           string     `json:"note"`
+	ActorID        *uuid.UUID `json:"actor_id"`
+	Currency       string     `json:"currency"`
+	CreatedAt      time.Time  `json:"created_at"`
+}
+
 type Membership struct {
 	ID             uuid.UUID              `json:"id"`
 	UserID         uuid.UUID              `json:"user_id"`
@@ -472,6 +493,8 @@ type Payment struct {
 	PaidAt           *time.Time `json:"paid_at"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+	Kind             string     `json:"kind"`
+	GatewayFeeCents  *int64     `json:"gateway_fee_cents"`
 }
 
 type PaymentEvent struct {

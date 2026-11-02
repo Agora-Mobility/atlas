@@ -77,11 +77,16 @@ func (q *Queries) DuePayments(ctx context.Context, arg DuePaymentsParams) ([]uui
 }
 
 const getPaidPaymentOfRequest = `-- name: GetPaidPaymentOfRequest :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at FROM payments WHERE request_id = $1 AND status = 'paid' ORDER BY created_at LIMIT 1
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'paid' ORDER BY created_at LIMIT 1
 `
 
-func (q *Queries) GetPaidPaymentOfRequest(ctx context.Context, requestID uuid.UUID) (Payment, error) {
-	row := q.db.QueryRow(ctx, getPaidPaymentOfRequest, requestID)
+type GetPaidPaymentOfRequestParams struct {
+	RequestID uuid.UUID `json:"request_id"`
+	Kind      string    `json:"kind"`
+}
+
+func (q *Queries) GetPaidPaymentOfRequest(ctx context.Context, arg GetPaidPaymentOfRequestParams) (Payment, error) {
+	row := q.db.QueryRow(ctx, getPaidPaymentOfRequest, arg.RequestID, arg.Kind)
 	var i Payment
 	err := row.Scan(
 		&i.ID,
@@ -103,12 +108,14 @@ func (q *Queries) GetPaidPaymentOfRequest(ctx context.Context, requestID uuid.UU
 		&i.PaidAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Kind,
+		&i.GatewayFeeCents,
 	)
 	return i, err
 }
 
 const getPayment = `-- name: GetPayment :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at FROM payments WHERE id = $1
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE id = $1
 `
 
 func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (Payment, error) {
@@ -134,12 +141,14 @@ func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
 		&i.PaidAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Kind,
+		&i.GatewayFeeCents,
 	)
 	return i, err
 }
 
 const getPaymentByMerchantID = `-- name: GetPaymentByMerchantID :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at FROM payments WHERE merchant_id = $1
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE merchant_id = $1
 `
 
 func (q *Queries) GetPaymentByMerchantID(ctx context.Context, merchantID string) (Payment, error) {
@@ -165,12 +174,14 @@ func (q *Queries) GetPaymentByMerchantID(ctx context.Context, merchantID string)
 		&i.PaidAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Kind,
+		&i.GatewayFeeCents,
 	)
 	return i, err
 }
 
 const getPaymentByProviderCharge = `-- name: GetPaymentByProviderCharge :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at FROM payments WHERE provider_charge_id = $1
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE provider_charge_id = $1
 `
 
 func (q *Queries) GetPaymentByProviderCharge(ctx context.Context, providerChargeID *string) (Payment, error) {
@@ -196,12 +207,14 @@ func (q *Queries) GetPaymentByProviderCharge(ctx context.Context, providerCharge
 		&i.PaidAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Kind,
+		&i.GatewayFeeCents,
 	)
 	return i, err
 }
 
 const getPaymentForUpdate = `-- name: GetPaymentForUpdate :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at FROM payments WHERE id = $1 FOR UPDATE
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetPaymentForUpdate(ctx context.Context, id uuid.UUID) (Payment, error) {
@@ -227,16 +240,23 @@ func (q *Queries) GetPaymentForUpdate(ctx context.Context, id uuid.UUID) (Paymen
 		&i.PaidAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Kind,
+		&i.GatewayFeeCents,
 	)
 	return i, err
 }
 
 const getPendingPaymentOfRequest = `-- name: GetPendingPaymentOfRequest :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at FROM payments WHERE request_id = $1 AND status = 'pending'
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'pending'
 `
 
-func (q *Queries) GetPendingPaymentOfRequest(ctx context.Context, requestID uuid.UUID) (Payment, error) {
-	row := q.db.QueryRow(ctx, getPendingPaymentOfRequest, requestID)
+type GetPendingPaymentOfRequestParams struct {
+	RequestID uuid.UUID `json:"request_id"`
+	Kind      string    `json:"kind"`
+}
+
+func (q *Queries) GetPendingPaymentOfRequest(ctx context.Context, arg GetPendingPaymentOfRequestParams) (Payment, error) {
+	row := q.db.QueryRow(ctx, getPendingPaymentOfRequest, arg.RequestID, arg.Kind)
 	var i Payment
 	err := row.Scan(
 		&i.ID,
@@ -258,6 +278,8 @@ func (q *Queries) GetPendingPaymentOfRequest(ctx context.Context, requestID uuid
 		&i.PaidAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Kind,
+		&i.GatewayFeeCents,
 	)
 	return i, err
 }
@@ -279,8 +301,8 @@ func (q *Queries) HasOutstandingPayment(ctx context.Context, customerID uuid.UUI
 
 const insertPayment = `-- name: InsertPayment :exec
 INSERT INTO payments (id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked,
-    reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+    reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 `
 
 type InsertPaymentParams struct {
@@ -303,6 +325,7 @@ type InsertPaymentParams struct {
 	PaidAt           *time.Time `json:"paid_at"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+	Kind             string     `json:"kind"`
 }
 
 func (q *Queries) InsertPayment(ctx context.Context, arg InsertPaymentParams) error {
@@ -326,6 +349,7 @@ func (q *Queries) InsertPayment(ctx context.Context, arg InsertPaymentParams) er
 		arg.PaidAt,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.Kind,
 	)
 	return err
 }
@@ -397,7 +421,7 @@ func (q *Queries) IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMetho
 }
 
 const listAdminPayments = `-- name: ListAdminPayments :many
-SELECT p.id, p.request_id, p.customer_id, p.method, p.status, p.amount_cents, p.refunded_cents, p.currency, p.merchant_id, p.provider_charge_id, p.payer_phone_masked, p.reference_number, p.reference_entity, p.failure_message, p.expires_at, p.next_check_at, p.paid_at, p.created_at, p.updated_at, r.category_slug, u.name AS customer_name
+SELECT p.id, p.request_id, p.customer_id, p.method, p.status, p.amount_cents, p.refunded_cents, p.currency, p.merchant_id, p.provider_charge_id, p.payer_phone_masked, p.reference_number, p.reference_entity, p.failure_message, p.expires_at, p.next_check_at, p.paid_at, p.created_at, p.updated_at, p.kind, p.gateway_fee_cents, r.category_slug, u.name AS customer_name
 FROM payments p
 JOIN service_requests r ON r.id = p.request_id
 JOIN users u ON u.id = p.customer_id
@@ -442,6 +466,8 @@ type ListAdminPaymentsRow struct {
 	PaidAt           *time.Time `json:"paid_at"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+	Kind             string     `json:"kind"`
+	GatewayFeeCents  *int64     `json:"gateway_fee_cents"`
 	CategorySlug     string     `json:"category_slug"`
 	CustomerName     string     `json:"customer_name"`
 }
@@ -484,6 +510,8 @@ func (q *Queries) ListAdminPayments(ctx context.Context, arg ListAdminPaymentsPa
 			&i.PaidAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Kind,
+			&i.GatewayFeeCents,
 			&i.CategorySlug,
 			&i.CustomerName,
 		); err != nil {
@@ -615,7 +643,7 @@ func (q *Queries) ListPaymentRefunds(ctx context.Context, paymentID uuid.UUID) (
 }
 
 const listPaymentsOfRequest = `-- name: ListPaymentsOfRequest :many
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at FROM payments WHERE request_id = $1 ORDER BY created_at DESC
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE request_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListPaymentsOfRequest(ctx context.Context, requestID uuid.UUID) ([]Payment, error) {
@@ -647,6 +675,8 @@ func (q *Queries) ListPaymentsOfRequest(ctx context.Context, requestID uuid.UUID
 			&i.PaidAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Kind,
+			&i.GatewayFeeCents,
 		); err != nil {
 			return nil, err
 		}

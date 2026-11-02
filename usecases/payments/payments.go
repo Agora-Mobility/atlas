@@ -39,6 +39,7 @@ type Settings struct {
 	ReconcileBatch         int
 	GPOCheckInterval       time.Duration
 	ReferenceCheckInterval time.Duration
+	Currency               string
 }
 
 type Deps struct {
@@ -49,6 +50,12 @@ type Deps struct {
 	Audit    repository.IAuditLogRepository
 	Tx       repository.ITransactionManager
 	Gateway  services.IPaymentGateway
+	Ledger   repository.ILedgerRepository
+	Rewards  RewardHook
+}
+
+type RewardHook interface {
+	OnFirstPaidRequest(ctx context.Context, request *entities.ServiceRequest, now time.Time) error
 }
 
 type Usecase struct {
@@ -63,7 +70,7 @@ func NewUsecase(deps Deps, settings Settings) *Usecase {
 
 func toView(p *entities.Payment) dtos.PaymentView {
 	view := dtos.PaymentView{
-		ID: p.ID, RequestID: p.RequestID, Method: string(p.Method), Status: string(p.Status), AmountCents: p.AmountCents, RefundedCents: p.RefundedCents, Currency: p.Currency,
+		ID: p.ID, RequestID: p.RequestID, Kind: string(p.Kind), Method: string(p.Method), Status: string(p.Status), AmountCents: p.AmountCents, RefundedCents: p.RefundedCents, Currency: p.Currency,
 		Code: p.MerchantID, PayerPhone: p.PayerPhoneMasked, FailureMessage: p.FailureMessage, ExpiresAt: p.ExpiresAt, PaidAt: p.PaidAt, CreatedAt: p.CreatedAt,
 	}
 	if p.ReferenceNumber != "" {
@@ -99,7 +106,7 @@ func (u *Usecase) Methods(ctx context.Context, category string, onlyEnabled bool
 	for i := range methods {
 		method := &methods[i]
 		enabled := method.IsEnabled
-		if method.Method != entities.PaymentCash && !u.Gateway.Enabled() {
+		if method.Method.UsesGateway() && !u.Gateway.Enabled() {
 			if onlyEnabled {
 				continue
 			}
@@ -151,7 +158,7 @@ func (u *Usecase) ChangeMethod(ctx context.Context, customerID, requestID uuid.U
 		if err != nil {
 			return err
 		}
-		if !enabled || (method != entities.PaymentCash && !u.Gateway.Enabled()) {
+		if !enabled || (method.UsesGateway() && !u.Gateway.Enabled()) {
 			return entities.ErrPaymentMethodUnavailable
 		}
 		if err := u.Payments.SetRequestPayment(ctx, requestID, method, request.PaymentStatus); err != nil {
@@ -180,10 +187,10 @@ func (u *Usecase) payerPhone(ctx context.Context, customerID uuid.UUID, requeste
 }
 
 func (u *Usecase) Pay(ctx context.Context, customerID, requestID uuid.UUID, in dtos.PayInput) (*dtos.PaymentView, bool, error) {
-	if !u.Gateway.Enabled() {
+	method := entities.PaymentMethod(in.Method)
+	if method.UsesGateway() && !u.Gateway.Enabled() {
 		return nil, false, services.ErrPaymentsUnavailable
 	}
-	method := entities.PaymentMethod(in.Method)
 	phone := ""
 	if method == entities.PaymentGPO {
 		var err error
@@ -208,7 +215,11 @@ func (u *Usecase) Pay(ctx context.Context, customerID, requestID uuid.UUID, in d
 		if request.PaymentStatus == entities.RequestPaid || request.PaymentStatus == entities.RequestFullyRefunded {
 			return entities.ErrPaymentAlreadyPaid
 		}
-		pending, err := u.Payments.PendingOfRequest(ctx, requestID)
+		kind := entities.PaymentKindFare
+		if request.Status == entities.RequestCancelled {
+			kind = entities.PaymentKindCancellationFee
+		}
+		pending, err := u.Payments.PendingOfRequest(ctx, requestID, kind)
 		if err != nil {
 			return err
 		}
@@ -230,6 +241,9 @@ func (u *Usecase) Pay(ctx context.Context, customerID, requestID uuid.UUID, in d
 		if payment, err = entities.NewPayment(entities.NewPaymentInput{Request: request, Method: method, Phone: phone, Now: now}); err != nil {
 			return err
 		}
+		if method == entities.PaymentWallet {
+			return u.payFromWallet(ctx, request, payment, now)
+		}
 		expires := now.Add(u.windowOf(method))
 		payment.ExpiresAt = &expires
 		payment.CheckAgainAt(now.Add(u.checkEveryOf(method)), now)
@@ -250,7 +264,7 @@ func (u *Usecase) Pay(ctx context.Context, customerID, requestID uuid.UUID, in d
 	}
 	if !created {
 		view := toView(payment)
-		return &view, false, nil
+		return &view, method == entities.PaymentWallet, nil
 	}
 	if err := u.charge(ctx, payment, phone); err != nil {
 		return nil, false, err
@@ -361,15 +375,22 @@ func (u *Usecase) persistChange(ctx context.Context, payment *entities.Payment, 
 	if err := u.record(ctx, payment, source, detail, now); err != nil {
 		return err
 	}
-	status := entities.RequestUnpaid
 	if payment.Status == entities.PaymentPaid {
-		status = entities.RequestPaid
+		if err := u.postPayment(ctx, request, payment, now); err != nil {
+			return err
+		}
 	}
-	if request.PaymentStatus == entities.RequestPaid || request.PaymentStatus == entities.RequestFullyRefunded {
-		status = request.PaymentStatus
-	}
-	if err := u.Payments.SetRequestPayment(ctx, request.ID, payment.Method, status); err != nil {
-		return err
+	if payment.Kind != entities.PaymentKindTip {
+		status := entities.RequestUnpaid
+		if payment.Status == entities.PaymentPaid {
+			status = entities.RequestPaid
+		}
+		if request.PaymentStatus == entities.RequestPaid || request.PaymentStatus == entities.RequestFullyRefunded {
+			status = request.PaymentStatus
+		}
+		if err := u.Payments.SetRequestPayment(ctx, request.ID, payment.Method, status); err != nil {
+			return err
+		}
 	}
 	return u.publish(ctx, request, payment, payment.Method, string(payment.Status), now)
 }
@@ -457,14 +478,21 @@ func (u *Usecase) applySuccess(ctx context.Context, payment *entities.Payment, c
 	if payment.Status != entities.PaymentPending {
 		logger.FromContext(ctx).Warn("late payment after the deadline", zap.String("payment_id", payment.ID.String()))
 	}
-	other, err := u.Payments.PaidOfRequest(ctx, payment.RequestID)
+	other, err := u.Payments.PaidOfRequest(ctx, payment.RequestID, payment.Kind)
 	if err != nil {
 		return err
 	}
-	if other != nil {
-		logger.FromContext(ctx).Error("second paid payment for a request, refund it", zap.String("payment_id", payment.ID.String()), zap.String("request_id", payment.RequestID.String()))
-	}
 	payment.MarkPaid(now)
+	if other != nil {
+		logger.FromContext(ctx).Warn("second paid payment for a request, it goes to the wallet", zap.String("payment_id", payment.ID.String()), zap.String("request_id", payment.RequestID.String()))
+		if err := u.Payments.Save(ctx, payment); err != nil {
+			return err
+		}
+		if err := u.record(ctx, payment, source, "charge confirmed twice, credited to the wallet", now); err != nil {
+			return err
+		}
+		return u.creditDuplicate(ctx, payment, now)
+	}
 	return u.persistChange(ctx, payment, source, "charge confirmed", now)
 }
 
@@ -547,7 +575,7 @@ func (u *Usecase) ConfirmCash(ctx context.Context, providerID, requestID uuid.UU
 			return entities.ErrPaymentNotPayable
 		}
 		if request.PaymentStatus == entities.RequestPaid {
-			if payment, err = u.Payments.PaidOfRequest(ctx, requestID); err != nil {
+			if payment, err = u.Payments.PaidOfRequest(ctx, requestID, entities.PaymentKindFare); err != nil {
 				return err
 			}
 			if payment != nil && payment.Method == entities.PaymentCash {
@@ -580,6 +608,9 @@ func (u *Usecase) ConfirmCash(ctx context.Context, providerID, requestID uuid.UU
 			return err
 		}
 		if err := u.Payments.SetRequestPayment(ctx, requestID, entities.PaymentCash, entities.RequestPaid); err != nil {
+			return err
+		}
+		if err := u.postPayment(ctx, request, payment, now); err != nil {
 			return err
 		}
 		return u.publish(ctx, request, payment, entities.PaymentCash, string(payment.Status), now)
@@ -638,13 +669,16 @@ func (u *Usecase) Refund(ctx context.Context, actor entities.Actor, paymentID uu
 		if request == nil {
 			return ErrRequestNotFound
 		}
-		providerRefundID, err := u.Gateway.Refund(ctx, *payment.ProviderChargeID, cents, "Reembolso "+payment.MerchantID)
-		var declined *services.PaymentDeclinedError
-		if errors.As(err, &declined) {
-			return ErrRefundDeclined
-		}
-		if err != nil {
-			return err
+		providerRefundID := ""
+		if !payment.RefundsToWallet() {
+			var declined *services.PaymentDeclinedError
+			providerRefundID, err = u.Gateway.Refund(ctx, *payment.ProviderChargeID, cents, "Reembolso "+payment.MerchantID)
+			if errors.As(err, &declined) {
+				return ErrRefundDeclined
+			}
+			if err != nil {
+				return err
+			}
 		}
 		now := u.now()
 		id, err := uuid.NewV7()
@@ -659,6 +693,9 @@ func (u *Usecase) Refund(ctx context.Context, actor entities.Actor, paymentID uu
 			return err
 		}
 		if err := u.record(ctx, payment, sourceAdmin, "refund", now); err != nil {
+			return err
+		}
+		if err := u.postRefund(ctx, request, payment, id, cents, now); err != nil {
 			return err
 		}
 		status := entities.RequestPaid

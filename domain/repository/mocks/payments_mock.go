@@ -253,33 +253,33 @@ func (mr *MockIPaymentRepositoryMockRecorder) ListOfRequest(ctx, requestID any) 
 }
 
 // PaidOfRequest mocks base method.
-func (m *MockIPaymentRepository) PaidOfRequest(ctx context.Context, requestID uuid.UUID) (*entities.Payment, error) {
+func (m *MockIPaymentRepository) PaidOfRequest(ctx context.Context, requestID uuid.UUID, kind entities.PaymentKind) (*entities.Payment, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PaidOfRequest", ctx, requestID)
+	ret := m.ctrl.Call(m, "PaidOfRequest", ctx, requestID, kind)
 	ret0, _ := ret[0].(*entities.Payment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PaidOfRequest indicates an expected call of PaidOfRequest.
-func (mr *MockIPaymentRepositoryMockRecorder) PaidOfRequest(ctx, requestID any) *gomock.Call {
+func (mr *MockIPaymentRepositoryMockRecorder) PaidOfRequest(ctx, requestID, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PaidOfRequest", reflect.TypeOf((*MockIPaymentRepository)(nil).PaidOfRequest), ctx, requestID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PaidOfRequest", reflect.TypeOf((*MockIPaymentRepository)(nil).PaidOfRequest), ctx, requestID, kind)
 }
 
 // PendingOfRequest mocks base method.
-func (m *MockIPaymentRepository) PendingOfRequest(ctx context.Context, requestID uuid.UUID) (*entities.Payment, error) {
+func (m *MockIPaymentRepository) PendingOfRequest(ctx context.Context, requestID uuid.UUID, kind entities.PaymentKind) (*entities.Payment, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PendingOfRequest", ctx, requestID)
+	ret := m.ctrl.Call(m, "PendingOfRequest", ctx, requestID, kind)
 	ret0, _ := ret[0].(*entities.Payment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PendingOfRequest indicates an expected call of PendingOfRequest.
-func (mr *MockIPaymentRepositoryMockRecorder) PendingOfRequest(ctx, requestID any) *gomock.Call {
+func (mr *MockIPaymentRepositoryMockRecorder) PendingOfRequest(ctx, requestID, kind any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PendingOfRequest", reflect.TypeOf((*MockIPaymentRepository)(nil).PendingOfRequest), ctx, requestID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PendingOfRequest", reflect.TypeOf((*MockIPaymentRepository)(nil).PendingOfRequest), ctx, requestID, kind)
 }
 
 // Refunds mocks base method.

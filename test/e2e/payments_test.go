@@ -334,7 +334,7 @@ func TestPaymentRulesAndBackoffice(t *testing.T) {
 	}
 
 	customer := newCustomer(t)
-	assert.Equal(t, []string{"cash", "gpo"}, methods(customer), "taxi has no reference by default")
+	assert.Equal(t, []string{"cash", "gpo", "wallet"}, methods(customer), "taxi has no reference by default")
 	estimateID, serviceID := estimateFor(t, customer, "taxi")
 	refused := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target, "payment_method": "reference"}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	assert.Equal(t, "PAYMENT_METHOD_UNAVAILABLE", refused.code())
@@ -346,7 +346,7 @@ func TestPaymentRulesAndBackoffice(t *testing.T) {
 	}
 	toggle(true)
 	defer toggle(false)
-	assert.Equal(t, []string{"cash", "gpo", "reference"}, methods(customer))
+	assert.Equal(t, []string{"cash", "gpo", "reference", "wallet"}, methods(customer))
 
 	t.Run("the method changes until the request is completed", func(t *testing.T) {
 		buyer := newCustomer(t)
@@ -369,7 +369,7 @@ func TestPaymentRulesAndBackoffice(t *testing.T) {
 		require.Equal(t, http.StatusOK, cancelAs(t, buyer, "customer", created.str("id")).status)
 	})
 
-	t.Run("a reference is paid and cannot be refunded", func(t *testing.T) {
+	t.Run("a reference is paid and refunded to the wallet", func(t *testing.T) {
 		buyer := newCustomer(t)
 		_, requestID, fare := completedRide(t, buyer, "reference")
 		path := "/api/v1/requests/" + requestID + "/payments"
@@ -382,8 +382,11 @@ func TestPaymentRulesAndBackoffice(t *testing.T) {
 		chargeID := env.appypay.settle(pending.str("code"), "Success", 0)
 		assert.Equal(t, http.StatusNoContent, webhook(t, map[string]any{"id": chargeID}))
 		assert.Equal(t, "paid", requestPaymentStatus(t, buyer, requestID))
-		refused := admin.post(t, "/api/v1/admin/payments/"+pending.str("id")+"/refund", map[string]any{"reason": "Teste"})
-		assert.Equal(t, "REFUND_NOT_SUPPORTED", refused.code(), refused.text)
+		before := env.appypay.refunds.Load()
+		refund := admin.post(t, "/api/v1/admin/payments/"+pending.str("id")+"/refund", map[string]any{"reason": "Teste"})
+		require.Equal(t, http.StatusOK, refund.status, refund.text)
+		assert.Equal(t, before, env.appypay.refunds.Load(), "AppyPay only refunds Express")
+		assert.Equal(t, fare, buyer.get(t, "/api/v1/wallet").num("balance_cents"), "the reference comes back to the wallet")
 		assert.Equal(t, fare, pending.num("amount_cents"))
 	})
 

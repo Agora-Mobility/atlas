@@ -30,7 +30,7 @@ type CreateRequestInput struct {
 	Details        json.RawMessage `json:"details" swaggertype:"object"`
 	ScheduledFor   *time.Time      `json:"scheduled_for"`
 	FareEstimateID *uuid.UUID      `json:"fare_estimate_id"`
-	PaymentMethod  string          `json:"payment_method" binding:"omitempty,oneof=cash gpo reference" example:"cash"`
+	PaymentMethod  string          `json:"payment_method" binding:"omitempty,oneof=cash gpo reference wallet" example:"cash"`
 }
 
 type PassengerInput struct {
@@ -91,6 +91,26 @@ type AdjustmentView struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type BreakdownItem struct {
+	Code        string `json:"code"`
+	Label       string `json:"label"`
+	AmountCents int64  `json:"amount_cents"`
+}
+
+type FareBreakdown struct {
+	Items          []BreakdownItem `json:"items"`
+	FareCents      int64           `json:"fare_cents"`
+	DiscountCents  int64           `json:"discount_cents"`
+	VoucherCode    string          `json:"voucher_code,omitempty"`
+	CancelFeeCents int64           `json:"cancel_fee_cents"`
+	TipCents       int64           `json:"tip_cents"`
+	TotalCents     int64           `json:"total_cents"`
+	PaidCents      int64           `json:"paid_cents"`
+	RefundedCents  int64           `json:"refunded_cents"`
+	Currency       string          `json:"currency"`
+	Method         string          `json:"method"`
+}
+
 type RequestView struct {
 	ID              uuid.UUID        `json:"id"`
 	Status          string           `json:"status"`
@@ -111,6 +131,7 @@ type RequestView struct {
 	Currency        string           `json:"currency"`
 	PaymentMethod   string           `json:"payment_method"`
 	PaymentStatus   string           `json:"payment_status"`
+	Breakdown       *FareBreakdown   `json:"breakdown,omitempty"`
 	PassengerPhone  string           `json:"passenger_phone,omitempty"`
 	CanBoost        bool             `json:"can_boost"`
 	NeedsOperator   bool             `json:"needs_operator,omitempty"`

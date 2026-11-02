@@ -69,6 +69,23 @@ definitions:
         - $ref: '#/definitions/enums.OrganizationType'
         example: platform
     type: object
+  dtos.AccountStatement:
+    properties:
+      balance_cents:
+        type: integer
+      currency:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/dtos.LedgerLine'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
   dtos.ActiveState:
     properties:
       offers:
@@ -193,6 +210,8 @@ definitions:
       failure_message:
         type: string
       id:
+        type: string
+      kind:
         type: string
       method:
         type: string
@@ -382,6 +401,15 @@ definitions:
         type: integer
     required:
     - percent
+    type: object
+  dtos.BreakdownItem:
+    properties:
+      amount_cents:
+        type: integer
+      code:
+        type: string
+      label:
+        type: string
     type: object
   dtos.CadenceView:
     properties:
@@ -590,6 +618,7 @@ definitions:
         - cash
         - gpo
         - reference
+        - wallet
         example: gpo
         type: string
     required:
@@ -735,6 +764,7 @@ definitions:
         - cash
         - gpo
         - reference
+        - wallet
         example: cash
         type: string
       pickup:
@@ -933,6 +963,33 @@ definitions:
       status:
         type: string
     type: object
+  dtos.FareBreakdown:
+    properties:
+      cancel_fee_cents:
+        type: integer
+      currency:
+        type: string
+      discount_cents:
+        type: integer
+      fare_cents:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/dtos.BreakdownItem'
+        type: array
+      method:
+        type: string
+      paid_cents:
+        type: integer
+      refunded_cents:
+        type: integer
+      tip_cents:
+        type: integer
+      total_cents:
+        type: integer
+      voucher_code:
+        type: string
+    type: object
   dtos.FareEstimateInput:
     properties:
       category:
@@ -1065,6 +1122,14 @@ definitions:
       year:
         type: integer
     type: object
+  dtos.GatewayFeeInput:
+    properties:
+      fee_cents:
+        example: 9000
+        maximum: 10000000000
+        minimum: 0
+        type: integer
+    type: object
   dtos.HeatCell:
     properties:
       cell:
@@ -1120,6 +1185,45 @@ definitions:
     - name
     - phone
     - role_ids
+    type: object
+  dtos.LedgerLine:
+    properties:
+      amount_cents:
+        type: integer
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: integer
+      kind:
+        type: string
+      note:
+        type: string
+      request_id:
+        type: string
+      transaction_id:
+        type: string
+    type: object
+  dtos.LedgerSummary:
+    properties:
+      providers:
+        items:
+          $ref: '#/definitions/dtos.ProviderBalanceView'
+        type: array
+      totals:
+        items:
+          $ref: '#/definitions/dtos.LedgerTotal'
+        type: array
+      unbalanced_transactions:
+        type: integer
+    type: object
+  dtos.LedgerTotal:
+    properties:
+      account:
+        type: string
+      total_cents:
+        type: integer
     type: object
   dtos.LocationsInput:
     properties:
@@ -1453,6 +1557,7 @@ definitions:
         enum:
         - gpo
         - reference
+        - wallet
         example: gpo
         type: string
       phone_number:
@@ -1484,6 +1589,8 @@ definitions:
       failure_message:
         type: string
       id:
+        type: string
+      kind:
         type: string
       method:
         type: string
@@ -1909,6 +2016,15 @@ definitions:
         example: 0
         type: integer
     type: object
+  dtos.ProviderBalanceView:
+    properties:
+      balance_cents:
+        type: integer
+      name:
+        type: string
+      provider_id:
+        type: string
+    type: object
   dtos.ProviderSummary:
     properties:
       id:
@@ -2071,6 +2187,7 @@ definitions:
     properties:
       amount_cents:
         example: 150000
+        maximum: 10000000000
         minimum: 0
         type: integer
       reason:
@@ -2307,6 +2424,8 @@ definitions:
         type: string
       boost_bps:
         type: integer
+      breakdown:
+        $ref: '#/definitions/dtos.FareBreakdown'
       can_boost:
         type: boolean
       cancel_fee_cents:
@@ -2589,6 +2708,7 @@ definitions:
         - cash
         - gpo
         - reference
+        - wallet
         type: string
     required:
     - category_id
@@ -2601,6 +2721,40 @@ definitions:
         type: string
     required:
     - password
+    type: object
+  dtos.SettlementInput:
+    properties:
+      amount_cents:
+        example: 500000
+        maximum: 10000000000
+        minimum: 1
+        type: integer
+      direction:
+        enum:
+        - payout
+        - collect
+        example: payout
+        type: string
+      note:
+        maxLength: 300
+        type: string
+      reference:
+        example: TRF-2026-0042
+        maxLength: 80
+        type: string
+    required:
+    - amount_cents
+    - direction
+    - reference
+    type: object
+  dtos.SettlementResult:
+    properties:
+      applied:
+        type: boolean
+      balance_cents:
+        type: integer
+      currency:
+        type: string
     type: object
   dtos.TariffInput:
     properties:
@@ -3791,6 +3945,32 @@ paths:
       summary: Search again for a queued request
       tags:
       - Backoffice dispatch
+  /api/v1/admin/ledger/summary:
+    get:
+      description: Per account, the balances of the providers and how many transactions
+        do not add up to zero, which has to be 0.
+      parameters:
+      - description: Page of providers
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.LedgerSummary'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Totals of the ledger
+      tags:
+      - Backoffice
   /api/v1/admin/payment-methods:
     get:
       description: Requires services:manage.
@@ -3915,6 +4095,41 @@ paths:
       summary: Get a payment with its history and refunds
       tags:
       - Backoffice payments
+  /api/v1/admin/payments/{id}/gateway-fee:
+    put:
+      consumes:
+      - application/json
+      description: The value comes from the AppyPay statement and is never assumed.
+        It is a cost of the platform and can be recorded once per payment.
+      parameters:
+      - description: Payment id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fee
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.GatewayFeeInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PaymentView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Record the real fee of the gateway
+      tags:
+      - Backoffice
   /api/v1/admin/payments/{id}/refund:
     post:
       consumes:
@@ -4122,6 +4337,71 @@ paths:
       summary: Approve or reject a document
       tags:
       - Backoffice providers
+  /api/v1/admin/providers/{id}/ledger:
+    get:
+      parameters:
+      - description: Provider id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AccountStatement'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Statement of a provider
+      tags:
+      - Backoffice
+  /api/v1/admin/providers/{id}/settlements:
+    post:
+      consumes:
+      - application/json
+      description: 'payout pays what AGORA owes and collect receives the debt of the
+        provider. reference is the bank document: the same reference is applied only
+        once.'
+      parameters:
+      - description: Provider id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Settlement
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SettlementInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SettlementResult'
+        "422":
+          description: Above the balance
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Settle the balance of a provider
+      tags:
+      - Backoffice
   /api/v1/admin/rejection-reasons:
     get:
       description: 'Requires providers:read. Fills the reason selector of a review.
@@ -8074,6 +8354,32 @@ paths:
       summary: Get a URL to upload a document
       tags:
       - Provider account
+  /api/v1/providers/me/ledger:
+    get:
+      description: A positive balance is what AGORA owes the provider. A negative
+        balance is the commission the provider owes for cash jobs.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AccountStatement'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Statement of the provider
+      tags:
+      - Provider work
   /api/v1/providers/me/locations:
     post:
       consumes:
@@ -9596,6 +9902,32 @@ paths:
       summary: Change the password of the authenticated user
       tags:
       - Users
+  /api/v1/wallet:
+    get:
+      description: 'Balance and movements: refunds of references, payments from the
+        wallet and invite rewards.'
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AccountStatement'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Wallet of the customer
+      tags:
+      - Payments
   /api/v1/webhooks/appypay:
     post:
       consumes:

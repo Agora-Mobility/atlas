@@ -7,22 +7,22 @@ import (
 )
 
 type PayInput struct {
-	Method      string `json:"method" binding:"required,oneof=gpo reference" example:"gpo"`
+	Method      string `json:"method" binding:"required,oneof=gpo reference wallet" example:"gpo"`
 	PhoneNumber string `json:"phone_number" binding:"max=20" example:"923000000"`
 }
 
 type ChangeMethodInput struct {
-	Method string `json:"method" binding:"required,oneof=cash gpo reference" example:"gpo"`
+	Method string `json:"method" binding:"required,oneof=cash gpo reference wallet" example:"gpo"`
 }
 
 type RefundInput struct {
-	AmountCents int64  `json:"amount_cents" binding:"min=0" example:"150000"`
+	AmountCents int64  `json:"amount_cents" binding:"min=0,max=10000000000" example:"150000"`
 	Reason      string `json:"reason" binding:"required,max=300" example:"Cobrança em duplicado"`
 }
 
 type SetMethodInput struct {
 	CategoryID uuid.UUID `json:"category_id" binding:"required"`
-	Method     string    `json:"method" binding:"required,oneof=cash gpo reference"`
+	Method     string    `json:"method" binding:"required,oneof=cash gpo reference wallet"`
 	IsEnabled  bool      `json:"is_enabled"`
 }
 
@@ -35,6 +35,7 @@ type ReferenceView struct {
 type PaymentView struct {
 	ID             uuid.UUID      `json:"id"`
 	RequestID      uuid.UUID      `json:"request_id"`
+	Kind           string         `json:"kind"`
 	Method         string         `json:"method"`
 	Status         string         `json:"status"`
 	AmountCents    int64          `json:"amount_cents"`
@@ -109,4 +110,58 @@ type AdminPaymentDetail struct {
 	ProviderChargeID *string      `json:"provider_charge_id,omitempty"`
 	Events           []EventView  `json:"events"`
 	Refunds          []RefundView `json:"refunds"`
+}
+
+type LedgerLine struct {
+	ID            int64      `json:"id"`
+	TransactionID uuid.UUID  `json:"transaction_id"`
+	Kind          string     `json:"kind"`
+	AmountCents   int64      `json:"amount_cents"`
+	Currency      string     `json:"currency"`
+	RequestID     *uuid.UUID `json:"request_id,omitempty"`
+	Note          string     `json:"note,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+type AccountStatement struct {
+	BalanceCents int64        `json:"balance_cents"`
+	Currency     string       `json:"currency"`
+	Items        []LedgerLine `json:"items"`
+	Total        int64        `json:"total"`
+	Page         int          `json:"page"`
+	Size         int          `json:"size"`
+}
+
+type SettlementInput struct {
+	Direction   string `json:"direction" binding:"required,oneof=payout collect" example:"payout"`
+	AmountCents int64  `json:"amount_cents" binding:"required,min=1,max=10000000000" example:"500000"`
+	Reference   string `json:"reference" binding:"required,max=80" example:"TRF-2026-0042"`
+	Note        string `json:"note" binding:"max=300"`
+}
+
+type SettlementResult struct {
+	Applied      bool   `json:"applied"`
+	BalanceCents int64  `json:"balance_cents"`
+	Currency     string `json:"currency"`
+}
+
+type GatewayFeeInput struct {
+	FeeCents int64 `json:"fee_cents" binding:"min=0,max=10000000000" example:"9000"`
+}
+
+type LedgerTotal struct {
+	Account    string `json:"account"`
+	TotalCents int64  `json:"total_cents"`
+}
+
+type ProviderBalanceView struct {
+	ProviderID   uuid.UUID `json:"provider_id"`
+	Name         string    `json:"name"`
+	BalanceCents int64     `json:"balance_cents"`
+}
+
+type LedgerSummary struct {
+	Totals     []LedgerTotal         `json:"totals"`
+	Unbalanced int64                 `json:"unbalanced_transactions"`
+	Providers  []ProviderBalanceView `json:"providers"`
 }

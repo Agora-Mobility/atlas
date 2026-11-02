@@ -196,6 +196,8 @@ type ServiceRequest struct {
 	CancelledBy    string
 	CancelReasonID *uuid.UUID
 	CancelFeeCents int64
+	DiscountCents  int64
+	VoucherCode    string
 	AcceptedAt     *time.Time
 	ArrivedAt      *time.Time
 	StartedAt      *time.Time
@@ -484,5 +486,5 @@ func (r *ServiceRequest) AmountDueCents() int64 {
 	if r.Status != RequestCompleted || r.Fare.Cents == nil {
 		return 0
 	}
-	return *r.Fare.Cents
+	return *r.Fare.Cents - r.DiscountCents
 }

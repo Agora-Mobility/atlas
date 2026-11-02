@@ -23,8 +23,8 @@ UPDATE service_requests SET payment_method = $2, payment_status = $3, updated_at
 
 -- name: InsertPayment :exec
 INSERT INTO payments (id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked,
-    reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19);
+    reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);
 
 -- name: UpdatePayment :exec
 UPDATE payments
@@ -45,10 +45,10 @@ SELECT * FROM payments WHERE provider_charge_id = $1;
 SELECT * FROM payments WHERE merchant_id = $1;
 
 -- name: GetPendingPaymentOfRequest :one
-SELECT * FROM payments WHERE request_id = $1 AND status = 'pending';
+SELECT * FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'pending';
 
 -- name: GetPaidPaymentOfRequest :one
-SELECT * FROM payments WHERE request_id = $1 AND status = 'paid' ORDER BY created_at LIMIT 1;
+SELECT * FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'paid' ORDER BY created_at LIMIT 1;
 
 -- name: ListPaymentsOfRequest :many
 SELECT * FROM payments WHERE request_id = $1 ORDER BY created_at DESC;

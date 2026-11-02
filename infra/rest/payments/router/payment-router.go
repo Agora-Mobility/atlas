@@ -30,6 +30,13 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	signedIn.POST("/requests/:id/payments", r.controller.Pay)
 	signedIn.POST("/requests/:id/payments/cash", r.controller.ConfirmCash)
 
+	signedIn.GET("/wallet", r.controller.Wallet)
+	signedIn.GET("/providers/me/ledger", r.controller.MyLedger)
+	signedIn.GET("/admin/ledger/summary", can(entities.PermFinanceRead), r.controller.LedgerSummary)
+	signedIn.GET("/admin/providers/:id/ledger", can(entities.PermFinanceRead), r.controller.ProviderLedger)
+	signedIn.POST("/admin/providers/:id/settlements", can(entities.PermRefundsApprove), r.controller.Settle)
+	signedIn.PUT("/admin/payments/:id/gateway-fee", can(entities.PermRefundsApprove), r.controller.SetGatewayFee)
+
 	signedIn.GET("/admin/payment-methods", can(entities.PermServicesManage), r.controller.AdminMethods)
 	signedIn.PUT("/admin/payment-methods", can(entities.PermServicesManage), r.controller.SetMethod)
 	signedIn.GET("/admin/payments", can(entities.PermFinanceRead), r.controller.AdminList)

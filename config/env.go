@@ -52,6 +52,7 @@ type AppyPayConfig struct {
 	ReconcileBatch         int           `mapstructure:"PAYMENT_RECONCILE_BATCH"`
 	GPOCheckInterval       time.Duration `mapstructure:"PAYMENT_GPO_CHECK_INTERVAL"`
 	ReferenceCheckInterval time.Duration `mapstructure:"PAYMENT_REFERENCE_CHECK_INTERVAL"`
+	LedgerCurrency         string        `mapstructure:"LEDGER_CURRENCY"`
 }
 
 func (c AppyPayConfig) Enabled() bool {
@@ -328,6 +329,7 @@ var defaults = map[string]any{
 	"PAYMENT_RECONCILE_BATCH":          50,
 	"PAYMENT_GPO_CHECK_INTERVAL":       "15s",
 	"PAYMENT_REFERENCE_CHECK_INTERVAL": "10m",
+	"LEDGER_CURRENCY":                  "AOA",
 	"R2_ACCOUNT_ID":                    "",
 	"R2_ACCESS_KEY_ID":                 "",
 	"R2_SECRET_ACCESS_KEY":             "",
@@ -428,6 +430,9 @@ func (c *Config) validate() error {
 	errs = append(errs, c.validateDispatch()...)
 	if c.AppyPay.Timeout <= 0 || c.AppyPay.GPOWindow <= 0 || c.AppyPay.ReferenceTTL <= 0 || c.AppyPay.ReconcileInterval <= 0 || c.AppyPay.ReconcileBatch <= 0 || c.AppyPay.GPOCheckInterval <= 0 || c.AppyPay.ReferenceCheckInterval <= 0 {
 		errs = append(errs, errors.New("APPYPAY_TIMEOUT and the PAYMENT_* settings must be positive"))
+	}
+	if len(c.AppyPay.LedgerCurrency) != 3 {
+		errs = append(errs, errors.New("LEDGER_CURRENCY must have 3 letters"))
 	}
 	if c.App.Env == enums.EnvProduction {
 		if !c.AppyPay.Enabled() {

@@ -651,6 +651,9 @@ func (u *Usecase) withAdjustments(ctx context.Context, view *dtos.RequestView, r
 	for _, adjustment := range adjustments {
 		view.Adjustments = append(view.Adjustments, dtos.AdjustmentView{Reason: string(adjustment.Reason), AmountCents: adjustment.AmountCents, CreatedAt: adjustment.CreatedAt})
 	}
+	if view.Breakdown, err = u.breakdownOf(ctx, request, adjustments); err != nil {
+		return nil, err
+	}
 	return view, nil
 }
 

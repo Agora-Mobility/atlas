@@ -14,9 +14,22 @@ type PaymentMethod string
 
 const (
 	PaymentCash      PaymentMethod = "cash"
+	PaymentWallet    PaymentMethod = "wallet"
 	PaymentGPO       PaymentMethod = "gpo"
 	PaymentReference PaymentMethod = "reference"
 )
+
+type PaymentKind string
+
+const (
+	PaymentKindFare            PaymentKind = "fare"
+	PaymentKindCancellationFee PaymentKind = "cancellation_fee"
+	PaymentKindTip             PaymentKind = "tip"
+)
+
+func (m PaymentMethod) UsesGateway() bool {
+	return m == PaymentGPO || m == PaymentReference
+}
 
 type PaymentStatus string
 
@@ -60,7 +73,7 @@ var (
 )
 
 func IsPaymentMethod(method PaymentMethod) bool {
-	return method == PaymentCash || method == PaymentGPO || method == PaymentReference
+	return method == PaymentCash || method == PaymentGPO || method == PaymentReference || method == PaymentWallet
 }
 
 func NewMerchantID() (string, error) {
@@ -97,6 +110,8 @@ type Payment struct {
 	CustomerID       uuid.UUID
 	Method           PaymentMethod
 	Status           PaymentStatus
+	Kind             PaymentKind
+	GatewayFeeCents  *int64
 	AmountCents      int64
 	RefundedCents    int64
 	Currency         string
@@ -114,18 +129,25 @@ type Payment struct {
 }
 
 type NewPaymentInput struct {
-	Request *ServiceRequest
-	Method  PaymentMethod
-	Phone   string
-	Now     time.Time
+	Request  *ServiceRequest
+	Method   PaymentMethod
+	Phone    string
+	Now      time.Time
+	TipCents int64
 }
 
 func NewPayment(in NewPaymentInput) (*Payment, error) {
-	amount := in.Request.AmountDueCents()
+	amount, kind := in.Request.AmountDueCents(), PaymentKindFare
+	if in.Request.Status == RequestCancelled {
+		kind = PaymentKindCancellationFee
+	}
+	if in.TipCents > 0 {
+		amount, kind = in.TipCents, PaymentKindTip
+	}
 	if amount <= 0 {
 		return nil, ErrPaymentNotPayable
 	}
-	if in.Method != PaymentCash && amount < MinGatewayCents {
+	if in.Method.UsesGateway() && amount < MinGatewayCents {
 		return nil, ErrPaymentNotPayable
 	}
 	id, err := uuid.NewV7()
@@ -137,7 +159,7 @@ func NewPayment(in NewPaymentInput) (*Payment, error) {
 		return nil, err
 	}
 	return &Payment{
-		ID: id, RequestID: in.Request.ID, CustomerID: in.Request.CustomerID, Method: in.Method, Status: PaymentPending, AmountCents: amount,
+		ID: id, RequestID: in.Request.ID, CustomerID: in.Request.CustomerID, Kind: kind, Method: in.Method, Status: PaymentPending, AmountCents: amount,
 		Currency: in.Request.Fare.Currency, MerchantID: merchantID, PayerPhoneMasked: MaskPhone(in.Phone), CreatedAt: in.Now, UpdatedAt: in.Now,
 	}, nil
 }
@@ -177,13 +199,17 @@ func (p *Payment) RefundableCents() int64 {
 }
 
 func (p *Payment) CheckRefund(cents int64) error {
-	if p.Status != PaymentPaid || p.Method != PaymentGPO || p.ProviderChargeID == nil {
+	if p.Status != PaymentPaid || p.Method == PaymentCash || (p.Method == PaymentGPO && p.ProviderChargeID == nil) {
 		return ErrRefundNotSupported
 	}
 	if cents <= 0 || cents > p.RefundableCents() {
 		return ErrRefundTooLarge
 	}
 	return nil
+}
+
+func (p *Payment) RefundsToWallet() bool {
+	return p.Method != PaymentGPO
 }
 
 func (p *Payment) AddRefund(cents int64, now time.Time) {

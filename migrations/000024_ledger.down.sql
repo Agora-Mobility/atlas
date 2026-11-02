@@ -1,0 +1,12 @@
+DROP TABLE ledger_entries;
+DROP TABLE ledger_transactions;
+DROP INDEX payments_one_pending_key;
+CREATE UNIQUE INDEX payments_one_pending_key ON payments (request_id) WHERE status = 'pending';
+ALTER TABLE payments DROP COLUMN gateway_fee_cents, DROP COLUMN kind;
+DELETE FROM category_payment_methods WHERE method = 'wallet';
+ALTER TABLE payments DROP CONSTRAINT payments_method_check;
+ALTER TABLE payments ADD CONSTRAINT payments_method_check CHECK (method IN ('cash', 'gpo', 'reference'));
+ALTER TABLE category_payment_methods DROP CONSTRAINT category_payment_methods_method_check;
+ALTER TABLE category_payment_methods ADD CONSTRAINT category_payment_methods_method_check CHECK (method IN ('cash', 'gpo', 'reference'));
+ALTER TABLE service_requests DROP CONSTRAINT service_requests_payment_method_check;
+ALTER TABLE service_requests ADD CONSTRAINT service_requests_payment_method_check CHECK (payment_method IN ('cash', 'gpo', 'reference'));

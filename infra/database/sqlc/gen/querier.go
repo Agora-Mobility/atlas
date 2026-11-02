@@ -29,6 +29,7 @@ type Querier interface {
 	CountAdminPayments(ctx context.Context, arg CountAdminPaymentsParams) (int64, error)
 	CountAdminRequests(ctx context.Context, arg CountAdminRequestsParams) (int64, error)
 	CountFleetDrivers(ctx context.Context, arg CountFleetDriversParams) (int64, error)
+	CountLedgerEntries(ctx context.Context, arg CountLedgerEntriesParams) (int64, error)
 	CountMembers(ctx context.Context, arg CountMembersParams) (int64, error)
 	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
 	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
@@ -101,13 +102,13 @@ type Querier interface {
 	GetMembershipInOrganization(ctx context.Context, arg GetMembershipInOrganizationParams) (Membership, error)
 	GetMembershipInOrganizationForUpdate(ctx context.Context, arg GetMembershipInOrganizationForUpdateParams) (Membership, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
-	GetPaidPaymentOfRequest(ctx context.Context, requestID uuid.UUID) (Payment, error)
+	GetPaidPaymentOfRequest(ctx context.Context, arg GetPaidPaymentOfRequestParams) (Payment, error)
 	GetPassengerNotice(ctx context.Context, id uuid.UUID) (GetPassengerNoticeRow, error)
 	GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
 	GetPaymentByMerchantID(ctx context.Context, merchantID string) (Payment, error)
 	GetPaymentByProviderCharge(ctx context.Context, providerChargeID *string) (Payment, error)
 	GetPaymentForUpdate(ctx context.Context, id uuid.UUID) (Payment, error)
-	GetPendingPaymentOfRequest(ctx context.Context, requestID uuid.UUID) (Payment, error)
+	GetPendingPaymentOfRequest(ctx context.Context, arg GetPendingPaymentOfRequestParams) (Payment, error)
 	GetPlatformOrganization(ctx context.Context) (Organization, error)
 	GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error)
 	GetProviderCategory(ctx context.Context, userID uuid.UUID) (GetProviderCategoryRow, error)
@@ -140,6 +141,8 @@ type Querier interface {
 	HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error)
 	IncrementProviderCancellations(ctx context.Context, userID uuid.UUID) error
 	InsertFareAdjustment(ctx context.Context, arg InsertFareAdjustmentParams) error
+	InsertLedgerEntry(ctx context.Context, arg InsertLedgerEntryParams) error
+	InsertLedgerTransaction(ctx context.Context, arg InsertLedgerTransactionParams) (int64, error)
 	InsertLocationSample(ctx context.Context, arg InsertLocationSampleParams) error
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
 	InsertPayment(ctx context.Context, arg InsertPaymentParams) error
@@ -151,6 +154,9 @@ type Querier interface {
 	InsertServiceRequestStop(ctx context.Context, arg InsertServiceRequestStopParams) error
 	IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMethodEnabledParams) (bool, error)
 	IsValidZoneGeometry(ctx context.Context, geojson string) (bool, error)
+	LedgerBalance(ctx context.Context, arg LedgerBalanceParams) (int64, error)
+	LedgerProviderBalances(ctx context.Context, arg LedgerProviderBalancesParams) ([]LedgerProviderBalancesRow, error)
+	LedgerTotals(ctx context.Context) ([]LedgerTotalsRow, error)
 	ListActiveBlockReasons(ctx context.Context) ([]BlockReason, error)
 	ListActiveBlockReasonsByIDs(ctx context.Context, ids []uuid.UUID) ([]BlockReason, error)
 	ListActiveMembershipsForSignIn(ctx context.Context, arg ListActiveMembershipsForSignInParams) ([]Membership, error)
@@ -168,6 +174,7 @@ type Querier interface {
 	ListDocumentRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]ListDocumentRejectionReasonsRow, error)
 	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]ListFareAdjustmentsRow, error)
 	ListFleetDrivers(ctx context.Context, arg ListFleetDriversParams) ([]ListFleetDriversRow, error)
+	ListLedgerEntries(ctx context.Context, arg ListLedgerEntriesParams) ([]ListLedgerEntriesRow, error)
 	ListLiveIndexes(ctx context.Context) ([]ListLiveIndexesRow, error)
 	ListMembers(ctx context.Context, arg ListMembersParams) ([]ListMembersRow, error)
 	ListMembershipPermissions(ctx context.Context, membershipID uuid.UUID) ([]string, error)
@@ -204,6 +211,7 @@ type Querier interface {
 	ListWorkshopServices(ctx context.Context, workshopID uuid.UUID) ([]WorkshopService, error)
 	ListWorkshops(ctx context.Context, arg ListWorkshopsParams) ([]Workshop, error)
 	LockCustomerRequests(ctx context.Context, customerID uuid.UUID) error
+	LockLedgerAccount(ctx context.Context, account string) error
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error
 	MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error
@@ -227,11 +235,13 @@ type Querier interface {
 	SaveWorkshop(ctx context.Context, arg SaveWorkshopParams) error
 	SaveWorkshopService(ctx context.Context, arg SaveWorkshopServiceParams) error
 	SetCategoryPaymentMethod(ctx context.Context, arg SetCategoryPaymentMethodParams) (int64, error)
+	SetPaymentGatewayFee(ctx context.Context, arg SetPaymentGatewayFeeParams) (int64, error)
 	SetRequestPayment(ctx context.Context, arg SetRequestPaymentParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error)
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
+	UnbalancedLedgerTransactions(ctx context.Context) (int64, error)
 	UpdateDispatchPolicy(ctx context.Context, arg UpdateDispatchPolicyParams) (int64, error)
 	UpdateFleetVehicle(ctx context.Context, arg UpdateFleetVehicleParams) error
 	UpdateMembership(ctx context.Context, arg UpdateMembershipParams) error

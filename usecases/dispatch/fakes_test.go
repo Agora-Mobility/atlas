@@ -269,3 +269,7 @@ func (fakePayments) HasOutstanding(context.Context, uuid.UUID) (bool, error) { r
 func (fakePayments) IsMethodEnabled(context.Context, uuid.UUID, entities.PaymentMethod) (bool, error) {
 	return true, nil
 }
+
+func (fakePayments) ListOfRequest(context.Context, uuid.UUID) ([]entities.Payment, error) {
+	return nil, nil
+}

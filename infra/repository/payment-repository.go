@@ -31,7 +31,7 @@ func NewPaymentRepository(pool *pgxpool.Pool) *PaymentRepository {
 
 func toPayment(row *gen.Payment) *entities.Payment {
 	return &entities.Payment{
-		ID: row.ID, RequestID: row.RequestID, CustomerID: row.CustomerID, Method: entities.PaymentMethod(row.Method), Status: entities.PaymentStatus(row.Status),
+		ID: row.ID, RequestID: row.RequestID, CustomerID: row.CustomerID, Kind: entities.PaymentKind(row.Kind), GatewayFeeCents: row.GatewayFeeCents, Method: entities.PaymentMethod(row.Method), Status: entities.PaymentStatus(row.Status),
 		AmountCents: row.AmountCents, RefundedCents: row.RefundedCents, Currency: row.Currency, MerchantID: row.MerchantID, ProviderChargeID: row.ProviderChargeID,
 		PayerPhoneMasked: row.PayerPhoneMasked, ReferenceNumber: row.ReferenceNumber, ReferenceEntity: row.ReferenceEntity, FailureMessage: row.FailureMessage,
 		ExpiresAt: row.ExpiresAt, NextCheckAt: row.NextCheckAt, PaidAt: row.PaidAt, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
@@ -95,7 +95,7 @@ func (r *PaymentRepository) SetRequestPayment(ctx context.Context, requestID uui
 
 func (r *PaymentRepository) Create(ctx context.Context, p *entities.Payment) error {
 	err := postgres.Queries(ctx, r.pool).InsertPayment(ctx, gen.InsertPaymentParams{
-		ID: p.ID, RequestID: p.RequestID, CustomerID: p.CustomerID, Method: string(p.Method), Status: string(p.Status), AmountCents: p.AmountCents, RefundedCents: p.RefundedCents,
+		ID: p.ID, RequestID: p.RequestID, CustomerID: p.CustomerID, Kind: string(p.Kind), Method: string(p.Method), Status: string(p.Status), AmountCents: p.AmountCents, RefundedCents: p.RefundedCents,
 		Currency: p.Currency, MerchantID: p.MerchantID, ProviderChargeID: p.ProviderChargeID, PayerPhoneMasked: p.PayerPhoneMasked, ReferenceNumber: p.ReferenceNumber,
 		ReferenceEntity: p.ReferenceEntity, FailureMessage: p.FailureMessage, ExpiresAt: p.ExpiresAt, NextCheckAt: p.NextCheckAt, PaidAt: p.PaidAt, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	})
@@ -140,13 +140,13 @@ func (r *PaymentRepository) FindByMerchantID(ctx context.Context, merchantID str
 	return paymentOrNil(&row, err, "get payment by merchant id")
 }
 
-func (r *PaymentRepository) PendingOfRequest(ctx context.Context, requestID uuid.UUID) (*entities.Payment, error) {
-	row, err := postgres.Queries(ctx, r.pool).GetPendingPaymentOfRequest(ctx, requestID)
+func (r *PaymentRepository) PendingOfRequest(ctx context.Context, requestID uuid.UUID, kind entities.PaymentKind) (*entities.Payment, error) {
+	row, err := postgres.Queries(ctx, r.pool).GetPendingPaymentOfRequest(ctx, gen.GetPendingPaymentOfRequestParams{RequestID: requestID, Kind: string(kind)})
 	return paymentOrNil(&row, err, "get pending payment")
 }
 
-func (r *PaymentRepository) PaidOfRequest(ctx context.Context, requestID uuid.UUID) (*entities.Payment, error) {
-	row, err := postgres.Queries(ctx, r.pool).GetPaidPaymentOfRequest(ctx, requestID)
+func (r *PaymentRepository) PaidOfRequest(ctx context.Context, requestID uuid.UUID, kind entities.PaymentKind) (*entities.Payment, error) {
+	row, err := postgres.Queries(ctx, r.pool).GetPaidPaymentOfRequest(ctx, gen.GetPaidPaymentOfRequestParams{RequestID: requestID, Kind: string(kind)})
 	return paymentOrNil(&row, err, "get paid payment")
 }
 

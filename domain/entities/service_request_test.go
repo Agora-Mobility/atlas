@@ -20,7 +20,7 @@ func taxiPolicy() *entities.DispatchPolicy {
 		OfferMode: entities.OfferModeSequential, BatchSize: 1, OfferTTLSeconds: 20, SearchTTLSeconds: 180,
 		AckTimeoutSeconds: 3, AckGiveUpSeconds: 8, InitialChannels: []string{"sse"}, FallbackChannels: []string{"fcm"},
 		TrackingStatuses: []entities.RequestStatus{entities.RequestProviderEnRoute, entities.RequestInProgress},
-		ReserveProvider:  true, ScheduleMaxDays: 7, PricingMode: entities.PricingFixed, AllowBoost: true,
+		ReserveProvider:  true, MaxStops: 3, ScheduleSlotMin: 15, ScheduleMaxDays: 7, PricingMode: entities.PricingFixed, AllowBoost: true,
 	}
 }
 

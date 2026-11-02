@@ -14,7 +14,7 @@ import (
 var paymentNow = time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
 
 func payableRequest(cents int64) *entities.ServiceRequest {
-	return &entities.ServiceRequest{ID: uuid.New(), CustomerID: uuid.New(), Fare: entities.RequestFare{Cents: &cents, Currency: "AOA"}}
+	return &entities.ServiceRequest{Status: entities.RequestCompleted, ID: uuid.New(), CustomerID: uuid.New(), Fare: entities.RequestFare{Cents: &cents, Currency: "AOA"}}
 }
 
 func TestMerchantIDFitsTheGateway(t *testing.T) {
@@ -66,12 +66,16 @@ func TestRefundRules(t *testing.T) {
 	assert.ErrorIs(t, payment.CheckRefund(601), entities.ErrRefundTooLarge)
 
 	for _, other := range []*entities.Payment{
-		{Method: entities.PaymentReference, Status: entities.PaymentPaid, AmountCents: 1000, ProviderChargeID: &charge},
 		{Method: entities.PaymentCash, Status: entities.PaymentPaid, AmountCents: 1000},
 		{Method: entities.PaymentGPO, Status: entities.PaymentPending, AmountCents: 1000, ProviderChargeID: &charge},
 	} {
 		assert.ErrorIs(t, other.CheckRefund(100), entities.ErrRefundNotSupported)
 	}
+
+	reference := &entities.Payment{Method: entities.PaymentReference, Status: entities.PaymentPaid, AmountCents: 1000, ProviderChargeID: &charge}
+	require.NoError(t, reference.CheckRefund(100), "a reference is refunded to the wallet")
+	assert.True(t, reference.RefundsToWallet())
+	assert.False(t, payment.RefundsToWallet(), "Express goes back through the gateway")
 }
 
 func TestPaymentExpiry(t *testing.T) {
