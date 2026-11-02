@@ -88,6 +88,15 @@ def redact(text):
     return SECRET_FIELDS.sub(lambda m: f'"{m.group(1)}":"***"', text)
 
 
+def fetch_raw(path, tok, client=CUSTOMER):
+    req = urllib.request.Request(BASE + "/api/v1" + path, headers={"X-Client-Id": client, "Authorization": "Bearer " + tok})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as res:
+            return res.status, res.read()
+    except urllib.error.HTTPError as err:
+        return err.code, err.read()
+
+
 def code(res):
     return (res.get("error") or {}).get("code") if isinstance(res, dict) else None
 
@@ -675,7 +684,8 @@ def orders_and_account():
         customer, driver, done = completed_ride("cash")
         call("POST", f"/requests/{done}/payments/cash", None, driver["tok"], PROVIDER)
         luanda = dt.timezone(dt.timedelta(hours=1))
-        status, scheduled = create(customer, estimate(customer), scheduled_for=(dt.datetime.now(luanda) + dt.timedelta(days=2)).isoformat())
+        when = (dt.datetime.now(luanda) + dt.timedelta(days=2)).replace(minute=0, second=0, microsecond=0).isoformat()
+        status, scheduled = create(customer, estimate(customer, scheduled_for=when), scheduled_for=when)
         status, tow = create(customer, estimate(customer, category="towing"))
         status, removal = call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='removals'"), "pickup": PICKUP, "destination": DEST}, customer["tok"], idem=str(uuid.uuid4()))
         status, repair = call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='maintenance'"), "pickup": PICKUP}, customer["tok"], idem=str(uuid.uuid4()))
@@ -692,12 +702,42 @@ def orders_and_account():
         for item in (scheduled, tow, removal, repair):
             cancel(customer["tok"], item['id'])
 
-    with Scenario("P2", "Recibo PDF e Repetir"):
-        customer, _, rid = completed_ride("cash")
-        status, _ = call("GET", f"/requests/{rid}/receipt", None, customer["tok"])
-        chk(status == 200, f"recibo: {status}")
-        status, _ = call("POST", f"/requests/{rid}/repeat", {}, customer["tok"])
-        chk(status in (200, 201), f"repetir: {status}")
+    with Scenario("P2", "Código, recibo PDF, Repetir e ajuda"):
+        customer, driver, rid = completed_ride("gpo")
+        status, payment = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"])
+        wait_payment(customer, rid, "paid")
+        _, view = call("GET", f"/requests/{rid}", None, customer["tok"])
+        chk(re.fullmatch(r"TX-\d{5,}", view.get("code", "")), f"código legível: {view.get('code')}")
+        chk(view.get("service_name"), f"nome do serviço: {view.get('service_name')}")
+        raw = fetch_raw(f"/requests/{rid}/receipt", customer["tok"])
+        chk(raw[0] == 200 and raw[1].startswith(b"%PDF"), f"recibo em PDF: {raw[0]}, {len(raw[1])} bytes")
+        fare = view["breakdown"]["total_cents"]
+        kz = fare // 100
+        amount = f"{kz:,}".replace(",", " ") + ",%02d Kz" % (fare % 100)
+        chk(amount.encode() in raw[1] and view["code"].encode() in raw[1], f"o PDF tem os valores do pedido: {amount}, {view['code']}")
+        chk(call("GET", f"/requests/{rid}/receipt", None, new_user("customer", "Intruso P2")["tok"])[0] == 404, "outro cliente não vê o recibo")
+        before = sql(f"SELECT count(*) FROM service_requests WHERE customer_id='{customer['id']}'")
+        status, repeated = call("POST", f"/requests/{rid}/repeat", {}, customer["tok"])
+        chk(status == 201 and repeated.get("estimates") and sql(f"SELECT count(*) FROM service_requests WHERE customer_id='{customer['id']}'") == before, f"Repetir prepara novo preço, sem pedir: {status}")
+        status, ticket = call("POST", f"/requests/{rid}/tickets", {"subject": "Problema", "message": "Cobraram a mais"}, customer["tok"])
+        chk(status == 201 and ticket.get("request_id") == rid, f"problema ligado ao pedido: {status} {ticket.get('code')}")
+        chk(call("POST", f"/requests/{rid}/tickets", {"subject": "x", "message": "y"}, new_user("customer", "Intruso P2b")["tok"])[0] == 404, "ticket no pedido de outro")
+        chk(call("POST", f"/admin/support/tickets/{ticket.get('id')}/messages", {"message": "Vamos ver"}, ADMIN[0], BACKOFFICE)[0] == 200, "o apoio responde")
+        _, mine = call("GET", f"/support/tickets/{ticket.get('id')}", None, customer["tok"])
+        chk(len(mine.get("messages", [])) == 2, "o cliente vê a resposta")
+        trip, driver2 = new_user("customer", "Cliente P2c"), new_user("provider", "Motorista P2c", "taxi")
+        go_online(driver2)
+        est = estimate(trip, STOPS[:2])
+        _, created = create(trip, est, STOPS[:2])
+        accept(driver2, wait_offer(driver2, created["id"]))
+        advance(driver2, created["id"], ("en-route", "arrive", "start"))
+        status, _ = call("POST", f"/requests/{created['id']}/stops/0/arrive", None, driver2["tok"], PROVIDER)
+        _, view = call("GET", f"/requests/{created['id']}", None, trip["tok"])
+        chk(status == 200 and view["stops"][0].get("arrived_at") and not view["stops"][1].get("arrived_at"), f"horas por paragem: {[s.get('arrived_at') for s in view['stops']]}")
+        advance(driver2, created["id"], ("complete",))
+        go_offline(driver2)
+        _, recent = call("GET", "/users/me/recent-destinations", None, trip["tok"])
+        chk(len(recent.get("items", [])) == 1, f"destinos recentes: {len(recent.get('items', []))}")
 
     with Scenario("P3", "Caixa de notificações"):
         customer, _, rid = completed_ride("cash")
