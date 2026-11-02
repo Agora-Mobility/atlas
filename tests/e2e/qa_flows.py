@@ -1039,6 +1039,7 @@ def removals():
         window, when = window_at(options, "morning", 26)
         est = removal_estimate(team_customer, when=when)
         status, created = removal_request(team_customer, est, window, when)
+        chk(status == 201, f"mudança para a equipa: {status} {code(created)}")
         sql(f"UPDATE service_requests SET provider_id='{team_driver['id']}', status='accepted', next_action_at=NULL WHERE id='{created['id']}'")
         members = {"members": [{"name": "Paulo", "role": "lead", "verified": True}, {"name": "João", "role": "helper"}]}
         status, res = call("PUT", f"/requests/{created['id']}/team", members, team_driver["tok"], PROVIDER)
@@ -1678,6 +1679,7 @@ def main():
     server = http.server.ThreadingHTTPServer(("127.0.0.1", STUB_PORT), Stub)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     compose("stop", "api")
+    neutralize_test_data()
     workdir = tempfile.mkdtemp()
     binary = os.path.join(workdir, "atlas-qa")
     subprocess.run(["go", "build", "-o", binary, "."], check=True, stdin=subprocess.DEVNULL)
