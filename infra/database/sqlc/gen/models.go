@@ -318,6 +318,19 @@ type Client struct {
 	UpdatedAt time.Time        `json:"updated_at"`
 }
 
+type CustomerVehicle struct {
+	ID         uuid.UUID `json:"id"`
+	CustomerID uuid.UUID `json:"customer_id"`
+	Brand      string    `json:"brand"`
+	Model      string    `json:"model"`
+	Plate      string    `json:"plate"`
+	Year       int32     `json:"year"`
+	Fuel       string    `json:"fuel"`
+	IsActive   bool      `json:"is_active"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type DeviceToken struct {
 	Token     string    `json:"token"`
 	UserID    uuid.UUID `json:"user_id"`
@@ -427,6 +440,16 @@ type LedgerTransaction struct {
 	ActorID        *uuid.UUID `json:"actor_id"`
 	Currency       string     `json:"currency"`
 	CreatedAt      time.Time  `json:"created_at"`
+}
+
+type MediaUpload struct {
+	ID          uuid.UUID  `json:"id"`
+	OwnerID     uuid.UUID  `json:"owner_id"`
+	ObjectKey   string     `json:"object_key"`
+	ContentType string     `json:"content_type"`
+	SizeBytes   int64      `json:"size_bytes"`
+	RequestID   *uuid.UUID `json:"request_id"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 type Membership struct {

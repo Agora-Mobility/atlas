@@ -11,6 +11,7 @@ import (
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/repository"
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/usecases/experience/dtos"
 )
@@ -26,6 +27,8 @@ type Deps struct {
 	Ratings   repository.IRatingRepository
 	Vouchers  repository.IVoucherRepository
 	Support   repository.ISupportRepository
+	Garage    repository.IGarageRepository
+	Storage   services.IObjectStorage
 	Inbox     TicketNotifier
 	Requests  repository.IRequestRepository
 	Providers repository.IProviderRepository

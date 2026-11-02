@@ -361,6 +361,17 @@ definitions:
     required:
     - vehicle_id
     type: object
+  dtos.AttachPhotosInput:
+    properties:
+      photo_ids:
+        items:
+          type: string
+        maxItems: 50
+        minItems: 1
+        type: array
+    required:
+    - photo_ids
+    type: object
   dtos.BlockReasonList:
     properties:
       items:
@@ -935,6 +946,63 @@ definitions:
     - name
     - requires_destination
     - slug
+    type: object
+  dtos.CustomerVehicleInput:
+    properties:
+      brand:
+        example: Toyota
+        maxLength: 60
+        type: string
+      fuel:
+        enum:
+        - petrol
+        - diesel
+        - hybrid
+        - electric
+        - gas
+        example: diesel
+        type: string
+      model:
+        example: Hilux
+        maxLength: 60
+        type: string
+      plate:
+        example: LD-45-21-AF
+        maxLength: 20
+        type: string
+      year:
+        example: 2019
+        maximum: 2200
+        minimum: 1900
+        type: integer
+    required:
+    - brand
+    - fuel
+    - model
+    - plate
+    - year
+    type: object
+  dtos.CustomerVehicleList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.CustomerVehicleView'
+        type: array
+    type: object
+  dtos.CustomerVehicleView:
+    properties:
+      brand:
+        type: string
+      fuel:
+        type: string
+      id:
+        type: string
+      model:
+        type: string
+      plate:
+        type: string
+      year:
+        type: integer
     type: object
   dtos.DeleteAccountInput:
     properties:
@@ -1836,6 +1904,52 @@ definitions:
         type: string
     required:
     - phone
+    type: object
+  dtos.PhotoList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.PhotoView'
+        type: array
+    type: object
+  dtos.PhotoUploadInput:
+    properties:
+      content_type:
+        example: image/jpeg
+        maxLength: 60
+        type: string
+      size_bytes:
+        example: 204800
+        maximum: 100000000
+        minimum: 1
+        type: integer
+    required:
+    - content_type
+    - size_bytes
+    type: object
+  dtos.PhotoUploadView:
+    properties:
+      expires_at:
+        type: string
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      id:
+        type: string
+      upload_url:
+        type: string
+    type: object
+  dtos.PhotoView:
+    properties:
+      content_type:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      url:
+        type: string
     type: object
   dtos.PlaceInput:
     properties:
@@ -7680,6 +7794,40 @@ paths:
       summary: Send the activation code of an invitation
       tags:
       - Invitations
+  /api/v1/media/photos:
+    post:
+      consumes:
+      - application/json
+      description: The type and the size are checked against the settings of the backoffice.
+        The app sends the file directly to the storage and then uses the id.
+      parameters:
+      - description: File
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PhotoUploadInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.PhotoUploadView'
+        "422":
+          description: Type or size not allowed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "503":
+          description: No storage
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a link to upload a photo
+      tags:
+      - Photos
   /api/v1/members:
     get:
       description: Requires members:read. The organization is always the one of the
@@ -10348,6 +10496,70 @@ paths:
       summary: Confirm that the cash was received
       tags:
       - Payments
+  /api/v1/requests/{id}/photos:
+    get:
+      description: Customer or provider of the request, with temporary links.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PhotoList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Photos of a request
+      tags:
+      - Photos
+    post:
+      consumes:
+      - application/json
+      description: Customer of the request. The limit is in the settings of the backoffice,
+        and each photo has to be uploaded with the announced type and size.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Photos
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.AttachPhotosInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PhotoList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Over the limit, or not uploaded
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Add uploaded photos to a request
+      tags:
+      - Photos
   /api/v1/requests/{id}/rating:
     post:
       consumes:
@@ -11483,6 +11695,109 @@ paths:
       summary: Last destinations of the customer, without repeats
       tags:
       - Dispatch
+  /api/v1/users/me/vehicles:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CustomerVehicleList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: My vehicles
+      tags:
+      - Customer vehicles
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CustomerVehicleInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.CustomerVehicleView'
+        "409":
+          description: Same plate
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Add a vehicle
+      tags:
+      - Customer vehicles
+  /api/v1/users/me/vehicles/{id}:
+    delete:
+      parameters:
+      - description: Vehicle id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Remove a vehicle
+      tags:
+      - Customer vehicles
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Vehicle id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CustomerVehicleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CustomerVehicleView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change a vehicle
+      tags:
+      - Customer vehicles
   /api/v1/users/me/verification-code:
     post:
       description: The code confirms an e-mail change or the account deletion when

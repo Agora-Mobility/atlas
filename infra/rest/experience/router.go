@@ -46,6 +46,14 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	signedIn.POST("/admin/support/tickets/:id/messages", support, r.controller.AdminReplyTicket)
 	signedIn.POST("/admin/support/tickets/:id/close", support, r.controller.AdminCloseTicket)
 
+	signedIn.GET("/users/me/vehicles", r.controller.MyVehicles)
+	signedIn.POST("/users/me/vehicles", r.controller.AddVehicle)
+	signedIn.PUT("/users/me/vehicles/:id", r.controller.UpdateVehicle)
+	signedIn.DELETE("/users/me/vehicles/:id", r.controller.RemoveVehicle)
+	signedIn.POST("/media/photos", r.controller.NewPhotoUpload)
+	signedIn.GET("/requests/:id/photos", r.controller.RequestPhotos)
+	signedIn.POST("/requests/:id/photos", r.controller.AttachRequestPhotos)
+
 	signedIn.GET("/rating-options", r.controller.RatingOptions)
 	signedIn.POST("/requests/:id/rating", r.controller.RateRequest)
 	signedIn.GET("/providers/me/ratings", r.controller.MyRatings)

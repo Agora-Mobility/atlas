@@ -17,8 +17,8 @@ import (
 )
 
 var appTables = []string{
-	"addresses", "audit_log", "block_reasons", "cancellation_rules", "catalog_items", "category_payment_methods", "clients", "device_tokens", "dispatch_policies", "eta_observations",
-	"fare_adjustments", "fare_estimates", "invitations", "ledger_entries", "ledger_transactions", "membership_roles", "memberships", "mfa_recovery_codes", "notifications",
+	"addresses", "audit_log", "block_reasons", "cancellation_rules", "catalog_items", "category_payment_methods", "clients", "customer_vehicles", "device_tokens", "dispatch_policies", "eta_observations",
+	"fare_adjustments", "fare_estimates", "invitations", "ledger_entries", "ledger_transactions", "media_uploads", "membership_roles", "memberships", "mfa_recovery_codes", "notifications",
 	"organizations", "outbox", "payment_events", "payment_refunds", "payments", "permissions", "platform_settings", "provider_coverage", "provider_document_rejection_reasons", "provider_document_types", "provider_documents",
 	"provider_location_samples", "provider_rejection_reasons", "providers", "ratings", "refresh_tokens", "rejection_reasons", "request_messages", "request_offers", "request_shares", "role_permissions", "roles", "schema_migrations",
 	"service_categories", "service_provider_requirements", "service_request_events", "service_request_stops", "service_requests",
@@ -120,7 +120,7 @@ func TestMigrate_NewDatabaseLivesInAtlas(t *testing.T) {
 	var version int
 	var dirty bool
 	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
-	assert.Equal(t, 28, version)
+	assert.Equal(t, 29, version)
 	assert.False(t, dirty)
 
 	var inMeters float64

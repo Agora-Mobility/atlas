@@ -168,3 +168,51 @@ type TicketList struct {
 	Page  int          `json:"page"`
 	Size  int          `json:"size"`
 }
+
+type CustomerVehicleInput struct {
+	Brand string `json:"brand" binding:"required,max=60" example:"Toyota"`
+	Model string `json:"model" binding:"required,max=60" example:"Hilux"`
+	Plate string `json:"plate" binding:"required,max=20" example:"LD-45-21-AF"`
+	Year  int    `json:"year" binding:"required,min=1900,max=2200" example:"2019"`
+	Fuel  string `json:"fuel" binding:"required,oneof=petrol diesel hybrid electric gas" example:"diesel"`
+}
+
+type CustomerVehicleView struct {
+	ID    uuid.UUID `json:"id"`
+	Brand string    `json:"brand"`
+	Model string    `json:"model"`
+	Plate string    `json:"plate"`
+	Year  int       `json:"year"`
+	Fuel  string    `json:"fuel"`
+}
+
+type CustomerVehicleList struct {
+	Items []CustomerVehicleView `json:"items"`
+}
+
+type PhotoUploadInput struct {
+	ContentType string `json:"content_type" binding:"required,max=60" example:"image/jpeg"`
+	SizeBytes   int64  `json:"size_bytes" binding:"required,min=1,max=100000000" example:"204800"`
+}
+
+type PhotoUploadView struct {
+	ID        uuid.UUID         `json:"id"`
+	UploadURL string            `json:"upload_url"`
+	Headers   map[string]string `json:"headers,omitempty"`
+	ExpiresAt time.Time         `json:"expires_at"`
+}
+
+type AttachPhotosInput struct {
+	PhotoIDs []uuid.UUID `json:"photo_ids" binding:"required,min=1,max=50"`
+}
+
+type PhotoView struct {
+	ID          uuid.UUID `json:"id"`
+	ContentType string    `json:"content_type"`
+	URL         string    `json:"url"`
+	ExpiresAt   time.Time `json:"expires_at"`
+}
+
+type PhotoList struct {
+	Items []PhotoView `json:"items"`
+}

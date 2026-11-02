@@ -9,6 +9,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/repository"
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/shared"
 	"github.com/Agora-Mobility/atlas/shared/customerrors"
@@ -34,6 +35,14 @@ var errorTable = []mappedError{
 	{repository.ErrVoucherCodeTaken, http.StatusConflict, "VOUCHER_CODE_TAKEN", "This voucher code already exists."},
 	{entities.ErrTicketNotFound, http.StatusNotFound, "TICKET_NOT_FOUND", "Ticket not found."},
 	{entities.ErrTicketClosed, http.StatusConflict, "TICKET_CLOSED", "This ticket is closed."},
+	{entities.ErrCustomerVehicleNotFound, http.StatusNotFound, "VEHICLE_NOT_FOUND", "Vehicle not found."},
+	{repository.ErrCustomerPlateTaken, http.StatusConflict, "PLATE_TAKEN", "This plate is already in your vehicles."},
+	{entities.ErrPhotoTypeNotAllowed, http.StatusUnprocessableEntity, "PHOTO_TYPE_NOT_ALLOWED", "This type of file is not allowed."},
+	{entities.ErrPhotoTooLarge, http.StatusUnprocessableEntity, "PHOTO_TOO_LARGE", "The file is too large."},
+	{entities.ErrPhotoLimit, http.StatusUnprocessableEntity, "PHOTO_LIMIT", "Too many photos."},
+	{entities.ErrPhotoNotFound, http.StatusNotFound, "PHOTO_NOT_FOUND", "Photo not found."},
+	{entities.ErrPhotoNotUploaded, http.StatusUnprocessableEntity, "PHOTO_NOT_UPLOADED", "The photo was not uploaded or does not match what was announced."},
+	{services.ErrStorageUnavailable, http.StatusServiceUnavailable, "STORAGE_UNAVAILABLE", "File storage is not available."},
 	{entities.ErrRatingNotAllowed, http.StatusConflict, "RATING_NOT_ALLOWED", "Only a completed request can be rated."},
 	{entities.ErrAlreadyRated, http.StatusConflict, "ALREADY_RATED", "This request was already rated."},
 	{entities.ErrComplimentNotValid, http.StatusUnprocessableEntity, "COMPLIMENT_NOT_VALID", "A compliment does not exist or does not apply to this service."},

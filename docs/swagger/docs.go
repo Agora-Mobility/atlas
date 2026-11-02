@@ -5650,6 +5650,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/media/photos": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The type and the size are checked against the settings of the backoffice. The app sends the file directly to the storage and then uses the id.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Get a link to upload a photo",
+                "parameters": [
+                    {
+                        "description": "File",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PhotoUploadInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PhotoUploadView"
+                        }
+                    },
+                    "422": {
+                        "description": "Type or size not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "No storage",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/members": {
             "get": {
                 "security": [
@@ -9858,6 +9912,108 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/requests/{id}/photos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer or provider of the request, with temporary links.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Photos of a request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PhotoList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer of the request. The limit is in the settings of the backoffice, and each photo has to be uploaded with the announced type and size.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Add uploaded photos to a request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Photos",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AttachPhotosInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PhotoList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Over the limit, or not uploaded",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/requests/{id}/rating": {
             "post": {
                 "security": [
@@ -11643,6 +11799,178 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/users/me/vehicles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Customer vehicles"
+                ],
+                "summary": "My vehicles",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CustomerVehicleList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Customer vehicles"
+                ],
+                "summary": "Add a vehicle",
+                "parameters": [
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CustomerVehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CustomerVehicleView"
+                        }
+                    },
+                    "409": {
+                        "description": "Same plate",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/vehicles/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Customer vehicles"
+                ],
+                "summary": "Change a vehicle",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Vehicle id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CustomerVehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CustomerVehicleView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "tags": [
+                    "Customer vehicles"
+                ],
+                "summary": "Remove a vehicle",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Vehicle id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/me/verification-code": {
             "post": {
                 "security": [
@@ -12644,6 +12972,22 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.AttachPhotosInput": {
+            "type": "object",
+            "required": [
+                "photo_ids"
+            ],
+            "properties": {
+                "photo_ids": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "dtos.BlockReasonList": {
             "type": "object",
             "properties": {
@@ -13458,6 +13802,84 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 40,
                     "example": "taxi-executive"
+                }
+            }
+        },
+        "dtos.CustomerVehicleInput": {
+            "type": "object",
+            "required": [
+                "brand",
+                "fuel",
+                "model",
+                "plate",
+                "year"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "example": "Toyota"
+                },
+                "fuel": {
+                    "type": "string",
+                    "enum": [
+                        "petrol",
+                        "diesel",
+                        "hybrid",
+                        "electric",
+                        "gas"
+                    ],
+                    "example": "diesel"
+                },
+                "model": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "example": "Hilux"
+                },
+                "plate": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "LD-45-21-AF"
+                },
+                "year": {
+                    "type": "integer",
+                    "maximum": 2200,
+                    "minimum": 1900,
+                    "example": 2019
+                }
+            }
+        },
+        "dtos.CustomerVehicleList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CustomerVehicleView"
+                    }
+                }
+            }
+        },
+        "dtos.CustomerVehicleView": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "fuel": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "plate": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
                 }
             }
         },
@@ -14791,6 +15213,74 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "example": "+244923000000"
+                }
+            }
+        },
+        "dtos.PhotoList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.PhotoView"
+                    }
+                }
+            }
+        },
+        "dtos.PhotoUploadInput": {
+            "type": "object",
+            "required": [
+                "content_type",
+                "size_bytes"
+            ],
+            "properties": {
+                "content_type": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "example": "image/jpeg"
+                },
+                "size_bytes": {
+                    "type": "integer",
+                    "maximum": 100000000,
+                    "minimum": 1,
+                    "example": 204800
+                }
+            }
+        },
+        "dtos.PhotoUploadView": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "upload_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.PhotoView": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },

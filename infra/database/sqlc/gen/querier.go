@@ -22,6 +22,7 @@ type Querier interface {
 	AddProviderRejectionReasons(ctx context.Context, arg AddProviderRejectionReasonsParams) error
 	AddRolePermissions(ctx context.Context, arg AddRolePermissionsParams) error
 	AssignVehicleToProvider(ctx context.Context, arg AssignVehicleToProviderParams) (int64, error)
+	AttachMediaToRequest(ctx context.Context, arg AttachMediaToRequestParams) (int64, error)
 	BumpMembershipsWithRole(ctx context.Context, arg BumpMembershipsWithRoleParams) ([]uuid.UUID, error)
 	CancellationReport(ctx context.Context, arg CancellationReportParams) ([]CancellationReportRow, error)
 	ClearDocumentRejectionReasons(ctx context.Context, arg ClearDocumentRejectionReasonsParams) error
@@ -69,6 +70,7 @@ type Querier interface {
 	CreateUserBlock(ctx context.Context, arg CreateUserBlockParams) error
 	CreateUserBlockReasons(ctx context.Context, arg CreateUserBlockReasonsParams) error
 	CurrentServiceTariff(ctx context.Context, arg CurrentServiceTariffParams) (ServiceTariff, error)
+	DeactivateCustomerVehicle(ctx context.Context, arg DeactivateCustomerVehicleParams) (int64, error)
 	DeleteAddress(ctx context.Context, id uuid.UUID) error
 	DeleteDeviceToken(ctx context.Context, token string) error
 	DeleteMembershipRoles(ctx context.Context, membershipID uuid.UUID) error
@@ -98,6 +100,7 @@ type Querier interface {
 	GetCatalogItem(ctx context.Context, id uuid.UUID) (GetCatalogItemRow, error)
 	GetCatalogItems(ctx context.Context, ids []uuid.UUID) ([]GetCatalogItemsRow, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error)
+	GetCustomerVehicle(ctx context.Context, arg GetCustomerVehicleParams) (CustomerVehicle, error)
 	GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error)
 	GetDocumentType(ctx context.Context, code string) (GetDocumentTypeRow, error)
 	GetETAObservation(ctx context.Context, arg GetETAObservationParams) (GetETAObservationRow, error)
@@ -105,6 +108,8 @@ type Querier interface {
 	GetInvitationByHash(ctx context.Context, tokenHash string) (Invitation, error)
 	GetInvitationByHashForUpdate(ctx context.Context, tokenHash string) (Invitation, error)
 	GetInvitationScope(ctx context.Context, tokenHash string) (GetInvitationScopeRow, error)
+	GetMediaUpload(ctx context.Context, id uuid.UUID) (MediaUpload, error)
+	GetMediaUploads(ctx context.Context, ids []uuid.UUID) ([]MediaUpload, error)
 	GetMembershipAccess(ctx context.Context, id uuid.UUID) (GetMembershipAccessRow, error)
 	GetMembershipByID(ctx context.Context, id uuid.UUID) (Membership, error)
 	GetMembershipByIDForUpdate(ctx context.Context, id uuid.UUID) (Membership, error)
@@ -159,10 +164,12 @@ type Querier interface {
 	HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error)
 	IncrementProviderCancellations(ctx context.Context, userID uuid.UUID) error
 	InsertCatalogItem(ctx context.Context, arg InsertCatalogItemParams) error
+	InsertCustomerVehicle(ctx context.Context, arg InsertCustomerVehicleParams) error
 	InsertFareAdjustment(ctx context.Context, arg InsertFareAdjustmentParams) error
 	InsertLedgerEntry(ctx context.Context, arg InsertLedgerEntryParams) error
 	InsertLedgerTransaction(ctx context.Context, arg InsertLedgerTransactionParams) (int64, error)
 	InsertLocationSample(ctx context.Context, arg InsertLocationSampleParams) error
+	InsertMediaUpload(ctx context.Context, arg InsertMediaUploadParams) error
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
 	InsertPayment(ctx context.Context, arg InsertPaymentParams) error
 	InsertPaymentEvent(ctx context.Context, arg InsertPaymentEventParams) error
@@ -197,6 +204,7 @@ type Querier interface {
 	ListCatalogItems(ctx context.Context, arg ListCatalogItemsParams) ([]ListCatalogItemsRow, error)
 	ListCategoryPaymentMethods(ctx context.Context, arg ListCategoryPaymentMethodsParams) ([]ListCategoryPaymentMethodsRow, error)
 	ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error)
+	ListCustomerVehicles(ctx context.Context, customerID uuid.UUID) ([]CustomerVehicle, error)
 	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
 	ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error)
 	ListDocumentRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]ListDocumentRejectionReasonsRow, error)
@@ -204,6 +212,7 @@ type Querier interface {
 	ListFleetDrivers(ctx context.Context, arg ListFleetDriversParams) ([]ListFleetDriversRow, error)
 	ListLedgerEntries(ctx context.Context, arg ListLedgerEntriesParams) ([]ListLedgerEntriesRow, error)
 	ListLiveIndexes(ctx context.Context) ([]ListLiveIndexesRow, error)
+	ListMediaOfRequest(ctx context.Context, requestID *uuid.UUID) ([]MediaUpload, error)
 	ListMembers(ctx context.Context, arg ListMembersParams) ([]ListMembersRow, error)
 	ListMembershipPermissions(ctx context.Context, membershipID uuid.UUID) ([]string, error)
 	ListMembershipRoles(ctx context.Context, membershipIds []uuid.UUID) ([]MembershipRole, error)
@@ -289,6 +298,7 @@ type Querier interface {
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	UnbalancedLedgerTransactions(ctx context.Context) (int64, error)
 	UpdateCatalogItem(ctx context.Context, arg UpdateCatalogItemParams) error
+	UpdateCustomerVehicle(ctx context.Context, arg UpdateCustomerVehicleParams) (int64, error)
 	UpdateDispatchPolicy(ctx context.Context, arg UpdateDispatchPolicyParams) (int64, error)
 	UpdateFleetVehicle(ctx context.Context, arg UpdateFleetVehicleParams) error
 	UpdateMembership(ctx context.Context, arg UpdateMembershipParams) error

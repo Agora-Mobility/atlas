@@ -467,3 +467,7 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 O SMS ao passageiro leva agora a ligação de seguimento. SSE novo: `request.message`.
 
 **Env novas:** `CALLS_BASE_URL`, `CALLS_API_KEY`, `CALLS_TIMEOUT`, `SHARE_BASE_URL`.
+
+### Fase 9: viaturas do cliente e fotos no R2
+
+**Endpoints novos:** `GET,POST /users/me/vehicles`, `PUT,DELETE /users/me/vehicles/{id}`, `POST /media/photos`, `GET,POST /requests/{id}/photos`. Limite, tamanho e tipos em `platform_settings`. Antes de ligar a foto ao pedido, o servidor confirma no R2 que o ficheiro existe com o tipo e tamanho anunciados.
