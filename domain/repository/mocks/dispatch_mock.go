@@ -914,6 +914,36 @@ func (mr *MockIRequestRepositoryMockRecorder) LockCustomer(ctx, customerID any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockCustomer", reflect.TypeOf((*MockIRequestRepository)(nil).LockCustomer), ctx, customerID)
 }
 
+// MarkStopArrived mocks base method.
+func (m *MockIRequestRepository) MarkStopArrived(ctx context.Context, requestID uuid.UUID, position int, at time.Time) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkStopArrived", ctx, requestID, position, at)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// MarkStopArrived indicates an expected call of MarkStopArrived.
+func (mr *MockIRequestRepositoryMockRecorder) MarkStopArrived(ctx, requestID, position, at any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkStopArrived", reflect.TypeOf((*MockIRequestRepository)(nil).MarkStopArrived), ctx, requestID, position, at)
+}
+
+// NextPublicCode mocks base method.
+func (m *MockIRequestRepository) NextPublicCode(ctx context.Context, categoryID uuid.UUID) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NextPublicCode", ctx, categoryID)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NextPublicCode indicates an expected call of NextPublicCode.
+func (mr *MockIRequestRepositoryMockRecorder) NextPublicCode(ctx, categoryID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextPublicCode", reflect.TypeOf((*MockIRequestRepository)(nil).NextPublicCode), ctx, categoryID)
+}
+
 // OperatorQueue mocks base method.
 func (m *MockIRequestRepository) OperatorQueue(ctx context.Context, limit, offset int) ([]*entities.ServiceRequest, error) {
 	m.ctrl.T.Helper()
@@ -957,6 +987,21 @@ func (m *MockIRequestRepository) PassengerNotice(ctx context.Context, requestID 
 func (mr *MockIRequestRepositoryMockRecorder) PassengerNotice(ctx, requestID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PassengerNotice", reflect.TypeOf((*MockIRequestRepository)(nil).PassengerNotice), ctx, requestID)
+}
+
+// RecentDestinations mocks base method.
+func (m *MockIRequestRepository) RecentDestinations(ctx context.Context, customerID uuid.UUID, limit int) ([]repository.RecentDestination, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RecentDestinations", ctx, customerID, limit)
+	ret0, _ := ret[0].([]repository.RecentDestination)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RecentDestinations indicates an expected call of RecentDestinations.
+func (mr *MockIRequestRepositoryMockRecorder) RecentDestinations(ctx, customerID, limit any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecentDestinations", reflect.TypeOf((*MockIRequestRepository)(nil).RecentDestinations), ctx, customerID, limit)
 }
 
 // RecordChange mocks base method.

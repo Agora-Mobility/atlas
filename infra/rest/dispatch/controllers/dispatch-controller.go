@@ -140,6 +140,8 @@ var errorTable = []struct {
 	{entities.ErrVoucherNotApplicable, http.StatusUnprocessableEntity, "VOUCHER_NOT_APPLICABLE", "This voucher does not apply to this service."},
 	{entities.ErrVoucherUsed, http.StatusConflict, "VOUCHER_USED", "This voucher was already used."},
 	{entities.ErrVoucherBelowMinimum, http.StatusUnprocessableEntity, "VOUCHER_BELOW_MINIMUM", "The price is below the minimum of this voucher."},
+	{dispatch.ErrReceiptNotReady, http.StatusConflict, "RECEIPT_NOT_READY", "The receipt exists after the request is completed."},
+	{dispatch.ErrStopNotFound, http.StatusNotFound, "STOP_NOT_FOUND", "This stop does not exist."},
 	{dispatch.ErrNoTariff, http.StatusUnprocessableEntity, "NO_TARIFF", "There is no tariff for this service here yet."},
 	{dispatch.ErrRequestConflict, http.StatusConflict, "REQUEST_CONFLICT", "The request changed in the meantime."},
 	{dispatch.ErrProviderNotApproved, http.StatusForbidden, "PROVIDER_NOT_APPROVED", "The provider is not approved for this."},

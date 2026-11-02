@@ -86,8 +86,18 @@ type IRequestRepository interface {
 	History(ctx context.Context, requestID uuid.UUID) ([]RequestHistoryEntry, error)
 	OrganizationOf(ctx context.Context, requestID uuid.UUID) (*uuid.UUID, error)
 	LockCustomer(ctx context.Context, customerID uuid.UUID) error
+	NextPublicCode(ctx context.Context, categoryID uuid.UUID) (string, error)
+	MarkStopArrived(ctx context.Context, requestID uuid.UUID, position int, at time.Time) (bool, error)
+	RecentDestinations(ctx context.Context, customerID uuid.UUID, limit int) ([]RecentDestination, error)
 	ActiveOfCustomerService(ctx context.Context, customerID, serviceID uuid.UUID) ([]*entities.ServiceRequest, error)
 	PassengerNotice(ctx context.Context, requestID uuid.UUID) (*PassengerNotice, error)
+}
+
+type RecentDestination struct {
+	Point     entities.GeoPoint
+	Line      string
+	Reference string
+	UsedAt    time.Time
 }
 
 type PassengerNotice struct {

@@ -107,7 +107,7 @@ SELECT samples, total_seconds FROM eta_observations
 WHERE origin_h3_r8 = $1 AND destination_h3_r8 = $2 AND hour_band = $3;
 
 -- name: GetServiceForDispatch :one
-SELECT s.id, s.category_id, s.requires_destination, s.is_active AS service_active, c.slug AS category_slug, c.is_active AS category_active
+SELECT s.id, s.name, s.slug, s.category_id, s.requires_destination, s.is_active AS service_active, c.slug AS category_slug, c.is_active AS category_active
 FROM services s JOIN service_categories c ON c.id = s.category_id
 WHERE s.id = $1;
 

@@ -23,6 +23,8 @@ var (
 	ErrFareEstimateInvalid  = errors.New("the fare estimate does not match this request")
 	ErrNoTariff             = errors.New("no tariff for this service in this zone")
 	ErrFareEstimateUsed     = errors.New("the fare estimate was already used")
+	ErrReceiptNotReady      = errors.New("the receipt exists after the request is completed")
+	ErrStopNotFound         = errors.New("this stop does not exist")
 	ErrReasonNotApplicable  = errors.New("this reason does not exist or does not apply here")
 	ErrUnknownReasonActor   = errors.New("actor must be customer, provider or offer")
 	ErrReportScope          = errors.New("scope must be customer_cancel, provider_cancel or offer_reject")

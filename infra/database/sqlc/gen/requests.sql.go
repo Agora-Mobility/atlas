@@ -14,7 +14,7 @@ import (
 )
 
 const activeRequestOfCustomer = `-- name: ActiveRequestOfCustomer :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests
 WHERE customer_id = $1 AND status IN ('created', 'scheduled', 'searching', 'offered', 'awaiting_choice', 'accepted', 'provider_en_route', 'in_progress')
 ORDER BY (status = 'scheduled'), created_at DESC
 LIMIT 1
@@ -72,12 +72,13 @@ func (q *Queries) ActiveRequestOfCustomer(ctx context.Context, customerID uuid.U
 		&i.VoucherID,
 		&i.VoucherCode,
 		&i.DiscountCents,
+		&i.PublicCode,
 	)
 	return i, err
 }
 
 const activeRequestOfProvider = `-- name: ActiveRequestOfProvider :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests
 WHERE provider_id = $1 AND status IN ('accepted', 'provider_en_route', 'in_progress')
 ORDER BY (status = 'accepted'), created_at DESC
 LIMIT 1
@@ -135,6 +136,7 @@ func (q *Queries) ActiveRequestOfProvider(ctx context.Context, providerID *uuid.
 		&i.VoucherID,
 		&i.VoucherCode,
 		&i.DiscountCents,
+		&i.PublicCode,
 	)
 	return i, err
 }
@@ -344,7 +346,7 @@ func (q *Queries) DueServiceRequests(ctx context.Context, arg DueServiceRequests
 }
 
 const findServiceRequestByIdempotencyKey = `-- name: FindServiceRequestByIdempotencyKey :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests WHERE customer_id = $1 AND idempotency_key = $2
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests WHERE customer_id = $1 AND idempotency_key = $2
 `
 
 type FindServiceRequestByIdempotencyKeyParams struct {
@@ -404,6 +406,7 @@ func (q *Queries) FindServiceRequestByIdempotencyKey(ctx context.Context, arg Fi
 		&i.VoucherID,
 		&i.VoucherCode,
 		&i.DiscountCents,
+		&i.PublicCode,
 	)
 	return i, err
 }
@@ -502,7 +505,7 @@ func (q *Queries) GetRequestOrganization(ctx context.Context, id uuid.UUID) (*uu
 }
 
 const getServiceRequest = `-- name: GetServiceRequest :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests WHERE id = $1
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests WHERE id = $1
 `
 
 func (q *Queries) GetServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error) {
@@ -557,12 +560,13 @@ func (q *Queries) GetServiceRequest(ctx context.Context, id uuid.UUID) (ServiceR
 		&i.VoucherID,
 		&i.VoucherCode,
 		&i.DiscountCents,
+		&i.PublicCode,
 	)
 	return i, err
 }
 
 const getServiceRequestForUpdate = `-- name: GetServiceRequestForUpdate :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests WHERE id = $1 FOR UPDATE
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetServiceRequestForUpdate(ctx context.Context, id uuid.UUID) (ServiceRequest, error) {
@@ -617,6 +621,7 @@ func (q *Queries) GetServiceRequestForUpdate(ctx context.Context, id uuid.UUID) 
 		&i.VoucherID,
 		&i.VoucherCode,
 		&i.DiscountCents,
+		&i.PublicCode,
 	)
 	return i, err
 }
@@ -670,8 +675,8 @@ func (q *Queries) InsertLocationSample(ctx context.Context, arg InsertLocationSa
 const insertServiceRequest = `-- name: InsertServiceRequest :exec
 INSERT INTO service_requests (id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone,
     pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended,
-    search_deadline_at, next_action_at, reminder_at, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, idempotency_key, created_at, updated_at, payment_method)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+    search_deadline_at, next_action_at, reminder_at, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, idempotency_key, created_at, updated_at, payment_method, public_code)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
 `
 
 type InsertServiceRequestParams struct {
@@ -707,6 +712,7 @@ type InsertServiceRequestParams struct {
 	CreatedAt            time.Time       `json:"created_at"`
 	UpdatedAt            time.Time       `json:"updated_at"`
 	PaymentMethod        string          `json:"payment_method"`
+	PublicCode           string          `json:"public_code"`
 }
 
 func (q *Queries) InsertServiceRequest(ctx context.Context, arg InsertServiceRequestParams) error {
@@ -743,6 +749,7 @@ func (q *Queries) InsertServiceRequest(ctx context.Context, arg InsertServiceReq
 		arg.CreatedAt,
 		arg.UpdatedAt,
 		arg.PaymentMethod,
+		arg.PublicCode,
 	)
 	return err
 }
@@ -793,7 +800,7 @@ func (q *Queries) InsertServiceRequestStop(ctx context.Context, arg InsertServic
 }
 
 const listActiveRequestsOfCustomerService = `-- name: ListActiveRequestsOfCustomerService :many
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests
 WHERE customer_id = $1 AND service_id = $2 AND status NOT IN ('completed', 'cancelled', 'expired')
 `
 
@@ -860,6 +867,7 @@ func (q *Queries) ListActiveRequestsOfCustomerService(ctx context.Context, arg L
 			&i.VoucherID,
 			&i.VoucherCode,
 			&i.DiscountCents,
+			&i.PublicCode,
 		); err != nil {
 			return nil, err
 		}
@@ -1075,7 +1083,7 @@ func (q *Queries) ListOpenOffersOfProvider(ctx context.Context, arg ListOpenOffe
 }
 
 const listOperatorQueue = `-- name: ListOperatorQueue :many
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests
 WHERE needs_operator AND status IN ('searching', 'offered', 'awaiting_choice')
 ORDER BY created_at
 LIMIT $2 OFFSET $1
@@ -1144,6 +1152,59 @@ func (q *Queries) ListOperatorQueue(ctx context.Context, arg ListOperatorQueuePa
 			&i.VoucherID,
 			&i.VoucherCode,
 			&i.DiscountCents,
+			&i.PublicCode,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentDestinations = `-- name: ListRecentDestinations :many
+SELECT recent.lat, recent.lng, recent.line, recent.reference, recent.created_at
+FROM (
+    SELECT DISTINCT ON (round(a.lat::numeric, 4), round(a.lng::numeric, 4)) a.lat, a.lng, a.line, a.reference, r.created_at
+    FROM service_requests r
+    JOIN addresses a ON a.id = r.destination_address_id
+    WHERE r.customer_id = $1
+    ORDER BY round(a.lat::numeric, 4), round(a.lng::numeric, 4), r.created_at DESC
+) AS recent
+ORDER BY recent.created_at DESC
+LIMIT $2
+`
+
+type ListRecentDestinationsParams struct {
+	CustomerID uuid.UUID `json:"customer_id"`
+	PageLimit  int32     `json:"page_limit"`
+}
+
+type ListRecentDestinationsRow struct {
+	Lat       float64   `json:"lat"`
+	Lng       float64   `json:"lng"`
+	Line      string    `json:"line"`
+	Reference string    `json:"reference"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) ListRecentDestinations(ctx context.Context, arg ListRecentDestinationsParams) ([]ListRecentDestinationsRow, error) {
+	rows, err := q.db.Query(ctx, listRecentDestinations, arg.CustomerID, arg.PageLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentDestinationsRow{}
+	for rows.Next() {
+		var i ListRecentDestinationsRow
+		if err := rows.Scan(
+			&i.Lat,
+			&i.Lng,
+			&i.Line,
+			&i.Reference,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1242,29 +1303,30 @@ func (q *Queries) ListRequestOffersForUpdate(ctx context.Context, requestID uuid
 }
 
 const listRequestPlaces = `-- name: ListRequestPlaces :many
-SELECT r.id AS request_id, 'pickup'::text AS role, 0::int AS position, a.id, a.lat, a.lng, a.line, a.reference
+SELECT r.id AS request_id, 'pickup'::text AS role, 0::int AS position, a.id, a.lat, a.lng, a.line, a.reference, NULL::timestamptz AS arrived_at
 FROM service_requests r JOIN addresses a ON a.id = r.pickup_address_id
 WHERE r.id = ANY($1::uuid[])
 UNION ALL
-SELECT r.id, 'destination'::text, 0::int, a.id, a.lat, a.lng, a.line, a.reference
+SELECT r.id, 'destination'::text, 0::int, a.id, a.lat, a.lng, a.line, a.reference, NULL::timestamptz
 FROM service_requests r JOIN addresses a ON a.id = r.destination_address_id
 WHERE r.id = ANY($1::uuid[])
 UNION ALL
-SELECT st.request_id, 'stop'::text, st.position, a.id, a.lat, a.lng, a.line, a.reference
+SELECT st.request_id, 'stop'::text, st.position, a.id, a.lat, a.lng, a.line, a.reference, st.arrived_at
 FROM service_request_stops st JOIN addresses a ON a.id = st.address_id
 WHERE st.request_id = ANY($1::uuid[])
 ORDER BY 2, 3
 `
 
 type ListRequestPlacesRow struct {
-	RequestID uuid.UUID `json:"request_id"`
-	Role      string    `json:"role"`
-	Position  int32     `json:"position"`
-	ID        uuid.UUID `json:"id"`
-	Lat       float64   `json:"lat"`
-	Lng       float64   `json:"lng"`
-	Line      string    `json:"line"`
-	Reference string    `json:"reference"`
+	RequestID uuid.UUID  `json:"request_id"`
+	Role      string     `json:"role"`
+	Position  int32      `json:"position"`
+	ID        uuid.UUID  `json:"id"`
+	Lat       float64    `json:"lat"`
+	Lng       float64    `json:"lng"`
+	Line      string     `json:"line"`
+	Reference string     `json:"reference"`
+	ArrivedAt *time.Time `json:"arrived_at"`
 }
 
 func (q *Queries) ListRequestPlaces(ctx context.Context, requestIds []uuid.UUID) ([]ListRequestPlacesRow, error) {
@@ -1285,6 +1347,7 @@ func (q *Queries) ListRequestPlaces(ctx context.Context, requestIds []uuid.UUID)
 			&i.Lng,
 			&i.Line,
 			&i.Reference,
+			&i.ArrivedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1297,7 +1360,7 @@ func (q *Queries) ListRequestPlaces(ctx context.Context, requestIds []uuid.UUID)
 }
 
 const listRequestsOfCustomer = `-- name: ListRequestsOfCustomer :many
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests
 WHERE customer_id = $1
   AND ($2::text[] = '{}' OR status = ANY($2::text[]))
   AND ($3::text = '' OR category_slug = $3)
@@ -1377,6 +1440,7 @@ func (q *Queries) ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOf
 			&i.VoucherID,
 			&i.VoucherCode,
 			&i.DiscountCents,
+			&i.PublicCode,
 		); err != nil {
 			return nil, err
 		}
@@ -1389,7 +1453,7 @@ func (q *Queries) ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOf
 }
 
 const listRequestsWithProviderOnTheWay = `-- name: ListRequestsWithProviderOnTheWay :many
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests
 WHERE status IN ('accepted', 'provider_en_route') AND provider_id IS NOT NULL
   AND (scheduled_for IS NULL OR scheduled_for <= now())
 ORDER BY updated_at
@@ -1454,6 +1518,7 @@ func (q *Queries) ListRequestsWithProviderOnTheWay(ctx context.Context, limit in
 			&i.VoucherID,
 			&i.VoucherCode,
 			&i.DiscountCents,
+			&i.PublicCode,
 		); err != nil {
 			return nil, err
 		}
@@ -1514,6 +1579,35 @@ SELECT pg_advisory_xact_lock(hashtextextended($1::uuid::text, 0))
 func (q *Queries) LockCustomerRequests(ctx context.Context, customerID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, lockCustomerRequests, customerID)
 	return err
+}
+
+const markStopArrived = `-- name: MarkStopArrived :execrows
+UPDATE service_request_stops SET arrived_at = COALESCE(arrived_at, $3) WHERE request_id = $1 AND position = $2
+`
+
+type MarkStopArrivedParams struct {
+	RequestID uuid.UUID  `json:"request_id"`
+	Position  int32      `json:"position"`
+	ArrivedAt *time.Time `json:"arrived_at"`
+}
+
+func (q *Queries) MarkStopArrived(ctx context.Context, arg MarkStopArrivedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markStopArrived, arg.RequestID, arg.Position, arg.ArrivedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const nextRequestCode = `-- name: NextRequestCode :one
+SELECT (c.code_prefix || '-' || nextval('service_request_code_seq'))::text FROM service_categories c WHERE c.id = $1
+`
+
+func (q *Queries) NextRequestCode(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, nextRequestCode, id)
+	var column_1 string
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const purgeLocationSamples = `-- name: PurgeLocationSamples :execrows
@@ -1607,7 +1701,7 @@ func (q *Queries) SummarizeRequests(ctx context.Context, arg SummarizeRequestsPa
 }
 
 const tryLockServiceRequest = `-- name: TryLockServiceRequest :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents FROM service_requests WHERE id = $1 FOR UPDATE SKIP LOCKED
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code FROM service_requests WHERE id = $1 FOR UPDATE SKIP LOCKED
 `
 
 func (q *Queries) TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error) {
@@ -1662,6 +1756,7 @@ func (q *Queries) TryLockServiceRequest(ctx context.Context, id uuid.UUID) (Serv
 		&i.VoucherID,
 		&i.VoucherCode,
 		&i.DiscountCents,
+		&i.PublicCode,
 	)
 	return i, err
 }

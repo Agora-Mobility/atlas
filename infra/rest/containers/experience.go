@@ -17,6 +17,7 @@ func newExperienceModule(c *Container) *ExperienceModule {
 		Reference: repository.NewReferenceRepository(c.Pool),
 		Ratings:   repository.NewRatingRepository(c.Pool),
 		Vouchers:  repository.NewVoucherRepository(c.Pool),
+		Support:   repository.NewSupportRepository(c.Pool),
 		Requests:  repository.NewRequestRepository(c.Pool),
 		Providers: repository.NewProviderRepository(c.Pool),
 		Audit:     repository.NewAuditLogRepository(c.Pool),

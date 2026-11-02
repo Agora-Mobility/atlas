@@ -39,7 +39,7 @@ func (r *RequestRepository) Create(ctx context.Context, s *entities.ServiceReque
 			DestinationH3R8: s.DestinationH3, PassengerName: s.PassengerName, PassengerPhone: s.PassengerPhone, Details: s.Details,
 			ScheduledFor: s.ScheduledFor, SearchRound: int16(s.SearchRound), SearchExtended: s.SearchExtended, SearchDeadlineAt: s.SearchDeadline, // #nosec G115 -- small counter
 			NextActionAt: s.NextActionAt, ReminderAt: s.ReminderAt, FareEstimateID: s.Fare.EstimateID, FareCents: s.Fare.Cents, CommissionCents: s.Fare.CommissionCents,
-			BoostBps: int32(s.Fare.BoostBps), Currency: s.Fare.Currency, IdempotencyKey: s.IdempotencyKey, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, PaymentMethod: string(s.PaymentMethod), // #nosec G115 -- 0 to 2000
+			BoostBps: int32(s.Fare.BoostBps), Currency: s.Fare.Currency, IdempotencyKey: s.IdempotencyKey, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, PaymentMethod: string(s.PaymentMethod), PublicCode: s.PublicCode, // #nosec G115 -- 0 to 2000
 		}
 		if s.Destination != nil {
 			if err := saveAddressOfPlace(ctx, queries, s.Destination); err != nil {
@@ -321,6 +321,34 @@ func (r *RequestRepository) History(ctx context.Context, requestID uuid.UUID) ([
 	return out, nil
 }
 
+func (r *RequestRepository) NextPublicCode(ctx context.Context, categoryID uuid.UUID) (string, error) {
+	code, err := postgres.Queries(ctx, r.pool).NextRequestCode(ctx, categoryID)
+	if err != nil {
+		return "", fmt.Errorf("next request code: %w", err)
+	}
+	return code, nil
+}
+
+func (r *RequestRepository) MarkStopArrived(ctx context.Context, requestID uuid.UUID, position int, at time.Time) (bool, error) {
+	rows, err := postgres.Queries(ctx, r.pool).MarkStopArrived(ctx, gen.MarkStopArrivedParams{RequestID: requestID, Position: int32(position), ArrivedAt: &at}) // #nosec G115 -- bound in the controller
+	if err != nil {
+		return false, fmt.Errorf("mark stop arrived: %w", err)
+	}
+	return rows > 0, nil
+}
+
+func (r *RequestRepository) RecentDestinations(ctx context.Context, customerID uuid.UUID, limit int) ([]repository.RecentDestination, error) {
+	rows, err := postgres.Queries(ctx, r.pool).ListRecentDestinations(ctx, gen.ListRecentDestinationsParams{CustomerID: customerID, PageLimit: int32(limit)}) // #nosec G115 -- bound in the controller
+	if err != nil {
+		return nil, fmt.Errorf("list recent destinations: %w", err)
+	}
+	out := make([]repository.RecentDestination, 0, len(rows))
+	for i := range rows {
+		out = append(out, repository.RecentDestination{Point: entities.GeoPoint{Lat: rows[i].Lat, Lng: rows[i].Lng}, Line: rows[i].Line, Reference: rows[i].Reference, UsedAt: rows[i].CreatedAt})
+	}
+	return out, nil
+}
+
 func (r *RequestRepository) LockCustomer(ctx context.Context, customerID uuid.UUID) error {
 	if err := postgres.Queries(ctx, r.pool).LockCustomerRequests(ctx, customerID); err != nil {
 		return fmt.Errorf("lock customer requests: %w", err)
@@ -392,7 +420,7 @@ func toRequests(ctx context.Context, queries *gen.Queries, rows []gen.ServiceReq
 	}
 	for i := range places {
 		row := &places[i]
-		place := entities.RequestPlace{AddressID: row.ID, Point: entities.GeoPoint{Lat: row.Lat, Lng: row.Lng}, Reference: row.Reference, Address: row.Line}
+		place := entities.RequestPlace{AddressID: row.ID, Point: entities.GeoPoint{Lat: row.Lat, Lng: row.Lng}, Reference: row.Reference, Address: row.Line, ArrivedAt: row.ArrivedAt}
 		request := byID[row.RequestID]
 		switch row.Role {
 		case "pickup":
@@ -408,7 +436,7 @@ func toRequests(ctx context.Context, queries *gen.Queries, rows []gen.ServiceReq
 
 func toRequest(row *gen.ServiceRequest) *entities.ServiceRequest {
 	return &entities.ServiceRequest{
-		ID: row.ID, CustomerID: row.CustomerID, CategoryID: row.CategoryID, CategorySlug: row.CategorySlug, ServiceID: row.ServiceID, ZoneID: row.ZoneID, PolicyID: row.PolicyID,
+		ID: row.ID, PublicCode: row.PublicCode, CustomerID: row.CustomerID, CategoryID: row.CategoryID, CategorySlug: row.CategorySlug, ServiceID: row.ServiceID, ZoneID: row.ZoneID, PolicyID: row.PolicyID,
 		Status: entities.RequestStatus(row.Status), Version: int(row.Version), Stops: []entities.RequestPlace{},
 		PaymentMethod: entities.PaymentMethod(row.PaymentMethod), PaymentStatus: entities.RequestPaymentStatus(row.PaymentStatus),
 		PickupH3R8: row.PickupH3R8, DestinationH3: row.DestinationH3R8, ContactPhone: row.ContactPhone, PassengerName: row.PassengerName, PassengerPhone: row.PassengerPhone,

@@ -79,6 +79,10 @@ var transitionActors = map[RequestStatus][]RequestActorType{
 	RequestCancelled:       {RequestActorCustomer, RequestActorProvider, RequestActorOperator, RequestActorSystem},
 }
 
+func ActiveRequestStatuses() []string {
+	return []string{string(RequestCreated), string(RequestSearching), string(RequestOffered), string(RequestAwaitingChoice), string(RequestAccepted), string(RequestProviderEnRoute), string(RequestInProgress)}
+}
+
 func (s RequestStatus) IsTerminal() bool {
 	return s == RequestCompleted || s == RequestExpired || s == RequestCancelled
 }
@@ -92,10 +96,11 @@ func (s RequestStatus) HasProvider() bool {
 }
 
 type RequestPlace struct {
-	AddressID uuid.UUID `json:"-"`
-	Point     GeoPoint  `json:"point"`
-	Reference string    `json:"reference,omitempty"`
-	Address   string    `json:"address,omitempty"`
+	AddressID uuid.UUID  `json:"-"`
+	Point     GeoPoint   `json:"point"`
+	Reference string     `json:"reference,omitempty"`
+	Address   string     `json:"address,omitempty"`
+	ArrivedAt *time.Time `json:"-"`
 }
 
 func (p RequestPlace) normalized(field string) (RequestPlace, error) {
@@ -161,6 +166,7 @@ type NewRequestInput struct {
 
 type ServiceRequest struct {
 	ID             uuid.UUID
+	PublicCode     string
 	CustomerID     uuid.UUID
 	CategoryID     uuid.UUID
 	CategorySlug   string

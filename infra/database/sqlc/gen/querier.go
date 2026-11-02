@@ -40,6 +40,8 @@ type Querier interface {
 	CountProviderRatings(ctx context.Context, providerID *uuid.UUID) (int64, error)
 	CountRequestsOfCustomer(ctx context.Context, arg CountRequestsOfCustomerParams) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
+	CountTickets(ctx context.Context, status string) (int64, error)
+	CountTicketsOfUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CountVehicles(ctx context.Context, arg CountVehiclesParams) (int64, error)
@@ -137,6 +139,7 @@ type Querier interface {
 	GetServiceTariff(ctx context.Context, id uuid.UUID) (ServiceTariff, error)
 	GetServiceZone(ctx context.Context, id uuid.UUID) (GetServiceZoneRow, error)
 	GetSystemRoleByCode(ctx context.Context, arg GetSystemRoleByCodeParams) (Role, error)
+	GetTicket(ctx context.Context, id uuid.UUID) (SupportTicket, error)
 	GetUserAddress(ctx context.Context, arg GetUserAddressParams) (GetUserAddressRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
@@ -166,6 +169,8 @@ type Querier interface {
 	InsertServiceRequest(ctx context.Context, arg InsertServiceRequestParams) error
 	InsertServiceRequestEvent(ctx context.Context, arg InsertServiceRequestEventParams) error
 	InsertServiceRequestStop(ctx context.Context, arg InsertServiceRequestStopParams) error
+	InsertTicket(ctx context.Context, arg InsertTicketParams) error
+	InsertTicketMessage(ctx context.Context, arg InsertTicketMessageParams) error
 	InsertVoucher(ctx context.Context, arg InsertVoucherParams) error
 	InsertVoucherRedemption(ctx context.Context, arg InsertVoucherRedemptionParams) error
 	IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMethodEnabledParams) (bool, error)
@@ -210,6 +215,7 @@ type Querier interface {
 	ListProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]RejectionReason, error)
 	ListPublicVouchers(ctx context.Context, arg ListPublicVouchersParams) ([]Voucher, error)
 	ListReasonsForCategory(ctx context.Context, arg ListReasonsForCategoryParams) ([]RejectionReason, error)
+	ListRecentDestinations(ctx context.Context, arg ListRecentDestinationsParams) ([]ListRecentDestinationsRow, error)
 	ListRejectionReasons(ctx context.Context, arg ListRejectionReasonsParams) ([]RejectionReason, error)
 	ListRequestOffers(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestOffersForUpdate(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
@@ -224,6 +230,9 @@ type Querier interface {
 	ListServiceZones(ctx context.Context, onlyActive bool) ([]ListServiceZonesRow, error)
 	ListServices(ctx context.Context, arg ListServicesParams) ([]Service, error)
 	ListServicesOpenToProviders(ctx context.Context) ([]ListServicesOpenToProvidersRow, error)
+	ListTicketMessages(ctx context.Context, ticketID uuid.UUID) ([]SupportMessage, error)
+	ListTickets(ctx context.Context, arg ListTicketsParams) ([]SupportTicket, error)
+	ListTicketsOfUser(ctx context.Context, arg ListTicketsOfUserParams) ([]SupportTicket, error)
 	ListUserAddresses(ctx context.Context, userID uuid.UUID) ([]ListUserAddressesRow, error)
 	ListUserSessionsIssuedSince(ctx context.Context, arg ListUserSessionsIssuedSinceParams) ([]uuid.UUID, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
@@ -236,6 +245,9 @@ type Querier interface {
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error
 	MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error
+	MarkStopArrived(ctx context.Context, arg MarkStopArrivedParams) (int64, error)
+	NextRequestCode(ctx context.Context, id uuid.UUID) (string, error)
+	NextTicketCode(ctx context.Context) (string, error)
 	OfferRejectionReport(ctx context.Context, arg OfferRejectionReportParams) ([]OfferRejectionReportRow, error)
 	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)
 	ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithActiveJobParams) ([]uuid.UUID, error)
@@ -259,6 +271,7 @@ type Querier interface {
 	SetCategoryPaymentMethod(ctx context.Context, arg SetCategoryPaymentMethodParams) (int64, error)
 	SetPaymentGatewayFee(ctx context.Context, arg SetPaymentGatewayFeeParams) (int64, error)
 	SetRequestPayment(ctx context.Context, arg SetRequestPaymentParams) error
+	SetTicketStatus(ctx context.Context, arg SetTicketStatusParams) (int64, error)
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error)
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error

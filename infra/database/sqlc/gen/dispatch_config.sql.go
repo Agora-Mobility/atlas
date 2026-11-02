@@ -283,7 +283,7 @@ func (q *Queries) FindZoneCoveringPoint(ctx context.Context, arg FindZoneCoverin
 }
 
 const getCategoryBySlug = `-- name: GetCategoryBySlug :one
-SELECT id, slug, name, description, icon, display_order, is_active, created_at, updated_at, passenger_sms FROM service_categories WHERE slug = $1
+SELECT id, slug, name, description, icon, display_order, is_active, created_at, updated_at, passenger_sms, code_prefix FROM service_categories WHERE slug = $1
 `
 
 func (q *Queries) GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error) {
@@ -300,6 +300,7 @@ func (q *Queries) GetCategoryBySlug(ctx context.Context, slug string) (ServiceCa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PassengerSms,
+		&i.CodePrefix,
 	)
 	return i, err
 }
@@ -399,13 +400,15 @@ func (q *Queries) GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstima
 }
 
 const getServiceForDispatch = `-- name: GetServiceForDispatch :one
-SELECT s.id, s.category_id, s.requires_destination, s.is_active AS service_active, c.slug AS category_slug, c.is_active AS category_active
+SELECT s.id, s.name, s.slug, s.category_id, s.requires_destination, s.is_active AS service_active, c.slug AS category_slug, c.is_active AS category_active
 FROM services s JOIN service_categories c ON c.id = s.category_id
 WHERE s.id = $1
 `
 
 type GetServiceForDispatchRow struct {
 	ID                  uuid.UUID `json:"id"`
+	Name                string    `json:"name"`
+	Slug                string    `json:"slug"`
 	CategoryID          uuid.UUID `json:"category_id"`
 	RequiresDestination bool      `json:"requires_destination"`
 	ServiceActive       bool      `json:"service_active"`
@@ -418,6 +421,8 @@ func (q *Queries) GetServiceForDispatch(ctx context.Context, id uuid.UUID) (GetS
 	var i GetServiceForDispatchRow
 	err := row.Scan(
 		&i.ID,
+		&i.Name,
+		&i.Slug,
 		&i.CategoryID,
 		&i.RequiresDestination,
 		&i.ServiceActive,

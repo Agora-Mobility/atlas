@@ -35,6 +35,17 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	signedIn.POST("/admin/vouchers", manage, r.controller.AdminCreateVoucher)
 	signedIn.PUT("/admin/vouchers/:id", manage, r.controller.AdminUpdateVoucher)
 
+	signedIn.POST("/requests/:id/tickets", r.controller.OpenRequestTicket)
+	signedIn.GET("/support/tickets", r.controller.MyTickets)
+	signedIn.POST("/support/tickets", r.controller.OpenTicket)
+	signedIn.GET("/support/tickets/:id", r.controller.MyTicket)
+	signedIn.POST("/support/tickets/:id/messages", r.controller.ReplyTicket)
+	support := can(entities.PermRequestsManage)
+	signedIn.GET("/admin/support/tickets", support, r.controller.AdminTickets)
+	signedIn.GET("/admin/support/tickets/:id", support, r.controller.AdminTicket)
+	signedIn.POST("/admin/support/tickets/:id/messages", support, r.controller.AdminReplyTicket)
+	signedIn.POST("/admin/support/tickets/:id/close", support, r.controller.AdminCloseTicket)
+
 	signedIn.GET("/rating-options", r.controller.RatingOptions)
 	signedIn.POST("/requests/:id/rating", r.controller.RateRequest)
 	signedIn.GET("/providers/me/ratings", r.controller.MyRatings)

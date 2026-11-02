@@ -801,8 +801,8 @@ func TestRedisOutageKeepsTheRequestSearchingAndRecovers(t *testing.T) {
 	_, err := env.owner.Exec(ctx, `INSERT INTO addresses (id, lat, lng) VALUES ($1, $2, $3), ($4, $5, $6)`, pickupAddress, pickup.Lat, pickup.Lng, destinationAddress, target.Lat, target.Lng)
 	require.NoError(t, err)
 	require.NoError(t, env.owner.QueryRow(ctx, `
-		INSERT INTO service_requests (id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, pickup_address_id, pickup_h3_r8, destination_address_id, currency, idempotency_key, search_deadline_at, next_action_at, fare_estimate_id, fare_cents, commission_cents)
-		SELECT gen_random_uuid(), $1, s.category_id, 'taxi', s.id, (SELECT id FROM service_zones LIMIT 1), p.id, 'searching', $3, 1, $4, 'AOA', $5, now() + interval '3 minutes', now() + interval '1 second', $6, 171500, 17150
+		INSERT INTO service_requests (id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, pickup_address_id, pickup_h3_r8, destination_address_id, currency, idempotency_key, search_deadline_at, next_action_at, fare_estimate_id, fare_cents, commission_cents, public_code)
+		SELECT gen_random_uuid(), $1, s.category_id, 'taxi', s.id, (SELECT id FROM service_zones LIMIT 1), p.id, 'searching', $3, 1, $4, 'AOA', $5, now() + interval '3 minutes', now() + interval '1 second', $6, 171500, 17150, 'TX-' || nextval('service_request_code_seq')
 		FROM services s JOIN dispatch_policies p ON p.category_id = s.category_id AND p.zone_id IS NULL WHERE s.id = $2 RETURNING id`,
 		customer.id, serviceID, pickupAddress, destinationAddress, uuid.NewString(), estimateID).Scan(&requestID))
 

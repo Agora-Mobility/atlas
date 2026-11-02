@@ -94,6 +94,10 @@ definitions:
         type: array
       request:
         $ref: '#/definitions/dtos.RequestView'
+      requests:
+        items:
+          $ref: '#/definitions/dtos.RequestView'
+        type: array
     type: object
   dtos.AddressInput:
     properties:
@@ -1587,6 +1591,21 @@ definitions:
           $ref: '#/definitions/dtos.OpenCategory'
         type: array
     type: object
+  dtos.OpenTicketInput:
+    properties:
+      message:
+        maxLength: 4000
+        type: string
+      subject:
+        example: Fui cobrado a mais
+        maxLength: 160
+        type: string
+      topic_id:
+        type: string
+    required:
+    - message
+    - subject
+    type: object
   dtos.OperatorCancelInput:
     properties:
       reason:
@@ -1800,6 +1819,8 @@ definitions:
       address:
         type: string
       address_id:
+        type: string
+      arrived_at:
         type: string
       lat:
         type: number
@@ -2297,6 +2318,26 @@ definitions:
           $ref: '#/definitions/dtos.ReasonOption'
         type: array
     type: object
+  dtos.RecentDestination:
+    properties:
+      address:
+        type: string
+      lat:
+        type: number
+      lng:
+        type: number
+      reference:
+        type: string
+      used_at:
+        type: string
+    type: object
+  dtos.RecentDestinationList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.RecentDestination'
+        type: array
+    type: object
   dtos.RecoveryCodesOutput:
     properties:
       recovery_codes:
@@ -2499,6 +2540,25 @@ definitions:
         example: document
         type: string
     type: object
+  dtos.RepeatView:
+    properties:
+      category:
+        type: string
+      destination:
+        $ref: '#/definitions/dtos.PlaceInput'
+      estimates:
+        items:
+          $ref: '#/definitions/dtos.FareEstimateView'
+        type: array
+      pickup:
+        $ref: '#/definitions/dtos.PlaceInput'
+      service_id:
+        type: string
+      stops:
+        items:
+          $ref: '#/definitions/dtos.PlaceInput'
+        type: array
+    type: object
   dtos.ReplaceRolesInput:
     properties:
       role_ids:
@@ -2610,6 +2670,9 @@ definitions:
         type: string
       category:
         type: string
+      code:
+        example: TX-48271
+        type: string
       commission_cents:
         type: integer
       completed_at:
@@ -2659,6 +2722,8 @@ definitions:
       scheduled_for:
         type: string
       service_id:
+        type: string
+      service_name:
         type: string
       started_at:
         type: string
@@ -3056,6 +3121,80 @@ definitions:
     required:
     - currency
     - service_id
+    type: object
+  dtos.TicketDetail:
+    properties:
+      code:
+        example: TK-1001
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      messages:
+        items:
+          $ref: '#/definitions/dtos.TicketMessage'
+        type: array
+      request_id:
+        type: string
+      status:
+        type: string
+      subject:
+        type: string
+      topic_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dtos.TicketList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.TicketView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.TicketMessage:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      sender:
+        type: string
+    type: object
+  dtos.TicketReplyInput:
+    properties:
+      message:
+        maxLength: 4000
+        type: string
+    required:
+    - message
+    type: object
+  dtos.TicketView:
+    properties:
+      code:
+        example: TK-1001
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      request_id:
+        type: string
+      status:
+        type: string
+      subject:
+        type: string
+      topic_id:
+        type: string
+      updated_at:
+        type: string
     type: object
   dtos.TipInput:
     properties:
@@ -5331,6 +5470,117 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Change a setting of the platform
+      tags:
+      - Backoffice
+  /api/v1/admin/support/tickets:
+    get:
+      parameters:
+      - description: open, answered or closed
+        in: query
+        name: status
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TicketList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Support tickets
+      tags:
+      - Backoffice
+  /api/v1/admin/support/tickets/{id}:
+    get:
+      parameters:
+      - description: Ticket id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TicketDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: A support ticket
+      tags:
+      - Backoffice
+  /api/v1/admin/support/tickets/{id}/close:
+    post:
+      parameters:
+      - description: Ticket id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TicketDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Close a support ticket
+      tags:
+      - Backoffice
+  /api/v1/admin/support/tickets/{id}/messages:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Ticket id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Message
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.TicketReplyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TicketDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Answer a support ticket
       tags:
       - Backoffice
   /api/v1/admin/tariffs:
@@ -9763,6 +10013,64 @@ paths:
       summary: Rate a completed request
       tags:
       - Ratings
+  /api/v1/requests/{id}/receipt:
+    get:
+      description: Customer of the request. The values are the ones of the breakdown
+        in GET /requests/{id}.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/pdf
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Not completed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Receipt of a completed request in PDF
+      tags:
+      - Dispatch
+  /api/v1/requests/{id}/repeat:
+    post:
+      description: Returns the route and new prices. Nothing is requested until the
+        customer confirms with POST /requests.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.RepeatView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Prepare the same request again
+      tags:
+      - Dispatch
   /api/v1/requests/{id}/route:
     post:
       consumes:
@@ -9858,6 +10166,80 @@ paths:
       summary: Start the trip or service
       tags:
       - Provider work
+  /api/v1/requests/{id}/stops/{position}/arrive:
+    post:
+      description: Provider of the request, while it is in progress. The first time
+        counts.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Position of the stop, from 0
+        in: path
+        name: position
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Mark the arrival at a stop
+      tags:
+      - Provider work
+  /api/v1/requests/{id}/tickets:
+    post:
+      consumes:
+      - application/json
+      description: Only by the customer or the provider of the request.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Problem
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.OpenTicketInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.TicketDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Report a problem with a request
+      tags:
+      - Support
   /api/v1/requests/{id}/tips:
     post:
       consumes:
@@ -10102,6 +10484,119 @@ paths:
       summary: Change a custom role
       tags:
       - Roles
+  /api/v1/support/tickets:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TicketList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: My support tickets
+      tags:
+      - Support
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Subject and message
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.OpenTicketInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.TicketDetail'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Talk to the support
+      tags:
+      - Support
+  /api/v1/support/tickets/{id}:
+    get:
+      parameters:
+      - description: Ticket id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TicketDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: A support ticket of mine
+      tags:
+      - Support
+  /api/v1/support/tickets/{id}/messages:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Ticket id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Message
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.TicketReplyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TicketDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Closed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Write in a support ticket
+      tags:
+      - Support
   /api/v1/users/me:
     delete:
       consumes:
@@ -10500,6 +10995,26 @@ paths:
       summary: Send a code to a new phone number
       tags:
       - Users
+  /api/v1/users/me/recent-destinations:
+    get:
+      parameters:
+      - description: Up to 50, 10 by default
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RecentDestinationList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Last destinations of the customer, without repeats
+      tags:
+      - Dispatch
   /api/v1/users/me/verification-code:
     post:
       description: The code confirms an e-mail change or the account deletion when

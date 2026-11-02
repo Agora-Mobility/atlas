@@ -32,6 +32,8 @@ var errorTable = []mappedError{
 	{repository.ErrCatalogCodeTaken, http.StatusConflict, "CATALOG_CODE_TAKEN", "This code already exists."},
 	{entities.ErrVoucherNotFound, http.StatusNotFound, "VOUCHER_NOT_FOUND", "Voucher not found."},
 	{repository.ErrVoucherCodeTaken, http.StatusConflict, "VOUCHER_CODE_TAKEN", "This voucher code already exists."},
+	{entities.ErrTicketNotFound, http.StatusNotFound, "TICKET_NOT_FOUND", "Ticket not found."},
+	{entities.ErrTicketClosed, http.StatusConflict, "TICKET_CLOSED", "This ticket is closed."},
 	{entities.ErrRatingNotAllowed, http.StatusConflict, "RATING_NOT_ALLOWED", "Only a completed request can be rated."},
 	{entities.ErrAlreadyRated, http.StatusConflict, "ALREADY_RATED", "This request was already rated."},
 	{entities.ErrComplimentNotValid, http.StatusUnprocessableEntity, "COMPLIMENT_NOT_VALID", "A compliment does not exist or does not apply to this service."},

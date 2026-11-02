@@ -17,4 +17,5 @@ package repository
 //go:generate go tool mockgen -source=cancellation.go -destination=mocks/cancellation_mock.go -package=mocks
 //go:generate go tool mockgen -source=reference.go -destination=mocks/reference_mock.go -package=mocks
 //go:generate go tool mockgen -source=vouchers.go -destination=mocks/vouchers_mock.go -package=mocks
+//go:generate go tool mockgen -source=support.go -destination=mocks/support_mock.go -package=mocks
 //go:generate go tool mockgen -source=ledger.go -destination=mocks/ledger_mock.go -package=mocks

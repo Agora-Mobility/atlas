@@ -25,10 +25,16 @@ type Deps struct {
 	Reference repository.IReferenceRepository
 	Ratings   repository.IRatingRepository
 	Vouchers  repository.IVoucherRepository
+	Support   repository.ISupportRepository
+	Inbox     TicketNotifier
 	Requests  repository.IRequestRepository
 	Providers repository.IProviderRepository
 	Audit     repository.IAuditLogRepository
 	Tx        repository.ITransactionManager
+}
+
+type TicketNotifier interface {
+	TicketAnswered(ctx context.Context, userID, ticketID uuid.UUID, code string) error
 }
 
 type Usecase struct {

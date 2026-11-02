@@ -18,7 +18,10 @@ import (
 	"github.com/Agora-Mobility/atlas/usecases/dispatch/dtos"
 )
 
-const analyticsResolution = 8
+const (
+	analyticsResolution = 8
+	maxActiveListed     = 50
+)
 
 var serverOnlyDetails = []string{"volume_m3", "fare_cents", "price_cents", "total_cents"}
 
@@ -90,6 +93,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 		ScheduledFor: in.ScheduledFor, Fare: fare, PaymentMethod: paymentMethod, IdempotencyKey: idempotencyKey, Now: now,
 	})
 	if err != nil {
+		return nil, false, err
+	}
+	if request.PublicCode, err = u.Requests.NextPublicCode(ctx, service.CategoryID); err != nil {
 		return nil, false, err
 	}
 	if request.PickupH3R8, err = u.Geo.Cell(request.Pickup.Point, analyticsResolution); err != nil {
@@ -321,17 +327,28 @@ func (u *Usecase) ActiveForCustomer(ctx context.Context, customerID uuid.UUID) (
 	if err != nil {
 		return nil, err
 	}
-	state := &dtos.ActiveState{Offers: []dtos.OfferView{}}
+	state := &dtos.ActiveState{Offers: []dtos.OfferView{}, Requests: []dtos.RequestView{}}
 	if request != nil {
 		if state.Request, err = u.customerView(ctx, request); err != nil {
 			return nil, err
 		}
 	}
+	all, _, err := u.Requests.ListOfCustomer(ctx, repository.RequestFilter{CustomerID: customerID, Statuses: entities.ActiveRequestStatuses(), Limit: maxActiveListed})
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range all {
+		view, err := u.customerSummary(ctx, item)
+		if err != nil {
+			return nil, err
+		}
+		state.Requests = append(state.Requests, *view)
+	}
 	return state, nil
 }
 
 func (u *Usecase) ActiveForProvider(ctx context.Context, providerID uuid.UUID) (*dtos.ActiveState, error) {
-	state := &dtos.ActiveState{Offers: []dtos.OfferView{}}
+	state := &dtos.ActiveState{Offers: []dtos.OfferView{}, Requests: []dtos.RequestView{}}
 	request, err := u.Requests.ActiveOfProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
@@ -608,6 +625,13 @@ func (u *Usecase) customerSummary(ctx context.Context, request *entities.Service
 		return nil, err
 	}
 	view.Provider = provider
+	service, err := u.Config.FindService(ctx, request.ServiceID)
+	if err != nil {
+		return nil, err
+	}
+	if service != nil {
+		view.ServiceName = service.Name
+	}
 	if request.Status == entities.RequestCompleted {
 		rating, err := u.Ratings.OfRequest(ctx, request.ID)
 		if err != nil {
@@ -684,7 +708,7 @@ func baseRequestView(r *entities.ServiceRequest) dtos.RequestView {
 		stops = append(stops, dtos.ToPlaceView(stop))
 	}
 	view := dtos.RequestView{
-		ID: r.ID, Status: string(r.Status), Version: r.Version, Category: r.CategorySlug, ServiceID: r.ServiceID, Pickup: dtos.ToPlaceView(r.Pickup), Stops: stops,
+		ID: r.ID, Code: r.PublicCode, Status: string(r.Status), Version: r.Version, Category: r.CategorySlug, ServiceID: r.ServiceID, Pickup: dtos.ToPlaceView(r.Pickup), Stops: stops,
 		ScheduledFor: r.ScheduledFor, FareCents: r.Fare.Cents, BoostBps: r.Fare.BoostBps, Currency: r.Fare.Currency, PaymentMethod: string(r.PaymentMethod), PaymentStatus: string(r.PaymentStatus), DiscountCents: r.DiscountCents, VoucherCode: r.VoucherCode, AmountDueCents: r.ExpectedDueCents(), NeedsOperator: r.NeedsOperator, OperatorReason: r.OperatorReason,
 		CancelReason: r.CancelReason, CancelledBy: r.CancelledBy, CancelReasonID: r.CancelReasonID, CancelFeeCents: r.CancelFeeCents, AcceptedAt: r.AcceptedAt, ArrivedAt: r.ArrivedAt, StartedAt: r.StartedAt, CompletedAt: r.CompletedAt, CreatedAt: r.CreatedAt,
 	}

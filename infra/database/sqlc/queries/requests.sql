@@ -1,8 +1,8 @@
 -- name: InsertServiceRequest :exec
 INSERT INTO service_requests (id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone,
     pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended,
-    search_deadline_at, next_action_at, reminder_at, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, idempotency_key, created_at, updated_at, payment_method)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32);
+    search_deadline_at, next_action_at, reminder_at, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, idempotency_key, created_at, updated_at, payment_method, public_code)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33);
 
 -- name: DeleteServiceRequestStops :exec
 DELETE FROM service_request_stops WHERE request_id = $1;
@@ -11,15 +11,15 @@ DELETE FROM service_request_stops WHERE request_id = $1;
 INSERT INTO service_request_stops (request_id, position, address_id) VALUES ($1, $2, $3);
 
 -- name: ListRequestPlaces :many
-SELECT r.id AS request_id, 'pickup'::text AS role, 0::int AS position, a.id, a.lat, a.lng, a.line, a.reference
+SELECT r.id AS request_id, 'pickup'::text AS role, 0::int AS position, a.id, a.lat, a.lng, a.line, a.reference, NULL::timestamptz AS arrived_at
 FROM service_requests r JOIN addresses a ON a.id = r.pickup_address_id
 WHERE r.id = ANY(sqlc.arg(request_ids)::uuid[])
 UNION ALL
-SELECT r.id, 'destination'::text, 0::int, a.id, a.lat, a.lng, a.line, a.reference
+SELECT r.id, 'destination'::text, 0::int, a.id, a.lat, a.lng, a.line, a.reference, NULL::timestamptz
 FROM service_requests r JOIN addresses a ON a.id = r.destination_address_id
 WHERE r.id = ANY(sqlc.arg(request_ids)::uuid[])
 UNION ALL
-SELECT st.request_id, 'stop'::text, st.position, a.id, a.lat, a.lng, a.line, a.reference
+SELECT st.request_id, 'stop'::text, st.position, a.id, a.lat, a.lng, a.line, a.reference, st.arrived_at
 FROM service_request_stops st JOIN addresses a ON a.id = st.address_id
 WHERE st.request_id = ANY(sqlc.arg(request_ids)::uuid[])
 ORDER BY 2, 3;
@@ -230,3 +230,21 @@ JOIN service_categories c ON c.id = r.category_id
 LEFT JOIN users u ON u.id = r.provider_id
 LEFT JOIN vehicles v ON v.provider_id = r.provider_id
 WHERE r.id = $1;
+
+-- name: NextRequestCode :one
+SELECT (c.code_prefix || '-' || nextval('service_request_code_seq'))::text FROM service_categories c WHERE c.id = $1;
+
+-- name: MarkStopArrived :execrows
+UPDATE service_request_stops SET arrived_at = COALESCE(arrived_at, $3) WHERE request_id = $1 AND position = $2;
+
+-- name: ListRecentDestinations :many
+SELECT recent.lat, recent.lng, recent.line, recent.reference, recent.created_at
+FROM (
+    SELECT DISTINCT ON (round(a.lat::numeric, 4), round(a.lng::numeric, 4)) a.lat, a.lng, a.line, a.reference, r.created_at
+    FROM service_requests r
+    JOIN addresses a ON a.id = r.destination_address_id
+    WHERE r.customer_id = $1
+    ORDER BY round(a.lat::numeric, 4), round(a.lng::numeric, 4), r.created_at DESC
+) AS recent
+ORDER BY recent.created_at DESC
+LIMIT sqlc.arg(page_limit);

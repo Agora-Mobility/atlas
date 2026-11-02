@@ -137,6 +137,8 @@ type FareBreakdown struct {
 
 type RequestView struct {
 	ID              uuid.UUID        `json:"id"`
+	Code            string           `json:"code" example:"TX-48271"`
+	ServiceName     string           `json:"service_name,omitempty"`
 	Status          string           `json:"status"`
 	Version         int              `json:"version"`
 	Category        string           `json:"category"`
@@ -181,15 +183,37 @@ type RequestView struct {
 }
 
 type PlaceView struct {
-	AddressID uuid.UUID `json:"address_id"`
-	Lat       float64   `json:"lat"`
-	Lng       float64   `json:"lng"`
-	Reference string    `json:"reference,omitempty"`
-	Address   string    `json:"address,omitempty"`
+	AddressID uuid.UUID  `json:"address_id"`
+	Lat       float64    `json:"lat"`
+	Lng       float64    `json:"lng"`
+	Reference string     `json:"reference,omitempty"`
+	Address   string     `json:"address,omitempty"`
+	ArrivedAt *time.Time `json:"arrived_at,omitempty"`
 }
 
 func ToPlaceView(p entities.RequestPlace) PlaceView {
-	return PlaceView{AddressID: p.AddressID, Lat: p.Point.Lat, Lng: p.Point.Lng, Reference: p.Reference, Address: p.Address}
+	return PlaceView{AddressID: p.AddressID, Lat: p.Point.Lat, Lng: p.Point.Lng, Reference: p.Reference, Address: p.Address, ArrivedAt: p.ArrivedAt}
+}
+
+type RecentDestination struct {
+	Lat       float64   `json:"lat"`
+	Lng       float64   `json:"lng"`
+	Address   string    `json:"address,omitempty"`
+	Reference string    `json:"reference,omitempty"`
+	UsedAt    time.Time `json:"used_at"`
+}
+
+type RecentDestinationList struct {
+	Items []RecentDestination `json:"items"`
+}
+
+type RepeatView struct {
+	ServiceID   uuid.UUID          `json:"service_id"`
+	Category    string             `json:"category"`
+	Pickup      PlaceInput         `json:"pickup"`
+	Destination *PlaceInput        `json:"destination,omitempty"`
+	Stops       []PlaceInput       `json:"stops"`
+	Estimates   []FareEstimateView `json:"estimates"`
 }
 
 type RequestList struct {
@@ -218,8 +242,9 @@ type OfferView struct {
 }
 
 type ActiveState struct {
-	Request *RequestView `json:"request"`
-	Offers  []OfferView  `json:"offers"`
+	Request  *RequestView  `json:"request"`
+	Requests []RequestView `json:"requests"`
+	Offers   []OfferView   `json:"offers"`
 }
 
 type DeliveredInput struct {

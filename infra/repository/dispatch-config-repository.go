@@ -199,7 +199,7 @@ func (r *DispatchConfigRepository) FindService(ctx context.Context, id uuid.UUID
 		return nil, fmt.Errorf("get service: %w", err)
 	}
 	return &entities.DispatchService{
-		ID: row.ID, CategoryID: row.CategoryID, CategorySlug: row.CategorySlug,
+		ID: row.ID, Name: row.Name, Slug: row.Slug, CategoryID: row.CategoryID, CategorySlug: row.CategorySlug,
 		RequiresDestination: row.RequiresDestination, IsOffered: row.ServiceActive && row.CategoryActive,
 	}, nil
 }

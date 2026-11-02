@@ -129,3 +129,42 @@ type VoucherList struct {
 	Page  int           `json:"page"`
 	Size  int           `json:"size"`
 }
+
+type OpenTicketInput struct {
+	Subject string     `json:"subject" binding:"required,max=160" example:"Fui cobrado a mais"`
+	Message string     `json:"message" binding:"required,max=4000"`
+	TopicID *uuid.UUID `json:"topic_id"`
+}
+
+type TicketReplyInput struct {
+	Message string `json:"message" binding:"required,max=4000"`
+}
+
+type TicketView struct {
+	ID        uuid.UUID  `json:"id"`
+	Code      string     `json:"code" example:"TK-1001"`
+	RequestID *uuid.UUID `json:"request_id,omitempty"`
+	TopicID   *uuid.UUID `json:"topic_id,omitempty"`
+	Subject   string     `json:"subject"`
+	Status    string     `json:"status"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+type TicketMessage struct {
+	Sender    string    `json:"sender"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type TicketDetail struct {
+	TicketView
+	Messages []TicketMessage `json:"messages"`
+}
+
+type TicketList struct {
+	Items []TicketView `json:"items"`
+	Total int64        `json:"total"`
+	Page  int          `json:"page"`
+	Size  int          `json:"size"`
+}
