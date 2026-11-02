@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -14,12 +15,16 @@ import (
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
+	"github.com/Agora-Mobility/atlas/infra/queue"
 	"github.com/Agora-Mobility/atlas/infra/rest/apidocs"
 	"github.com/Agora-Mobility/atlas/infra/rest/binding"
 	"github.com/Agora-Mobility/atlas/infra/rest/containers"
 	healthrouter "github.com/Agora-Mobility/atlas/infra/rest/health/router"
 	"github.com/Agora-Mobility/atlas/shared"
+	"github.com/Agora-Mobility/atlas/utils"
 )
+
+const topologyRetryCeiling = 30 * time.Second
 
 var probePaths = []string{"/live", "/ready", "/health", "/metrics"}
 
@@ -87,11 +92,16 @@ func (s *Server) Start(ctx context.Context) error {
 
 	var workers sync.WaitGroup
 	relay := s.container.OutboxRelay()
-	workers.Go(func() { relay.Run(workersCtx) })
+	consumers := s.container.Consumers()
+	workers.Go(func() {
+		if ensureTopology(workersCtx, consumers) {
+			relay.Run(workersCtx)
+		}
+	})
 	workers.Go(func() { s.container.SSE.RunDoor(workersCtx, s.container.Redis) })
 	workers.Go(func() { s.container.Dispatch.Usecase.RunWatcher(workersCtx) })
 	workers.Go(func() { s.container.Payments.Usecase.RunReconciler(workersCtx) })
-	for _, consumer := range s.container.Consumers() {
+	for _, consumer := range consumers {
 		workers.Go(func() { consumer.Run(workersCtx) })
 	}
 
@@ -113,6 +123,22 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	return errors.Join(runErr, s.shutdown(context.WithoutCancel(ctx), stopWorkers, &workers))
+}
+
+func ensureTopology(ctx context.Context, consumers []*queue.Consumer) bool {
+	for _, consumer := range consumers {
+		for attempt := 0; ; attempt++ {
+			err := consumer.EnsureTopology()
+			if err == nil {
+				break
+			}
+			logger.Warn("queue topology not ready, the relay waits", zap.Error(err))
+			if !utils.Sleep(ctx, utils.Backoff(attempt, time.Second, topologyRetryCeiling)) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (s *Server) shutdown(ctx context.Context, stopWorkers context.CancelFunc, workers *sync.WaitGroup) error {

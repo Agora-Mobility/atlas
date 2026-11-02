@@ -101,6 +101,18 @@ func (c *Consumer) declareTopology(ch *amqp.Channel) error {
 	return nil
 }
 
+// EnsureTopology declares the queues and bindings. The relay must only publish
+// after this: a message sent to the exchange before its queue is bound is
+// dropped by the broker and never comes back.
+func (c *Consumer) EnsureTopology() error {
+	ch, err := c.mgr.Channel()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = ch.Close() }()
+	return c.declareTopology(ch)
+}
+
 func (c *Consumer) consume(ctx context.Context) error {
 	ch, err := c.mgr.Channel()
 	if err != nil {
