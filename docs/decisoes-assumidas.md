@@ -32,3 +32,8 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Taxa por paragem | Soma-se depois do mínimo da tarifa, `stop_fee_cents`, por serviço | A tarifa mínima não deve absorver a paragem |
 | Dinheiro em pedido digital | O motorista não pode confirmar dinheiro num pedido cujo método é Express ou Referência (`CASH_NOT_EXPECTED`). O cliente pode mudar para dinheiro antes de concluir | Hoje isto apaga a dívida do cliente, e um motorista não deve poder fazê-lo sozinho |
 | `details` | `volume_m3`, `fare_cents`, `price_cents` e `total_cents` são retirados de `details` antes de gravar | São dados do servidor |
+| Motivos | O texto livre deixa de ser aceite no cancelamento do cliente e do prestador. "Outro motivo" exige `note` | O motivo é guardado por ID, para relatórios. O operador continua a usar texto livre |
+| Recusa de oferta | O motivo é obrigatório | "Recusa de oferta com motivo registado" |
+| Taxas de cancelamento | Valores iniciais na migração: Económico 500 Kz, Conforto 750 Kz, XL 1 000 Kz, Reboque 2 000 Kz, Mudanças 15 000 Kz, 2 min grátis com motorista. **São palpites**: revê no backoffice em `PUT /admin/cancellation-rules/{serviceId}` | O brief só diz que são configuráveis |
+| Pré-aviso | Com taxa, o cancelamento exige `expected_fee_cents` igual à taxa atual; senão responde 409 `CANCEL_FEE_CHANGED`, sem cancelar | Garante que ninguém paga uma taxa que não viu, mesmo se o prazo terminar entre o aviso e a confirmação |
+| Motorista que cancela | Conta em `providers.cancelled_requests`, sem penalização automática | O brief só pede que conte |

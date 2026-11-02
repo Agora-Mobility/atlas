@@ -410,3 +410,11 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 `test/e2e/fleet_test.go` cobre frota (limites, IDOR entre parceiros, parceiro nas rotas da plataforma), oficinas (taxas, duração, IDOR), `/admin/requests` e `/fleet/requests` (corrida real, filtros que filtram, resumo com a soma certa, telefone do cliente escondido) e motivos (inexistente, de outro âmbito, inativo, nota obrigatória).
 
 **Endpoints:** nenhum novo.
+
+### Fase 3: motivos por ator e cancelamento com custo
+
+`rejection_reasons` passou a ter os âmbitos `customer_cancel`, `provider_cancel` e `offer_reject`, por categoria (C7). `cancellation_rules` guarda a taxa e os prazos por serviço. O cancelamento guarda `cancel_reason_id` e `cancel_fee_cents`, e a taxa por pagar entra em `PAYMENT_OUTSTANDING`.
+
+**Endpoints novos:** `GET /cancellation-reasons`, `GET /requests/{id}/cancellation`, `GET /admin/cancellation-rules`, `PUT /admin/cancellation-rules/{serviceId}`, `GET /admin/reports/cancellations`.
+
+**Alterados:** `POST /requests/{id}/cancel` passa a exigir `reason_id` e, quando há taxa, `expected_fee_cents`. `POST /offers/{id}/reject` passa a exigir `reason_id`. `POST /admin/rejection-reasons` aceita `category_id`.
