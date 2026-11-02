@@ -260,7 +260,7 @@ func (u *Usecase) RemovalCalendar(ctx context.Context, vehicleID uuid.UUID, from
 		return nil, err
 	}
 	if vehicle == nil || vehicle.Kind != entities.CatalogRemovalVehicle || !vehicle.IsActive {
-		return nil, entities.ErrCatalogItemNotFound
+		return nil, entities.ErrRemovalVehicle
 	}
 	windows, err := u.removalList(ctx, entities.CatalogRemovalWindow)
 	if err != nil {

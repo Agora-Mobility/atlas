@@ -141,7 +141,7 @@ var errorTable = []struct {
 	{entities.ErrRemovalTooFar, http.StatusUnprocessableEntity, "REMOVAL_TOO_FAR", "This day is too far ahead."},
 	{entities.ErrRemovalDayFull, http.StatusConflict, "REMOVAL_DAY_FULL", "This day is full."},
 	{entities.ErrTeamNotAllowed, http.StatusConflict, "TEAM_NOT_ALLOWED", "The team cannot be set on this request."},
-	{entities.ErrCatalogItemNotFound, http.StatusNotFound, "CATALOG_ITEM_NOT_FOUND", "Catalog item not found."},
+	{entities.ErrRemovalVehicle, http.StatusNotFound, "REMOVAL_VEHICLE_NOT_FOUND", "This vehicle does not exist in the catalog."},
 	{dispatch.ErrBadDay, http.StatusBadRequest, "INVALID_DATE", "The date is not valid."},
 	{entities.ErrBookingOnly, http.StatusUnprocessableEntity, "USE_BOOKINGS", "This service works through a booking: POST /bookings."},
 	{entities.ErrBookingManaged, http.StatusConflict, "BOOKING_MANAGED", "This request is managed through its booking."},

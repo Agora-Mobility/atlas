@@ -102,6 +102,7 @@ func TestAFullDayIsRefusedAndFreedByACancellation(t *testing.T) {
 	require.NoError(t, env.owner.QueryRow(ctx, `SELECT id FROM catalog_items WHERE kind = 'removal_vehicle' AND code = 'truck_7t'`).Scan(&truck))
 	calendar := second.get(t, "/api/v1/removals/availability?vehicle_id="+truck+"&from="+when.Format("2006-01-02"))
 	assert.Equal(t, "full", calendar.body["days"].([]any)[0].(map[string]any)["status"])
+	assert.Equal(t, "REMOVAL_VEHICLE_NOT_FOUND", second.get(t, "/api/v1/removals/availability?vehicle_id="+uuid.NewString()+"&from="+when.Format("2006-01-02")).code())
 
 	require.Equal(t, http.StatusOK, cancelAs(t, first, "customer", created.str("id")).status)
 	assert.Equal(t, http.StatusCreated, bookRemoval(t, second, estimate, windowID, when, "gpo").status)

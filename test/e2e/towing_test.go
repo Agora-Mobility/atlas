@@ -86,6 +86,8 @@ func TestTowingNeedsItsDetailsAndAMatchingVehicle(t *testing.T) {
 }
 
 func TestTheTowingFormOffersTheNearestPartnerWorkshop(t *testing.T) {
+	_, err := env.owner.Exec(context.Background(), `UPDATE workshops SET is_active = false`)
+	require.NoError(t, err)
 	customer := newCustomer(t)
 	owner := newPartner(t)
 	near := owner.post(t, "/api/v1/fleet/workshops", map[string]any{"name": "Oficina Perto", "currency": "AOA", "address": map[string]any{"lat": pickup.Lat + 0.001, "lng": pickup.Lng, "line": "Rua A"}})
