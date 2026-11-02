@@ -59,8 +59,8 @@ func (v Vehicle) Normalized(now time.Time) (Vehicle, error) {
 	if !IsVehicleKind(v.Kind) {
 		return v, validationError("kind", "O tipo de viatura não é válido.")
 	}
-	if v.CapacityKg != nil && *v.CapacityKg < 0 {
-		return v, validationError("capacity_kg", "A capacidade não é válida.")
+	if v.CapacityKg != nil && (*v.CapacityKg < 0 || *v.CapacityKg > MaxVehicleCapacityKg) {
+		return v, validationError("capacity_kg", "A capacidade tem de estar entre 0 e 100 000 kg.")
 	}
 	v.Brand, v.Model = strings.TrimSpace(v.Brand), strings.TrimSpace(v.Model)
 	v.Color = strings.TrimSpace(v.Color)

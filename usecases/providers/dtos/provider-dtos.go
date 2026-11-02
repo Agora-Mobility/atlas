@@ -55,13 +55,13 @@ type PersonalDataInput struct {
 
 type VehicleInput struct {
 	Kind       string `json:"kind" binding:"omitempty,oneof=car motorcycle van truck tow_truck" example:"car"`
-	CapacityKg *int   `json:"capacity_kg" binding:"omitempty,min=0" example:"1500"`
+	CapacityKg *int   `json:"capacity_kg" binding:"omitempty,min=0,max=100000" example:"1500"`
 	Brand      string `json:"brand" binding:"required,max=120" example:"Toyota"`
 	Model      string `json:"model" binding:"required,max=120" example:"Corolla"`
-	Year       int    `json:"year" binding:"required" example:"2020"`
+	Year       int    `json:"year" binding:"required,min=1900,max=2200" example:"2020"`
 	Color      string `json:"color" binding:"required,max=120" example:"Branco"`
 	Plate      string `json:"plate" binding:"required,max=20" example:"LD-45-21-AF"`
-	Seats      int    `json:"seats" binding:"required" example:"5"`
+	Seats      int    `json:"seats" binding:"required,min=1,max=100" example:"5"`
 }
 
 type UploadURLInput struct {
@@ -174,14 +174,14 @@ type CreateRejectionReasonInput struct {
 	Code         string `json:"code" binding:"required,max=40" example:"blurry_photo"`
 	Label        string `json:"label" binding:"required,max=120" example:"Fotografia desfocada"`
 	RequiresNote bool   `json:"requires_note"`
-	DisplayOrder int    `json:"display_order"`
+	DisplayOrder int    `json:"display_order" binding:"min=0,max=9999"`
 }
 
 type UpdateRejectionReasonInput struct {
 	Label        string `json:"label" binding:"required,max=120"`
 	RequiresNote bool   `json:"requires_note"`
 	IsActive     bool   `json:"is_active"`
-	DisplayOrder int    `json:"display_order"`
+	DisplayOrder int    `json:"display_order" binding:"min=0,max=9999"`
 }
 
 type ApplicationFilter struct {

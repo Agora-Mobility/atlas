@@ -17,6 +17,9 @@ const (
 	maxWorkshopTextLength = 120
 	maxWorkshopHours      = 200
 	maxServiceDescription = 500
+	maxServiceMinutes     = 10_080
+
+	MaxVehicleCapacityKg = 100_000
 )
 
 func IsVehicleKind(kind string) bool {
@@ -101,8 +104,8 @@ func (s *WorkshopService) Normalize() error {
 	if s.PriceCents < 0 || s.PriceCents > MaxFeeCents {
 		return validationError("price_cents", "O preço não é válido.")
 	}
-	if s.DurationMinutes < 0 {
-		return validationError("duration_minutes", "A duração não é válida.")
+	if s.DurationMinutes < 0 || s.DurationMinutes > maxServiceMinutes {
+		return validationError("duration_minutes", "A duração tem de estar entre 0 e 10 080 minutos.")
 	}
 	return nil
 }

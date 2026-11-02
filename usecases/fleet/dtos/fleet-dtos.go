@@ -42,11 +42,11 @@ type FleetVehicleInput struct {
 	Kind       string     `json:"kind" binding:"required,oneof=car motorcycle van truck tow_truck" example:"tow_truck"`
 	Brand      string     `json:"brand" binding:"required,max=120" example:"Isuzu"`
 	Model      string     `json:"model" binding:"required,max=120" example:"NPR"`
-	Year       int        `json:"year" binding:"required" example:"2020"`
+	Year       int        `json:"year" binding:"required,min=1900,max=2200" example:"2020"`
 	Color      string     `json:"color" binding:"required,max=120" example:"Branco"`
 	Plate      string     `json:"plate" binding:"required,max=20" example:"LD-45-21-AF"`
-	Seats      int        `json:"seats" binding:"required" example:"3"`
-	CapacityKg *int       `json:"capacity_kg" binding:"omitempty,min=0" example:"3500"`
+	Seats      int        `json:"seats" binding:"required,min=1,max=100" example:"3"`
+	CapacityKg *int       `json:"capacity_kg" binding:"omitempty,min=0,max=100000" example:"3500"`
 	DriverID   *uuid.UUID `json:"driver_id"`
 }
 
@@ -54,11 +54,11 @@ type UpdateVehicleInput struct {
 	Kind       string `json:"kind" binding:"required,oneof=car motorcycle van truck tow_truck"`
 	Brand      string `json:"brand" binding:"required,max=120"`
 	Model      string `json:"model" binding:"required,max=120"`
-	Year       int    `json:"year" binding:"required"`
+	Year       int    `json:"year" binding:"required,min=1900,max=2200"`
 	Color      string `json:"color" binding:"required,max=120"`
 	Plate      string `json:"plate" binding:"required,max=20"`
-	Seats      int    `json:"seats" binding:"required"`
-	CapacityKg *int   `json:"capacity_kg" binding:"omitempty,min=0"`
+	Seats      int    `json:"seats" binding:"required,min=1,max=100"`
+	CapacityKg *int   `json:"capacity_kg" binding:"omitempty,min=0,max=100000"`
 	IsActive   bool   `json:"is_active"`
 }
 
@@ -90,7 +90,7 @@ type WorkshopInput struct {
 	Phone               string                   `json:"phone" binding:"max=32" example:"+244923000000"`
 	OpeningHours        string                   `json:"opening_hours" binding:"max=200" example:"Seg-Sáb 08:00-18:00"`
 	OffersHomeService   bool                     `json:"offers_home_service"`
-	HomeServiceFeeCents int64                    `json:"home_service_fee_cents" binding:"min=0"`
+	HomeServiceFeeCents int64                    `json:"home_service_fee_cents" binding:"min=0,max=10000000000"`
 	Currency            string                   `json:"currency" binding:"required,len=3" example:"AOA"`
 	IsActive            *bool                    `json:"is_active"`
 	Address             addressdtos.AddressInput `json:"address" binding:"required"`
@@ -99,8 +99,8 @@ type WorkshopInput struct {
 type WorkshopServiceInput struct {
 	Name            string `json:"name" binding:"required,max=120" example:"Mudança de óleo"`
 	Description     string `json:"description" binding:"max=500"`
-	PriceCents      int64  `json:"price_cents" binding:"min=0" example:"2500000"`
-	DurationMinutes int    `json:"duration_minutes" binding:"min=0" example:"45"`
+	PriceCents      int64  `json:"price_cents" binding:"min=0,max=10000000000" example:"2500000"`
+	DurationMinutes int    `json:"duration_minutes" binding:"min=0,max=10080" example:"45"`
 	IsActive        *bool  `json:"is_active"`
 }
 

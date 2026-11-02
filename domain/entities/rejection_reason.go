@@ -17,6 +17,7 @@ const (
 
 	maxReasonLabelLength = 120
 	maxReasonNoteLength  = 400
+	maxReasonOrder       = 9_999
 )
 
 var (
@@ -44,6 +45,9 @@ func (r RejectionReason) Validated() (RejectionReason, error) {
 	r.Label = strings.TrimSpace(r.Label)
 	if r.Label == "" || len([]rune(r.Label)) > maxReasonLabelLength {
 		return r, validationError("label", "O texto é obrigatório e tem no máximo 120 caracteres.")
+	}
+	if r.DisplayOrder < 0 || r.DisplayOrder > maxReasonOrder {
+		return r, validationError("display_order", "A ordem tem de estar entre 0 e 9999.")
 	}
 	return r, nil
 }
