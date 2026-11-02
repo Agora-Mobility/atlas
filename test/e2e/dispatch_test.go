@@ -636,6 +636,7 @@ func TestTowingParallelOffersWithLateAcceptAndOperatorAlert(t *testing.T) {
 }
 
 func TestMaintenanceByCoverageWithoutTrackingOnSite(t *testing.T) {
+	setPolicy(t, "maintenance", "booking_only = false")
 	clearOnlineProviders(t)
 	technician := newApprovedProvider(t, "maintenance")
 	coverage := technician.do(t, http.MethodPut, "/api/v1/providers/me/coverage", map[string]any{"lat": -8.85, "lng": 13.25, "radius_km": 30}, nil)
@@ -649,7 +650,7 @@ func TestMaintenanceByCoverageWithoutTrackingOnSite(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, technician.do(t, http.MethodPut, "/api/v1/devices", map[string]string{"token": "tech-" + uuid.NewString(), "platform": "android"}, nil).status)
 	stream := technician.listen(t, "")
 	customer := newCustomer(t)
-	created := requestCategory(t, customer, "maintenance", map[string]any{"details": map[string]any{"problem": "Luz do motor acesa"}})
+	created := requestCategory(t, customer, "maintenance", map[string]any{"payment_method": "gpo", "details": map[string]any{"problem": "Luz do motor acesa"}})
 	assert.Nil(t, created.body["destination"])
 
 	offer := stream.waitFor(t, "request.offer", nil)

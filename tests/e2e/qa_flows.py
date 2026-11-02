@@ -277,6 +277,7 @@ def expected_fare(slug, distance, seconds, stops=0):
 
 
 ADMIN = [None]
+PARTNER_TOKEN = [None]
 
 
 def taxi():
@@ -565,59 +566,244 @@ def taxi():
         chk(any(i["code"] == "voucher" and i["amount_cents"] == -discount for i in breakdown.get("items", [])) and breakdown.get("total_cents") == fare - discount, f"aparece no total: {breakdown.get('items')}")
 
 
+def next_weekday(days_ahead=7):
+    return (dt.date.today() + dt.timedelta(days=days_ahead))
+
+
+def new_vehicle(customer):
+    if customer.get("vehicle_id"):
+        return customer["vehicle_id"]
+    status, vehicle = call("POST", "/users/me/vehicles", {"brand": "Toyota", "model": "Hilux", "plate": "LD-" + customer["phone"][-6:], "year": 2019, "fuel": "diesel"}, customer["tok"], log=False)
+    assert status == 201, vehicle
+    customer["vehicle_id"] = vehicle["id"]
+    return vehicle["id"]
+
+
+def book(customer, workshop_id, service_ids, slot, **extra):
+    body = {"workshop_id": workshop_id, "service_ids": service_ids, "vehicle_id": new_vehicle(customer), "starts_at": slot, "description": "Faz barulho", "mileage_km": 85000, "payment_method": "gpo"}
+    body.update(extra)
+    return call("POST", "/bookings", body, customer["tok"], idem=str(uuid.uuid4()))
+
+
+def workshop_fixture(partner, capacity=1, **fields):
+    body = {"name": "Oficina QA " + uuid.uuid4().hex[:6], "currency": "AOA", "offers_home_service": True, "home_service_fee_cents": 300000, "address": {"lat": -8.9, "lng": 13.2, "line": "Rua 12, Talatona"}}
+    body.update(fields)
+    status, workshop = call("POST", "/fleet/workshops", body, partner, PARTNER, log=False)
+    assert status == 201, workshop
+    tires = sql("SELECT id FROM catalog_items WHERE kind='workshop_category' AND code='tires'")
+    status, service = call("POST", f"/fleet/workshops/{workshop['id']}/services", {"name": "Revisão geral", "price_cents": 3500000, "duration_minutes": 120, "category_id": tires}, partner, PARTNER, log=False)
+    assert status == 201, service
+    status, _ = call("PUT", f"/fleet/workshops/{workshop['id']}/schedule", {"capacity": capacity, "about": "Desde 2010", "warranty": "3 meses", "hours": [{"weekday": d, "open_minute": 0, "close_minute": 1440} for d in range(7)]}, partner, PARTNER, log=False)
+    assert status == 204
+    return workshop["id"], service["id"]
+
+
+def slot_of(workshop_id, service_id, customer, days_ahead=7):
+    day = next_weekday(days_ahead).isoformat()
+    status, view = call("GET", f"/workshops/{workshop_id}/availability?service_ids={service_id}&from={day}", None, customer["tok"], log=False)
+    assert status == 200, view
+    return view["days"][0]["slots"][0]["starts_at"]
+
+
 def maintenance(admin, partner):
-    workshop_id = None
     with Scenario("M1", "Oficinas: lista, filtro e pesquisa"):
         customer = new_user("customer", "Cliente M1")
-        body = {"name": "Auto Kianda QA", "currency": "AOA", "offers_home_service": True, "home_service_fee_cents": 300000, "opening_hours": "Seg-Sex 08:00-18:00", "address": {"lat": -8.9, "lng": 13.2, "line": "Rua 12, Talatona"}}
+        name = "Auto Kianda " + uuid.uuid4().hex[:6]
+        body = {"name": name, "currency": "AOA", "offers_home_service": True, "home_service_fee_cents": 300000, "opening_hours": "Seg-Sex 08:00-18:00", "address": {"lat": -8.9, "lng": 13.2, "line": "Rua 12, Talatona"}}
         status, workshop = call("POST", "/fleet/workshops", body, partner, PARTNER)
         chk(status == 201, f"parceiro cria oficina: {status}")
         workshop_id = workshop.get("id")
-        for service in ({"name": "Revisão geral", "price_cents": 3500000, "duration_minutes": 120}, {"name": "Óleo e filtro", "price_cents": 1800000, "duration_minutes": 45}):
+        tires = sql("SELECT id FROM catalog_items WHERE kind='workshop_category' AND code='tires'")
+        for service in ({"name": "Revisão geral", "price_cents": 3500000, "duration_minutes": 120}, {"name": "Óleo e filtro", "price_cents": 1800000, "duration_minutes": 45, "category_id": tires}):
             status, _ = call("POST", f"/fleet/workshops/{workshop_id}/services", service, partner, PARTNER)
             chk(status == 201, f"serviço {service['name']}: {status}")
-        status, _ = call("GET", "/workshops?category=Pneus&search=Kianda", None, customer["tok"])
-        chk(status == 200, f"cliente lista oficinas: {status}")
+        status, _ = call("PUT", f"/fleet/workshops/{workshop_id}/schedule", {"capacity": 2, "about": "Desde 2010", "warranty": "3 meses", "hours": [{"weekday": d, "open_minute": 0, "close_minute": 1440} for d in range(7)]}, partner, PARTNER)
+        chk(status == 204, f"horário estruturado: {status}")
+        status, found = call("GET", f"/workshops?category=tires&search={name.replace(' ', '%20')}&lat=-8.9&lng=13.2", None, customer["tok"])
+        ids = [w["id"] for w in found.get("items", [])]
+        chk(status == 200 and ids == [workshop_id], f"cliente lista oficinas com categoria e pesquisa: {status} {ids}")
+        status, none = call("GET", f"/workshops?category=brakes&search={name.replace(' ', '%20')}&lat=-8.9&lng=13.2", None, customer["tok"])
+        chk(status == 200 and none.get("items") == [], f"outra categoria não a devolve: {none.get('items')}")
+        status, far = call("GET", f"/workshops?search={name.replace(' ', '%20')}&lat=-8.0&lng=13.2&max_distance_km=5", None, customer["tok"])
+        chk(far.get("items") == [], f"fora da distância: {far.get('items')}")
         status, listed = call("GET", f"/admin/workshops?organization_id={PARTNER_ORG}", None, admin, BACKOFFICE)
         chk(status == 200 and listed.get("total", 0) >= 1, f"admin lista: {status} total {listed.get('total')}")
         status, got = call("GET", f"/fleet/workshops/{workshop_id}", None, partner, PARTNER)
         chk(got.get("offers_home_service") is True and len(got.get("services", [])) == 2, "parceiro lê ao domicílio e os 2 serviços")
-        chk("open_until" in got or "is_open" in got, f"'aberta até' calculado; o horário é texto: {got.get('opening_hours')!r}")
+        status, card = call("GET", f"/workshops/{workshop_id}?lat=-8.9&lng=13.2", None, customer["tok"])
+        chk("open_until" in card or "is_open" in card, f"'aberta até' calculado: {card.get('is_open')} {card.get('open_until')}")
+        chk(card.get("is_open") is True and card.get("offers_home_service") is True and card.get("warranty") == "3 meses" and len(card.get("services", [])) == 2, "detalhe: aberta, ao domicílio, garantia e serviços")
+        chk(call("POST", f"/workshops/{workshop_id}/favorite", None, customer["tok"])[0] == 204, "favorito")
+        _, favorites = call("GET", "/workshops?favorites=true&lat=-8.9&lng=13.2", None, customer["tok"])
+        chk([w["id"] for w in favorites.get("items", [])] == [workshop_id] and favorites["items"][0]["is_favorite"] is True, "lista de favoritos")
 
     with Scenario("M2", "Marcação, capacidade e concorrência"):
         customer = new_user("customer", "Cliente M2")
-        status, _ = call("GET", f"/workshops/{workshop_id}/availability?date=2026-11-09", None, customer["tok"])
-        chk(status == 200, f"horários disponíveis: {status}")
-        status, _ = call("POST", "/bookings", {"workshop_id": workshop_id}, customer["tok"])
-        chk(status in (200, 201), f"marcar: {status}")
-        chk(int(sql("SELECT count(*) FROM information_schema.tables WHERE table_schema='atlas' AND table_name ILIKE '%booking%'")) > 0, "tabela de marcações")
+        workshop_id, service_id = workshop_fixture(partner, capacity=1)
+        day = next_weekday().isoformat()
+        status, cal = call("GET", f"/workshops/{workshop_id}/availability?service_ids={service_id}&from={day}&days=2", None, customer["tok"])
+        chk(status == 200 and cal["days"][0]["status"] == "free" and cal["duration_minutes"] == 120, f"horários disponíveis: {status} {cal.get('duration_minutes')}")
+        slot = cal["days"][0]["slots"][0]["starts_at"]
+        chk(book(customer, workshop_id, [service_id], "2020-01-01T10:00:00Z")[0] == 422, "marcar no passado é recusado")
+        rivals = [new_user("customer", f"Rival {i}") for i in range(5)]
+        vehicles = {r["id"]: new_vehicle(r) for r in rivals}
+        def race(rival):
+            return call("POST", "/bookings", {"workshop_id": workshop_id, "service_ids": [service_id], "vehicle_id": vehicles[rival["id"]], "starts_at": slot, "payment_method": "gpo"}, rival["tok"], idem=str(uuid.uuid4()), log=False)
+        with cf.ThreadPoolExecutor(5) as pool:
+            outcomes = list(pool.map(race, rivals))
+        won = [r for r in outcomes if r[0] == 201]
+        full = [r for r in outcomes if code(r[1]) == "BOOKING_SLOT_FULL"]
+        chk(len(won) == 1 and len(full) == 4, f"corrida pelo último lugar: {[o[0] for o in outcomes]}")
+        count = sql(f"SELECT count(*) FROM bookings WHERE workshop_id='{workshop_id}' AND starts_at='{slot}' AND status<>'cancelled'")
+        chk(count == "1", f"uma só marcação na BD: {count}")
+        booking = won[0][1]
+        chk(re.fullmatch(r"MK-\d{4,}", booking.get("code", "")), f"código MK: {booking.get('code')}")
+        status, after = call("GET", f"/workshops/{workshop_id}/availability?service_ids={service_id}&from={day}", None, customer["tok"])
+        chk(slot not in [s["starts_at"] for s in after["days"][0]["slots"]], "o horário cheio desaparece")
+        idem = str(uuid.uuid4())
+        body = {"workshop_id": workshop_id, "service_ids": [service_id], "vehicle_id": new_vehicle(customer), "starts_at": cal["days"][1]["slots"][0]["starts_at"], "payment_method": "gpo"}
+        first, second = call("POST", "/bookings", body, customer["tok"], idem=idem), call("POST", "/bookings", body, customer["tok"], idem=idem)
+        chk(first[1].get("id") == second[1].get("id") and first[0] == 201, f"mesma chave não duplica: {first[0]} {second[0]}")
+        block = next_weekday(10).isoformat()
+        chk(call("POST", f"/fleet/workshops/{workshop_id}/closures", {"date": block, "reason": "Feriado"}, partner, PARTNER)[0] == 204, "bloquear um dia")
+        status, closed = call("GET", f"/workshops/{workshop_id}/availability?service_ids={service_id}&from={block}", None, customer["tok"])
+        chk(closed["days"][0]["status"] == "closed", f"dia fechado: {closed['days'][0]['status']}")
+        chk(call("GET", f"/fleet/workshops/{workshop_id}/bookings", None, new_user("customer", "Intruso M2")["tok"])[0] in (401, 403), "cliente não usa rotas de parceiro")
+        chk(call("GET", f"/bookings/{booking['id']}", None, customer["tok"])[0] == 404, "outro cliente não vê a marcação")
+        chk(call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='maintenance'"), "pickup": PICKUP}, customer["tok"], idem=str(uuid.uuid4()))[1].get("error", {}).get("code") == "USE_BOOKINGS", "técnico ao local aposentado")
+        status, ics = fetch_raw(f"/bookings/{first[1]['id']}/calendar", customer["tok"])
+        chk(status == 200 and b"BEGIN:VCALENDAR" in ics and first[1]["code"].encode() in ics, f"dados de calendário: {status}")
+        time.sleep(2)
+        chk(any(first[1]["code"] in b for b in sms_to(customer["phone"])), "SMS da marcação com o código")
 
     with Scenario("M3", "Ao domicílio e promoção"):
-        chk(False, "a taxa existe na oficina (M1) mas nada a soma: não há marcação nem preço; não há promoções")
+        customer = new_user("customer", "Cliente M3")
+        workshop_id, service_id = workshop_fixture(partner, capacity=3)
+        now = dt.datetime.now(dt.timezone.utc)
+        promo = {"description": "Primeira revisão -15%", "discount_bps": 1500, "valid_from": (now - dt.timedelta(days=1)).isoformat(), "valid_until": (now + dt.timedelta(days=30)).isoformat(), "per_customer_limit": 1, "is_public": True, "workshop_id": workshop_id, "workshop_service_id": service_id, "auto_apply": True}
+        status, voucher = call("POST", "/admin/vouchers", promo, admin, BACKOFFICE)
+        chk(status == 201, f"admin cria a promoção: {status}")
+        expired = dict(promo, description="Expirada", discount_bps=9000, valid_from=(now - dt.timedelta(days=5)).isoformat(), valid_until=(now - dt.timedelta(days=1)).isoformat())
+        chk(call("POST", "/admin/vouchers", expired, admin, BACKOFFICE)[0] == 201, "promoção expirada existe")
+        _, card = call("GET", f"/workshops/{workshop_id}?lat=-8.9&lng=13.2", None, customer["tok"])
+        chk([p["description"] for p in card.get("promotions", [])] == ["Primeira revisão -15%"], f"só a válida aparece: {card.get('promotions')}")
+        slot = slot_of(workshop_id, service_id, customer)
+        status, booked = book(customer, workshop_id, [service_id], slot, at_home=True, home_lat=-8.84, home_lng=13.24, home_address="Casa")
+        expected = 3500000 + 300000
+        discount = round(expected * 0.15)
+        chk(status == 201 and booked.get("home_fee_cents") == 300000 and booked.get("discount_cents") == discount and booked.get("total_cents") == expected - discount, f"taxa e desconto: {booked.get('home_fee_cents')} {booked.get('discount_cents')} {booked.get('total_cents')}")
+        status, again = book(customer, workshop_id, [service_id], slot)
+        chk(status == 201 and again.get("discount_cents") == 0, f"uma vez por cliente: desconto {again.get('discount_cents')}")
+        _, card = call("GET", f"/workshops/{workshop_id}?lat=-8.9&lng=13.2", None, customer["tok"])
+        chk(card.get("promotions") == [], f"já não aparece a quem a usou: {card.get('promotions')}")
+        reason = reason_id(customer["tok"], "customer", "maintenance")
+        status, _ = call("POST", f"/bookings/{booked['id']}/cancel", {"reason_id": reason}, customer["tok"])
+        chk(status == 200, f"cancelar devolve a promoção: {status}")
+        chk(sql(f"SELECT released_at IS NOT NULL FROM voucher_redemptions WHERE request_id='{booked['request_id']}'") == "t", "resgate libertado (BD)")
+        other = new_user("customer", "Cliente M3b")
+        no_home, service_b = workshop_fixture(partner, offers_home_service=False, home_service_fee_cents=0)
+        status, res = book(other, no_home, [service_b], slot_of(no_home, service_b, other), at_home=True, home_lat=-8.84, home_lng=13.24)
+        chk(code(res) == "HOME_SERVICE_UNAVAILABLE", f"sem domicílio recusa: {status} {code(res)}")
 
     with Scenario("M4", "Fotos no R2"):
         customer = new_user("customer", "Cliente M4")
-        status, created = call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='maintenance'"), "pickup": PICKUP, "details": {"problem": "QA"}}, customer["tok"], idem=str(uuid.uuid4()))
-        rid = created.get("id")
-        status, res = call("POST", f"/requests/{rid}/photos/upload-url", {"content_type": "image/jpeg", "size": 1000}, customer["tok"])
-        chk(status == 200, f"URL pré-assinada para fotos do pedido: {status}")
+        workshop_id, service_id = workshop_fixture(partner, capacity=3)
+        status, booked = book(customer, workshop_id, [service_id], slot_of(workshop_id, service_id, customer))
+        rid = booked.get("request_id")
+        status, res = call("POST", "/media/photos", {"content_type": "image/jpeg", "size_bytes": 1000}, customer["tok"])
+        chk(status == 201 and res.get("upload_url"), f"URL pré-assinada para fotos do pedido: {status}")
         chk(any("photo" in p for p in OPENAPI), "rota de fotos no OpenAPI")
-        if rid:
-            cancel(customer["tok"], rid)
+        chk(code(call("POST", "/media/photos", {"content_type": "application/pdf", "size_bytes": 1000}, customer["tok"])[1]) == "PHOTO_TYPE_NOT_ALLOWED", "tipo validado")
+        status, res = call("POST", f"/requests/{rid}/photos", {"photo_ids": [str(uuid.uuid4())]}, customer["tok"])
+        chk(status == 404, f"foto inexistente: {status}")
+        ids = []
+        for _ in range(6):
+            status, photo = call("POST", "/media/photos", {"content_type": "image/jpeg", "size_bytes": 5}, customer["tok"], log=False)
+            req = urllib.request.Request(photo["upload_url"], data=b"hello", method="PUT", headers={"Content-Type": "image/jpeg"})
+            with urllib.request.urlopen(req, timeout=30) as sent:
+                assert sent.status in (200, 204)
+            ids.append(photo["id"])
+        status, res = call("POST", f"/requests/{rid}/photos", {"photo_ids": ids[:5]}, customer["tok"])
+        chk(status == 200 and len(res.get("items", [])) == 5, f"5 fotos no R2: {status}")
+        status, res = call("POST", f"/requests/{rid}/photos", {"photo_ids": ids[5:]}, customer["tok"])
+        chk(code(res) == "PHOTO_LIMIT", f"a 6.ª foto é recusada: {status} {code(res)}")
 
     with Scenario("M5", "Estados e orçamento extra"):
-        statuses = sql("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname LIKE 'service_requests_status%' LIMIT 1")
+        customer = new_user("customer", "Cliente M5")
+        workshop_id, service_id = workshop_fixture(partner, capacity=3)
+        status, booked = book(customer, workshop_id, [service_id], slot_of(workshop_id, service_id, customer))
+        bid, rid = booked["id"], booked["request_id"]
+        statuses = sql("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname LIKE 'bookings_status%' LIMIT 1")
         chk("vehicle_received" in statuses or "ready" in statuses, f"estados de oficina existem: {statuses[:150]}")
         chk(any("extra" in p or "budget" in p for p in OPENAPI), "rota de orçamento extra")
+        move = lambda to: call("POST", f"/fleet/bookings/{bid}/status", {"status": to}, partner, PARTNER)
+        chk(code(move("ready")[1]) == "BOOKING_STATE_INVALID", "salto de estado é recusado")
+        chk(code(call("POST", f"/fleet/bookings/{bid}/extras", {"description": "Cedo", "amount_cents": 100}, partner, PARTNER)[1]) == "BOOKING_STATE_INVALID", "extra antes de a viatura chegar")
+        status, mechanic = call("POST", f"/fleet/workshops/{workshop_id}/mechanics", {"name": "Domingos Paulo"}, partner, PARTNER)
+        chk(status == 201, f"mecânico sem conta: {status}")
+        ready_at = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=8)).isoformat()
+        status, assigned = call("PUT", f"/fleet/bookings/{bid}/assignment", {"mechanic_id": mechanic["id"], "expected_ready_at": ready_at}, partner, PARTNER)
+        chk(status == 200 and assigned.get("mechanic") == "Domingos Paulo" and assigned.get("expected_ready_at"), f"mecânico e hora prevista: {status}")
+        chk(move("vehicle_received")[0] == 200, "Viatura recebida")
+        _, active = call("GET", "/requests?status=in_progress", None, customer["tok"])
+        chk(rid in [i["id"] for i in active.get("items", [])], "aparece em curso")
+        reason = reason_id(customer["tok"], "customer", "maintenance")
+        chk(code(call("POST", f"/bookings/{bid}/cancel", {"reason_id": reason}, customer["tok"])[1]) == "BOOKING_NOT_CANCELLABLE", "com a viatura na oficina já não cancela")
+        chk(code(call("POST", f"/requests/{rid}/cancel", {"reason_id": reason}, customer["tok"])[1]) == "BOOKING_MANAGED", "o pedido associado não cancela à parte")
+        chk(move("in_service")[0] == 200, "Em serviço")
+        _, extra = call("POST", f"/fleet/bookings/{bid}/extras", {"description": "Pastilhas", "amount_cents": 1200000}, partner, PARTNER)
+        _, other = call("POST", f"/fleet/bookings/{bid}/extras", {"description": "Filtro de ar", "amount_cents": 500000}, partner, PARTNER)
+        approved_id, declined_id = extra["extras"][0]["id"], other["extras"][1]["id"]
+        chk(code(move("ready")[1]) == "BOOKING_EXTRAS_PENDING", "sem resposta ao extra não fica pronta")
+        chk(code(call("POST", f"/bookings/{bid}/approve", None, customer["tok"])[1]) == "BOOKING_EXTRAS_PENDING", "nem se aprova")
+        intruder = new_user("customer", "Intruso M5")
+        chk(call("POST", f"/bookings/{bid}/extras/{approved_id}/answer", {"approve": True}, intruder["tok"])[0] == 404, "outro cliente não responde")
+        status, view = call("POST", f"/bookings/{bid}/extras/{approved_id}/answer", {"approve": True}, customer["tok"])
+        chk(view.get("total_cents") == 3500000 + 1200000, f"aprovado entra no total: {view.get('total_cents')}")
+        status, view = call("POST", f"/bookings/{bid}/extras/{declined_id}/answer", {"approve": False}, customer["tok"])
+        chk(view.get("total_cents") == 3500000 + 1200000 and view.get("extras_cents") == 1200000, f"recusado não entra no total: {view.get('total_cents')}")
+        chk(code(call("POST", f"/bookings/{bid}/extras/{declined_id}/answer", {"approve": True}, customer["tok"])[1]) == "EXTRA_ALREADY_ANSWERED", "não se responde duas vezes")
+        chk(call("POST", f"/bookings/{bid}/messages", {"body": "Quando fica pronta?"}, customer["tok"])[0] == 201, "chat do cliente")
+        chk(call("POST", f"/fleet/bookings/{bid}/messages", {"body": "Amanhã às 10h"}, partner, PARTNER)[0] == 201, "chat da oficina")
+        _, chat = call("GET", f"/bookings/{bid}/messages", None, customer["tok"])
+        chk(len(chat.get("items", [])) == 2, f"mensagens: {len(chat.get('items', []))}")
+        status, res = call("POST", f"/bookings/{bid}/call", None, customer["tok"])
+        chk(status == 503 and code(res) == "CALLS_UNAVAILABLE" or status == 409, f"chamada mascarada sem fornecedor: {status} {code(res)}")
+        chk(move("ready")[0] == 200, "Pronta para levantar")
+        chk(sql(f"SELECT string_agg(to_status, ',' ORDER BY id) FROM booking_events WHERE booking_id='{bid}'") == "confirmed,vehicle_received,in_service,ready", "histórico de estados (BD)")
 
     with Scenario("M6", "Só cobra depois de aprovar"):
         customer = new_user("customer", "Cliente M6")
-        status, created = call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='maintenance'"), "pickup": PICKUP, "details": {"problem": "QA"}}, customer["tok"], idem=str(uuid.uuid4()))
-        rid = created.get("id")
+        workshop_id, service_id = workshop_fixture(partner, capacity=3)
+        status, booked = book(customer, workshop_id, [service_id], slot_of(workshop_id, service_id, customer))
+        bid, rid = booked["id"], booked["request_id"]
         status, res = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"])
         chk(status == 409 and code(res) == "REQUEST_NOT_PAYABLE", f"pedido não concluído não se paga: {status} {code(res)}")
-        chk(any("approve" in p and "request" in p for p in OPENAPI), "passo de aprovação do serviço pelo cliente")
-        cancel(customer["tok"], rid)
+        chk(any("approve" in p and "booking" in p for p in OPENAPI), "passo de aprovação do serviço pelo cliente")
+        for to in ("vehicle_received", "in_service", "ready"):
+            assert call("POST", f"/fleet/bookings/{bid}/status", {"status": to}, partner, PARTNER, log=False)[0] == 200
+        status, res = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"])
+        chk(status == 409 and code(res) == "REQUEST_NOT_PAYABLE", f"pronta, mas sem aprovação, não se paga: {status} {code(res)}")
+        chk(call("POST", f"/bookings/{bid}/approve", None, new_user("customer", "Intruso M6")["tok"])[0] == 404, "outro cliente não aprova")
+        status, view = call("POST", f"/bookings/{bid}/approve", None, customer["tok"])
+        chk(status == 200 and view.get("status") == "completed" and view.get("amount_due_cents") == 3500000, f"aprovar: {status} {view.get('status')} {view.get('amount_due_cents')}")
+        status, payment = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK, "amount_cents": 1}, customer["tok"])
+        chk(status == 201 and payment.get("amount_cents") == 3500000, f"Express com o valor do servidor: {status} {payment.get('amount_cents')}")
+        chk(wait_payment(customer, rid, "paid"), "pago depois da confirmação da AppyPay")
+        commission = int(sql(f"SELECT commission_cents FROM service_requests WHERE id='{rid}'"))
+        balance = int(sql(f"SELECT COALESCE(sum(amount_cents),0) FROM ledger_entries WHERE account_type='workshop' AND account_id='{workshop_id}'"))
+        chk(balance == 3500000 - commission, f"ledger da oficina: {balance} com comissão {commission}")
+        status, rating = call("POST", f"/requests/{rid}/rating", {"stars": 5, "comment": "Bom"}, customer["tok"])
+        chk(status == 201, f"avaliar: {status}")
+        _, reviews = call("GET", f"/workshops/{workshop_id}/reviews", None, customer["tok"])
+        chk(reviews.get("average") == 5 and reviews.get("total") == 1, f"avaliações da oficina: {reviews.get('average')} {reviews.get('total')}")
+        status, pdf = fetch_raw(f"/requests/{rid}/receipt", customer["tok"])
+        chk(status == 200 and pdf.startswith(b"%PDF"), f"recibo: {status}")
+        ref_customer = new_user("customer", "Cliente M6b")
+        status, res = book(ref_customer, workshop_id, [service_id], slot_of(workshop_id, service_id, ref_customer), payment_method="reference")
+        chk(status == 201 and res.get("status") == "awaiting_payment", f"com referência espera pagamento: {status} {res.get('status')}")
+        status, gpo = call("POST", f"/requests/{res['request_id']}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, ref_customer["tok"])
+        chk(status == 409, f"sem Express antes de aprovar: {status} {code(gpo)}")
 
 
 def towing_details(tok):
@@ -725,19 +911,22 @@ def orders_and_account():
         status, scheduled = create(customer, estimate(customer, scheduled_for=when), scheduled_for=when)
         status, tow = create(customer, tow_option(customer), towing=towing_details(customer["tok"]))
         status, removal = call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='removals'"), "pickup": PICKUP, "destination": DEST}, customer["tok"], idem=str(uuid.uuid4()))
-        status, repair = call("POST", "/requests", {"service_id": sql("SELECT id FROM services WHERE slug='maintenance'"), "pickup": PICKUP}, customer["tok"], idem=str(uuid.uuid4()))
+        shop, shop_service = workshop_fixture(PARTNER_TOKEN[0], capacity=3)
+        status, repair_booking = book(customer, shop, [shop_service], slot_of(shop, shop_service, customer))
+        repair = {"id": repair_booking["request_id"]}
         ids = lambda res: {i["id"] for i in res.get("items", [])}
         _, active = call("GET", "/requests?status=created,searching,offered,awaiting_choice,accepted,provider_en_route,in_progress", None, customer["tok"])
         _, history = call("GET", "/requests?status=completed,cancelled,expired", None, customer["tok"])
         _, marked = call("GET", "/requests?status=scheduled", None, customer["tok"])
         chk(tow["id"] in ids(active) and done not in ids(active), f"Em curso: {len(ids(active))} pedidos, inclui reboque")
-        chk(removal["id"] in ids(active) and repair["id"] in ids(active), "Em curso junta mudanças e manutenção")
+        chk(removal["id"] in ids(active), "Em curso junta as mudanças")
         chk(done in ids(history) and tow["id"] not in ids(history), "Histórico tem a concluída")
-        chk(ids(marked) == {scheduled["id"]}, "Marcados tem só a marcada")
+        chk(ids(marked) == {scheduled["id"], repair["id"]}, "Marcados junta a corrida marcada e a marcação de oficina")
         _, only = call("GET", "/requests?category=towing", None, customer["tok"])
         chk(ids(only) == {tow["id"]}, "filtro por serviço")
-        for item in (scheduled, tow, removal, repair):
+        for item in (scheduled, tow, removal):
             cancel(customer["tok"], item['id'])
+        call("POST", f"/bookings/{repair_booking['id']}/cancel", {"reason_id": reason_id(customer["tok"], "customer", "maintenance")}, customer["tok"], log=False)
 
     with Scenario("P2", "Código, recibo PDF, Repetir e ajuda"):
         customer, driver, rid = completed_ride("gpo")
@@ -1162,7 +1351,7 @@ def main():
         with urllib.request.urlopen(BASE + "/docs/openapi.json") as res:
             OPENAPI = list(json.load(res)["paths"])
         admin, partner = staff("admin@agora.ao", BACKOFFICE), staff("parceiro@agora.ao", PARTNER)
-        ADMIN[0] = admin
+        ADMIN[0], PARTNER_TOKEN[0] = admin, partner
         groups = {"taxi": taxi, "maintenance": lambda: maintenance(admin, partner), "towing": towing, "removals": removals, "orders": orders_and_account, "payments": lambda: payments_real(admin),
                   "backoffice": lambda: backoffice(admin, partner), "account": account_and_realtime, "overflow": lambda: overflow(admin, partner), "security": lambda: security(admin, partner)}
         for name in sys.argv[1:] or groups:

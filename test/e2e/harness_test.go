@@ -864,7 +864,7 @@ func setPolicy(t *testing.T, category, assignments string) {
 			UPDATE dispatch_policies p SET
 				offer_ttl_seconds = (s.j->>'offer_ttl_seconds')::int, search_ttl_seconds = (s.j->>'search_ttl_seconds')::int,
 				ack_timeout_seconds = (s.j->>'ack_timeout_seconds')::int, ack_giveup_seconds = (s.j->>'ack_giveup_seconds')::int,
-				search_lead_seconds = (s.j->>'search_lead_seconds')::int, max_stops = (s.j->>'max_stops')::smallint, schedule_slot_minutes = (s.j->>'schedule_slot_minutes')::smallint
+				search_lead_seconds = (s.j->>'search_lead_seconds')::int, booking_only = (s.j->>'booking_only')::boolean, max_stops = (s.j->>'max_stops')::smallint, schedule_slot_minutes = (s.j->>'schedule_slot_minutes')::smallint
 			FROM (SELECT $1::jsonb AS j) s WHERE p.id = (s.j->>'id')::uuid`, restore[0])
 		require.NoError(t, err)
 	})
