@@ -144,6 +144,81 @@ definitions:
       reason:
         type: string
     type: object
+  dtos.AdminRequestDetail:
+    properties:
+      history:
+        items:
+          $ref: '#/definitions/dtos.RequestHistoryEntry'
+        type: array
+      request:
+        $ref: '#/definitions/dtos.RequestView'
+    type: object
+  dtos.AdminRequestList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.AdminRequestView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.AdminRequestView:
+    properties:
+      category:
+        type: string
+      category_name:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      customer_id:
+        type: string
+      customer_name:
+        type: string
+      destination_line:
+        type: string
+      fare_cents:
+        type: integer
+      id:
+        type: string
+      needs_operator:
+        type: boolean
+      organization_id:
+        type: string
+      organization_name:
+        type: string
+      pickup_lat:
+        type: number
+      pickup_line:
+        type: string
+      pickup_lng:
+        type: number
+      provider_id:
+        type: string
+      provider_name:
+        type: string
+      scheduled_for:
+        type: string
+      service_id:
+        type: string
+      service_name:
+        type: string
+      status:
+        type: string
+      version:
+        type: integer
+      zone_id:
+        type: string
+      zone_name:
+        type: string
+    type: object
   dtos.ApplicationList:
     properties:
       items:
@@ -1772,6 +1847,23 @@ definitions:
     required:
     - role_ids
     type: object
+  dtos.RequestHistoryEntry:
+    properties:
+      actor_id:
+        type: string
+      actor_type:
+        type: string
+      from:
+        type: string
+      occurred_at:
+        type: string
+      reason:
+        type: string
+      to:
+        type: string
+      version:
+        type: integer
+    type: object
   dtos.RequestList:
     properties:
       items:
@@ -1791,6 +1883,39 @@ definitions:
         type: string
     required:
     - service_id
+    type: object
+  dtos.RequestSummary:
+    properties:
+      group_by:
+        example: category
+        type: string
+      groups:
+        items:
+          $ref: '#/definitions/dtos.RequestSummaryGroup'
+        type: array
+      total:
+        type: integer
+    type: object
+  dtos.RequestSummaryGroup:
+    properties:
+      by_status:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      completed_fare_cents:
+        type: integer
+      currency:
+        example: AOA
+        type: string
+      key:
+        example: towing
+        type: string
+      label:
+        example: Reboque
+        type: string
+      total:
+        type: integer
     type: object
   dtos.RequestView:
     properties:
@@ -3447,6 +3572,138 @@ paths:
       summary: Update a rejection reason
       tags:
       - Backoffice providers
+  /api/v1/admin/requests:
+    get:
+      description: Requires requests:read. Every category is here; filter by category
+        to see one segment, such as taxi, towing, removals or maintenance. Newest
+        first.
+      parameters:
+      - description: One status or several separated by commas
+        in: query
+        name: status
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Service
+        in: query
+        name: service_id
+        type: string
+      - description: Zone
+        in: query
+        name: zone_id
+        type: string
+      - description: Partner
+        in: query
+        name: organization_id
+        type: string
+      - description: Provider
+        in: query
+        name: provider_id
+        type: string
+      - description: Created at or after, YYYY-MM-DD or RFC 3339
+        in: query
+        name: from
+        type: string
+      - description: Created before, YYYY-MM-DD or RFC 3339
+        in: query
+        name: to
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AdminRequestList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List rides and service requests
+      tags:
+      - Backoffice requests
+  /api/v1/admin/requests/{id}:
+    get:
+      description: Requires requests:read.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AdminRequestDetail'
+        "404":
+          description: REQUEST_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a ride or service request with its history
+      tags:
+      - Backoffice requests
+  /api/v1/admin/requests/summary:
+    get:
+      description: Requires requests:read. Counts per status and the fare of completed
+        requests, for each group. Amounts in different currencies stay in separate
+        groups.
+      parameters:
+      - description: category (default), service, status, zone or organization
+        in: query
+        name: group_by
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Zone
+        in: query
+        name: zone_id
+        type: string
+      - description: Partner
+        in: query
+        name: organization_id
+        type: string
+      - description: Created at or after
+        in: query
+        name: from
+        type: string
+      - description: Created before
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestSummary'
+        "422":
+          description: INVALID_GROUPING
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Rides and service requests grouped
+      tags:
+      - Backoffice requests
   /api/v1/admin/services:
     get:
       description: Requires services:manage. Active and inactive unless filtered.
@@ -4827,6 +5084,115 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Associate a vehicle with a driver
+      tags:
+      - Partner fleet
+  /api/v1/fleet/requests:
+    get:
+      description: Requires partner.requests:read. Only requests served by drivers
+        of the partner of the token, whatever organization_id says.
+      parameters:
+      - description: One status or several separated by commas
+        in: query
+        name: status
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Service
+        in: query
+        name: service_id
+        type: string
+      - description: Driver
+        in: query
+        name: provider_id
+        type: string
+      - description: Created at or after
+        in: query
+        name: from
+        type: string
+      - description: Created before
+        in: query
+        name: to
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AdminRequestList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the rides of my fleet
+      tags:
+      - Partner fleet
+  /api/v1/fleet/requests/{id}:
+    get:
+      description: Requires partner.requests:read. The customer's phone is not included.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AdminRequestDetail'
+        "404":
+          description: REQUEST_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a ride of my fleet
+      tags:
+      - Partner fleet
+  /api/v1/fleet/requests/summary:
+    get:
+      description: Requires partner.requests:read.
+      parameters:
+      - description: category (default), service, status or zone
+        in: query
+        name: group_by
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Created at or after
+        in: query
+        name: from
+        type: string
+      - description: Created before
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestSummary'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Rides of my fleet grouped
       tags:
       - Partner fleet
   /api/v1/fleet/vehicles:

@@ -1084,6 +1084,211 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/requests": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires requests:read. Every category is here; filter by category to see one segment, such as taxi, towing, removals or maintenance. Newest first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice requests"
+                ],
+                "summary": "List rides and service requests",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "One status or several separated by commas",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service",
+                        "name": "service_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Zone",
+                        "name": "zone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Partner",
+                        "name": "organization_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Provider",
+                        "name": "provider_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created at or after, YYYY-MM-DD or RFC 3339",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created before, YYYY-MM-DD or RFC 3339",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AdminRequestList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/requests/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires requests:read. Counts per status and the fare of completed requests, for each group. Amounts in different currencies stay in separate groups.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice requests"
+                ],
+                "summary": "Rides and service requests grouped",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "category (default), service, status, zone or organization",
+                        "name": "group_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Zone",
+                        "name": "zone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Partner",
+                        "name": "organization_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created at or after",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created before",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestSummary"
+                        }
+                    },
+                    "422": {
+                        "description": "INVALID_GROUPING",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/requests/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires requests:read.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice requests"
+                ],
+                "summary": "Get a ride or service request with its history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AdminRequestDetail"
+                        }
+                    },
+                    "404": {
+                        "description": "REQUEST_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/services": {
             "get": {
                 "security": [
@@ -3218,6 +3423,181 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "DRIVER_BUSY",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/requests": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.requests:read. Only requests served by drivers of the partner of the token, whatever organization_id says.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "List the rides of my fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "One status or several separated by commas",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service",
+                        "name": "service_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Driver",
+                        "name": "provider_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created at or after",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created before",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AdminRequestList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/requests/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.requests:read.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Rides of my fleet grouped",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "category (default), service, status or zone",
+                        "name": "group_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created at or after",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created before",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestSummary"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/requests/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.requests:read. The customer's phone is not included.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Get a ride of my fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AdminRequestDetail"
+                        }
+                    },
+                    "404": {
+                        "description": "REQUEST_NOT_FOUND",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -8978,6 +9358,120 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.AdminRequestDetail": {
+            "type": "object",
+            "properties": {
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RequestHistoryEntry"
+                    }
+                },
+                "request": {
+                    "$ref": "#/definitions/dtos.RequestView"
+                }
+            }
+        },
+        "dtos.AdminRequestList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.AdminRequestView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.AdminRequestView": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "customer_id": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "destination_line": {
+                    "type": "string"
+                },
+                "fare_cents": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "needs_operator": {
+                    "type": "boolean"
+                },
+                "organization_id": {
+                    "type": "string"
+                },
+                "organization_name": {
+                    "type": "string"
+                },
+                "pickup_lat": {
+                    "type": "number"
+                },
+                "pickup_line": {
+                    "type": "string"
+                },
+                "pickup_lng": {
+                    "type": "number"
+                },
+                "provider_id": {
+                    "type": "string"
+                },
+                "provider_name": {
+                    "type": "string"
+                },
+                "scheduled_for": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                },
+                "zone_id": {
+                    "type": "string"
+                },
+                "zone_name": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.ApplicationList": {
             "type": "object",
             "properties": {
@@ -11321,6 +11815,32 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RequestHistoryEntry": {
+            "type": "object",
+            "properties": {
+                "actor_id": {
+                    "type": "string"
+                },
+                "actor_type": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "occurred_at": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.RequestList": {
             "type": "object",
             "properties": {
@@ -11349,6 +11869,54 @@ const docTemplate = `{
             "properties": {
                 "service_id": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.RequestSummary": {
+            "type": "object",
+            "properties": {
+                "group_by": {
+                    "type": "string",
+                    "example": "category"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RequestSummaryGroup"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.RequestSummaryGroup": {
+            "type": "object",
+            "properties": {
+                "by_status": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "completed_fare_cents": {
+                    "type": "integer"
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "AOA"
+                },
+                "key": {
+                    "type": "string",
+                    "example": "towing"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Reboque"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

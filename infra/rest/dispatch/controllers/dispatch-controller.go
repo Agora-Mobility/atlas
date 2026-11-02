@@ -102,6 +102,7 @@ var errorTable = []struct {
 	message string
 }{
 	{dispatch.ErrRequestNotFound, http.StatusNotFound, "REQUEST_NOT_FOUND", "Request not found."},
+	{dispatch.ErrInvalidGrouping, http.StatusUnprocessableEntity, "INVALID_GROUPING", "group_by must be category, service, status, zone or organization."},
 	{dispatch.ErrOfferNotFound, http.StatusNotFound, "OFFER_NOT_FOUND", "Offer not found."},
 	{dispatch.ErrZoneNotFound, http.StatusNotFound, "ZONE_NOT_FOUND", "Zone not found."},
 	{dispatch.ErrPolicyNotFound, http.StatusNotFound, "POLICY_NOT_FOUND", "Policy not found."},

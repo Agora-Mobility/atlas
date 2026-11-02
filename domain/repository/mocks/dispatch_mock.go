@@ -689,6 +689,22 @@ func (mr *MockIRequestRepositoryMockRecorder) AddFareAdjustment(ctx, adjustment 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddFareAdjustment", reflect.TypeOf((*MockIRequestRepository)(nil).AddFareAdjustment), ctx, adjustment)
 }
 
+// AdminList mocks base method.
+func (m *MockIRequestRepository) AdminList(ctx context.Context, filter repository.AdminRequestFilter) ([]repository.AdminRequest, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AdminList", ctx, filter)
+	ret0, _ := ret[0].([]repository.AdminRequest)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// AdminList indicates an expected call of AdminList.
+func (mr *MockIRequestRepositoryMockRecorder) AdminList(ctx, filter any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AdminList", reflect.TypeOf((*MockIRequestRepository)(nil).AdminList), ctx, filter)
+}
+
 // Create mocks base method.
 func (m *MockIRequestRepository) Create(ctx context.Context, request *entities.ServiceRequest) error {
 	m.ctrl.T.Helper()
@@ -793,6 +809,21 @@ func (mr *MockIRequestRepositoryMockRecorder) FindForUpdate(ctx, id any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindForUpdate", reflect.TypeOf((*MockIRequestRepository)(nil).FindForUpdate), ctx, id)
 }
 
+// History mocks base method.
+func (m *MockIRequestRepository) History(ctx context.Context, requestID uuid.UUID) ([]repository.RequestHistoryEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "History", ctx, requestID)
+	ret0, _ := ret[0].([]repository.RequestHistoryEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// History indicates an expected call of History.
+func (mr *MockIRequestRepositoryMockRecorder) History(ctx, requestID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "History", reflect.TypeOf((*MockIRequestRepository)(nil).History), ctx, requestID)
+}
+
 // ListFareAdjustments mocks base method.
 func (m *MockIRequestRepository) ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]entities.FareAdjustment, error) {
 	m.ctrl.T.Helper()
@@ -854,6 +885,21 @@ func (mr *MockIRequestRepositoryMockRecorder) OperatorQueue(ctx, limit, offset a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OperatorQueue", reflect.TypeOf((*MockIRequestRepository)(nil).OperatorQueue), ctx, limit, offset)
 }
 
+// OrganizationOf mocks base method.
+func (m *MockIRequestRepository) OrganizationOf(ctx context.Context, requestID uuid.UUID) (*uuid.UUID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OrganizationOf", ctx, requestID)
+	ret0, _ := ret[0].(*uuid.UUID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// OrganizationOf indicates an expected call of OrganizationOf.
+func (mr *MockIRequestRepositoryMockRecorder) OrganizationOf(ctx, requestID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OrganizationOf", reflect.TypeOf((*MockIRequestRepository)(nil).OrganizationOf), ctx, requestID)
+}
+
 // RecordChange mocks base method.
 func (m *MockIRequestRepository) RecordChange(ctx context.Context, requestID uuid.UUID, change *entities.RequestStatusChange) error {
 	m.ctrl.T.Helper()
@@ -866,6 +912,21 @@ func (m *MockIRequestRepository) RecordChange(ctx context.Context, requestID uui
 func (mr *MockIRequestRepositoryMockRecorder) RecordChange(ctx, requestID, change any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecordChange", reflect.TypeOf((*MockIRequestRepository)(nil).RecordChange), ctx, requestID, change)
+}
+
+// Summary mocks base method.
+func (m *MockIRequestRepository) Summary(ctx context.Context, filter repository.AdminRequestFilter) ([]repository.RequestSummaryRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Summary", ctx, filter)
+	ret0, _ := ret[0].([]repository.RequestSummaryRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Summary indicates an expected call of Summary.
+func (mr *MockIRequestRepositoryMockRecorder) Summary(ctx, filter any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Summary", reflect.TypeOf((*MockIRequestRepository)(nil).Summary), ctx, filter)
 }
 
 // TryLock mocks base method.

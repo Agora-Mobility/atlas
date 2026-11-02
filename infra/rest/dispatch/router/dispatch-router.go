@@ -89,6 +89,15 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	tariffs.GET("", r.controller.ListTariffs)
 	tariffs.POST("", r.controller.PublishTariff)
 
+	admin.GET("/requests", can(entities.PermRequestsRead), r.controller.ListAdminRequests)
+	admin.GET("/requests/summary", can(entities.PermRequestsRead), r.controller.SummarizeAdminRequests)
+	admin.GET("/requests/:id", can(entities.PermRequestsRead), r.controller.GetAdminRequest)
+
+	partnerRequests := api.Group("/fleet/requests", clients, r.authenticator.RequireAuth(), can(entities.PermPartnerRequestsRead))
+	partnerRequests.GET("", r.controller.ListPartnerRequests)
+	partnerRequests.GET("/summary", r.controller.SummarizePartnerRequests)
+	partnerRequests.GET("/:id", r.controller.GetPartnerRequest)
+
 	dispatchOps := admin.Group("/dispatch", can(entities.PermRequestsManage))
 	dispatchOps.GET("/queue", r.controller.OperatorQueue)
 	dispatchOps.GET("/heatmap", r.controller.HeatMap)

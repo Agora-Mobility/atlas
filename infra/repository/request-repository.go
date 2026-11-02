@@ -241,6 +241,97 @@ func (r *RequestRepository) ListWithProviderOnTheWay(ctx context.Context, limit 
 	return toRequests(ctx, queries, rows)
 }
 
+func emptyStatuses(statuses []string) []string {
+	if statuses == nil {
+		return []string{}
+	}
+	return statuses
+}
+
+func (r *RequestRepository) AdminList(ctx context.Context, f repository.AdminRequestFilter) ([]repository.AdminRequest, int64, error) {
+	queries := postgres.Queries(ctx, r.pool)
+	statuses := emptyStatuses(f.Statuses)
+	rows, err := queries.ListAdminRequests(ctx, gen.ListAdminRequestsParams{
+		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
+		CreatedFrom: f.From, CreatedTo: f.To, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("list admin requests: %w", err)
+	}
+	total, err := queries.CountAdminRequests(ctx, gen.CountAdminRequestsParams{
+		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
+		CreatedFrom: f.From, CreatedTo: f.To,
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("count admin requests: %w", err)
+	}
+	out := make([]repository.AdminRequest, 0, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		item := repository.AdminRequest{
+			ID: row.ID, Status: row.Status, Version: int(row.Version), Category: row.CategorySlug, CategoryName: row.CategoryName, ServiceID: row.ServiceID, ServiceName: row.ServiceName,
+			CustomerID: row.CustomerID, CustomerName: row.CustomerName, ProviderID: row.ProviderID, OrganizationID: row.OrganizationID, ZoneID: row.ZoneID, ZoneName: row.ZoneName,
+			FareCents: row.FareCents, Currency: row.Currency, NeedsOperator: row.NeedsOperator, ScheduledFor: row.ScheduledFor, CreatedAt: row.CreatedAt, CompletedAt: row.CompletedAt,
+			PickupLine: row.PickupLine, PickupLat: row.PickupLat, PickupLng: row.PickupLng,
+		}
+		if row.ProviderName != nil {
+			item.ProviderName = *row.ProviderName
+		}
+		if row.OrganizationName != nil {
+			item.OrganizationName = *row.OrganizationName
+		}
+		if row.DestinationLine != nil {
+			item.DestinationLine = *row.DestinationLine
+		}
+		out = append(out, item)
+	}
+	return out, total, nil
+}
+
+func (r *RequestRepository) Summary(ctx context.Context, f repository.AdminRequestFilter) ([]repository.RequestSummaryRow, error) {
+	rows, err := postgres.Queries(ctx, r.pool).SummarizeRequests(ctx, gen.SummarizeRequestsParams{Category: f.Category, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, CreatedFrom: f.From, CreatedTo: f.To})
+	if err != nil {
+		return nil, fmt.Errorf("summarize requests: %w", err)
+	}
+	out := make([]repository.RequestSummaryRow, 0, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		item := repository.RequestSummaryRow{
+			Category: row.CategorySlug, CategoryName: row.CategoryName, ServiceID: row.ServiceID, ServiceName: row.ServiceName, Status: row.Status, ZoneID: row.ZoneID, ZoneName: row.ZoneName,
+			OrganizationID: row.OrganizationID, Currency: row.Currency, Total: row.Total, FareCents: row.FareCents,
+		}
+		if row.OrganizationName != nil {
+			item.OrganizationName = *row.OrganizationName
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+func (r *RequestRepository) History(ctx context.Context, requestID uuid.UUID) ([]repository.RequestHistoryEntry, error) {
+	rows, err := postgres.Queries(ctx, r.pool).ListServiceRequestEvents(ctx, requestID)
+	if err != nil {
+		return nil, fmt.Errorf("list request events: %w", err)
+	}
+	out := make([]repository.RequestHistoryEntry, 0, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		out = append(out, repository.RequestHistoryEntry{From: row.FromStatus, To: row.ToStatus, Version: int(row.Version), ActorType: row.ActorType, ActorID: row.ActorID, Reason: row.Reason, OccurredAt: row.OccurredAt})
+	}
+	return out, nil
+}
+
+func (r *RequestRepository) OrganizationOf(ctx context.Context, requestID uuid.UUID) (*uuid.UUID, error) {
+	organizationID, err := postgres.Queries(ctx, r.pool).GetRequestOrganization(ctx, requestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get request organization: %w", err)
+	}
+	return organizationID, nil
+}
+
 func requestOrNil(ctx context.Context, queries *gen.Queries, row *gen.ServiceRequest, err error, action string) (*entities.ServiceRequest, error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil

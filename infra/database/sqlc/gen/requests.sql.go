@@ -125,6 +125,45 @@ func (q *Queries) ActiveRequestOfProvider(ctx context.Context, providerID *uuid.
 	return i, err
 }
 
+const countAdminRequests = `-- name: CountAdminRequests :one
+SELECT count(*) FROM service_requests r
+WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
+  AND ($2::text = '' OR r.category_slug = $2::text)
+  AND ($3::uuid IS NULL OR r.service_id = $3)
+  AND ($4::uuid IS NULL OR r.zone_id = $4)
+  AND ($5::uuid IS NULL OR r.organization_id = $5)
+  AND ($6::uuid IS NULL OR r.provider_id = $6)
+  AND ($7::timestamptz IS NULL OR r.created_at >= $7)
+  AND ($8::timestamptz IS NULL OR r.created_at < $8)
+`
+
+type CountAdminRequestsParams struct {
+	Statuses       []string   `json:"statuses"`
+	Category       string     `json:"category"`
+	ServiceID      *uuid.UUID `json:"service_id"`
+	ZoneID         *uuid.UUID `json:"zone_id"`
+	OrganizationID *uuid.UUID `json:"organization_id"`
+	ProviderID     *uuid.UUID `json:"provider_id"`
+	CreatedFrom    *time.Time `json:"created_from"`
+	CreatedTo      *time.Time `json:"created_to"`
+}
+
+func (q *Queries) CountAdminRequests(ctx context.Context, arg CountAdminRequestsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAdminRequests,
+		arg.Statuses,
+		arg.Category,
+		arg.ServiceID,
+		arg.ZoneID,
+		arg.OrganizationID,
+		arg.ProviderID,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countRequestsOfCustomer = `-- name: CountRequestsOfCustomer :one
 SELECT count(*) FROM service_requests
 WHERE customer_id = $1
@@ -404,6 +443,17 @@ func (q *Queries) GetRequestOfferForUpdate(ctx context.Context, id uuid.UUID) (R
 	return i, err
 }
 
+const getRequestOrganization = `-- name: GetRequestOrganization :one
+SELECT organization_id FROM service_requests WHERE id = $1
+`
+
+func (q *Queries) GetRequestOrganization(ctx context.Context, id uuid.UUID) (*uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getRequestOrganization, id)
+	var organization_id *uuid.UUID
+	err := row.Scan(&organization_id)
+	return organization_id, err
+}
+
 const getServiceRequest = `-- name: GetServiceRequest :one
 SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests WHERE id = $1
 `
@@ -677,6 +727,129 @@ type InsertServiceRequestStopParams struct {
 func (q *Queries) InsertServiceRequestStop(ctx context.Context, arg InsertServiceRequestStopParams) error {
 	_, err := q.db.Exec(ctx, insertServiceRequestStop, arg.RequestID, arg.Position, arg.AddressID)
 	return err
+}
+
+const listAdminRequests = `-- name: ListAdminRequests :many
+SELECT r.id, r.status, r.version, r.category_slug, c.name AS category_name, r.service_id, s.name AS service_name, r.customer_id, cu.name AS customer_name,
+       r.provider_id, pu.name AS provider_name, r.organization_id, o.name AS organization_name, r.zone_id, z.name AS zone_name, r.fare_cents, r.currency,
+       r.needs_operator, r.scheduled_for, r.created_at, r.completed_at, pa.line AS pickup_line, pa.lat AS pickup_lat, pa.lng AS pickup_lng, da.line AS destination_line
+FROM service_requests r
+JOIN service_categories c ON c.id = r.category_id
+JOIN services s ON s.id = r.service_id
+JOIN users cu ON cu.id = r.customer_id
+JOIN service_zones z ON z.id = r.zone_id
+JOIN addresses pa ON pa.id = r.pickup_address_id
+LEFT JOIN addresses da ON da.id = r.destination_address_id
+LEFT JOIN users pu ON pu.id = r.provider_id
+LEFT JOIN organizations o ON o.id = r.organization_id
+WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
+  AND ($2::text = '' OR r.category_slug = $2::text)
+  AND ($3::uuid IS NULL OR r.service_id = $3)
+  AND ($4::uuid IS NULL OR r.zone_id = $4)
+  AND ($5::uuid IS NULL OR r.organization_id = $5)
+  AND ($6::uuid IS NULL OR r.provider_id = $6)
+  AND ($7::timestamptz IS NULL OR r.created_at >= $7)
+  AND ($8::timestamptz IS NULL OR r.created_at < $8)
+ORDER BY r.created_at DESC
+LIMIT $10 OFFSET $9
+`
+
+type ListAdminRequestsParams struct {
+	Statuses       []string   `json:"statuses"`
+	Category       string     `json:"category"`
+	ServiceID      *uuid.UUID `json:"service_id"`
+	ZoneID         *uuid.UUID `json:"zone_id"`
+	OrganizationID *uuid.UUID `json:"organization_id"`
+	ProviderID     *uuid.UUID `json:"provider_id"`
+	CreatedFrom    *time.Time `json:"created_from"`
+	CreatedTo      *time.Time `json:"created_to"`
+	PageOffset     int32      `json:"page_offset"`
+	PageLimit      int32      `json:"page_limit"`
+}
+
+type ListAdminRequestsRow struct {
+	ID               uuid.UUID  `json:"id"`
+	Status           string     `json:"status"`
+	Version          int32      `json:"version"`
+	CategorySlug     string     `json:"category_slug"`
+	CategoryName     string     `json:"category_name"`
+	ServiceID        uuid.UUID  `json:"service_id"`
+	ServiceName      string     `json:"service_name"`
+	CustomerID       uuid.UUID  `json:"customer_id"`
+	CustomerName     string     `json:"customer_name"`
+	ProviderID       *uuid.UUID `json:"provider_id"`
+	ProviderName     *string    `json:"provider_name"`
+	OrganizationID   *uuid.UUID `json:"organization_id"`
+	OrganizationName *string    `json:"organization_name"`
+	ZoneID           uuid.UUID  `json:"zone_id"`
+	ZoneName         string     `json:"zone_name"`
+	FareCents        *int64     `json:"fare_cents"`
+	Currency         string     `json:"currency"`
+	NeedsOperator    bool       `json:"needs_operator"`
+	ScheduledFor     *time.Time `json:"scheduled_for"`
+	CreatedAt        time.Time  `json:"created_at"`
+	CompletedAt      *time.Time `json:"completed_at"`
+	PickupLine       string     `json:"pickup_line"`
+	PickupLat        float64    `json:"pickup_lat"`
+	PickupLng        float64    `json:"pickup_lng"`
+	DestinationLine  *string    `json:"destination_line"`
+}
+
+func (q *Queries) ListAdminRequests(ctx context.Context, arg ListAdminRequestsParams) ([]ListAdminRequestsRow, error) {
+	rows, err := q.db.Query(ctx, listAdminRequests,
+		arg.Statuses,
+		arg.Category,
+		arg.ServiceID,
+		arg.ZoneID,
+		arg.OrganizationID,
+		arg.ProviderID,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAdminRequestsRow{}
+	for rows.Next() {
+		var i ListAdminRequestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.Version,
+			&i.CategorySlug,
+			&i.CategoryName,
+			&i.ServiceID,
+			&i.ServiceName,
+			&i.CustomerID,
+			&i.CustomerName,
+			&i.ProviderID,
+			&i.ProviderName,
+			&i.OrganizationID,
+			&i.OrganizationName,
+			&i.ZoneID,
+			&i.ZoneName,
+			&i.FareCents,
+			&i.Currency,
+			&i.NeedsOperator,
+			&i.ScheduledFor,
+			&i.CreatedAt,
+			&i.CompletedAt,
+			&i.PickupLine,
+			&i.PickupLat,
+			&i.PickupLng,
+			&i.DestinationLine,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFareAdjustments = `-- name: ListFareAdjustments :many
@@ -1123,6 +1296,48 @@ func (q *Queries) ListRequestsWithProviderOnTheWay(ctx context.Context, limit in
 	return items, nil
 }
 
+const listServiceRequestEvents = `-- name: ListServiceRequestEvents :many
+SELECT from_status, to_status, version, actor_type, actor_id, reason, occurred_at FROM service_request_events WHERE request_id = $1 ORDER BY id
+`
+
+type ListServiceRequestEventsRow struct {
+	FromStatus string     `json:"from_status"`
+	ToStatus   string     `json:"to_status"`
+	Version    int32      `json:"version"`
+	ActorType  string     `json:"actor_type"`
+	ActorID    *uuid.UUID `json:"actor_id"`
+	Reason     string     `json:"reason"`
+	OccurredAt time.Time  `json:"occurred_at"`
+}
+
+func (q *Queries) ListServiceRequestEvents(ctx context.Context, requestID uuid.UUID) ([]ListServiceRequestEventsRow, error) {
+	rows, err := q.db.Query(ctx, listServiceRequestEvents, requestID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListServiceRequestEventsRow{}
+	for rows.Next() {
+		var i ListServiceRequestEventsRow
+		if err := rows.Scan(
+			&i.FromStatus,
+			&i.ToStatus,
+			&i.Version,
+			&i.ActorType,
+			&i.ActorID,
+			&i.Reason,
+			&i.OccurredAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const purgeLocationSamples = `-- name: PurgeLocationSamples :execrows
 DELETE FROM provider_location_samples WHERE recorded_at < $1
 `
@@ -1133,6 +1348,84 @@ func (q *Queries) PurgeLocationSamples(ctx context.Context, recordedAt time.Time
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const summarizeRequests = `-- name: SummarizeRequests :many
+SELECT r.category_slug, c.name AS category_name, r.service_id, s.name AS service_name, r.status, r.zone_id, z.name AS zone_name, r.organization_id, o.name AS organization_name,
+       r.currency, count(*) AS total, COALESCE(sum(r.fare_cents) FILTER (WHERE r.status = 'completed'), 0)::bigint AS fare_cents
+FROM service_requests r
+JOIN service_categories c ON c.id = r.category_id
+JOIN services s ON s.id = r.service_id
+JOIN service_zones z ON z.id = r.zone_id
+LEFT JOIN organizations o ON o.id = r.organization_id
+WHERE ($1::text = '' OR r.category_slug = $1::text)
+  AND ($2::uuid IS NULL OR r.zone_id = $2)
+  AND ($3::uuid IS NULL OR r.organization_id = $3)
+  AND ($4::timestamptz IS NULL OR r.created_at >= $4)
+  AND ($5::timestamptz IS NULL OR r.created_at < $5)
+GROUP BY r.category_slug, c.name, r.service_id, s.name, r.status, r.zone_id, z.name, r.organization_id, o.name, r.currency
+`
+
+type SummarizeRequestsParams struct {
+	Category       string     `json:"category"`
+	ZoneID         *uuid.UUID `json:"zone_id"`
+	OrganizationID *uuid.UUID `json:"organization_id"`
+	CreatedFrom    *time.Time `json:"created_from"`
+	CreatedTo      *time.Time `json:"created_to"`
+}
+
+type SummarizeRequestsRow struct {
+	CategorySlug     string     `json:"category_slug"`
+	CategoryName     string     `json:"category_name"`
+	ServiceID        uuid.UUID  `json:"service_id"`
+	ServiceName      string     `json:"service_name"`
+	Status           string     `json:"status"`
+	ZoneID           uuid.UUID  `json:"zone_id"`
+	ZoneName         string     `json:"zone_name"`
+	OrganizationID   *uuid.UUID `json:"organization_id"`
+	OrganizationName *string    `json:"organization_name"`
+	Currency         string     `json:"currency"`
+	Total            int64      `json:"total"`
+	FareCents        int64      `json:"fare_cents"`
+}
+
+func (q *Queries) SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error) {
+	rows, err := q.db.Query(ctx, summarizeRequests,
+		arg.Category,
+		arg.ZoneID,
+		arg.OrganizationID,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SummarizeRequestsRow{}
+	for rows.Next() {
+		var i SummarizeRequestsRow
+		if err := rows.Scan(
+			&i.CategorySlug,
+			&i.CategoryName,
+			&i.ServiceID,
+			&i.ServiceName,
+			&i.Status,
+			&i.ZoneID,
+			&i.ZoneName,
+			&i.OrganizationID,
+			&i.OrganizationName,
+			&i.Currency,
+			&i.Total,
+			&i.FareCents,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const tryLockServiceRequest = `-- name: TryLockServiceRequest :one

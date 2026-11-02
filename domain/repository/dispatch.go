@@ -80,6 +80,76 @@ type IRequestRepository interface {
 	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]entities.FareAdjustment, error)
 	DemandByCell(ctx context.Context, since time.Time, zoneID *uuid.UUID) (map[int64]int64, error)
 	ListWithProviderOnTheWay(ctx context.Context, limit int) ([]*entities.ServiceRequest, error)
+	AdminList(ctx context.Context, filter AdminRequestFilter) ([]AdminRequest, int64, error)
+	Summary(ctx context.Context, filter AdminRequestFilter) ([]RequestSummaryRow, error)
+	History(ctx context.Context, requestID uuid.UUID) ([]RequestHistoryEntry, error)
+	OrganizationOf(ctx context.Context, requestID uuid.UUID) (*uuid.UUID, error)
+}
+
+type AdminRequestFilter struct {
+	Statuses       []string
+	Category       string
+	ServiceID      *uuid.UUID
+	ZoneID         *uuid.UUID
+	OrganizationID *uuid.UUID
+	ProviderID     *uuid.UUID
+	From           *time.Time
+	To             *time.Time
+	Limit          int
+	Offset         int
+}
+
+type AdminRequest struct {
+	ID               uuid.UUID
+	Status           string
+	Version          int
+	Category         string
+	CategoryName     string
+	ServiceID        uuid.UUID
+	ServiceName      string
+	CustomerID       uuid.UUID
+	CustomerName     string
+	ProviderID       *uuid.UUID
+	ProviderName     string
+	OrganizationID   *uuid.UUID
+	OrganizationName string
+	ZoneID           uuid.UUID
+	ZoneName         string
+	FareCents        *int64
+	Currency         string
+	NeedsOperator    bool
+	ScheduledFor     *time.Time
+	CreatedAt        time.Time
+	CompletedAt      *time.Time
+	PickupLine       string
+	PickupLat        float64
+	PickupLng        float64
+	DestinationLine  string
+}
+
+type RequestSummaryRow struct {
+	Category         string
+	CategoryName     string
+	ServiceID        uuid.UUID
+	ServiceName      string
+	Status           string
+	ZoneID           uuid.UUID
+	ZoneName         string
+	OrganizationID   *uuid.UUID
+	OrganizationName string
+	Currency         string
+	Total            int64
+	FareCents        int64
+}
+
+type RequestHistoryEntry struct {
+	From       string
+	To         string
+	Version    int
+	ActorType  string
+	ActorID    *uuid.UUID
+	Reason     string
+	OccurredAt time.Time
 }
 
 type RequestFilter struct {

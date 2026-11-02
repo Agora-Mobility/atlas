@@ -25,6 +25,7 @@ type Querier interface {
 	ClearDocumentRejectionReasons(ctx context.Context, arg ClearDocumentRejectionReasonsParams) error
 	ClearProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) error
 	CloseServiceTariff(ctx context.Context, arg CloseServiceTariffParams) error
+	CountAdminRequests(ctx context.Context, arg CountAdminRequestsParams) (int64, error)
 	CountFleetDrivers(ctx context.Context, arg CountFleetDriversParams) (int64, error)
 	CountMembers(ctx context.Context, arg CountMembersParams) (int64, error)
 	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
@@ -104,6 +105,7 @@ type Querier interface {
 	GetRejectionReason(ctx context.Context, id uuid.UUID) (RejectionReason, error)
 	GetRequestOffer(ctx context.Context, id uuid.UUID) (RequestOffer, error)
 	GetRequestOfferForUpdate(ctx context.Context, id uuid.UUID) (RequestOffer, error)
+	GetRequestOrganization(ctx context.Context, id uuid.UUID) (*uuid.UUID, error)
 	GetRolesByIDs(ctx context.Context, ids []uuid.UUID) ([]Role, error)
 	GetService(ctx context.Context, id uuid.UUID) (Service, error)
 	GetServiceCategory(ctx context.Context, id uuid.UUID) (ServiceCategory, error)
@@ -137,6 +139,7 @@ type Querier interface {
 	ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListActiveRejectionReasonsByIDsParams) ([]RejectionReason, error)
 	ListActiveServicesOfActiveCategories(ctx context.Context) ([]Service, error)
 	ListActiveServicesOfCategory(ctx context.Context, slug string) ([]ListActiveServicesOfCategoryRow, error)
+	ListAdminRequests(ctx context.Context, arg ListAdminRequestsParams) ([]ListAdminRequestsRow, error)
 	ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error)
 	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
 	ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error)
@@ -164,6 +167,7 @@ type Querier interface {
 	ListRolePermissions(ctx context.Context, roleIds []uuid.UUID) ([]RolePermission, error)
 	ListRolesForOrganization(ctx context.Context, arg ListRolesForOrganizationParams) ([]Role, error)
 	ListServiceCategories(ctx context.Context, onlyActive bool) ([]ServiceCategory, error)
+	ListServiceRequestEvents(ctx context.Context, requestID uuid.UUID) ([]ListServiceRequestEventsRow, error)
 	ListServiceZones(ctx context.Context, onlyActive bool) ([]ListServiceZonesRow, error)
 	ListServices(ctx context.Context, arg ListServicesParams) ([]Service, error)
 	ListServicesOpenToProviders(ctx context.Context) ([]ListServicesOpenToProvidersRow, error)
@@ -195,6 +199,7 @@ type Querier interface {
 	SaveWorkshop(ctx context.Context, arg SaveWorkshopParams) error
 	SaveWorkshopService(ctx context.Context, arg SaveWorkshopServiceParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
+	SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error)
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	UpdateDispatchPolicy(ctx context.Context, arg UpdateDispatchPolicyParams) (int64, error)

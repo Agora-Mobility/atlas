@@ -159,3 +159,59 @@ WHERE status IN ('accepted', 'provider_en_route') AND provider_id IS NOT NULL
   AND (scheduled_for IS NULL OR scheduled_for <= now())
 ORDER BY updated_at
 LIMIT $1;
+
+-- name: ListAdminRequests :many
+SELECT r.id, r.status, r.version, r.category_slug, c.name AS category_name, r.service_id, s.name AS service_name, r.customer_id, cu.name AS customer_name,
+       r.provider_id, pu.name AS provider_name, r.organization_id, o.name AS organization_name, r.zone_id, z.name AS zone_name, r.fare_cents, r.currency,
+       r.needs_operator, r.scheduled_for, r.created_at, r.completed_at, pa.line AS pickup_line, pa.lat AS pickup_lat, pa.lng AS pickup_lng, da.line AS destination_line
+FROM service_requests r
+JOIN service_categories c ON c.id = r.category_id
+JOIN services s ON s.id = r.service_id
+JOIN users cu ON cu.id = r.customer_id
+JOIN service_zones z ON z.id = r.zone_id
+JOIN addresses pa ON pa.id = r.pickup_address_id
+LEFT JOIN addresses da ON da.id = r.destination_address_id
+LEFT JOIN users pu ON pu.id = r.provider_id
+LEFT JOIN organizations o ON o.id = r.organization_id
+WHERE (sqlc.arg(statuses)::text[] = '{}' OR r.status = ANY(sqlc.arg(statuses)::text[]))
+  AND (sqlc.arg(category)::text = '' OR r.category_slug = sqlc.arg(category)::text)
+  AND (sqlc.narg(service_id)::uuid IS NULL OR r.service_id = sqlc.narg(service_id))
+  AND (sqlc.narg(zone_id)::uuid IS NULL OR r.zone_id = sqlc.narg(zone_id))
+  AND (sqlc.narg(organization_id)::uuid IS NULL OR r.organization_id = sqlc.narg(organization_id))
+  AND (sqlc.narg(provider_id)::uuid IS NULL OR r.provider_id = sqlc.narg(provider_id))
+  AND (sqlc.narg(created_from)::timestamptz IS NULL OR r.created_at >= sqlc.narg(created_from))
+  AND (sqlc.narg(created_to)::timestamptz IS NULL OR r.created_at < sqlc.narg(created_to))
+ORDER BY r.created_at DESC
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
+
+-- name: CountAdminRequests :one
+SELECT count(*) FROM service_requests r
+WHERE (sqlc.arg(statuses)::text[] = '{}' OR r.status = ANY(sqlc.arg(statuses)::text[]))
+  AND (sqlc.arg(category)::text = '' OR r.category_slug = sqlc.arg(category)::text)
+  AND (sqlc.narg(service_id)::uuid IS NULL OR r.service_id = sqlc.narg(service_id))
+  AND (sqlc.narg(zone_id)::uuid IS NULL OR r.zone_id = sqlc.narg(zone_id))
+  AND (sqlc.narg(organization_id)::uuid IS NULL OR r.organization_id = sqlc.narg(organization_id))
+  AND (sqlc.narg(provider_id)::uuid IS NULL OR r.provider_id = sqlc.narg(provider_id))
+  AND (sqlc.narg(created_from)::timestamptz IS NULL OR r.created_at >= sqlc.narg(created_from))
+  AND (sqlc.narg(created_to)::timestamptz IS NULL OR r.created_at < sqlc.narg(created_to));
+
+-- name: SummarizeRequests :many
+SELECT r.category_slug, c.name AS category_name, r.service_id, s.name AS service_name, r.status, r.zone_id, z.name AS zone_name, r.organization_id, o.name AS organization_name,
+       r.currency, count(*) AS total, COALESCE(sum(r.fare_cents) FILTER (WHERE r.status = 'completed'), 0)::bigint AS fare_cents
+FROM service_requests r
+JOIN service_categories c ON c.id = r.category_id
+JOIN services s ON s.id = r.service_id
+JOIN service_zones z ON z.id = r.zone_id
+LEFT JOIN organizations o ON o.id = r.organization_id
+WHERE (sqlc.arg(category)::text = '' OR r.category_slug = sqlc.arg(category)::text)
+  AND (sqlc.narg(zone_id)::uuid IS NULL OR r.zone_id = sqlc.narg(zone_id))
+  AND (sqlc.narg(organization_id)::uuid IS NULL OR r.organization_id = sqlc.narg(organization_id))
+  AND (sqlc.narg(created_from)::timestamptz IS NULL OR r.created_at >= sqlc.narg(created_from))
+  AND (sqlc.narg(created_to)::timestamptz IS NULL OR r.created_at < sqlc.narg(created_to))
+GROUP BY r.category_slug, c.name, r.service_id, s.name, r.status, r.zone_id, z.name, r.organization_id, o.name, r.currency;
+
+-- name: ListServiceRequestEvents :many
+SELECT from_status, to_status, version, actor_type, actor_id, reason, occurred_at FROM service_request_events WHERE request_id = $1 ORDER BY id;
+
+-- name: GetRequestOrganization :one
+SELECT organization_id FROM service_requests WHERE id = $1;
