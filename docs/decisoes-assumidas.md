@@ -37,3 +37,8 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Taxas de cancelamento | Valores iniciais na migração: Económico 500 Kz, Conforto 750 Kz, XL 1 000 Kz, Reboque 2 000 Kz, Mudanças 15 000 Kz, 2 min grátis com motorista. **São palpites**: revê no backoffice em `PUT /admin/cancellation-rules/{serviceId}` | O brief só diz que são configuráveis |
 | Pré-aviso | Com taxa, o cancelamento exige `expected_fee_cents` igual à taxa atual; senão responde 409 `CANCEL_FEE_CHANGED`, sem cancelar | Garante que ninguém paga uma taxa que não viu, mesmo se o prazo terminar entre o aviso e a confirmação |
 | Motorista que cancela | Conta em `providers.cancelled_requests`, sem penalização automática | O brief só pede que conte |
+| Carteira como método | `wallet` é um método de pagamento e paga o valor inteiro, sem pagamento parcial. Sem saldo responde `WALLET_INSUFFICIENT` | O saldo de reembolsos e convites tem de poder ser gasto |
+| Taxa de cancelamento | Vai para o motorista atribuído, menos a mesma percentagem de comissão da corrida. Sem motorista, fica na plataforma | O motorista deslocou-se. **Rever** |
+| Pagamento em duplicado | Um segundo pagamento confirmado do mesmo pedido vai para a Carteira do cliente | Antes ficava só em log |
+| Liquidação | `payout` paga o que a AGORA deve, `collect` recebe a dívida. Não pode passar do saldo. A mesma `reference` só conta uma vez | Evita pagar duas vezes o mesmo documento |
+| Taxa da AppyPay | Fica `NULL` até alguém a registar a partir do extrato. Não é descontada ao motorista | Vimos 90 Kz em 100 Kz, mas o valor não está confirmado, por isso não é assumido |

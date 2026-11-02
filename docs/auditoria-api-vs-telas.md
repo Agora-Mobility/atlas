@@ -418,3 +418,22 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 **Endpoints novos:** `GET /cancellation-reasons`, `GET /requests/{id}/cancellation`, `GET /admin/cancellation-rules`, `PUT /admin/cancellation-rules/{serviceId}`, `GET /admin/reports/cancellations`.
 
 **Alterados:** `POST /requests/{id}/cancel` passa a exigir `reason_id` e, quando há taxa, `expected_fee_cents`. `POST /offers/{id}/reject` passa a exigir `reason_id`. `POST /admin/rejection-reasons` aceita `category_id`.
+
+### Fase 4: ledger, comissão, Carteira e discriminação do total
+
+`ledger_transactions` e `ledger_entries`: cada transação soma zero, com contas de prestador, carteira, plataforma e externa. O lançamento é feito na mesma transação do pagamento, com chave de idempotência por pagamento.
+
+| Caso | Lançamento |
+|---|---|
+| Express ou Referência | Externa −valor; prestador +(tarifa − comissão); plataforma +(comissão − desconto) |
+| Dinheiro | O motorista já tem o dinheiro: prestador fica com −comissão, em dívida |
+| Carteira | Como Express, com a carteira no lugar da conta externa |
+| Reembolso | Express volta pela AppyPay; Referência e Carteira voltam à Carteira. Prestador e plataforma devolvem na proporção recebida |
+| Pagamento em duplicado | Vai para a Carteira |
+| Taxa real da AppyPay | Só quando registada no backoffice, a partir do extrato; custo da plataforma, sem assumir valor |
+
+**Endpoints novos:** `GET /wallet`, `GET /providers/me/ledger`, `GET /admin/ledger/summary`, `GET /admin/providers/{id}/ledger`, `POST /admin/providers/{id}/settlements`, `PUT /admin/payments/{id}/gateway-fee`.
+
+**Alterados:** `POST /requests/{id}/payments` e `PUT /requests/{id}/payment-method` aceitam `wallet`. `GET /requests/{id}` traz `breakdown`. `POST /admin/payments/{id}/refund` passa a aceitar Referência e Carteira, para a Carteira.
+
+**Env nova:** `LEDGER_CURRENCY`.
