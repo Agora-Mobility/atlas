@@ -9,18 +9,40 @@
 
 | Verificação | Resultado |
 |---|---|
-| `python3 tests/e2e/qa_flows.py` | **42 passaram, 0 falharam, 0 não testáveis**, 390 verificações. Evidência local: `tests/e2e/evidence/run-20261102-221347.json` |
-| `go test -tags integration,e2e -count=1 ./...` | 31 pacotes verdes, 108 testes e2e. Depois disso entrou `test/e2e/prepaid_test.go`, com 6 testes verdes, corridos à parte |
-| Lint, `sqlc diff`, `sqlc vet`, swagger, mocks | Limpos, sem diferenças |
+| `python3 tests/e2e/qa_flows.py` | **42 passaram, 0 falharam, 0 não testáveis**, 382 verificações, em `8f24725`. Evidência local: `tests/e2e/evidence/run-20261102-225749.json` |
+| `go test -tags integration,e2e -count=1 ./...` | 31 pacotes verdes, em `5cc4657`. O commit seguinte só altera o script de QA |
+| Lint, `sqlc diff`, `sqlc vet`, swagger, mocks | Limpos |
 | `make test-appypay` | Passou, na conta de teste real |
-| B7 | 15 de 15 corridas com stack nova e carga média perto de 20. A falha original era de 1 em 8, por isso 15 corridas limpas ainda têm cerca de 13% de hipótese de sorte. O mecanismo também tem o seu teste |
+| B7 | 15 de 15 corridas com stack nova e carga média perto de 20, antes das correções do revisor. A falha original era de 1 em 8, por isso 15 corridas limpas ainda têm cerca de 13% de hipótese de sorte |
+
+### SMS reais durante o QA
+
+A API do Docker voltava a arrancar com a Castbrick real enquanto havia eventos e pedidos de teste por tratar.
+
+- **Tentativas:** o revisor viu 4 tentativas para um número aleatório, recusadas por falta de créditos, e 2 envios aceites (`queued`), às 09:36:26 e 21:02:12 UTC, para números que acabam em 499 e 107.
+- **Prova:** a ligação destes 2 envios ao QA assenta na hora e em 3 dígitos. **Confirma no painel da Castbrick se foram entregues.**
+- **Correção:** o script fecha os dados de teste no início e no fim, espera que as filas esvaziem e deixa a API do Docker parada se não esvaziarem. Na última corrida, a API reposta não fez nenhuma tentativa de SMS nos primeiros 20 s, e não sobrou nenhum pedido aberto.
+- **Por tratar:** há 1 mensagem em `notifications.requests.dlq`. **Não a reprocesses.**
 
 ### Bugs encontrados nesta verificação
 
-| Bug | Efeito | Estado |
+| Bug | Efeito | Commit |
 |---|---|---|
-| Dinheiro sem comissão | Corrida a dinheiro com comissão 0 respondia 500 e ficava por pagar, porque o ledger recusava a transação vazia. Vinha da fase 4. O P1 não dava por isso porque ignorava a resposta | Corrigido em `401a0d0`, com teste. O P1 agora confere a resposta |
-| Erro das respostas rápidas | A minha tabela de erros das Mudanças tapava `QUICK_REPLY_NOT_FOUND` | Corrigido em `7b93458` |
+| Dinheiro sem comissão | Corrida a dinheiro com comissão 0 respondia 500 e ficava por pagar | `401a0d0` |
+| Erro das respostas rápidas | A tabela de erros das Mudanças tapava `QUICK_REPLY_NOT_FOUND` | `7b93458` |
+| Mudança paga em adiantado | O motorista não recebia nada, e um reembolso deixava-o com dívida | `5cc4657` |
+| Reembolso de gorjeta | Marcava a tarifa como paga e apagava a dívida do cliente | `5cc4657` |
+| Reembolso sem idempotência | O mesmo pedido devolvia dinheiro duas vezes. Agora exige `Idempotency-Key` | `5cc4657` |
+| Reserva sem pagamento | Prendia o lugar para sempre. Agora expira em `prepay_hold_minutes` | `5cc4657` |
+| Mudar método para referência | Contornava "só confirma depois de paga". Agora responde `PAYMENT_METHOD_LOCKED` | `5cc4657` |
+| Referência paga depois de cancelar | Devolvia tudo e a taxa perdia-se | `5cc4657` |
+| Convite com pedido pago em adiantado | O prémio nunca era pago | `5cc4657` |
+| Pedido expirado sem motorista | O voucher perdia-se | `5cc4657` |
+| Reembolso depois de um extra | Repartia mal o dinheiro da oficina | `5cc4657` |
+| Mudança nunca paga | Cancelar cobrava 15 000 Kz e bloqueava o cliente | `5cc4657` |
+| Cancelar e reembolsar | Não eram atómicos. Agora correm na mesma transação | `5cc4657` |
+
+Os testes estão em `test/e2e/prepaid_rules_test.go`.
 
 ### Alterações às verificações do script
 
@@ -35,6 +57,8 @@ Nenhuma verificação foi retirada para passar. Estas foram alteradas por causa 
 | M6 | Aprovação procurada em rota com `request` | Rota com `booking` | Idem |
 | P1 | Manutenção e Mudanças em "Em curso" | Marcação em "Marcados" até a viatura chegar (M5 prova "Em curso"). As Mudanças aparecem em "Em curso" ou "Marcados", conforme o momento | C2 e C3 |
 | D1 a D3 | `POST /requests` sem estimativa, `helpers` e `extras` soltos | Estimativa com `removal`, janela e tipo. O valor esperado de 110 000 Kz não mudou | C3 |
+| T3 | Desde a fase 1, o pedido fora do horário aceitava 4xx e já respondia pela estimativa | Pedido com estimativa da mesma hora, tem de responder 422 | O revisor apanhou este enfraquecimento, que não estava declarado |
+| M6, L3 | O ledger era provado com comissão 0, porque as tarifas de desenvolvimento têm 0 | O script põe uma comissão real no pedido antes de pagar | O revisor mostrou que a prova não valia |
 | P3 | Só o estado das rotas | Eventos, ligação, lidas, IDOR e BD | Reforço |
 | P4 | `PATCH /users/me` com toggles | `PUT /users/me/preferences`, e prova de que o SMS não sai | A rota era um palpite |
 
@@ -55,6 +79,8 @@ No Go, `TestMaintenanceByCoverage...`, `TestRemovalsQuote...`, `TestExpiredQuote
 | Taxa real da AppyPay | **Não testável.** Registo manual a partir do extrato |
 | Preferências sem efeito | `notify_promotions`, `share_location`, `language` e `currency` são só guardadas. **CO02 está parcial** |
 | Corrida do QA com aprovação de prestadores | Aprovação por SQL no script, coberta noutro teste e2e |
+| Reembolso Express dentro da transação | Se o commit falhar depois de a AppyPay aceitar, o dinheiro sai sem registo. Não corrigido; só visto a ler |
+| Limites técnicos no código | `maxRemovalQty`, `maxTeamMembers`, `maxFloor`, 62 dias de calendário e `MinGatewayCents` ficam no código, como limites de validação |
 | Imagens das telas | Nunca foram recebidas nestas sessões. Tudo foi feito a partir do texto do brief |
 
 ---

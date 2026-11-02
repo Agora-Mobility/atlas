@@ -76,3 +76,9 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Caixa de notificações | Tabela nova `inbox_items`, criada nos eventos de pedido, oferta, marcação, pagamento, ticket e convite, com ligação para abrir. Não depende das preferências | `notifications` continua a ser o registo de envios |
 | Convite | Código criado no primeiro pedido de consulta, usado uma vez e antes do primeiro pedido pago. Prémio inicial de 1 000 Kz em `referral_reward_cents`, pago na Carteira | Do brief |
 | Linha de apoio | `support_phone` inicial `+244923000000` (**palpite, substitui pelo número real**) | O brief não indica o número |
+| Reserva sem pagamento | Uma marcação ou mudança por referência sem pagamento em curso expira em 60 min (`prepay_hold_minutes`, **palpite**) e liberta o lugar | Sem isto, um cliente podia esgotar uma oficina sem pagar |
+| Mudança nunca paga | Cancelar uma mudança por referência ainda por pagar não custa nada, mesmo a menos de 24 h | Nunca chegou a confirmar. **Rever** |
+| Mudança paga em adiantado | O dinheiro fica na plataforma até concluir. Só aí o motorista recebe a tarifa menos a comissão. Se o cliente cancelar tarde, a taxa fica e vai para o motorista atribuído, menos a comissão | Antes de concluir o motorista não ganhou nada |
+| Método de pagamento | Depois de marcada, não se muda para Referência, e uma marcação por Referência não muda de método (`PAYMENT_METHOD_LOCKED`) | A confirmação depende do método escolhido na marcação |
+| Reembolso | `POST /admin/payments/{id}/refund` passa a exigir `Idempotency-Key`. **O backoffice tem de a enviar** | Dois cliques devolviam dinheiro duas vezes |
+| Limites de validação | Quantidades, tamanho da equipa, andares e dias do calendário ficam no código | São limites de entrada, não regras de negócio. **Rever** se preferires no backoffice |
