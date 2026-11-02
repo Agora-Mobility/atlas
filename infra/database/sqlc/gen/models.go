@@ -274,6 +274,14 @@ type BlockReason struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type CategoryPaymentMethod struct {
+	CategoryID   uuid.UUID `json:"category_id"`
+	Method       string    `json:"method"`
+	IsEnabled    bool      `json:"is_enabled"`
+	DisplayOrder int32     `json:"display_order"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type Client struct {
 	ID        uuid.UUID        `json:"id"`
 	ClientID  string           `json:"client_id"`
@@ -429,6 +437,47 @@ type Outbox struct {
 	PublishedAt   *time.Time      `json:"published_at"`
 	Attempts      int32           `json:"attempts"`
 	LastError     *string         `json:"last_error"`
+}
+
+type Payment struct {
+	ID               uuid.UUID  `json:"id"`
+	RequestID        uuid.UUID  `json:"request_id"`
+	CustomerID       uuid.UUID  `json:"customer_id"`
+	Method           string     `json:"method"`
+	Status           string     `json:"status"`
+	AmountCents      int64      `json:"amount_cents"`
+	RefundedCents    int64      `json:"refunded_cents"`
+	Currency         string     `json:"currency"`
+	MerchantID       string     `json:"merchant_id"`
+	ProviderChargeID *string    `json:"provider_charge_id"`
+	PayerPhoneMasked string     `json:"payer_phone_masked"`
+	ReferenceNumber  string     `json:"reference_number"`
+	ReferenceEntity  string     `json:"reference_entity"`
+	FailureMessage   string     `json:"failure_message"`
+	ExpiresAt        *time.Time `json:"expires_at"`
+	NextCheckAt      *time.Time `json:"next_check_at"`
+	PaidAt           *time.Time `json:"paid_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+type PaymentEvent struct {
+	ID         int64     `json:"id"`
+	PaymentID  uuid.UUID `json:"payment_id"`
+	Source     string    `json:"source"`
+	Status     string    `json:"status"`
+	Detail     string    `json:"detail"`
+	OccurredAt time.Time `json:"occurred_at"`
+}
+
+type PaymentRefund struct {
+	ID               uuid.UUID  `json:"id"`
+	PaymentID        uuid.UUID  `json:"payment_id"`
+	AmountCents      int64      `json:"amount_cents"`
+	Reason           string     `json:"reason"`
+	ProviderRefundID string     `json:"provider_refund_id"`
+	ActorID          *uuid.UUID `json:"actor_id"`
+	CreatedAt        time.Time  `json:"created_at"`
 }
 
 type Permission struct {
@@ -648,6 +697,8 @@ type ServiceRequest struct {
 	CompletedAt          *time.Time      `json:"completed_at"`
 	CreatedAt            time.Time       `json:"created_at"`
 	UpdatedAt            time.Time       `json:"updated_at"`
+	PaymentMethod        string          `json:"payment_method"`
+	PaymentStatus        string          `json:"payment_status"`
 }
 
 type ServiceRequestEvent struct {

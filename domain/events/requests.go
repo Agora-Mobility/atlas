@@ -33,6 +33,7 @@ const (
 	OperatorAlerted = "requests.operator-alerted"
 	ReminderDue     = "requests.reminder-due"
 	CoverageChanged = "providers.coverage-changed"
+	PaymentChanged  = "payments.changed"
 )
 
 type RequestPoint struct {
@@ -66,24 +67,25 @@ func (RequestTransitionV1) AggregateType() string { return ServiceRequestAggrega
 func (e RequestTransitionV1) AggregateID() string { return e.RequestID.String() }
 
 type RequestOfferV1 struct {
-	Type        string        `json:"-"`
-	OfferID     uuid.UUID     `json:"offer_id"`
-	RequestID   uuid.UUID     `json:"request_id"`
-	ProviderID  uuid.UUID     `json:"provider_id"`
-	CustomerID  uuid.UUID     `json:"customer_id"`
-	Category    string        `json:"category"`
-	Version     int           `json:"request_version"`
-	ExpiresAt   time.Time     `json:"expires_at"`
-	Pickup      *RequestPoint `json:"pickup,omitempty"`
-	Destination *RequestPoint `json:"destination,omitempty"`
-	DistanceM   *int          `json:"distance_m,omitempty"`
-	NetCents    *int64        `json:"net_cents,omitempty"`
-	Currency    string        `json:"currency,omitempty"`
-	Channels    []string      `json:"channels,omitempty"`
-	Channel     string        `json:"channel,omitempty"`
-	AckSeconds  *float64      `json:"ack_seconds,omitempty"`
-	Reason      string        `json:"reason,omitempty"`
-	OccurredAt  time.Time     `json:"occurred_at"`
+	Type          string        `json:"-"`
+	OfferID       uuid.UUID     `json:"offer_id"`
+	RequestID     uuid.UUID     `json:"request_id"`
+	ProviderID    uuid.UUID     `json:"provider_id"`
+	CustomerID    uuid.UUID     `json:"customer_id"`
+	Category      string        `json:"category"`
+	Version       int           `json:"request_version"`
+	ExpiresAt     time.Time     `json:"expires_at"`
+	Pickup        *RequestPoint `json:"pickup,omitempty"`
+	Destination   *RequestPoint `json:"destination,omitempty"`
+	DistanceM     *int          `json:"distance_m,omitempty"`
+	NetCents      *int64        `json:"net_cents,omitempty"`
+	Currency      string        `json:"currency,omitempty"`
+	PaymentMethod string        `json:"payment_method,omitempty"`
+	Channels      []string      `json:"channels,omitempty"`
+	Channel       string        `json:"channel,omitempty"`
+	AckSeconds    *float64      `json:"ack_seconds,omitempty"`
+	Reason        string        `json:"reason,omitempty"`
+	OccurredAt    time.Time     `json:"occurred_at"`
 }
 
 func (e RequestOfferV1) EventType() string   { return e.Type }
@@ -221,3 +223,20 @@ func (e ProviderReviewV1) EventType() string   { return e.Type }
 func (ProviderReviewV1) EventVersion() int     { return 1 }
 func (ProviderReviewV1) AggregateType() string { return ProviderAggregate }
 func (e ProviderReviewV1) AggregateID() string { return e.ProviderID.String() }
+
+type PaymentChangedV1 struct {
+	RequestID   uuid.UUID  `json:"request_id"`
+	CustomerID  uuid.UUID  `json:"customer_id"`
+	ProviderID  *uuid.UUID `json:"provider_id,omitempty"`
+	PaymentID   *uuid.UUID `json:"payment_id,omitempty"`
+	Method      string     `json:"method"`
+	Status      string     `json:"status"`
+	AmountCents int64      `json:"amount_cents"`
+	Currency    string     `json:"currency"`
+	OccurredAt  time.Time  `json:"occurred_at"`
+}
+
+func (e PaymentChangedV1) EventType() string     { return PaymentChanged }
+func (e PaymentChangedV1) EventVersion() int     { return 1 }
+func (e PaymentChangedV1) AggregateType() string { return ServiceRequestAggregate }
+func (e PaymentChangedV1) AggregateID() string   { return e.RequestID.String() }

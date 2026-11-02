@@ -52,6 +52,7 @@ type Container struct {
 	Dispatch      *DispatchModule
 	Providers     *ProvidersModule
 	Fleet         *FleetModule
+	Payments      *PaymentsModule
 	Addresses     *AddressesModule
 }
 
@@ -121,6 +122,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 	c.Dispatch = newDispatchModule(c, pushSender, newRoutingProvider(cfg.Mapbox))
 	c.Providers = newProvidersModule(c, newObjectStorage(cfg.R2))
 	c.Fleet = newFleetModule(c)
+	c.Payments = newPaymentsModule(c)
 	c.Addresses = newAddressesModule(c)
 	return c, nil
 }

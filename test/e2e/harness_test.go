@@ -69,6 +69,7 @@ type stack struct {
 	rabbitProxy *tcpProxy
 	mapbox      *mapboxStub
 	sms         *smsStub
+	appypay     *appypayStub
 	fcm         *fcmStub
 	api         *instance
 }
@@ -142,6 +143,8 @@ func startStack() (func(), error) {
 	closers = append(closers, mapbox.server.Close)
 	sms := newSMSStub()
 	closers = append(closers, sms.server.Close)
+	appypay := newAppyPayStub()
+	closers = append(closers, appypay.server.Close)
 	storage := newS3Stub()
 	closers = append(closers, storage.server.Close)
 	fcm, err := newFCMStub()
@@ -161,7 +164,7 @@ func startStack() (func(), error) {
 		"SSE_DEAD_AFTER": "3s", "SSE_RECONNECT_SPREAD": "1s", "NEARBY_MIN_CELL_COUNT": "2", "MAPBOX_ACCESS_TOKEN": "sk.e2e", "MAPBOX_BASE_URL": mapbox.server.URL,
 		"MAPBOX_TIMEOUT": "300ms", "MAPBOX_BREAKER_FAILURES": "3", "MAPBOX_BREAKER_COOLDOWN": "200ms", "FCM_PROJECT_ID": "agora-e2e", "FCM_BASE_URL": fcm.server.URL,
 		"FCM_CREDENTIALS_JSON": fcm.credentials, "HTTP_SHUTDOWN_TIMEOUT": "5s", "CASTBRICK_API_KEY": "e2e", "CASTBRICK_BASE_URL": sms.server.URL,
-		"OTP_RESEND_COOLDOWN": "0s", "AUTH_RATE_LIMIT_REQUESTS": "100000", "R2_ENDPOINT": storage.server.URL, "R2_ACCESS_KEY_ID": "e2e", "R2_SECRET_ACCESS_KEY": "e2e", "R2_BUCKET_NAME": storageBucket,
+		"APPYPAY_CLIENT_ID": "e2e", "APPYPAY_CLIENT_SECRET": "e2e", "APPYPAY_BASE_URL": appypay.server.URL, "APPYPAY_TOKEN_URL": appypay.server.URL + "/token", "APPYPAY_RESOURCE": "e2e", "APPYPAY_GPO_METHOD": "GPO_e2e", "APPYPAY_REF_METHOD": "REF_e2e", "PAYMENT_RECONCILE_INTERVAL": "100ms", "PAYMENT_GPO_CHECK_INTERVAL": "100ms", "PAYMENT_REFERENCE_CHECK_INTERVAL": "100ms", "OTP_RESEND_COOLDOWN": "0s", "AUTH_RATE_LIMIT_REQUESTS": "100000", "R2_ENDPOINT": storage.server.URL, "R2_ACCESS_KEY_ID": "e2e", "R2_SECRET_ACCESS_KEY": "e2e", "R2_BUCKET_NAME": storageBucket,
 	}
 	for key, value := range settings {
 		if err := os.Setenv(key, value); err != nil {
@@ -177,7 +180,7 @@ func startStack() (func(), error) {
 	direct := goredis.NewClient(&goredis.Options{Addr: redisEndpoint})
 	closers = append(closers, func() { _ = direct.Close() })
 
-	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, mapbox: mapbox, sms: sms, fcm: fcm}
+	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, mapbox: mapbox, appypay: appypay, sms: sms, fcm: fcm}
 	if err := seedPlatform(ctx, owner); err != nil {
 		return cleanup, err
 	}

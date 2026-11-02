@@ -30,6 +30,7 @@ type CreateRequestInput struct {
 	Details        json.RawMessage `json:"details" swaggertype:"object"`
 	ScheduledFor   *time.Time      `json:"scheduled_for"`
 	FareEstimateID *uuid.UUID      `json:"fare_estimate_id"`
+	PaymentMethod  string          `json:"payment_method" binding:"omitempty,oneof=cash gpo reference" example:"cash"`
 }
 
 type PassengerInput struct {
@@ -107,6 +108,8 @@ type RequestView struct {
 	CommissionCents *int64           `json:"commission_cents,omitempty"`
 	BoostBps        int              `json:"boost_bps,omitempty"`
 	Currency        string           `json:"currency"`
+	PaymentMethod   string           `json:"payment_method"`
+	PaymentStatus   string           `json:"payment_status"`
 	CanBoost        bool             `json:"can_boost"`
 	NeedsOperator   bool             `json:"needs_operator,omitempty"`
 	OperatorReason  string           `json:"operator_reason,omitempty"`
@@ -143,20 +146,21 @@ type RequestList struct {
 }
 
 type OfferView struct {
-	ID          uuid.UUID       `json:"id"`
-	RequestID   uuid.UUID       `json:"request_id"`
-	Version     int             `json:"request_version"`
-	Status      string          `json:"status"`
-	Category    string          `json:"category"`
-	ExpiresInS  int             `json:"expires_in_s"`
-	Pickup      PlaceView       `json:"pickup"`
-	Destination *PlaceView      `json:"destination,omitempty"`
-	Stops       []PlaceView     `json:"stops,omitempty"`
-	DistanceM   *int            `json:"distance_m,omitempty"`
-	NetCents    *int64          `json:"net_cents,omitempty"`
-	Currency    string          `json:"currency"`
-	Mode        string          `json:"mode"`
-	Details     json.RawMessage `json:"details,omitempty" swaggertype:"object"`
+	ID            uuid.UUID       `json:"id"`
+	RequestID     uuid.UUID       `json:"request_id"`
+	Version       int             `json:"request_version"`
+	Status        string          `json:"status"`
+	Category      string          `json:"category"`
+	ExpiresInS    int             `json:"expires_in_s"`
+	Pickup        PlaceView       `json:"pickup"`
+	Destination   *PlaceView      `json:"destination,omitempty"`
+	Stops         []PlaceView     `json:"stops,omitempty"`
+	DistanceM     *int            `json:"distance_m,omitempty"`
+	NetCents      *int64          `json:"net_cents,omitempty"`
+	Currency      string          `json:"currency"`
+	Mode          string          `json:"mode"`
+	PaymentMethod string          `json:"payment_method"`
+	Details       json.RawMessage `json:"details,omitempty" swaggertype:"object"`
 }
 
 type ActiveState struct {

@@ -79,6 +79,10 @@ test-e2e: ## Run the end-to-end flows against real Postgres, Redis and RabbitMQ 
 test-r2: ## Write, read and delete one test object in the real R2 bucket of .env
 	go test -tags=r2live -count=1 -v ./infra/storage/r2/...
 
+.PHONY: test-appypay
+test-appypay: ## Create real test charges in the AppyPay test account of .env
+	env $$(grep '^APPYPAY_' .env | xargs) go test -tags=appypaylive -count=1 -v ./infra/payment/appypay/...
+
 .PHONY: test-load
 test-load: ## Run the k6 load test against a disposable stack (needs Docker and k6)
 	./test/load/run.sh

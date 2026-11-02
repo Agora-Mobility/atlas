@@ -427,6 +427,7 @@ func (u *Usecase) newOfferEvent(request *entities.ServiceRequest, offer *entitie
 	event.DistanceM = offer.DistanceM
 	event.NetCents = offer.NetCents
 	event.Currency = request.Fare.Currency
+	event.PaymentMethod = string(request.PaymentMethod)
 	event.Channels = policy.InitialChannels
 	return event
 }

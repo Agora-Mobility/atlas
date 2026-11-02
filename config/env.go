@@ -34,6 +34,33 @@ type Config struct {
 	Mapbox   MapboxConfig   `mapstructure:",squash"`
 	FCM      FCMConfig      `mapstructure:",squash"`
 	R2       R2Config       `mapstructure:",squash"`
+	AppyPay  AppyPayConfig  `mapstructure:",squash"`
+}
+
+type AppyPayConfig struct {
+	ClientID               string        `mapstructure:"APPYPAY_CLIENT_ID"`
+	ClientSecret           string        `mapstructure:"APPYPAY_CLIENT_SECRET"`
+	BaseURL                string        `mapstructure:"APPYPAY_BASE_URL"`
+	TokenURL               string        `mapstructure:"APPYPAY_TOKEN_URL"`
+	Resource               string        `mapstructure:"APPYPAY_RESOURCE"`
+	GPOMethod              string        `mapstructure:"APPYPAY_GPO_METHOD"`
+	REFMethod              string        `mapstructure:"APPYPAY_REF_METHOD"`
+	Timeout                time.Duration `mapstructure:"APPYPAY_TIMEOUT"`
+	GPOWindow              time.Duration `mapstructure:"PAYMENT_GPO_WINDOW"`
+	ReferenceTTL           time.Duration `mapstructure:"PAYMENT_REFERENCE_TTL"`
+	ReconcileInterval      time.Duration `mapstructure:"PAYMENT_RECONCILE_INTERVAL"`
+	ReconcileBatch         int           `mapstructure:"PAYMENT_RECONCILE_BATCH"`
+	GPOCheckInterval       time.Duration `mapstructure:"PAYMENT_GPO_CHECK_INTERVAL"`
+	ReferenceCheckInterval time.Duration `mapstructure:"PAYMENT_REFERENCE_CHECK_INTERVAL"`
+}
+
+func (c AppyPayConfig) Enabled() bool {
+	for _, value := range []string{c.ClientID, c.ClientSecret, c.BaseURL, c.TokenURL, c.Resource, c.GPOMethod, c.REFMethod} {
+		if strings.TrimSpace(value) == "" {
+			return false
+		}
+	}
+	return true
 }
 
 type R2Config struct {
@@ -208,91 +235,105 @@ func (c SMSConfig) Enabled() bool {
 }
 
 var defaults = map[string]any{
-	"APP_NAME":                     "atlas",
-	"APP_ENV":                      "development",
-	"HTTP_PORT":                    8700,
-	"HTTP_READ_TIMEOUT":            "15s",
-	"HTTP_WRITE_TIMEOUT":           "15s",
-	"HTTP_IDLE_TIMEOUT":            "60s",
-	"HTTP_SHUTDOWN_TIMEOUT":        "20s",
-	"CORS_ALLOWED_ORIGINS":         "*",
-	"TRUSTED_PROXIES":              "",
-	"RATE_LIMIT_REQUESTS":          100,
-	"RATE_LIMIT_WINDOW":            "1m",
-	"AUTH_RATE_LIMIT_REQUESTS":     10,
-	"AUTH_RATE_LIMIT_WINDOW":       "1m",
-	"LOG_LEVEL":                    "info",
-	"LOG_OUTPUT":                   "stdout",
-	"DB_MAX_CONNS":                 20,
-	"DB_MIN_CONNS":                 2,
-	"DB_MAX_CONN_LIFETIME":         "1h",
-	"DB_MAX_CONN_IDLE_TIME":        "15m",
-	"DB_MIGRATE_ON_START":          true,
-	"REDIS_PASSWORD":               "",
-	"REDIS_DB":                     0,
-	"RABBITMQ_EXCHANGE":            "agora.events",
-	"RABBITMQ_PREFETCH":            10,
-	"RABBITMQ_MAX_RETRIES":         5,
-	"RABBITMQ_RETRY_DELAY":         "10s",
-	"EVENT_DEDUP_TTL":              "24h",
-	"OUTBOX_POLL_INTERVAL":         "1s",
-	"OUTBOX_BATCH_SIZE":            100,
-	"JWT_ISSUER":                   "atlas",
-	"JWT_ACCESS_TTL":               "15m",
-	"JWT_REFRESH_TTL":              "720h",
-	"OTP_TTL":                      "5m",
-	"OTP_MAX_ATTEMPTS":             5,
-	"OTP_RESEND_COOLDOWN":          "60s",
-	"CASTBRICK_API_KEY":            "",
-	"CASTBRICK_BASE_URL":           "https://api.castbrick.co/v1",
-	"CASTBRICK_SENDER_ID":          "",
-	"CASTBRICK_TIMEOUT":            "10s",
-	"RESEND_API_KEY":               "",
-	"RESEND_BASE_URL":              "https://api.resend.com",
-	"RESEND_TIMEOUT":               "10s",
-	"EMAIL_FROM":                   "",
-	"EMAIL_REPLY_TO":               "",
-	"MFA_CHALLENGE_TTL":            "5m",
-	"MFA_MAX_ATTEMPTS":             5,
-	"PERMISSION_CACHE_TTL":         "5m",
-	"INVITATION_URL_BACKOFFICE":    "http://localhost:3001/convite",
-	"INVITATION_URL_PARTNER_PANEL": "http://localhost:3002/convite",
-	"DISPATCH_WATCHER_INTERVAL":    "1s",
-	"DISPATCH_WATCHER_BATCH":       200,
-	"DISPATCH_CHANNEL_TIMEOUT":     "5s",
-	"FARE_ESTIMATE_TTL":            "5m",
-	"NEARBY_MIN_CELL_COUNT":        3,
-	"LOCATION_MAX_ACCURACY_M":      100,
-	"LOCATION_MAX_SPEED_KMH":       200,
-	"LOCATION_HISTORY_RETENTION":   "720h",
-	"OFFER_DEEP_LINK_BASE":         "agoraprovider://app",
-	"OPERATOR_ALERT_PHONE":         "",
-	"IDEMPOTENCY_TTL":              "24h",
-	"NOTIFICATION_WORKERS":         8,
-	"REALTIME_PROJECTOR_WORKERS":   16,
-	"SSE_HEARTBEAT_INTERVAL":       "15s",
-	"SSE_POLL_INTERVAL":            "30s",
-	"SSE_DEAD_AFTER":               "38s",
-	"SSE_MAILBOX_MAX_ENTRIES":      200,
-	"SSE_MAILBOX_TTL":              "24h",
-	"SSE_RECONNECT_SPREAD":         "30s",
-	"MAPBOX_ACCESS_TOKEN":          "",
-	"MAPBOX_BASE_URL":              "https://api.mapbox.com",
-	"MAPBOX_TIMEOUT":               "2s",
-	"MAPBOX_BREAKER_FAILURES":      5,
-	"MAPBOX_BREAKER_COOLDOWN":      "30s",
-	"ROUTING_ROAD_FACTOR":          1.4,
-	"ROUTING_FALLBACK_SPEED_KMH":   25,
-	"FCM_PROJECT_ID":               "",
-	"FCM_CREDENTIALS_JSON":         "",
-	"FCM_BASE_URL":                 "https://fcm.googleapis.com",
-	"FCM_TIMEOUT":                  "5s",
-	"R2_ACCOUNT_ID":                "",
-	"R2_ACCESS_KEY_ID":             "",
-	"R2_SECRET_ACCESS_KEY":         "",
-	"R2_BUCKET_NAME":               "",
-	"R2_ENDPOINT":                  "",
-	"R2_PRESIGN_TTL":               "15m",
+	"APP_NAME":                         "atlas",
+	"APP_ENV":                          "development",
+	"HTTP_PORT":                        8700,
+	"HTTP_READ_TIMEOUT":                "15s",
+	"HTTP_WRITE_TIMEOUT":               "15s",
+	"HTTP_IDLE_TIMEOUT":                "60s",
+	"HTTP_SHUTDOWN_TIMEOUT":            "20s",
+	"CORS_ALLOWED_ORIGINS":             "*",
+	"TRUSTED_PROXIES":                  "",
+	"RATE_LIMIT_REQUESTS":              100,
+	"RATE_LIMIT_WINDOW":                "1m",
+	"AUTH_RATE_LIMIT_REQUESTS":         10,
+	"AUTH_RATE_LIMIT_WINDOW":           "1m",
+	"LOG_LEVEL":                        "info",
+	"LOG_OUTPUT":                       "stdout",
+	"DB_MAX_CONNS":                     20,
+	"DB_MIN_CONNS":                     2,
+	"DB_MAX_CONN_LIFETIME":             "1h",
+	"DB_MAX_CONN_IDLE_TIME":            "15m",
+	"DB_MIGRATE_ON_START":              true,
+	"REDIS_PASSWORD":                   "",
+	"REDIS_DB":                         0,
+	"RABBITMQ_EXCHANGE":                "agora.events",
+	"RABBITMQ_PREFETCH":                10,
+	"RABBITMQ_MAX_RETRIES":             5,
+	"RABBITMQ_RETRY_DELAY":             "10s",
+	"EVENT_DEDUP_TTL":                  "24h",
+	"OUTBOX_POLL_INTERVAL":             "1s",
+	"OUTBOX_BATCH_SIZE":                100,
+	"JWT_ISSUER":                       "atlas",
+	"JWT_ACCESS_TTL":                   "15m",
+	"JWT_REFRESH_TTL":                  "720h",
+	"OTP_TTL":                          "5m",
+	"OTP_MAX_ATTEMPTS":                 5,
+	"OTP_RESEND_COOLDOWN":              "60s",
+	"CASTBRICK_API_KEY":                "",
+	"CASTBRICK_BASE_URL":               "https://api.castbrick.co/v1",
+	"CASTBRICK_SENDER_ID":              "",
+	"CASTBRICK_TIMEOUT":                "10s",
+	"RESEND_API_KEY":                   "",
+	"RESEND_BASE_URL":                  "https://api.resend.com",
+	"RESEND_TIMEOUT":                   "10s",
+	"EMAIL_FROM":                       "",
+	"EMAIL_REPLY_TO":                   "",
+	"MFA_CHALLENGE_TTL":                "5m",
+	"MFA_MAX_ATTEMPTS":                 5,
+	"PERMISSION_CACHE_TTL":             "5m",
+	"INVITATION_URL_BACKOFFICE":        "http://localhost:3001/convite",
+	"INVITATION_URL_PARTNER_PANEL":     "http://localhost:3002/convite",
+	"DISPATCH_WATCHER_INTERVAL":        "1s",
+	"DISPATCH_WATCHER_BATCH":           200,
+	"DISPATCH_CHANNEL_TIMEOUT":         "5s",
+	"FARE_ESTIMATE_TTL":                "5m",
+	"NEARBY_MIN_CELL_COUNT":            3,
+	"LOCATION_MAX_ACCURACY_M":          100,
+	"LOCATION_MAX_SPEED_KMH":           200,
+	"LOCATION_HISTORY_RETENTION":       "720h",
+	"OFFER_DEEP_LINK_BASE":             "agoraprovider://app",
+	"OPERATOR_ALERT_PHONE":             "",
+	"IDEMPOTENCY_TTL":                  "24h",
+	"NOTIFICATION_WORKERS":             8,
+	"REALTIME_PROJECTOR_WORKERS":       16,
+	"SSE_HEARTBEAT_INTERVAL":           "15s",
+	"SSE_POLL_INTERVAL":                "30s",
+	"SSE_DEAD_AFTER":                   "38s",
+	"SSE_MAILBOX_MAX_ENTRIES":          200,
+	"SSE_MAILBOX_TTL":                  "24h",
+	"SSE_RECONNECT_SPREAD":             "30s",
+	"MAPBOX_ACCESS_TOKEN":              "",
+	"MAPBOX_BASE_URL":                  "https://api.mapbox.com",
+	"MAPBOX_TIMEOUT":                   "2s",
+	"MAPBOX_BREAKER_FAILURES":          5,
+	"MAPBOX_BREAKER_COOLDOWN":          "30s",
+	"ROUTING_ROAD_FACTOR":              1.4,
+	"ROUTING_FALLBACK_SPEED_KMH":       25,
+	"FCM_PROJECT_ID":                   "",
+	"FCM_CREDENTIALS_JSON":             "",
+	"FCM_BASE_URL":                     "https://fcm.googleapis.com",
+	"FCM_TIMEOUT":                      "5s",
+	"APPYPAY_CLIENT_ID":                "",
+	"APPYPAY_CLIENT_SECRET":            "",
+	"APPYPAY_BASE_URL":                 "",
+	"APPYPAY_TOKEN_URL":                "",
+	"APPYPAY_RESOURCE":                 "",
+	"APPYPAY_GPO_METHOD":               "",
+	"APPYPAY_REF_METHOD":               "",
+	"APPYPAY_TIMEOUT":                  "30s",
+	"PAYMENT_GPO_WINDOW":               "5m",
+	"PAYMENT_REFERENCE_TTL":            "72h",
+	"PAYMENT_RECONCILE_INTERVAL":       "15s",
+	"PAYMENT_RECONCILE_BATCH":          50,
+	"PAYMENT_GPO_CHECK_INTERVAL":       "15s",
+	"PAYMENT_REFERENCE_CHECK_INTERVAL": "10m",
+	"R2_ACCOUNT_ID":                    "",
+	"R2_ACCESS_KEY_ID":                 "",
+	"R2_SECRET_ACCESS_KEY":             "",
+	"R2_BUCKET_NAME":                   "",
+	"R2_ENDPOINT":                      "",
+	"R2_PRESIGN_TTL":                   "15m",
 }
 
 const cloudflareIdleLimit = 100 * time.Second
@@ -385,7 +426,13 @@ func (c *Config) validate() error {
 		errs = append(errs, errors.New("INVITATION_URL_BACKOFFICE and INVITATION_URL_PARTNER_PANEL cannot be empty"))
 	}
 	errs = append(errs, c.validateDispatch()...)
+	if c.AppyPay.Timeout <= 0 || c.AppyPay.GPOWindow <= 0 || c.AppyPay.ReferenceTTL <= 0 || c.AppyPay.ReconcileInterval <= 0 || c.AppyPay.ReconcileBatch <= 0 || c.AppyPay.GPOCheckInterval <= 0 || c.AppyPay.ReferenceCheckInterval <= 0 {
+		errs = append(errs, errors.New("APPYPAY_TIMEOUT and the PAYMENT_* settings must be positive"))
+	}
 	if c.App.Env == enums.EnvProduction {
+		if !c.AppyPay.Enabled() {
+			errs = append(errs, errors.New("every APPYPAY_* credential is required in production"))
+		}
 		if !c.SMS.Enabled() {
 			errs = append(errs, errors.New("CASTBRICK_API_KEY is required in production"))
 		}

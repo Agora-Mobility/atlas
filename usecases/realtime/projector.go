@@ -24,6 +24,7 @@ const (
 	sseRoute          = "request.route"
 	sseAlert          = "request.alert"
 	sseReminder       = "request.reminder"
+	ssePayment        = "request.payment"
 	maxEventBytes     = 2048
 )
 
@@ -40,7 +41,7 @@ func BindingKeys() []string {
 	types := []string{
 		events.RequestSearching, events.RequestScheduled, events.RequestOffered, events.RequestAwaitingChoice, events.RequestAccepted, events.RequestProviderEnRoute,
 		events.RequestInProgress, events.RequestCompleted, events.RequestExpired, events.RequestCancelled, events.OfferCreated, events.OfferExpired,
-		events.OfferCancelled, events.QuoteSubmitted, events.FareBoosted, events.RouteChanged, events.OperatorAlerted, events.ReminderDue,
+		events.OfferCancelled, events.PaymentChanged, events.QuoteSubmitted, events.FareBoosted, events.RouteChanged, events.OperatorAlerted, events.ReminderDue,
 	}
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
@@ -103,6 +104,19 @@ func (p *Projector) project(env events.Envelope) (*projection, error) {
 		return &projection{
 			recipients: []uuid.UUID{event.ProviderID}, sseType: sseType, class: class,
 			body: map[string]any{"offer_id": event.OfferID, "request_id": event.RequestID, "request_version": event.Version, "reason": event.Reason},
+		}, nil
+	case events.PaymentChanged:
+		var event events.PaymentChangedV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		recipients := []uuid.UUID{event.CustomerID}
+		if event.ProviderID != nil {
+			recipients = append(recipients, *event.ProviderID)
+		}
+		return &projection{
+			recipients: recipients, sseType: ssePayment, class: services.ClassState,
+			body: map[string]any{"request_id": event.RequestID, "payment_id": event.PaymentID, "method": event.Method, "status": event.Status, "amount_cents": event.AmountCents, "currency": event.Currency},
 		}, nil
 	case events.QuoteSubmitted:
 		var event events.QuoteSubmittedV1
@@ -168,7 +182,7 @@ func (p *Projector) projectOffer(event events.RequestOfferV1) *projection {
 	expiresAt := event.ExpiresAt
 	body := map[string]any{
 		"offer_id": event.OfferID, "request_id": event.RequestID, "request_version": event.Version, "category": event.Category,
-		"pickup": event.Pickup, "distance_m": event.DistanceM,
+		"pickup": event.Pickup, "distance_m": event.DistanceM, "payment_method": event.PaymentMethod,
 	}
 	if event.Destination != nil {
 		body["destination"] = event.Destination

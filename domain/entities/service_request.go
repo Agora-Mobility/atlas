@@ -155,6 +155,7 @@ type NewRequestInput struct {
 	Details        json.RawMessage
 	ScheduledFor   *time.Time
 	Fare           RequestFare
+	PaymentMethod  PaymentMethod
 	IdempotencyKey string
 	Now            time.Time
 }
@@ -186,6 +187,8 @@ type ServiceRequest struct {
 	ReminderAt     *time.Time
 	ProviderID     *uuid.UUID
 	Fare           RequestFare
+	PaymentMethod  PaymentMethod
+	PaymentStatus  RequestPaymentStatus
 	NeedsOperator  bool
 	OperatorReason string
 	IdempotencyKey string
@@ -231,6 +234,10 @@ func NewServiceRequest(in NewRequestInput) (*ServiceRequest, error) {
 			return nil, err
 		}
 	}
+	paymentMethod := in.PaymentMethod
+	if paymentMethod == "" {
+		paymentMethod = PaymentCash
+	}
 	details := in.Details
 	if len(details) == 0 {
 		details = json.RawMessage("{}")
@@ -254,6 +261,8 @@ func NewServiceRequest(in NewRequestInput) (*ServiceRequest, error) {
 		Details:        details,
 		ScheduledFor:   in.ScheduledFor,
 		Fare:           in.Fare,
+		PaymentMethod:  paymentMethod,
+		PaymentStatus:  RequestUnpaid,
 		IdempotencyKey: strings.TrimSpace(in.IdempotencyKey),
 		CreatedAt:      in.Now,
 		UpdatedAt:      in.Now,

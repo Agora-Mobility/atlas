@@ -90,6 +90,7 @@ type Deps struct {
 	Providers repository.IProviderRepository
 	Requests  repository.IRequestRepository
 	Offers    repository.IOfferRepository
+	Payments  repository.IPaymentRepository
 	Devices   repository.IDeviceRepository
 	Locator   repository.IProviderLocator
 	Outbox    repository.IOutboxRepository

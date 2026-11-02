@@ -144,6 +144,73 @@ definitions:
       reason:
         type: string
     type: object
+  dtos.AdminPaymentDetail:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/dtos.EventView'
+        type: array
+      payment:
+        $ref: '#/definitions/dtos.PaymentView'
+      provider_charge_id:
+        type: string
+      refunds:
+        items:
+          $ref: '#/definitions/dtos.RefundView'
+        type: array
+    type: object
+  dtos.AdminPaymentList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.AdminPaymentView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.AdminPaymentView:
+    properties:
+      amount_cents:
+        type: integer
+      category:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      customer_id:
+        type: string
+      customer_name:
+        type: string
+      expires_at:
+        type: string
+      failure_message:
+        type: string
+      id:
+        type: string
+      method:
+        type: string
+      paid_at:
+        type: string
+      payer_phone:
+        type: string
+      provider_charge_id:
+        type: string
+      reference:
+        $ref: '#/definitions/dtos.ReferenceView'
+      refunded_cents:
+        type: integer
+      request_id:
+        type: string
+      status:
+        type: string
+    type: object
   dtos.AdminRequestDetail:
     properties:
       history:
@@ -425,6 +492,18 @@ definitions:
       updated_at:
         type: string
     type: object
+  dtos.ChangeMethodInput:
+    properties:
+      method:
+        enum:
+        - cash
+        - gpo
+        - reference
+        example: gpo
+        type: string
+    required:
+    - method
+    type: object
   dtos.ChangePasswordInput:
     properties:
       current_password:
@@ -553,6 +632,13 @@ definitions:
         type: string
       passenger:
         $ref: '#/definitions/dtos.PassengerInput'
+      payment_method:
+        enum:
+        - cash
+        - gpo
+        - reference
+        example: cash
+        type: string
       pickup:
         $ref: '#/definitions/dtos.PlaceInput'
       scheduled_for:
@@ -736,6 +822,17 @@ definitions:
       vehicle_id:
         type: string
       vehicle_plate:
+        type: string
+    type: object
+  dtos.EventView:
+    properties:
+      detail:
+        type: string
+      occurred_at:
+        type: string
+      source:
+        type: string
+      status:
         type: string
     type: object
   dtos.FareEstimateInput:
@@ -1061,6 +1158,26 @@ definitions:
       message:
         type: string
     type: object
+  dtos.MethodList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.MethodView'
+        type: array
+    type: object
+  dtos.MethodView:
+    properties:
+      category_id:
+        type: string
+      category_name:
+        type: string
+      category_slug:
+        type: string
+      is_enabled:
+        type: boolean
+      method:
+        type: string
+    type: object
   dtos.MyAccessView:
     properties:
       membership_id:
@@ -1116,6 +1233,8 @@ definitions:
         type: string
       net_cents:
         type: integer
+      payment_method:
+        type: string
       pickup:
         $ref: '#/definitions/dtos.PlaceView'
       request_id:
@@ -1214,6 +1333,59 @@ definitions:
     required:
     - name
     - phone
+    type: object
+  dtos.PayInput:
+    properties:
+      method:
+        enum:
+        - gpo
+        - reference
+        example: gpo
+        type: string
+      phone_number:
+        example: "923000000"
+        maxLength: 20
+        type: string
+    required:
+    - method
+    type: object
+  dtos.PaymentList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.PaymentView'
+        type: array
+    type: object
+  dtos.PaymentView:
+    properties:
+      amount_cents:
+        type: integer
+      code:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      expires_at:
+        type: string
+      failure_message:
+        type: string
+      id:
+        type: string
+      method:
+        type: string
+      paid_at:
+        type: string
+      payer_phone:
+        type: string
+      reference:
+        $ref: '#/definitions/dtos.ReferenceView'
+      refunded_cents:
+        type: integer
+      request_id:
+        type: string
+      status:
+        type: string
     type: object
   dtos.PermissionList:
     properties:
@@ -1719,6 +1891,17 @@ definitions:
     required:
     - phone
     type: object
+  dtos.ReferenceView:
+    properties:
+      due_at:
+        type: string
+      entity:
+        example: "00348"
+        type: string
+      number:
+        example: "968481213"
+        type: string
+    type: object
   dtos.RefreshRequest:
     properties:
       refresh_token:
@@ -1726,6 +1909,32 @@ definitions:
         type: string
     required:
     - refresh_token
+    type: object
+  dtos.RefundInput:
+    properties:
+      amount_cents:
+        example: 150000
+        minimum: 0
+        type: integer
+      reason:
+        example: Cobrança em duplicado
+        maxLength: 300
+        type: string
+    required:
+    - reason
+    type: object
+  dtos.RefundView:
+    properties:
+      actor_id:
+        type: string
+      amount_cents:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: string
+      reason:
+        type: string
     type: object
   dtos.RegisterDocumentInput:
     properties:
@@ -1961,6 +2170,10 @@ definitions:
         type: string
       passenger_name:
         type: string
+      payment_method:
+        type: string
+      payment_status:
+        type: string
       pickup:
         $ref: '#/definitions/dtos.PlaceView'
       position:
@@ -2189,6 +2402,22 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/dtos.UserView'
+    type: object
+  dtos.SetMethodInput:
+    properties:
+      category_id:
+        type: string
+      is_enabled:
+        type: boolean
+      method:
+        enum:
+        - cash
+        - gpo
+        - reference
+        type: string
+    required:
+    - category_id
+    - method
     type: object
   dtos.SetPasswordInput:
     properties:
@@ -3316,6 +3545,170 @@ paths:
       summary: Search again for a queued request
       tags:
       - Backoffice dispatch
+  /api/v1/admin/payment-methods:
+    get:
+      description: Requires services:manage.
+      parameters:
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MethodList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Payment methods per category
+      tags:
+      - Backoffice payments
+    put:
+      consumes:
+      - application/json
+      description: Requires services:manage.
+      parameters:
+      - description: Setting
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SetMethodInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MethodList'
+        "422":
+          description: PAYMENT_METHOD_UNAVAILABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Turn a payment method on or off for a category
+      tags:
+      - Backoffice payments
+  /api/v1/admin/payments:
+    get:
+      description: Requires finance:read. Newest first.
+      parameters:
+      - description: pending, paid, failed or expired, separated by commas
+        in: query
+        name: status
+        type: string
+      - description: cash, gpo or reference
+        in: query
+        name: method
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Request
+        in: query
+        name: request_id
+        type: string
+      - description: Created at or after
+        in: query
+        name: from
+        type: string
+      - description: Created before
+        in: query
+        name: to
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AdminPaymentList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List payments
+      tags:
+      - Backoffice payments
+  /api/v1/admin/payments/{id}:
+    get:
+      description: Requires finance:read.
+      parameters:
+      - description: Payment id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AdminPaymentDetail'
+        "404":
+          description: PAYMENT_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a payment with its history and refunds
+      tags:
+      - Backoffice payments
+  /api/v1/admin/payments/{id}/refund:
+    post:
+      consumes:
+      - application/json
+      description: 'Requires refunds:approve. Only gpo payments: AppyPay does not
+        refund references and cash stays out of the gateway. Leave amount_cents at
+        0 to refund all that is left.'
+      parameters:
+      - description: Payment id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Refund
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RefundInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PaymentView'
+        "404":
+          description: PAYMENT_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: REFUND_NOT_SUPPORTED, REFUND_TOO_LARGE or REFUND_DECLINED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Refund a payment
+      tags:
+      - Backoffice payments
   /api/v1/admin/providers:
     get:
       description: Requires providers:read. Oldest submission first.
@@ -7181,6 +7574,28 @@ paths:
       summary: List the roles of a partner
       tags:
       - Partners
+  /api/v1/payment-methods:
+    get:
+      description: Only what can be used now. Fills the method selector before and
+        after a request.
+      parameters:
+      - description: Category slug, such as taxi
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MethodList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Payment methods of a category
+      tags:
+      - Payments
   /api/v1/permissions:
     get:
       description: Requires roles:read.
@@ -7838,6 +8253,160 @@ paths:
       summary: Provider leaves for the pickup
       tags:
       - Provider work
+  /api/v1/requests/{id}/payment-method:
+    put:
+      consumes:
+      - application/json
+      description: Customer only. After the request is completed it cannot change
+        to cash, and it cannot change while a payment is pending.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Method
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ChangeMethodInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ChangeMethodInput'
+        "404":
+          description: REQUEST_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: PAYMENT_METHOD_LOCKED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: PAYMENT_METHOD_UNAVAILABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Change the payment method of a request
+      tags:
+      - Payments
+  /api/v1/requests/{id}/payments:
+    get:
+      description: The customer or the provider of the request. The provider does
+        not see the phone or the reference.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PaymentList'
+        "404":
+          description: REQUEST_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Payments of a request
+      tags:
+      - Payments
+    post:
+      consumes:
+      - application/json
+      description: Customer only. gpo asks for approval in the Multicaixa Express
+        app of phone_number, or of the phone of the account when empty. reference
+        returns the number and entity to pay with. The amount always comes from the
+        request. Follow the result with the request.payment event or GET /requests/{id}/payments.
+        Sending the same method again returns the pending payment.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Method
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PayInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The payment already pending
+          schema:
+            $ref: '#/definitions/dtos.PaymentView'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.PaymentView'
+        "404":
+          description: REQUEST_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: REQUEST_NOT_PAYABLE, ALREADY_PAID or PAYMENT_PENDING
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: PAYMENT_METHOD_UNAVAILABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "503":
+          description: PAYMENTS_UNAVAILABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Pay a completed request
+      tags:
+      - Payments
+  /api/v1/requests/{id}/payments/cash:
+    post:
+      description: The provider of the completed request only. Repeating it returns
+        the same payment.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PaymentView'
+        "404":
+          description: REQUEST_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: REQUEST_NOT_PAYABLE, ALREADY_PAID or PAYMENT_PENDING
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Confirm that the cash was received
+      tags:
+      - Payments
   /api/v1/requests/{id}/route:
     post:
       consumes:
@@ -8660,6 +9229,29 @@ paths:
       summary: Change the password of the authenticated user
       tags:
       - Users
+  /api/v1/webhooks/appypay:
+    post:
+      consumes:
+      - application/json
+      description: 'Called by AppyPay. The body is only a notice: the state always
+        comes from asking AppyPay for the charge.'
+      parameters:
+      - description: AppyPay notification
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      summary: AppyPay payment notification
+      tags:
+      - Payments
   /events:
     get:
       description: Server-Sent Events of the signed-in customer or provider. Send

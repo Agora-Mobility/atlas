@@ -90,6 +90,7 @@ func (s *Server) Start(ctx context.Context) error {
 	workers.Go(func() { relay.Run(workersCtx) })
 	workers.Go(func() { s.container.SSE.RunDoor(workersCtx, s.container.Redis) })
 	workers.Go(func() { s.container.Dispatch.Usecase.RunWatcher(workersCtx) })
+	workers.Go(func() { s.container.Payments.Usecase.RunReconciler(workersCtx) })
 	for _, consumer := range s.container.Consumers() {
 		workers.Go(func() { consumer.Run(workersCtx) })
 	}

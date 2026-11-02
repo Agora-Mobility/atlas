@@ -102,6 +102,8 @@ var errorTable = []struct {
 	message string
 }{
 	{dispatch.ErrRequestNotFound, http.StatusNotFound, "REQUEST_NOT_FOUND", "Request not found."},
+	{entities.ErrPaymentOutstanding, http.StatusConflict, "PAYMENT_OUTSTANDING", "Pay the completed request before asking for another."},
+	{entities.ErrPaymentMethodUnavailable, http.StatusUnprocessableEntity, "PAYMENT_METHOD_UNAVAILABLE", "This payment method is not available for this service."},
 	{dispatch.ErrInvalidGrouping, http.StatusUnprocessableEntity, "INVALID_GROUPING", "group_by must be category, service, status, zone or organization."},
 	{dispatch.ErrOfferNotFound, http.StatusNotFound, "OFFER_NOT_FOUND", "Offer not found."},
 	{dispatch.ErrZoneNotFound, http.StatusNotFound, "ZONE_NOT_FOUND", "Zone not found."},

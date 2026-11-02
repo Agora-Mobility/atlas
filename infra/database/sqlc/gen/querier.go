@@ -25,6 +25,7 @@ type Querier interface {
 	ClearDocumentRejectionReasons(ctx context.Context, arg ClearDocumentRejectionReasonsParams) error
 	ClearProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) error
 	CloseServiceTariff(ctx context.Context, arg CloseServiceTariffParams) error
+	CountAdminPayments(ctx context.Context, arg CountAdminPaymentsParams) (int64, error)
 	CountAdminRequests(ctx context.Context, arg CountAdminRequestsParams) (int64, error)
 	CountFleetDrivers(ctx context.Context, arg CountFleetDriversParams) (int64, error)
 	CountMembers(ctx context.Context, arg CountMembersParams) (int64, error)
@@ -69,6 +70,7 @@ type Querier interface {
 	DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDeviceTokenParams) error
 	DeleteUserMFA(ctx context.Context, userID uuid.UUID) error
 	DemandByCell(ctx context.Context, arg DemandByCellParams) ([]DemandByCellRow, error)
+	DuePayments(ctx context.Context, arg DuePaymentsParams) ([]uuid.UUID, error)
 	DueRequestOffers(ctx context.Context, arg DueRequestOffersParams) ([]uuid.UUID, error)
 	DueServiceRequestReminders(ctx context.Context, arg DueServiceRequestRemindersParams) ([]uuid.UUID, error)
 	DueServiceRequests(ctx context.Context, arg DueServiceRequestsParams) ([]uuid.UUID, error)
@@ -96,6 +98,12 @@ type Querier interface {
 	GetMembershipInOrganization(ctx context.Context, arg GetMembershipInOrganizationParams) (Membership, error)
 	GetMembershipInOrganizationForUpdate(ctx context.Context, arg GetMembershipInOrganizationForUpdateParams) (Membership, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
+	GetPaidPaymentOfRequest(ctx context.Context, requestID uuid.UUID) (Payment, error)
+	GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
+	GetPaymentByMerchantID(ctx context.Context, merchantID string) (Payment, error)
+	GetPaymentByProviderCharge(ctx context.Context, providerChargeID *string) (Payment, error)
+	GetPaymentForUpdate(ctx context.Context, id uuid.UUID) (Payment, error)
+	GetPendingPaymentOfRequest(ctx context.Context, requestID uuid.UUID) (Payment, error)
 	GetPlatformOrganization(ctx context.Context) (Organization, error)
 	GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error)
 	GetProviderCategory(ctx context.Context, userID uuid.UUID) (GetProviderCategoryRow, error)
@@ -125,13 +133,18 @@ type Querier interface {
 	GetVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) (Vehicle, error)
 	GetWorkshop(ctx context.Context, id uuid.UUID) (Workshop, error)
 	GetWorkshopService(ctx context.Context, id uuid.UUID) (WorkshopService, error)
+	HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error)
 	InsertFareAdjustment(ctx context.Context, arg InsertFareAdjustmentParams) error
 	InsertLocationSample(ctx context.Context, arg InsertLocationSampleParams) error
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
+	InsertPayment(ctx context.Context, arg InsertPaymentParams) error
+	InsertPaymentEvent(ctx context.Context, arg InsertPaymentEventParams) error
+	InsertPaymentRefund(ctx context.Context, arg InsertPaymentRefundParams) error
 	InsertProviderCoverage(ctx context.Context, arg InsertProviderCoverageParams) error
 	InsertServiceRequest(ctx context.Context, arg InsertServiceRequestParams) error
 	InsertServiceRequestEvent(ctx context.Context, arg InsertServiceRequestEventParams) error
 	InsertServiceRequestStop(ctx context.Context, arg InsertServiceRequestStopParams) error
+	IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMethodEnabledParams) (bool, error)
 	IsValidZoneGeometry(ctx context.Context, geojson string) (bool, error)
 	ListActiveBlockReasons(ctx context.Context) ([]BlockReason, error)
 	ListActiveBlockReasonsByIDs(ctx context.Context, ids []uuid.UUID) ([]BlockReason, error)
@@ -139,7 +152,9 @@ type Querier interface {
 	ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListActiveRejectionReasonsByIDsParams) ([]RejectionReason, error)
 	ListActiveServicesOfActiveCategories(ctx context.Context) ([]Service, error)
 	ListActiveServicesOfCategory(ctx context.Context, slug string) ([]ListActiveServicesOfCategoryRow, error)
+	ListAdminPayments(ctx context.Context, arg ListAdminPaymentsParams) ([]ListAdminPaymentsRow, error)
 	ListAdminRequests(ctx context.Context, arg ListAdminRequestsParams) ([]ListAdminRequestsRow, error)
+	ListCategoryPaymentMethods(ctx context.Context, arg ListCategoryPaymentMethodsParams) ([]ListCategoryPaymentMethodsRow, error)
 	ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error)
 	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
 	ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error)
@@ -153,6 +168,9 @@ type Querier interface {
 	ListOpenOffersOfProvider(ctx context.Context, arg ListOpenOffersOfProviderParams) ([]RequestOffer, error)
 	ListOperatorQueue(ctx context.Context, arg ListOperatorQueueParams) ([]ServiceRequest, error)
 	ListPartnerOrganizations(ctx context.Context, arg ListPartnerOrganizationsParams) ([]Organization, error)
+	ListPaymentEvents(ctx context.Context, paymentID uuid.UUID) ([]ListPaymentEventsRow, error)
+	ListPaymentRefunds(ctx context.Context, paymentID uuid.UUID) ([]PaymentRefund, error)
+	ListPaymentsOfRequest(ctx context.Context, requestID uuid.UUID) ([]Payment, error)
 	ListPermissionsByScope(ctx context.Context, scope enums.OrganizationType) ([]ListPermissionsByScopeRow, error)
 	ListProviderApplications(ctx context.Context, arg ListProviderApplicationsParams) ([]ListProviderApplicationsRow, error)
 	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error)
@@ -198,6 +216,8 @@ type Querier interface {
 	SaveUserAddress(ctx context.Context, arg SaveUserAddressParams) error
 	SaveWorkshop(ctx context.Context, arg SaveWorkshopParams) error
 	SaveWorkshopService(ctx context.Context, arg SaveWorkshopServiceParams) error
+	SetCategoryPaymentMethod(ctx context.Context, arg SetCategoryPaymentMethodParams) (int64, error)
+	SetRequestPayment(ctx context.Context, arg SetRequestPaymentParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error)
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
@@ -206,6 +226,7 @@ type Querier interface {
 	UpdateFleetVehicle(ctx context.Context, arg UpdateFleetVehicleParams) error
 	UpdateMembership(ctx context.Context, arg UpdateMembershipParams) error
 	UpdatePartnerOrganization(ctx context.Context, arg UpdatePartnerOrganizationParams) (int64, error)
+	UpdatePayment(ctx context.Context, arg UpdatePaymentParams) error
 	UpdateProviderBase(ctx context.Context, arg UpdateProviderBaseParams) (int64, error)
 	UpdateRejectionReason(ctx context.Context, arg UpdateRejectionReasonParams) error
 	UpdateRequestOffer(ctx context.Context, arg UpdateRequestOfferParams) error

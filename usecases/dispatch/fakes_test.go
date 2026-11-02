@@ -261,3 +261,11 @@ type etaRouter struct {
 func (r etaRouter) ETAs(context.Context, []entities.GeoPoint, entities.GeoPoint) ([]time.Duration, error) {
 	return r.etas, nil
 }
+
+type fakePayments struct{ repository.IPaymentRepository }
+
+func (fakePayments) HasOutstanding(context.Context, uuid.UUID) (bool, error) { return false, nil }
+
+func (fakePayments) IsMethodEnabled(context.Context, uuid.UUID, entities.PaymentMethod) (bool, error) {
+	return true, nil
+}

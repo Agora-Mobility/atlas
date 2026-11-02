@@ -13,4 +13,5 @@ func SetupRoutes(api *gin.RouterGroup, c *containers.Container) {
 	c.Providers.Router.Register(api)
 	c.Addresses.Router.Register(api)
 	c.Fleet.Router.Register(api)
+	c.Payments.Router.Register(api)
 }

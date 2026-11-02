@@ -37,6 +37,10 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	if service == nil || !service.IsOffered {
 		return nil, false, ErrServiceNotOffered
 	}
+	paymentMethod, err := u.checkPayment(ctx, customerID, service.CategoryID, in.PaymentMethod)
+	if err != nil {
+		return nil, false, err
+	}
 	pickup := in.Pickup.ToPlace()
 	if err := pickup.Point.Validate("pickup"); err != nil {
 		return nil, false, err
@@ -81,7 +85,7 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	request, err := entities.NewServiceRequest(entities.NewRequestInput{
 		ID: id, CustomerID: customerID, Service: *service, Policy: policy, Zone: zone, Pickup: pickup, Destination: destination, Stops: stops,
 		ContactPhone: in.ContactPhone, PassengerName: passengerName, PassengerPhone: passengerPhone, Details: in.Details,
-		ScheduledFor: in.ScheduledFor, Fare: fare, IdempotencyKey: idempotencyKey, Now: now,
+		ScheduledFor: in.ScheduledFor, Fare: fare, PaymentMethod: paymentMethod, IdempotencyKey: idempotencyKey, Now: now,
 	})
 	if err != nil {
 		return nil, false, err
@@ -145,6 +149,28 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	}
 	view, err := u.customerView(ctx, request)
 	return view, true, err
+}
+
+func (u *Usecase) checkPayment(ctx context.Context, customerID, categoryID uuid.UUID, requested string) (entities.PaymentMethod, error) {
+	outstanding, err := u.Payments.HasOutstanding(ctx, customerID)
+	if err != nil {
+		return "", err
+	}
+	if outstanding {
+		return "", entities.ErrPaymentOutstanding
+	}
+	method := entities.PaymentMethod(requested)
+	if method == "" {
+		method = entities.PaymentCash
+	}
+	enabled, err := u.Payments.IsMethodEnabled(ctx, categoryID, method)
+	if err != nil {
+		return "", err
+	}
+	if !enabled {
+		return "", entities.ErrPaymentMethodUnavailable
+	}
+	return method, nil
 }
 
 func (u *Usecase) resolveFare(ctx context.Context, customerID uuid.UUID, service *entities.DispatchService, policy *entities.DispatchPolicy, zone *entities.ServiceZone, pickup entities.RequestPlace, destination *entities.RequestPlace, in dtos.CreateRequestInput, now time.Time) (entities.RequestFare, error) {
@@ -563,7 +589,7 @@ func baseRequestView(r *entities.ServiceRequest) dtos.RequestView {
 	}
 	view := dtos.RequestView{
 		ID: r.ID, Status: string(r.Status), Version: r.Version, Category: r.CategorySlug, ServiceID: r.ServiceID, Pickup: dtos.ToPlaceView(r.Pickup), Stops: stops,
-		ScheduledFor: r.ScheduledFor, FareCents: r.Fare.Cents, BoostBps: r.Fare.BoostBps, Currency: r.Fare.Currency, NeedsOperator: r.NeedsOperator, OperatorReason: r.OperatorReason,
+		ScheduledFor: r.ScheduledFor, FareCents: r.Fare.Cents, BoostBps: r.Fare.BoostBps, Currency: r.Fare.Currency, PaymentMethod: string(r.PaymentMethod), PaymentStatus: string(r.PaymentStatus), NeedsOperator: r.NeedsOperator, OperatorReason: r.OperatorReason,
 		CancelReason: r.CancelReason, CancelledBy: r.CancelledBy, AcceptedAt: r.AcceptedAt, ArrivedAt: r.ArrivedAt, StartedAt: r.StartedAt, CompletedAt: r.CompletedAt, CreatedAt: r.CreatedAt,
 	}
 	if r.Destination != nil {
@@ -630,7 +656,7 @@ func (u *Usecase) offerView(ctx context.Context, offer *entities.RequestOffer, n
 	view := &dtos.OfferView{
 		ID: offer.ID, RequestID: offer.RequestID, Version: request.Version, Status: string(offer.Status), Category: request.CategorySlug,
 		ExpiresInS: offer.RemainingSeconds(now), Pickup: dtos.ToPlaceView(request.Pickup), DistanceM: offer.DistanceM, NetCents: offer.NetCents,
-		Currency: request.Fare.Currency, Mode: string(policy.OfferMode), Details: request.Details,
+		Currency: request.Fare.Currency, Mode: string(policy.OfferMode), PaymentMethod: string(request.PaymentMethod), Details: request.Details,
 	}
 	if request.Destination != nil {
 		destination := dtos.ToPlaceView(*request.Destination)

@@ -687,6 +687,270 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/payment-methods": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires services:manage.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice payments"
+                ],
+                "summary": "Payment methods per category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MethodList"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires services:manage.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice payments"
+                ],
+                "summary": "Turn a payment method on or off for a category",
+                "parameters": [
+                    {
+                        "description": "Setting",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SetMethodInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MethodList"
+                        }
+                    },
+                    "422": {
+                        "description": "PAYMENT_METHOD_UNAVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/payments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires finance:read. Newest first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice payments"
+                ],
+                "summary": "List payments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "pending, paid, failed or expired, separated by commas",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "cash, gpo or reference",
+                        "name": "method",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request",
+                        "name": "request_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created at or after",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created before",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AdminPaymentList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/payments/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires finance:read.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice payments"
+                ],
+                "summary": "Get a payment with its history and refunds",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AdminPaymentDetail"
+                        }
+                    },
+                    "404": {
+                        "description": "PAYMENT_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/payments/{id}/refund": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires refunds:approve. Only gpo payments: AppyPay does not refund references and cash stays out of the gateway. Leave amount_cents at 0 to refund all that is left.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice payments"
+                ],
+                "summary": "Refund a payment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Refund",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RefundInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PaymentView"
+                        }
+                    },
+                    "404": {
+                        "description": "PAYMENT_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "REFUND_NOT_SUPPORTED, REFUND_TOO_LARGE or REFUND_DECLINED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/providers": {
             "get": {
                 "security": [
@@ -6690,6 +6954,42 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/payment-methods": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Only what can be used now. Fills the method selector before and after a request.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Payment methods of a category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category slug, such as taxi",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MethodList"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/permissions": {
             "get": {
                 "security": [
@@ -7771,6 +8071,242 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/payment-method": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer only. After the request is completed it cannot change to cash, and it cannot change while a payment is pending.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Change the payment method of a request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Method",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ChangeMethodInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ChangeMethodInput"
+                        }
+                    },
+                    "404": {
+                        "description": "REQUEST_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "PAYMENT_METHOD_LOCKED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "PAYMENT_METHOD_UNAVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/payments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The customer or the provider of the request. The provider does not see the phone or the reference.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Payments of a request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PaymentList"
+                        }
+                    },
+                    "404": {
+                        "description": "REQUEST_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer only. gpo asks for approval in the Multicaixa Express app of phone_number, or of the phone of the account when empty. reference returns the number and entity to pay with. The amount always comes from the request. Follow the result with the request.payment event or GET /requests/{id}/payments. Sending the same method again returns the pending payment.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Pay a completed request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Method",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PayInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The payment already pending",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PaymentView"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PaymentView"
+                        }
+                    },
+                    "404": {
+                        "description": "REQUEST_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "REQUEST_NOT_PAYABLE, ALREADY_PAID or PAYMENT_PENDING",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "PAYMENT_METHOD_UNAVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "PAYMENTS_UNAVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requests/{id}/payments/cash": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The provider of the completed request only. Repeating it returns the same payment.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Confirm that the cash was received",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PaymentView"
+                        }
+                    },
+                    "404": {
+                        "description": "REQUEST_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "REQUEST_NOT_PAYABLE, ALREADY_PAID or PAYMENT_PENDING",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -9053,6 +9589,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/webhooks/appypay": {
+            "post": {
+                "description": "Called by AppyPay. The body is only a notice: the state always comes from asking AppyPay for the charge.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "AppyPay payment notification",
+                "parameters": [
+                    {
+                        "description": "AppyPay notification",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "security": [
@@ -9354,6 +9924,108 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.AdminPaymentDetail": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.EventView"
+                    }
+                },
+                "payment": {
+                    "$ref": "#/definitions/dtos.PaymentView"
+                },
+                "provider_charge_id": {
+                    "type": "string"
+                },
+                "refunds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RefundView"
+                    }
+                }
+            }
+        },
+        "dtos.AdminPaymentList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.AdminPaymentView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.AdminPaymentView": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "customer_id": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "paid_at": {
+                    "type": "string"
+                },
+                "payer_phone": {
+                    "type": "string"
+                },
+                "provider_charge_id": {
+                    "type": "string"
+                },
+                "reference": {
+                    "$ref": "#/definitions/dtos.ReferenceView"
+                },
+                "refunded_cents": {
+                    "type": "integer"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -9777,6 +10449,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ChangeMethodInput": {
+            "type": "object",
+            "required": [
+                "method"
+            ],
+            "properties": {
+                "method": {
+                    "type": "string",
+                    "enum": [
+                        "cash",
+                        "gpo",
+                        "reference"
+                    ],
+                    "example": "gpo"
+                }
+            }
+        },
         "dtos.ChangePasswordInput": {
             "type": "object",
             "required": [
@@ -9960,6 +10649,15 @@ const docTemplate = `{
                 },
                 "passenger": {
                     "$ref": "#/definitions/dtos.PassengerInput"
+                },
+                "payment_method": {
+                    "type": "string",
+                    "enum": [
+                        "cash",
+                        "gpo",
+                        "reference"
+                    ],
+                    "example": "cash"
                 },
                 "pickup": {
                     "$ref": "#/definitions/dtos.PlaceInput"
@@ -10218,6 +10916,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "vehicle_plate": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.EventView": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "string"
+                },
+                "occurred_at": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -10689,6 +11404,37 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.MethodList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.MethodView"
+                    }
+                }
+            }
+        },
+        "dtos.MethodView": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "category_slug": {
+                    "type": "string"
+                },
+                "is_enabled": {
+                    "type": "boolean"
+                },
+                "method": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.MyAccessView": {
             "type": "object",
             "properties": {
@@ -10772,6 +11518,9 @@ const docTemplate = `{
                 },
                 "net_cents": {
                     "type": "integer"
+                },
+                "payment_method": {
+                    "type": "string"
                 },
                 "pickup": {
                     "$ref": "#/definitions/dtos.PlaceView"
@@ -10922,6 +11671,85 @@ const docTemplate = `{
                 "phone": {
                     "type": "string",
                     "maxLength": 20
+                }
+            }
+        },
+        "dtos.PayInput": {
+            "type": "object",
+            "required": [
+                "method"
+            ],
+            "properties": {
+                "method": {
+                    "type": "string",
+                    "enum": [
+                        "gpo",
+                        "reference"
+                    ],
+                    "example": "gpo"
+                },
+                "phone_number": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "923000000"
+                }
+            }
+        },
+        "dtos.PaymentList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.PaymentView"
+                    }
+                }
+            }
+        },
+        "dtos.PaymentView": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "paid_at": {
+                    "type": "string"
+                },
+                "payer_phone": {
+                    "type": "string"
+                },
+                "reference": {
+                    "$ref": "#/definitions/dtos.ReferenceView"
+                },
+                "refunded_cents": {
+                    "type": "integer"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -11634,6 +12462,22 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ReferenceView": {
+            "type": "object",
+            "properties": {
+                "due_at": {
+                    "type": "string"
+                },
+                "entity": {
+                    "type": "string",
+                    "example": "00348"
+                },
+                "number": {
+                    "type": "string",
+                    "example": "968481213"
+                }
+            }
+        },
         "dtos.RefreshRequest": {
             "type": "object",
             "required": [
@@ -11643,6 +12487,44 @@ const docTemplate = `{
                 "refresh_token": {
                     "type": "string",
                     "maxLength": 128
+                }
+            }
+        },
+        "dtos.RefundInput": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "amount_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 150000
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "example": "Cobrança em duplicado"
+                }
+            }
+        },
+        "dtos.RefundView": {
+            "type": "object",
+            "properties": {
+                "actor_id": {
+                    "type": "string"
+                },
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
                 }
             }
         },
@@ -11986,6 +12868,12 @@ const docTemplate = `{
                 "passenger_name": {
                     "type": "string"
                 },
+                "payment_method": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "type": "string"
+                },
                 "pickup": {
                     "$ref": "#/definitions/dtos.PlaceView"
                 },
@@ -12323,6 +13211,29 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/dtos.UserView"
+                }
+            }
+        },
+        "dtos.SetMethodInput": {
+            "type": "object",
+            "required": [
+                "category_id",
+                "method"
+            ],
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "is_enabled": {
+                    "type": "boolean"
+                },
+                "method": {
+                    "type": "string",
+                    "enum": [
+                        "cash",
+                        "gpo",
+                        "reference"
+                    ]
                 }
             }
         },

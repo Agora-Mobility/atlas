@@ -28,6 +28,7 @@ const (
 	templateReminder       = "request_reminder"
 	templateOperator       = "operator_alert"
 	templateProviderReview = "provider_review"
+	templatePayment        = "payment_status"
 	statusSent             = "sent"
 	statusFailed           = "failed"
 	statusSkipped          = "skipped"
@@ -62,7 +63,7 @@ func RequestBindingKeys() []string {
 		types = append(types, eventType)
 	}
 	slices.Sort(types)
-	types = append(types, events.OfferCreated, events.OfferCancelled, events.QuoteSubmitted, events.ReminderDue, events.OperatorAlerted,
+	types = append(types, events.PaymentChanged, events.OfferCreated, events.OfferCancelled, events.QuoteSubmitted, events.ReminderDue, events.OperatorAlerted,
 		events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended)
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
@@ -85,6 +86,8 @@ func (n *RequestNotifier) OnEvent(ctx context.Context, env events.Envelope) erro
 		return n.onOperatorAlert(ctx, env)
 	case events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended:
 		return n.onProviderReview(ctx, env)
+	case events.PaymentChanged:
+		return n.onPayment(ctx, env)
 	default:
 		return n.onTransition(ctx, env)
 	}
@@ -293,4 +296,27 @@ func (n *RequestNotifier) record(ctx context.Context, userID *uuid.UUID, channel
 	if err != nil {
 		logger.FromContext(ctx).Warn("notification not recorded", zap.Error(err))
 	}
+}
+
+var paymentMessages = map[string]services.PushMessage{
+	string(entities.PaymentPaid):    {Title: "Pagamento confirmado", Body: "Recebemos o pagamento. Obrigado!"},
+	string(entities.PaymentFailed):  {Title: "O pagamento falhou", Body: "Não conseguimos confirmar o pagamento. Tenta de novo."},
+	string(entities.PaymentExpired): {Title: "O pagamento expirou", Body: "O prazo terminou. Faz um novo pagamento."},
+}
+
+func (n *RequestNotifier) onPayment(ctx context.Context, env events.Envelope) error {
+	var event events.PaymentChangedV1
+	if err := env.DecodePayload(&event); err != nil {
+		return err
+	}
+	message, known := paymentMessages[event.Status]
+	if !known {
+		return nil
+	}
+	message.Data = map[string]string{"type": "request.payment", "request_id": event.RequestID.String(), "status": event.Status, "event_id": env.EventID.String()}
+	failures := []error{n.pushTo(ctx, event.CustomerID, templatePayment, message)}
+	if event.ProviderID != nil && event.Status == string(entities.PaymentPaid) {
+		failures = append(failures, n.pushTo(ctx, *event.ProviderID, templatePayment, message))
+	}
+	return errors.Join(failures...)
 }

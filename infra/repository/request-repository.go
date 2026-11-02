@@ -39,7 +39,7 @@ func (r *RequestRepository) Create(ctx context.Context, s *entities.ServiceReque
 			DestinationH3R8: s.DestinationH3, PassengerName: s.PassengerName, PassengerPhone: s.PassengerPhone, Details: s.Details,
 			ScheduledFor: s.ScheduledFor, SearchRound: int16(s.SearchRound), SearchExtended: s.SearchExtended, SearchDeadlineAt: s.SearchDeadline, // #nosec G115 -- small counter
 			NextActionAt: s.NextActionAt, ReminderAt: s.ReminderAt, FareEstimateID: s.Fare.EstimateID, FareCents: s.Fare.Cents, CommissionCents: s.Fare.CommissionCents,
-			BoostBps: int32(s.Fare.BoostBps), Currency: s.Fare.Currency, IdempotencyKey: s.IdempotencyKey, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, // #nosec G115 -- 0 to 2000
+			BoostBps: int32(s.Fare.BoostBps), Currency: s.Fare.Currency, IdempotencyKey: s.IdempotencyKey, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, PaymentMethod: string(s.PaymentMethod), // #nosec G115 -- 0 to 2000
 		}
 		if s.Destination != nil {
 			if err := saveAddressOfPlace(ctx, queries, s.Destination); err != nil {
@@ -383,6 +383,7 @@ func toRequest(row *gen.ServiceRequest) *entities.ServiceRequest {
 	return &entities.ServiceRequest{
 		ID: row.ID, CustomerID: row.CustomerID, CategoryID: row.CategoryID, CategorySlug: row.CategorySlug, ServiceID: row.ServiceID, ZoneID: row.ZoneID, PolicyID: row.PolicyID,
 		Status: entities.RequestStatus(row.Status), Version: int(row.Version), Stops: []entities.RequestPlace{},
+		PaymentMethod: entities.PaymentMethod(row.PaymentMethod), PaymentStatus: entities.RequestPaymentStatus(row.PaymentStatus),
 		PickupH3R8: row.PickupH3R8, DestinationH3: row.DestinationH3R8, ContactPhone: row.ContactPhone, PassengerName: row.PassengerName, PassengerPhone: row.PassengerPhone,
 		Details: row.Details, ScheduledFor: row.ScheduledFor, SearchRound: int(row.SearchRound), SearchExtended: row.SearchExtended, SearchDeadline: row.SearchDeadlineAt,
 		NextActionAt: row.NextActionAt, ReminderAt: row.ReminderAt, ProviderID: row.ProviderID,
