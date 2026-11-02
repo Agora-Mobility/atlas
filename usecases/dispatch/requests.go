@@ -457,7 +457,10 @@ func (u *Usecase) cancel(ctx context.Context, requestID uuid.UUID, order cancelO
 			}
 		}
 		released, err = u.closeOffers(ctx, request, nil, "request_cancelled", now)
-		return err
+		if err != nil {
+			return err
+		}
+		return u.refundPrepaid(ctx, request, "Pedido cancelado")
 	})
 	if err != nil {
 		return nil, err
@@ -465,11 +468,6 @@ func (u *Usecase) cancel(ctx context.Context, requestID uuid.UUID, order cancelO
 	u.releaseAll(ctx, released)
 	u.clearTrip(ctx, request)
 	businessmetrics.RequestOutcomes.WithLabelValues(request.CategorySlug, string(request.Status)).Inc()
-	if request.Prepay && request.PaymentStatus == entities.RequestPaid && u.Refunds != nil {
-		if err := u.Refunds.RefundPrepaid(ctx, request.ID, "Pedido cancelado"); err != nil {
-			return nil, err
-		}
-	}
 	return request, nil
 }
 

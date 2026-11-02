@@ -246,7 +246,7 @@ func (u *Usecase) RemovalOptions(ctx context.Context) (*dtos.RemovalOptions, err
 	if view.InsuranceCents, err = u.settingCents(ctx, entities.SettingInsuranceCents); err != nil {
 		return nil, err
 	}
-	view.Currency = "AOA"
+	view.Currency = u.settings.Currency
 	return view, nil
 }
 
@@ -360,4 +360,11 @@ func (u *Usecase) OnPrepaid(ctx context.Context, request *entities.ServiceReques
 func (u *Usecase) OnPrepayExpired(ctx context.Context, request *entities.ServiceRequest, _ time.Time) error {
 	_, err := u.cancel(ctx, request.ID, cancelOrder{actor: entities.SystemRequestActor(), text: "A referência expirou sem pagamento", allowed: func(*entities.ServiceRequest) bool { return true }})
 	return err
+}
+
+func (u *Usecase) refundPrepaid(ctx context.Context, request *entities.ServiceRequest, reason string) error {
+	if !request.Prepay || request.PaymentStatus != entities.RequestPaid || u.Refunds == nil {
+		return nil
+	}
+	return u.Refunds.RefundPrepaid(ctx, request.ID, reason)
 }

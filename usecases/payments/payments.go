@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -161,6 +162,10 @@ func (u *Usecase) ChangeMethod(ctx context.Context, customerID, requestID uuid.U
 			return entities.ErrPaymentMethodLocked
 		}
 		if request.Status == entities.RequestCompleted && method == entities.PaymentCash {
+			return entities.ErrPaymentMethodLocked
+		}
+		booked := request.WorkshopID != nil || request.RemovalDay != nil
+		if request.Prepay || (booked && method == entities.PaymentReference && request.Status != entities.RequestCompleted) {
 			return entities.ErrPaymentMethodLocked
 		}
 		enabled, err := u.Payments.IsMethodEnabled(ctx, request.CategoryID, method)
@@ -412,8 +417,7 @@ func (u *Usecase) notifyPrepaid(ctx context.Context, request *entities.ServiceRe
 		return nil
 	}
 	if request.Status == entities.RequestCancelled && payment.Status == entities.PaymentPaid {
-		_, err := u.Refund(ctx, entities.SystemActor(), payment.ID, dtos.RefundInput{Reason: "Pagamento depois do cancelamento"})
-		return err
+		return u.refundKeepingFee(ctx, request, payment, "Pagamento depois do cancelamento", now)
 	}
 	if u.Prepaid == nil || request.Status != entities.RequestScheduled {
 		return nil
@@ -562,9 +566,6 @@ func (u *Usecase) OnWebhook(ctx context.Context, chargeID, merchantID string) er
 }
 
 func (u *Usecase) RunReconciler(ctx context.Context) {
-	if !u.Gateway.Enabled() {
-		return
-	}
 	log := logger.FromContext(ctx)
 	ticker := time.NewTicker(u.settings.ReconcileInterval)
 	defer ticker.Stop()
@@ -573,6 +574,12 @@ func (u *Usecase) RunReconciler(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			if err := u.ExpireUnpaidPrepaid(ctx); err != nil && ctx.Err() == nil {
+				log.Warn("unpaid holds not expired", zap.Error(err))
+			}
+			if !u.Gateway.Enabled() {
+				continue
+			}
 			if err := u.ReconcileDue(ctx); err != nil && ctx.Err() == nil {
 				log.Warn("payment reconciliation failed", zap.Error(err))
 			}
@@ -731,12 +738,15 @@ func (u *Usecase) Refund(ctx context.Context, actor entities.Actor, paymentID uu
 		if err := u.postRefund(ctx, request, payment, id, cents, now); err != nil {
 			return err
 		}
-		status := entities.RequestPaid
-		if payment.RefundableCents() == 0 {
-			status = entities.RequestFullyRefunded
-		}
-		if err := u.Payments.SetRequestPayment(ctx, request.ID, payment.Method, status); err != nil {
-			return err
+		status := request.PaymentStatus
+		if payment.Kind == entities.PaymentKindFare || payment.Kind == entities.PaymentKindCancellationFee {
+			status = entities.RequestPaid
+			if payment.RefundableCents() == 0 {
+				status = entities.RequestFullyRefunded
+			}
+			if err := u.Payments.SetRequestPayment(ctx, request.ID, payment.Method, status); err != nil {
+				return err
+			}
 		}
 		if err := u.publish(ctx, request, payment, payment.Method, string(status), now); err != nil {
 			return err
@@ -812,10 +822,50 @@ func (u *Usecase) RefundPrepaid(ctx context.Context, requestID uuid.UUID, reason
 	if request == nil {
 		return ErrRequestNotFound
 	}
-	cents := paid.RefundableCents() - request.CancelFeeCents
-	if cents <= 0 {
+	return u.refundKeepingFee(ctx, request, paid, reason, u.now())
+}
+
+func (u *Usecase) refundKeepingFee(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, reason string, now time.Time) error {
+	if cents := payment.RefundableCents() - request.CancelFeeCents; cents > 0 {
+		if _, err := u.Refund(ctx, entities.SystemActor(), payment.ID, dtos.RefundInput{AmountCents: cents, Reason: reason}); err != nil {
+			return err
+		}
+	}
+	return u.creditKeptFee(ctx, request, payment, now)
+}
+
+// ExpireUnpaidPrepaid ends a booking whose customer never asked for the reference,
+// or whose attempt failed, so that an unpaid hold cannot keep a place for ever.
+func (u *Usecase) ExpireUnpaidPrepaid(ctx context.Context) error {
+	if u.Prepaid == nil {
 		return nil
 	}
-	_, err = u.Refund(ctx, entities.SystemActor(), paid.ID, dtos.RefundInput{AmountCents: cents, Reason: reason})
-	return err
+	raw, err := u.Settings.Setting(ctx, entities.SettingPrepayHoldMinutes)
+	if err != nil {
+		return err
+	}
+	minutes, err := strconv.Atoi(raw)
+	if err != nil {
+		return err
+	}
+	now := u.now()
+	ids, err := u.Payments.UnpaidPrepaid(ctx, now.Add(-time.Duration(minutes)*time.Minute), u.settings.ReconcileBatch)
+	if err != nil {
+		return err
+	}
+	var failures []error
+	for _, id := range ids {
+		failures = append(failures, u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+			request, err := u.Requests.FindForUpdate(ctx, id)
+			if err != nil || request == nil || !request.Prepay || request.Status != entities.RequestScheduled || request.PaymentStatus != entities.RequestUnpaid {
+				return err
+			}
+			pending, err := u.Payments.PendingOfRequest(ctx, id, entities.PaymentKindFare)
+			if err != nil || pending != nil {
+				return err
+			}
+			return u.Prepaid.OnPrepayExpired(ctx, request, now)
+		}))
+	}
+	return errors.Join(failures...)
 }

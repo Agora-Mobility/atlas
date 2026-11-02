@@ -160,7 +160,15 @@ func (u *Usecase) exhausted(ctx context.Context, request *entities.ServiceReques
 			return nil, err
 		}
 		change.ExpectedVersion = expected
-		return nil, u.recordTransition(ctx, request, change, policy)
+		if err := u.recordTransition(ctx, request, change, policy); err != nil {
+			return nil, err
+		}
+		if request.VoucherID != nil {
+			if err := u.Vouchers.Release(ctx, request.ID); err != nil {
+				return nil, err
+			}
+		}
+		return nil, u.refundPrepaid(ctx, request, "Sem prestador disponível")
 	}
 }
 

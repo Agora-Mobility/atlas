@@ -721,6 +721,39 @@ func (q *Queries) SetRequestPayment(ctx context.Context, arg SetRequestPaymentPa
 	return err
 }
 
+const unpaidPrepaidRequests = `-- name: UnpaidPrepaidRequests :many
+SELECT r.id FROM service_requests r
+WHERE r.prepay AND r.status = 'scheduled' AND r.payment_status = 'unpaid' AND r.created_at < $1::timestamptz
+  AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.request_id = r.id AND p.status IN ('pending', 'paid'))
+ORDER BY r.created_at
+LIMIT $2
+`
+
+type UnpaidPrepaidRequestsParams struct {
+	Before time.Time `json:"before"`
+	Batch  int32     `json:"batch"`
+}
+
+func (q *Queries) UnpaidPrepaidRequests(ctx context.Context, arg UnpaidPrepaidRequestsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, unpaidPrepaidRequests, arg.Before, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updatePayment = `-- name: UpdatePayment :exec
 UPDATE payments
 SET status = $2, refunded_cents = $3, provider_charge_id = $4, reference_number = $5, reference_entity = $6, failure_message = $7,

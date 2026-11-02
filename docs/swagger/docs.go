@@ -1280,6 +1280,13 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dtos.RefundInput"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Unique per refund",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
                     }
                 ],
                 "responses": {

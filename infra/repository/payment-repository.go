@@ -239,3 +239,11 @@ func (r *PaymentRepository) Refunds(ctx context.Context, paymentID uuid.UUID) ([
 	}
 	return out, nil
 }
+
+func (r *PaymentRepository) UnpaidPrepaid(ctx context.Context, before time.Time, limit int) ([]uuid.UUID, error) {
+	ids, err := postgres.Queries(ctx, r.pool).UnpaidPrepaidRequests(ctx, gen.UnpaidPrepaidRequestsParams{Before: before, Batch: int32(limit)}) // #nosec G115 -- small batch from the configuration
+	if err != nil {
+		return nil, fmt.Errorf("unpaid prepaid requests: %w", err)
+	}
+	return ids, nil
+}

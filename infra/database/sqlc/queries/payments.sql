@@ -92,3 +92,10 @@ INSERT INTO payment_refunds (id, payment_id, amount_cents, reason, provider_refu
 
 -- name: ListPaymentRefunds :many
 SELECT * FROM payment_refunds WHERE payment_id = $1 ORDER BY created_at;
+
+-- name: UnpaidPrepaidRequests :many
+SELECT r.id FROM service_requests r
+WHERE r.prepay AND r.status = 'scheduled' AND r.payment_status = 'unpaid' AND r.created_at < sqlc.arg(before)::timestamptz
+  AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.request_id = r.id AND p.status IN ('pending', 'paid'))
+ORDER BY r.created_at
+LIMIT sqlc.arg(batch);

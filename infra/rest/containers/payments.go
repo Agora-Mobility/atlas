@@ -3,6 +3,7 @@ package containers
 import (
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/payment/appypay"
 	"github.com/Agora-Mobility/atlas/infra/repository"
 	"github.com/Agora-Mobility/atlas/infra/rest/payments/controllers"
@@ -42,5 +43,5 @@ func newPaymentsModule(c *Container) *PaymentsModule {
 		GPOWindow: cfg.GPOWindow, ReferenceTTL: cfg.ReferenceTTL, ReconcileInterval: cfg.ReconcileInterval, ReconcileBatch: cfg.ReconcileBatch,
 		GPOCheckInterval: cfg.GPOCheckInterval, ReferenceCheckInterval: cfg.ReferenceCheckInterval,
 	})
-	return &PaymentsModule{Usecase: uc, Router: paymentsrouter.NewRouter(controllers.NewPaymentController(uc), c.Authenticator, c.Auth.Authorizer, c.ClientAuthorizer)}
+	return &PaymentsModule{Usecase: uc, Router: paymentsrouter.NewRouter(controllers.NewPaymentController(uc), c.Authenticator, c.Auth.Authorizer, c.ClientAuthorizer, middleware.NewIdempotency(c.Redis, c.Config.Dispatch.IdempotencyTTL))}
 }

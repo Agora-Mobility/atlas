@@ -76,6 +76,7 @@ type Settings struct {
 	AverageSpeedKmh  float64
 	ChannelTimeout   time.Duration
 	ShareBaseURL     string
+	Currency         string
 }
 
 type OfferChannels interface {
@@ -120,6 +121,7 @@ type Deps struct {
 
 type PrepaidRefunder interface {
 	RefundPrepaid(ctx context.Context, requestID uuid.UUID, reason string) error
+	OnPrepaidCompleted(ctx context.Context, request *entities.ServiceRequest, now time.Time) error
 }
 
 type Usecase struct {

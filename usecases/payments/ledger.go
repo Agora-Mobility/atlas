@@ -32,6 +32,9 @@ func payeeOf(request *entities.ServiceRequest) (*uuid.UUID, entities.LedgerAccou
 	if request.WorkshopID != nil {
 		return request.WorkshopID, entities.AccountWorkshop
 	}
+	if request.Prepay && request.Status != entities.RequestCompleted {
+		return nil, entities.AccountProvider
+	}
 	return request.ProviderID, entities.AccountProvider
 }
 
@@ -55,6 +58,10 @@ func settlementOf(request *entities.ServiceRequest, payment *entities.Payment) e
 		}
 		settlement.FareCents = payment.AmountCents
 		return settlement
+	}
+	if base := payment.AmountCents + request.DiscountCents; request.Prepay && fare > base {
+		commission = base * commission / fare
+		fare = base
 	}
 	settlement.FareCents, settlement.CommissionCents, settlement.DiscountCents = fare, commission, request.DiscountCents
 	return settlement
@@ -363,4 +370,52 @@ func (u *Usecase) maxTipCents(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return strconv.ParseInt(raw, 10, 64)
+}
+
+// OnPrepaidCompleted settles what was paid ahead. The platform held the money of a
+// removal because nobody was assigned yet, and only now does the provider earn it.
+func (u *Usecase) OnPrepaidCompleted(ctx context.Context, request *entities.ServiceRequest, now time.Time) error {
+	if !request.Prepay {
+		return nil
+	}
+	paid, err := u.Payments.PaidOfRequest(ctx, request.ID, entities.PaymentKindFare)
+	if err != nil || paid == nil {
+		return err
+	}
+	if request.WorkshopID == nil && request.ProviderID != nil && request.Fare.Cents != nil {
+		commission := int64(0)
+		if request.Fare.CommissionCents != nil {
+			commission = *request.Fare.CommissionCents
+		}
+		earned := (*request.Fare.Cents - commission) * paid.RefundableCents() / paid.AmountCents
+		if err := u.movePlatformToProvider(ctx, "prepaid-release:"+paid.ID.String(), entities.LedgerFarePayment, request, paid, earned, now); err != nil {
+			return err
+		}
+	}
+	if u.Rewards != nil {
+		return u.Rewards.OnFirstPaidRequest(ctx, request, now)
+	}
+	return nil
+}
+
+func (u *Usecase) movePlatformToProvider(ctx context.Context, key string, kind entities.LedgerKind, request *entities.ServiceRequest, payment *entities.Payment, cents int64, now time.Time) error {
+	if cents <= 0 {
+		return nil
+	}
+	legs := []entities.LedgerLeg{{AccountType: entities.AccountPlatform, AmountCents: -cents}, {AccountType: entities.AccountProvider, AccountID: request.ProviderID, AmountCents: cents}}
+	_, err := u.post(ctx, key, kind, legs, payment.Currency, &request.ID, &payment.ID, nil, "", now)
+	return err
+}
+
+// creditKeptFee gives the assigned provider the fee kept from a prepaid request,
+// minus the same commission of the ride.
+func (u *Usecase) creditKeptFee(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, now time.Time) error {
+	if request.CancelFeeCents <= 0 || request.ProviderID == nil || request.WorkshopID != nil || request.Fare.Cents == nil || *request.Fare.Cents <= 0 {
+		return nil
+	}
+	commission := int64(0)
+	if request.Fare.CommissionCents != nil {
+		commission = request.CancelFeeCents * *request.Fare.CommissionCents / *request.Fare.Cents
+	}
+	return u.movePlatformToProvider(ctx, "prepaid-fee:"+request.ID.String(), entities.LedgerCancellationFee, request, payment, request.CancelFeeCents-commission, now)
 }

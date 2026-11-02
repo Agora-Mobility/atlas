@@ -49,6 +49,9 @@ type CancelCost struct {
 }
 
 func (r *CancellationRule) CostFor(request *ServiceRequest, now time.Time) CancelCost {
+	if request.Prepay && request.PaymentStatus != RequestPaid {
+		return CancelCost{}
+	}
 	assigned := request.ProviderID != nil && request.Status.HasProvider()
 	if request.ScheduledFor != nil {
 		deadline := request.ScheduledFor.Add(-time.Duration(r.ScheduledFreeSeconds) * time.Second)

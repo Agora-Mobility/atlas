@@ -55,6 +55,7 @@ type PaymentRefund struct {
 }
 
 type IPaymentRepository interface {
+	UnpaidPrepaid(ctx context.Context, before time.Time, limit int) ([]uuid.UUID, error)
 	ListMethods(ctx context.Context, category string, onlyEnabled bool) ([]CategoryPaymentMethod, error)
 	IsMethodEnabled(ctx context.Context, categoryID uuid.UUID, method entities.PaymentMethod) (bool, error)
 	SetMethod(ctx context.Context, categoryID uuid.UUID, method entities.PaymentMethod, enabled bool) (bool, error)

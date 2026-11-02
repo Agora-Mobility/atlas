@@ -13,10 +13,11 @@ type Router struct {
 	authenticator    *middleware.Authenticator
 	authorizer       *middleware.Authorizer
 	clientAuthorizer *middleware.ClientAuthorizer
+	idempotency      *middleware.Idempotency
 }
 
-func NewRouter(controller *controllers.PaymentController, authenticator *middleware.Authenticator, authorizer *middleware.Authorizer, clientAuthorizer *middleware.ClientAuthorizer) *Router {
-	return &Router{controller: controller, authenticator: authenticator, authorizer: authorizer, clientAuthorizer: clientAuthorizer}
+func NewRouter(controller *controllers.PaymentController, authenticator *middleware.Authenticator, authorizer *middleware.Authorizer, clientAuthorizer *middleware.ClientAuthorizer, idempotency *middleware.Idempotency) *Router {
+	return &Router{controller: controller, authenticator: authenticator, authorizer: authorizer, clientAuthorizer: clientAuthorizer, idempotency: idempotency}
 }
 
 func (r *Router) Register(api *gin.RouterGroup) {
@@ -44,5 +45,5 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	signedIn.PUT("/admin/payment-methods", can(entities.PermServicesManage), r.controller.SetMethod)
 	signedIn.GET("/admin/payments", can(entities.PermFinanceRead), r.controller.AdminList)
 	signedIn.GET("/admin/payments/:id", can(entities.PermFinanceRead), r.controller.AdminGet)
-	signedIn.POST("/admin/payments/:id/refund", can(entities.PermRefundsApprove), r.controller.Refund)
+	signedIn.POST("/admin/payments/:id/refund", can(entities.PermRefundsApprove), r.idempotency.Required(), r.controller.Refund)
 }

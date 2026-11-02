@@ -353,6 +353,7 @@ type Querier interface {
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	UnbalancedLedgerTransactions(ctx context.Context) (int64, error)
+	UnpaidPrepaidRequests(ctx context.Context, arg UnpaidPrepaidRequestsParams) ([]uuid.UUID, error)
 	UpdateBooking(ctx context.Context, arg UpdateBookingParams) error
 	UpdateBookingExtra(ctx context.Context, arg UpdateBookingExtraParams) error
 	UpdateCatalogItem(ctx context.Context, arg UpdateCatalogItemParams) error

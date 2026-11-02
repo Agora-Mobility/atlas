@@ -77,7 +77,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Channels:  notifier,
 	}, dispatch.Settings{
 		WatcherInterval: cfg.Dispatch.WatcherInterval, WatcherBatch: cfg.Dispatch.WatcherBatch, FareEstimateTTL: cfg.Dispatch.FareEstimateTTL,
-		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout, ShareBaseURL: cfg.Dispatch.ShareBaseURL,
+		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout, ShareBaseURL: cfg.Dispatch.ShareBaseURL, Currency: cfg.AppyPay.LedgerCurrency,
 		Limits:     entities.PlausibilityLimits{MaxAccuracyM: cfg.Dispatch.MaxAccuracyM, MaxSpeedMps: cfg.Dispatch.MaxSpeedKmh * kmhToMps},
 		RoadFactor: cfg.Mapbox.RoadFactor, AverageSpeedKmh: cfg.Mapbox.AverageSpeedKmh,
 	})

@@ -510,7 +510,7 @@ func (r *ServiceRequest) AddToFare(cents int64) {
 
 func (r *ServiceRequest) ExpectedDueCents() int64 {
 	if r.Status == RequestCancelled {
-		return r.CancelFeeCents
+		return r.cancelFeeDue()
 	}
 	if r.Prepay && r.Status == RequestCompleted {
 		return r.ExtraDueCents
@@ -521,9 +521,17 @@ func (r *ServiceRequest) ExpectedDueCents() int64 {
 	return *r.Fare.Cents - r.DiscountCents
 }
 
+// cancelFeeDue is zero when the fee was already kept from what was paid ahead.
+func (r *ServiceRequest) cancelFeeDue() int64 {
+	if r.Prepay && r.PaymentStatus != RequestUnpaid {
+		return 0
+	}
+	return r.CancelFeeCents
+}
+
 func (r *ServiceRequest) AmountDueCents() int64 {
 	if r.Status == RequestCancelled {
-		return r.CancelFeeCents
+		return r.cancelFeeDue()
 	}
 	if r.Prepay && r.Fare.Cents != nil {
 		if r.Status == RequestScheduled {

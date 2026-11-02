@@ -441,6 +441,11 @@ func (u *Usecase) providerStep(ctx context.Context, providerID, requestID uuid.U
 			return err
 		}
 		if to == entities.RequestCompleted {
+			if u.Refunds != nil {
+				if err := u.Refunds.OnPrepaidCompleted(ctx, request, now); err != nil {
+					return err
+				}
+			}
 			return u.recordCompletion(ctx, request, providerID, now)
 		}
 		return nil

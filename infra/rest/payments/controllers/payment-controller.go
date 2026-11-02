@@ -444,11 +444,12 @@ func (c *PaymentController) AdminGet(ctx *gin.Context) {
 //	@Tags			Backoffice payments
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path		string				true	"Payment id"
-//	@Param			body	body		dtos.RefundInput	true	"Refund"
-//	@Success		200		{object}	dtos.PaymentView
-//	@Failure		404		{object}	shared.ErrorResponse	"PAYMENT_NOT_FOUND"
-//	@Failure		422		{object}	shared.ErrorResponse	"REFUND_NOT_SUPPORTED, REFUND_TOO_LARGE or REFUND_DECLINED"
+//	@Param			id				path		string				true	"Payment id"
+//	@Param			body			body		dtos.RefundInput	true	"Refund"
+//	@Param			Idempotency-Key	header		string				true	"Unique per refund"
+//	@Success		200				{object}	dtos.PaymentView
+//	@Failure		404				{object}	shared.ErrorResponse	"PAYMENT_NOT_FOUND"
+//	@Failure		422				{object}	shared.ErrorResponse	"REFUND_NOT_SUPPORTED, REFUND_TOO_LARGE or REFUND_DECLINED"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/payments/{id}/refund [post]

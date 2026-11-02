@@ -339,3 +339,18 @@ func (mr *MockIPaymentRepositoryMockRecorder) SetRequestPayment(ctx, requestID, 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRequestPayment", reflect.TypeOf((*MockIPaymentRepository)(nil).SetRequestPayment), ctx, requestID, method, status)
 }
+
+// UnpaidPrepaid mocks base method.
+func (m *MockIPaymentRepository) UnpaidPrepaid(ctx context.Context, before time.Time, limit int) ([]uuid.UUID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnpaidPrepaid", ctx, before, limit)
+	ret0, _ := ret[0].([]uuid.UUID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnpaidPrepaid indicates an expected call of UnpaidPrepaid.
+func (mr *MockIPaymentRepositoryMockRecorder) UnpaidPrepaid(ctx, before, limit any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnpaidPrepaid", reflect.TypeOf((*MockIPaymentRepository)(nil).UnpaidPrepaid), ctx, before, limit)
+}

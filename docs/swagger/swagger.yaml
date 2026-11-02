@@ -5950,6 +5950,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/dtos.RefundInput'
+      - description: Unique per refund
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
       produces:
       - application/json
       responses:

@@ -136,14 +136,14 @@ func TestARefundedReferenceGoesToTheWalletAndTheWalletPays(t *testing.T) {
 	assert.EqualValues(t, fare-commission, driver.get(t, "/api/v1/providers/me/ledger").num("balance_cents"))
 
 	refundsBefore := env.appypay.refunds.Load()
-	refund := admin.post(t, "/api/v1/admin/payments/"+paid.str("id")+"/refund", map[string]any{"amount_cents": fare, "reason": "Serviço com problema"})
+	refund := refundAs(t, admin, "/api/v1/admin/payments/"+paid.str("id")+"/refund", map[string]any{"amount_cents": fare, "reason": "Serviço com problema"})
 	require.Equal(t, http.StatusOK, refund.status, refund.text)
 	assert.Equal(t, refundsBefore, env.appypay.refunds.Load(), "AppyPay only refunds Express, so the gateway is not called")
 	wallet := customer.get(t, "/api/v1/wallet")
 	require.Equal(t, http.StatusOK, wallet.status, wallet.text)
 	assert.EqualValues(t, fare, wallet.num("balance_cents"))
 	assert.EqualValues(t, 0, driver.get(t, "/api/v1/providers/me/ledger").num("balance_cents"), "the refund takes the earning back")
-	assert.Equal(t, "REFUND_TOO_LARGE", admin.post(t, "/api/v1/admin/payments/"+paid.str("id")+"/refund", map[string]any{"amount_cents": 1, "reason": "De novo"}).code())
+	assert.Equal(t, "REFUND_TOO_LARGE", refundAs(t, admin, "/api/v1/admin/payments/"+paid.str("id")+"/refund", map[string]any{"amount_cents": 1, "reason": "De novo"}).code())
 	assertLedgerBalanced(t)
 
 	stream := driver.listen(t, "")

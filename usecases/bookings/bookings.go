@@ -47,6 +47,7 @@ type ZoneResolver interface {
 
 type Refunder interface {
 	RefundPrepaid(ctx context.Context, requestID uuid.UUID, reason string) error
+	OnPrepaidCompleted(ctx context.Context, request *entities.ServiceRequest, now time.Time) error
 }
 
 type Deps struct {
@@ -769,6 +770,11 @@ func (u *Usecase) cancelInside(ctx context.Context, booking *entities.Booking, r
 			return err
 		}
 	}
+	if request.Prepay && request.PaymentStatus == entities.RequestPaid {
+		if err := u.Refunds.RefundPrepaid(ctx, request.ID, "Marcação cancelada"); err != nil {
+			return err
+		}
+	}
 	return u.announce(ctx, booking, request.PublicCode, from, string(actor.Type), actor.ID, now)
 }
 
@@ -777,7 +783,6 @@ func (u *Usecase) Cancel(ctx context.Context, customerID, id uuid.UUID, in dtos.
 	if err != nil {
 		return nil, err
 	}
-	var paid bool
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		locked, err := u.Bookings.FindForUpdate(ctx, booking.ID)
 		if err != nil {
@@ -798,17 +803,11 @@ func (u *Usecase) Cancel(ctx context.Context, customerID, id uuid.UUID, in dtos.
 		if err != nil {
 			return err
 		}
-		paid = request.PaymentStatus == entities.RequestPaid
 		booking = locked
 		return u.cancelInside(ctx, locked, request, entities.RequestActor{Type: entities.RequestActorCustomer, ID: &customerID}, text, &in.ReasonID, u.now())
 	})
 	if err != nil {
 		return nil, err
-	}
-	if paid {
-		if err := u.Refunds.RefundPrepaid(ctx, booking.RequestID, "Marcação cancelada"); err != nil {
-			return nil, err
-		}
 	}
 	return u.viewOf(ctx, booking)
 }
@@ -909,6 +908,9 @@ func (u *Usecase) Approve(ctx context.Context, customerID, id uuid.UUID) (*dtos.
 			if err := u.Payments.SetRequestPayment(ctx, request.ID, request.PaymentMethod, entities.RequestUnpaid); err != nil {
 				return err
 			}
+		}
+		if err := u.Refunds.OnPrepaidCompleted(ctx, request, now); err != nil {
+			return err
 		}
 		return u.announce(ctx, booking, request.PublicCode, from, actorCustomer, &customerID, now)
 	})
@@ -1182,7 +1184,6 @@ func (u *Usecase) AddExtra(ctx context.Context, actor entities.Actor, organizati
 
 func (u *Usecase) WorkshopCancel(ctx context.Context, actor entities.Actor, organizationID, id uuid.UUID, reason string) (*dtos.BookingView, error) {
 	var booking *entities.Booking
-	var paid bool
 	if strings.TrimSpace(reason) == "" {
 		return nil, ErrReasonNotValid
 	}
@@ -1192,16 +1193,10 @@ func (u *Usecase) WorkshopCancel(ctx context.Context, actor entities.Actor, orga
 		if booking, request, err = u.lockWorkshopBooking(ctx, organizationID, id); err != nil {
 			return err
 		}
-		paid = request.PaymentStatus == entities.RequestPaid
 		return u.cancelInside(ctx, booking, request, entities.RequestActor{Type: entities.RequestActorOperator, ID: actor.ID}, reason, nil, u.now())
 	})
 	if err != nil {
 		return nil, err
-	}
-	if paid {
-		if err := u.Refunds.RefundPrepaid(ctx, booking.RequestID, "Cancelada pela oficina"); err != nil {
-			return nil, err
-		}
 	}
 	return u.viewOf(ctx, booking)
 }
