@@ -31,11 +31,25 @@ type CreateRequestInput struct {
 	ScheduledFor   *time.Time      `json:"scheduled_for"`
 	FareEstimateID *uuid.UUID      `json:"fare_estimate_id"`
 	PaymentMethod  string          `json:"payment_method" binding:"omitempty,oneof=cash gpo reference wallet" example:"cash"`
+	VoucherCode    string          `json:"voucher_code" binding:"max=30" example:"TAXI10"`
 }
 
 type PassengerInput struct {
 	Name  string `json:"name" binding:"required,max=80"`
 	Phone string `json:"phone" binding:"required,max=20"`
+}
+
+type VoucherPreviewInput struct {
+	Code           string    `json:"code" binding:"required,max=30" example:"TAXI10"`
+	FareEstimateID uuid.UUID `json:"fare_estimate_id" binding:"required"`
+}
+
+type VoucherPreview struct {
+	Code          string `json:"code"`
+	FareCents     int64  `json:"fare_cents"`
+	DiscountCents int64  `json:"discount_cents"`
+	TotalCents    int64  `json:"total_cents"`
+	Currency      string `json:"currency"`
 }
 
 type FareEstimateInput struct {
@@ -145,6 +159,9 @@ type RequestView struct {
 	CanRate         bool             `json:"can_rate"`
 	Rating          *GivenRating     `json:"rating,omitempty"`
 	PassengerPhone  string           `json:"passenger_phone,omitempty"`
+	DiscountCents   int64            `json:"discount_cents"`
+	VoucherCode     string           `json:"voucher_code,omitempty"`
+	AmountDueCents  int64            `json:"amount_due_cents"`
 	CanBoost        bool             `json:"can_boost"`
 	NeedsOperator   bool             `json:"needs_operator,omitempty"`
 	OperatorReason  string           `json:"operator_reason,omitempty"`

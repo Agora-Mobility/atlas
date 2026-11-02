@@ -30,6 +30,8 @@ var errorTable = []mappedError{
 	{experience.ErrKindNotPublic, http.StatusNotFound, "CATALOG_NOT_FOUND", "This catalog does not exist."},
 	{entities.ErrCatalogItemNotFound, http.StatusNotFound, "CATALOG_ITEM_NOT_FOUND", "Catalog item not found."},
 	{repository.ErrCatalogCodeTaken, http.StatusConflict, "CATALOG_CODE_TAKEN", "This code already exists."},
+	{entities.ErrVoucherNotFound, http.StatusNotFound, "VOUCHER_NOT_FOUND", "Voucher not found."},
+	{repository.ErrVoucherCodeTaken, http.StatusConflict, "VOUCHER_CODE_TAKEN", "This voucher code already exists."},
 	{entities.ErrRatingNotAllowed, http.StatusConflict, "RATING_NOT_ALLOWED", "Only a completed request can be rated."},
 	{entities.ErrAlreadyRated, http.StatusConflict, "ALREADY_RATED", "This request was already rated."},
 	{entities.ErrComplimentNotValid, http.StatusUnprocessableEntity, "COMPLIMENT_NOT_VALID", "A compliment does not exist or does not apply to this service."},

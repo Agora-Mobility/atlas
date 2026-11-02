@@ -42,6 +42,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 
 	signedIn.GET("/nearby", r.controller.Nearby)
 	signedIn.POST("/fare-estimates", r.controller.CreateFareEstimates)
+	signedIn.POST("/vouchers/preview", r.controller.PreviewVoucher)
 	signedIn.PUT("/devices", r.controller.RegisterDevice)
 	signedIn.DELETE("/devices/:token", r.controller.UnregisterDevice)
 

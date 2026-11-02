@@ -52,6 +52,10 @@ func seedDispatch(ctx context.Context, pool *pgxpool.Pool) error {
 		         CASE s.slug WHEN 'taxi-comfort' THEN 70000 WHEN 'taxi-xl' THEN 90000 ELSE 45000 END,
 		         0 FROM services s
 		  WHERE NOT EXISTS (SELECT 1 FROM service_tariffs t WHERE t.service_id = s.id AND t.valid_until IS NULL)`, nil},
+		{`INSERT INTO vouchers (id, code, description, category_id, discount_bps, valid_from, valid_until, per_customer_limit, is_public)
+		  SELECT '00000000-0000-0000-0000-0000000000d1', 'TAXI10', '10% no táxi', c.id, 1000, now() - interval '1 day', now() + interval '365 days', 5, true
+		  FROM service_categories c WHERE c.slug = 'taxi'
+		  ON CONFLICT DO NOTHING`, nil},
 		{`INSERT INTO providers (user_id, status, service_id)
 		  SELECT '00000000-0000-0000-0000-0000000000a4', 'approved', s.id FROM services s WHERE s.slug = 'taxi'
 		  ON CONFLICT (user_id) DO NOTHING`, nil},

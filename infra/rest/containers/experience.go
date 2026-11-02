@@ -16,6 +16,7 @@ func newExperienceModule(c *Container) *ExperienceModule {
 	uc := experience.NewUsecase(experience.Deps{
 		Reference: repository.NewReferenceRepository(c.Pool),
 		Ratings:   repository.NewRatingRepository(c.Pool),
+		Vouchers:  repository.NewVoucherRepository(c.Pool),
 		Requests:  repository.NewRequestRepository(c.Pool),
 		Providers: repository.NewProviderRepository(c.Pool),
 		Audit:     repository.NewAuditLogRepository(c.Pool),

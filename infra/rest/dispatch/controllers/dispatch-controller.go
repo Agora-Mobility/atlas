@@ -135,6 +135,11 @@ var errorTable = []struct {
 	{dispatch.ErrReasonNotApplicable, http.StatusUnprocessableEntity, "REASON_NOT_APPLICABLE", "This reason does not exist or does not apply here."},
 	{dispatch.ErrUnknownReasonActor, http.StatusUnprocessableEntity, "UNKNOWN_REASON_ACTOR", "actor must be customer, provider or offer."},
 	{dispatch.ErrReportScope, http.StatusUnprocessableEntity, "INVALID_REPORT_SCOPE", "scope must be customer_cancel, provider_cancel or offer_reject."},
+	{entities.ErrVoucherNotFound, http.StatusUnprocessableEntity, "VOUCHER_NOT_FOUND", "This voucher does not exist."},
+	{entities.ErrVoucherExpired, http.StatusUnprocessableEntity, "VOUCHER_EXPIRED", "This voucher is outside its validity."},
+	{entities.ErrVoucherNotApplicable, http.StatusUnprocessableEntity, "VOUCHER_NOT_APPLICABLE", "This voucher does not apply to this service."},
+	{entities.ErrVoucherUsed, http.StatusConflict, "VOUCHER_USED", "This voucher was already used."},
+	{entities.ErrVoucherBelowMinimum, http.StatusUnprocessableEntity, "VOUCHER_BELOW_MINIMUM", "The price is below the minimum of this voucher."},
 	{dispatch.ErrNoTariff, http.StatusUnprocessableEntity, "NO_TARIFF", "There is no tariff for this service here yet."},
 	{dispatch.ErrRequestConflict, http.StatusConflict, "REQUEST_CONFLICT", "The request changed in the meantime."},
 	{dispatch.ErrProviderNotApproved, http.StatusForbidden, "PROVIDER_NOT_APPROVED", "The provider is not approved for this."},
@@ -181,6 +186,34 @@ func (c *DispatchController) Nearby(ctx *gin.Context) {
 		return
 	}
 	view, err := c.dispatch.Nearby(ctx.Request.Context(), entities.GeoPoint{Lat: lat, Lng: lng}, ctx.Query("category"))
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// PreviewVoucher godoc
+//
+//	@Summary		What a voucher takes off a price
+//	@Description	Same rules as the request: validity, service and use per customer. Nothing is reserved.
+//	@Tags			Vouchers
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.VoucherPreviewInput	true	"Code and price"
+//	@Success		200		{object}	dtos.VoucherPreview
+//	@Failure		409		{object}	shared.ErrorResponse	"Already used, or another price"
+//	@Failure		422		{object}	shared.ErrorResponse	"Expired or of another service"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/vouchers/preview [post]
+func (c *DispatchController) PreviewVoucher(ctx *gin.Context) {
+	customerID, ok := userWithRole(ctx, enums.RoleCustomer)
+	if !ok {
+		return
+	}
+	var in dtos.VoucherPreviewInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.PreviewVoucher(ctx.Request.Context(), customerID, in)
 	respond(ctx, http.StatusOK, view, err)
 }
 

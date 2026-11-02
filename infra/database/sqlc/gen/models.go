@@ -779,6 +779,9 @@ type ServiceRequest struct {
 	PaymentStatus        string          `json:"payment_status"`
 	CancelReasonID       *uuid.UUID      `json:"cancel_reason_id"`
 	CancelFeeCents       int64           `json:"cancel_fee_cents"`
+	VoucherID            *uuid.UUID      `json:"voucher_id"`
+	VoucherCode          string          `json:"voucher_code"`
+	DiscountCents        int64           `json:"discount_cents"`
 }
 
 type ServiceRequestEvent struct {
@@ -897,6 +900,36 @@ type Vehicle struct {
 	IsActive       bool       `json:"is_active"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type Voucher struct {
+	ID               uuid.UUID  `json:"id"`
+	Code             *string    `json:"code"`
+	Description      string     `json:"description"`
+	CategoryID       *uuid.UUID `json:"category_id"`
+	ServiceID        *uuid.UUID `json:"service_id"`
+	DiscountBps      int32      `json:"discount_bps"`
+	DiscountCents    int64      `json:"discount_cents"`
+	MaxDiscountCents *int64     `json:"max_discount_cents"`
+	MinFareCents     int64      `json:"min_fare_cents"`
+	ValidFrom        time.Time  `json:"valid_from"`
+	ValidUntil       time.Time  `json:"valid_until"`
+	MaxRedemptions   *int32     `json:"max_redemptions"`
+	PerCustomerLimit int32      `json:"per_customer_limit"`
+	IsPublic         bool       `json:"is_public"`
+	IsActive         bool       `json:"is_active"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+type VoucherRedemption struct {
+	ID            int64      `json:"id"`
+	VoucherID     uuid.UUID  `json:"voucher_id"`
+	CustomerID    uuid.UUID  `json:"customer_id"`
+	RequestID     *uuid.UUID `json:"request_id"`
+	DiscountCents int64      `json:"discount_cents"`
+	ReleasedAt    *time.Time `json:"released_at"`
+	CreatedAt     time.Time  `json:"created_at"`
 }
 
 type Workshop struct {

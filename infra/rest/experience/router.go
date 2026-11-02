@@ -30,6 +30,11 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	signedIn.GET("/admin/settings", manage, r.controller.AdminSettings)
 	signedIn.PUT("/admin/settings/:key", manage, r.controller.AdminSetSetting)
 
+	signedIn.GET("/vouchers", r.controller.PublicVouchers)
+	signedIn.GET("/admin/vouchers", manage, r.controller.AdminVouchers)
+	signedIn.POST("/admin/vouchers", manage, r.controller.AdminCreateVoucher)
+	signedIn.PUT("/admin/vouchers/:id", manage, r.controller.AdminUpdateVoucher)
+
 	signedIn.GET("/rating-options", r.controller.RatingOptions)
 	signedIn.POST("/requests/:id/rating", r.controller.RateRequest)
 	signedIn.GET("/providers/me/ratings", r.controller.MyRatings)

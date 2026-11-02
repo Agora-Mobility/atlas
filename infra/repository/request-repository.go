@@ -105,7 +105,7 @@ func (r *RequestRepository) Update(ctx context.Context, s *entities.ServiceReque
 		ID: s.ID, ExpectedVersion: int32(expectedVersion), Status: string(s.Status), Version: int32(s.Version), DestinationH3R8: s.DestinationH3, // #nosec G115 -- small counter
 		SearchRound: int16(s.SearchRound), SearchExtended: s.SearchExtended, SearchDeadlineAt: s.SearchDeadline, NextActionAt: s.NextActionAt, ReminderAt: s.ReminderAt, // #nosec G115 -- small counter
 		ProviderID: s.ProviderID, FareCents: s.Fare.Cents, CommissionCents: s.Fare.CommissionCents, BoostBps: int32(s.Fare.BoostBps), NeedsOperator: s.NeedsOperator, // #nosec G115 -- 0 to 2000
-		OperatorReason: s.OperatorReason, CancelReason: s.CancelReason, CancelledBy: s.CancelledBy, CancelReasonID: s.CancelReasonID, CancelFeeCents: s.CancelFeeCents, AcceptedAt: s.AcceptedAt, ArrivedAt: s.ArrivedAt,
+		OperatorReason: s.OperatorReason, CancelReason: s.CancelReason, CancelledBy: s.CancelledBy, CancelReasonID: s.CancelReasonID, CancelFeeCents: s.CancelFeeCents, VoucherID: s.VoucherID, VoucherCode: s.VoucherCode, DiscountCents: s.DiscountCents, AcceptedAt: s.AcceptedAt, ArrivedAt: s.ArrivedAt,
 		StartedAt: s.StartedAt, CompletedAt: s.CompletedAt, UpdatedAt: s.UpdatedAt,
 	}
 	if s.Destination != nil {
@@ -415,7 +415,7 @@ func toRequest(row *gen.ServiceRequest) *entities.ServiceRequest {
 		Details: row.Details, ScheduledFor: row.ScheduledFor, SearchRound: int(row.SearchRound), SearchExtended: row.SearchExtended, SearchDeadline: row.SearchDeadlineAt,
 		NextActionAt: row.NextActionAt, ReminderAt: row.ReminderAt, ProviderID: row.ProviderID,
 		Fare:          entities.RequestFare{EstimateID: row.FareEstimateID, Cents: row.FareCents, CommissionCents: row.CommissionCents, BoostBps: int(row.BoostBps), Currency: row.Currency},
-		NeedsOperator: row.NeedsOperator, OperatorReason: row.OperatorReason, IdempotencyKey: row.IdempotencyKey, CancelReason: row.CancelReason, CancelledBy: row.CancelledBy, CancelReasonID: row.CancelReasonID, CancelFeeCents: row.CancelFeeCents,
+		NeedsOperator: row.NeedsOperator, OperatorReason: row.OperatorReason, IdempotencyKey: row.IdempotencyKey, CancelReason: row.CancelReason, CancelledBy: row.CancelledBy, CancelReasonID: row.CancelReasonID, CancelFeeCents: row.CancelFeeCents, VoucherID: row.VoucherID, VoucherCode: row.VoucherCode, DiscountCents: row.DiscountCents,
 		AcceptedAt: row.AcceptedAt, ArrivedAt: row.ArrivedAt, StartedAt: row.StartedAt, CompletedAt: row.CompletedAt, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 	}
 }

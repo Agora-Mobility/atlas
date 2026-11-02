@@ -2951,6 +2951,160 @@
                 }
             }
         },
+        "/api/v1/admin/vouchers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "List vouchers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VoucherList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "A percentage in basis points or a value in cents, never both. Limited to a service or category when given, and always paid by AGORA.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Create a voucher",
+                "parameters": [
+                    {
+                        "description": "Voucher",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VoucherInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VoucherView"
+                        }
+                    },
+                    "409": {
+                        "description": "The code exists",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/vouchers/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The code and the service of a voucher do not change.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Change a voucher",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Voucher id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Voucher",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VoucherInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VoucherView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/workshops": {
             "get": {
                 "security": [
@@ -10552,6 +10706,95 @@
                 }
             }
         },
+        "/api/v1/vouchers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vouchers"
+                ],
+                "summary": "Vouchers open to everyone",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VoucherList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/vouchers/preview": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Same rules as the request: validity, service and use per customer. Nothing is reserved.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vouchers"
+                ],
+                "summary": "What a voucher takes off a price",
+                "parameters": [
+                    {
+                        "description": "Code and price",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VoucherPreviewInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VoucherPreview"
+                        }
+                    },
+                    "409": {
+                        "description": "Already used, or another price",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Expired or of another service",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/wallet": {
             "get": {
                 "security": [
@@ -11969,6 +12212,11 @@
                     "items": {
                         "$ref": "#/definitions/dtos.PlaceInput"
                     }
+                },
+                "voucher_code": {
+                    "type": "string",
+                    "maxLength": 30,
+                    "example": "TAXI10"
                 }
             }
         },
@@ -14473,6 +14721,9 @@
                         "$ref": "#/definitions/dtos.AdjustmentView"
                     }
                 },
+                "amount_due_cents": {
+                    "type": "integer"
+                },
                 "arrived_at": {
                     "type": "string"
                 },
@@ -14523,6 +14774,9 @@
                 },
                 "details": {
                     "type": "object"
+                },
+                "discount_cents": {
+                    "type": "integer"
                 },
                 "fare_cents": {
                     "type": "integer"
@@ -14589,6 +14843,9 @@
                 },
                 "version": {
                     "type": "integer"
+                },
+                "voucher_code": {
+                    "type": "string"
                 }
             }
         },
@@ -15724,6 +15981,180 @@
                 },
                 "year": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.VoucherInput": {
+            "type": "object",
+            "required": [
+                "valid_from",
+                "valid_until"
+            ],
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string",
+                    "maxLength": 30,
+                    "example": "TAXI10"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "discount_bps": {
+                    "type": "integer",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "example": 1000
+                },
+                "discount_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 0
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "max_discount_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 0
+                },
+                "max_redemptions": {
+                    "type": "integer",
+                    "maximum": 1000000000,
+                    "minimum": 1
+                },
+                "min_fare_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 0
+                },
+                "per_customer_limit": {
+                    "type": "integer",
+                    "maximum": 9999,
+                    "minimum": 0
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "valid_from": {
+                    "type": "string"
+                },
+                "valid_until": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.VoucherList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.VoucherView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.VoucherPreview": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "discount_cents": {
+                    "type": "integer"
+                },
+                "fare_cents": {
+                    "type": "integer"
+                },
+                "total_cents": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.VoucherPreviewInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "fare_estimate_id"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 30,
+                    "example": "TAXI10"
+                },
+                "fare_estimate_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.VoucherView": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "discount_bps": {
+                    "type": "integer"
+                },
+                "discount_cents": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "max_discount_cents": {
+                    "type": "integer"
+                },
+                "max_redemptions": {
+                    "type": "integer"
+                },
+                "min_fare_cents": {
+                    "type": "integer"
+                },
+                "per_customer_limit": {
+                    "type": "integer"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "valid_from": {
+                    "type": "string"
+                },
+                "valid_until": {
+                    "type": "string"
                 }
             }
         },

@@ -29,6 +29,7 @@ type Querier interface {
 	CloseServiceTariff(ctx context.Context, arg CloseServiceTariffParams) error
 	CountAdminPayments(ctx context.Context, arg CountAdminPaymentsParams) (int64, error)
 	CountAdminRequests(ctx context.Context, arg CountAdminRequestsParams) (int64, error)
+	CountCustomerVoucherRedemptions(ctx context.Context, arg CountCustomerVoucherRedemptionsParams) (int64, error)
 	CountFleetDrivers(ctx context.Context, arg CountFleetDriversParams) (int64, error)
 	CountLedgerEntries(ctx context.Context, arg CountLedgerEntriesParams) (int64, error)
 	CountMembers(ctx context.Context, arg CountMembersParams) (int64, error)
@@ -42,6 +43,8 @@ type Querier interface {
 	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CountVehicles(ctx context.Context, arg CountVehiclesParams) (int64, error)
+	CountVoucherRedemptions(ctx context.Context, voucherID uuid.UUID) (int64, error)
+	CountVouchers(ctx context.Context) (int64, error)
 	CountWorkshops(ctx context.Context, organizationID *uuid.UUID) (int64, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
 	CreateDispatchPolicy(ctx context.Context, arg CreateDispatchPolicyParams) error
@@ -142,6 +145,9 @@ type Querier interface {
 	GetUserMFA(ctx context.Context, userID uuid.UUID) (UserMfa, error)
 	GetVehicle(ctx context.Context, id uuid.UUID) (GetVehicleRow, error)
 	GetVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) (Vehicle, error)
+	GetVoucher(ctx context.Context, id uuid.UUID) (Voucher, error)
+	GetVoucherByCode(ctx context.Context, code string) (Voucher, error)
+	GetVoucherByCodeForUpdate(ctx context.Context, code string) (Voucher, error)
 	GetWorkshop(ctx context.Context, id uuid.UUID) (Workshop, error)
 	GetWorkshopService(ctx context.Context, id uuid.UUID) (WorkshopService, error)
 	HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error)
@@ -160,6 +166,8 @@ type Querier interface {
 	InsertServiceRequest(ctx context.Context, arg InsertServiceRequestParams) error
 	InsertServiceRequestEvent(ctx context.Context, arg InsertServiceRequestEventParams) error
 	InsertServiceRequestStop(ctx context.Context, arg InsertServiceRequestStopParams) error
+	InsertVoucher(ctx context.Context, arg InsertVoucherParams) error
+	InsertVoucherRedemption(ctx context.Context, arg InsertVoucherRedemptionParams) error
 	IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMethodEnabledParams) (bool, error)
 	IsValidZoneGeometry(ctx context.Context, geojson string) (bool, error)
 	LedgerBalance(ctx context.Context, arg LedgerBalanceParams) (int64, error)
@@ -200,6 +208,7 @@ type Querier interface {
 	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error)
 	ListProviderRatings(ctx context.Context, arg ListProviderRatingsParams) ([]ListProviderRatingsRow, error)
 	ListProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]RejectionReason, error)
+	ListPublicVouchers(ctx context.Context, arg ListPublicVouchersParams) ([]Voucher, error)
 	ListReasonsForCategory(ctx context.Context, arg ListReasonsForCategoryParams) ([]RejectionReason, error)
 	ListRejectionReasons(ctx context.Context, arg ListRejectionReasonsParams) ([]RejectionReason, error)
 	ListRequestOffers(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
@@ -219,6 +228,7 @@ type Querier interface {
 	ListUserSessionsIssuedSince(ctx context.Context, arg ListUserSessionsIssuedSinceParams) ([]uuid.UUID, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListVehicles(ctx context.Context, arg ListVehiclesParams) ([]ListVehiclesRow, error)
+	ListVouchers(ctx context.Context, arg ListVouchersParams) ([]Voucher, error)
 	ListWorkshopServices(ctx context.Context, workshopID uuid.UUID) ([]WorkshopService, error)
 	ListWorkshops(ctx context.Context, arg ListWorkshopsParams) ([]Workshop, error)
 	LockCustomerRequests(ctx context.Context, customerID uuid.UUID) error
@@ -233,6 +243,7 @@ type Querier interface {
 	RecordETAObservation(ctx context.Context, arg RecordETAObservationParams) error
 	RecordNotification(ctx context.Context, arg RecordNotificationParams) error
 	ReleaseVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) error
+	ReleaseVoucherRedemption(ctx context.Context, requestID *uuid.UUID) error
 	ResolveDispatchPolicy(ctx context.Context, arg ResolveDispatchPolicyParams) (DispatchPolicy, error)
 	RevokePendingInvitations(ctx context.Context, arg RevokePendingInvitationsParams) error
 	RevokeRefreshToken(ctx context.Context, arg RevokeRefreshTokenParams) error
@@ -269,6 +280,7 @@ type Querier interface {
 	UpdateServiceZone(ctx context.Context, arg UpdateServiceZoneParams) (int64, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLoginParams) error
+	UpdateVoucher(ctx context.Context, arg UpdateVoucherParams) error
 	UpsertCancellationRule(ctx context.Context, arg UpsertCancellationRuleParams) error
 	UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) error
 	UpsertPlatformSetting(ctx context.Context, arg UpsertPlatformSettingParams) error

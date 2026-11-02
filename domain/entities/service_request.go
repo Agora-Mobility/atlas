@@ -198,6 +198,7 @@ type ServiceRequest struct {
 	CancelFeeCents int64
 	DiscountCents  int64
 	VoucherCode    string
+	VoucherID      *uuid.UUID
 	AcceptedAt     *time.Time
 	ArrivedAt      *time.Time
 	StartedAt      *time.Time
@@ -477,6 +478,16 @@ func (r *ServiceRequest) AddToFare(cents int64) {
 	}
 	total := *r.Fare.Cents + cents
 	r.Fare.Cents = &total
+}
+
+func (r *ServiceRequest) ExpectedDueCents() int64 {
+	if r.Status == RequestCancelled {
+		return r.CancelFeeCents
+	}
+	if r.Fare.Cents == nil {
+		return 0
+	}
+	return *r.Fare.Cents - r.DiscountCents
 }
 
 func (r *ServiceRequest) AmountDueCents() int64 {

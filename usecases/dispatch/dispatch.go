@@ -98,6 +98,7 @@ type Deps struct {
 	Payments  repository.IPaymentRepository
 	Cancels   repository.ICancellationRepository
 	Ratings   repository.IRatingRepository
+	Vouchers  repository.IVoucherRepository
 	Devices   repository.IDeviceRepository
 	Locator   repository.IProviderLocator
 	Outbox    repository.IOutboxRepository

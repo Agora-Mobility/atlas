@@ -113,6 +113,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 		if err := u.rejectDuplicate(ctx, request); err != nil {
 			return err
 		}
+		if err := u.applyVoucher(ctx, request, service, in.VoucherCode, now); err != nil {
+			return err
+		}
 		if request.Fare.EstimateID != nil {
 			fresh, err := u.Pricing.UseEstimate(ctx, *request.Fare.EstimateID, now)
 			if err != nil {
@@ -401,6 +404,11 @@ func (u *Usecase) cancel(ctx context.Context, requestID uuid.UUID, order cancelO
 			return err
 		}
 		request.CancelReasonID, request.CancelFeeCents = order.reasonID, fee
+		if request.VoucherID != nil {
+			if err := u.Vouchers.Release(ctx, request.ID); err != nil {
+				return err
+			}
+		}
 		policy, err := u.policyOf(ctx, request)
 		if err != nil {
 			return err
@@ -557,6 +565,9 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 		base := tariff.FareForRoute(route.DistanceMeters, route.Duration, priceAt.In(location), len(stops))
 		boosted := base + base*int64(request.Fare.BoostBps)/10_000
 		difference := boosted - *request.Fare.Cents
+		if err := u.repriceVoucher(ctx, request, boosted); err != nil {
+			return err
+		}
 		policy, err := u.policyOf(ctx, request)
 		if err != nil {
 			return err
@@ -674,7 +685,7 @@ func baseRequestView(r *entities.ServiceRequest) dtos.RequestView {
 	}
 	view := dtos.RequestView{
 		ID: r.ID, Status: string(r.Status), Version: r.Version, Category: r.CategorySlug, ServiceID: r.ServiceID, Pickup: dtos.ToPlaceView(r.Pickup), Stops: stops,
-		ScheduledFor: r.ScheduledFor, FareCents: r.Fare.Cents, BoostBps: r.Fare.BoostBps, Currency: r.Fare.Currency, PaymentMethod: string(r.PaymentMethod), PaymentStatus: string(r.PaymentStatus), NeedsOperator: r.NeedsOperator, OperatorReason: r.OperatorReason,
+		ScheduledFor: r.ScheduledFor, FareCents: r.Fare.Cents, BoostBps: r.Fare.BoostBps, Currency: r.Fare.Currency, PaymentMethod: string(r.PaymentMethod), PaymentStatus: string(r.PaymentStatus), DiscountCents: r.DiscountCents, VoucherCode: r.VoucherCode, AmountDueCents: r.ExpectedDueCents(), NeedsOperator: r.NeedsOperator, OperatorReason: r.OperatorReason,
 		CancelReason: r.CancelReason, CancelledBy: r.CancelledBy, CancelReasonID: r.CancelReasonID, CancelFeeCents: r.CancelFeeCents, AcceptedAt: r.AcceptedAt, ArrivedAt: r.ArrivedAt, StartedAt: r.StartedAt, CompletedAt: r.CompletedAt, CreatedAt: r.CreatedAt,
 	}
 	if r.Destination != nil {

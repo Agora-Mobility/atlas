@@ -2,6 +2,11 @@ package dispatch
 
 import (
 	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/usecases/dispatch/dtos"
@@ -75,4 +80,105 @@ func (u *Usecase) stopFeeOf(ctx context.Context, request *entities.ServiceReques
 		return 0, err
 	}
 	return int64(len(request.Stops)) * tariff.StopFeeCents, nil
+}
+
+func (u *Usecase) applyVoucher(ctx context.Context, request *entities.ServiceRequest, service *entities.DispatchService, code string, now time.Time) error {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return nil
+	}
+	if request.Fare.Cents == nil {
+		return entities.ErrVoucherNotApplicable
+	}
+	voucher, err := u.Vouchers.LockByCode(ctx, code)
+	if err != nil {
+		return err
+	}
+	if voucher == nil {
+		return entities.ErrVoucherNotFound
+	}
+	if err := voucher.CheckApplies(service, now); err != nil {
+		return err
+	}
+	if voucher.MaxRedemptions != nil {
+		used, err := u.Vouchers.CountRedemptions(ctx, voucher.ID)
+		if err != nil {
+			return err
+		}
+		if used >= int64(*voucher.MaxRedemptions) {
+			return entities.ErrVoucherUsed
+		}
+	}
+	mine, err := u.Vouchers.CountCustomerRedemptions(ctx, voucher.ID, request.CustomerID)
+	if err != nil {
+		return err
+	}
+	if mine >= int64(voucher.PerCustomerLimit) {
+		return entities.ErrVoucherUsed
+	}
+	discount, err := voucher.DiscountFor(*request.Fare.Cents)
+	if err != nil {
+		return err
+	}
+	if err := u.Vouchers.Redeem(ctx, voucher.ID, request.CustomerID, &request.ID, discount); err != nil {
+		return err
+	}
+	request.VoucherID, request.VoucherCode, request.DiscountCents = &voucher.ID, *voucher.Code, discount
+	return nil
+}
+
+func (u *Usecase) repriceVoucher(ctx context.Context, request *entities.ServiceRequest, fareCents int64) error {
+	if request.VoucherID == nil {
+		return nil
+	}
+	voucher, err := u.Vouchers.Find(ctx, *request.VoucherID)
+	if err != nil || voucher == nil {
+		return err
+	}
+	discount, err := voucher.DiscountFor(fareCents)
+	if errors.Is(err, entities.ErrVoucherBelowMinimum) {
+		request.DiscountCents = 0
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	request.DiscountCents = discount
+	return nil
+}
+
+func (u *Usecase) PreviewVoucher(ctx context.Context, customerID uuid.UUID, in dtos.VoucherPreviewInput) (*dtos.VoucherPreview, error) {
+	estimate, err := u.Pricing.FindEstimate(ctx, in.FareEstimateID)
+	if err != nil {
+		return nil, err
+	}
+	if estimate == nil || estimate.CustomerID != customerID {
+		return nil, ErrFareEstimateInvalid
+	}
+	service, err := u.Config.FindService(ctx, estimate.ServiceID)
+	if err != nil {
+		return nil, err
+	}
+	voucher, err := u.Vouchers.FindByCode(ctx, in.Code)
+	if err != nil {
+		return nil, err
+	}
+	if voucher == nil {
+		return nil, entities.ErrVoucherNotFound
+	}
+	if err := voucher.CheckApplies(service, u.now()); err != nil {
+		return nil, err
+	}
+	mine, err := u.Vouchers.CountCustomerRedemptions(ctx, voucher.ID, customerID)
+	if err != nil {
+		return nil, err
+	}
+	if mine >= int64(voucher.PerCustomerLimit) {
+		return nil, entities.ErrVoucherUsed
+	}
+	discount, err := voucher.DiscountFor(estimate.TotalCents)
+	if err != nil {
+		return nil, err
+	}
+	return &dtos.VoucherPreview{Code: *voucher.Code, FareCents: estimate.TotalCents, DiscountCents: discount, TotalCents: estimate.TotalCents - discount, Currency: estimate.Currency}, nil
 }

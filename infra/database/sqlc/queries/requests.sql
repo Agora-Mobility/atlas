@@ -43,7 +43,7 @@ SET status = sqlc.arg(status), version = sqlc.arg(version), destination_address_
     next_action_at = sqlc.arg(next_action_at), reminder_at = sqlc.arg(reminder_at), provider_id = sqlc.arg(provider_id),
     organization_id = CASE WHEN provider_id IS NOT DISTINCT FROM sqlc.arg(provider_id) THEN organization_id ELSE (SELECT p.organization_id FROM providers p WHERE p.user_id = sqlc.arg(provider_id)) END, fare_cents = sqlc.arg(fare_cents),
     commission_cents = sqlc.arg(commission_cents), boost_bps = sqlc.arg(boost_bps), needs_operator = sqlc.arg(needs_operator), operator_reason = sqlc.arg(operator_reason),
-    cancel_reason = sqlc.arg(cancel_reason), cancelled_by = sqlc.arg(cancelled_by), cancel_reason_id = sqlc.arg(cancel_reason_id), cancel_fee_cents = sqlc.arg(cancel_fee_cents), accepted_at = sqlc.arg(accepted_at), arrived_at = sqlc.arg(arrived_at),
+    cancel_reason = sqlc.arg(cancel_reason), cancelled_by = sqlc.arg(cancelled_by), cancel_reason_id = sqlc.arg(cancel_reason_id), cancel_fee_cents = sqlc.arg(cancel_fee_cents), voucher_id = sqlc.arg(voucher_id), voucher_code = sqlc.arg(voucher_code), discount_cents = sqlc.arg(discount_cents), accepted_at = sqlc.arg(accepted_at), arrived_at = sqlc.arg(arrived_at),
     started_at = sqlc.arg(started_at), completed_at = sqlc.arg(completed_at), updated_at = sqlc.arg(updated_at)
 WHERE id = sqlc.arg(id) AND version = sqlc.arg(expected_version);
 

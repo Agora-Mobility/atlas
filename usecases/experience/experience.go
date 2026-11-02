@@ -24,6 +24,7 @@ var (
 type Deps struct {
 	Reference repository.IReferenceRepository
 	Ratings   repository.IRatingRepository
+	Vouchers  repository.IVoucherRepository
 	Requests  repository.IRequestRepository
 	Providers repository.IProviderRepository
 	Audit     repository.IAuditLogRepository
