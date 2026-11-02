@@ -51,3 +51,6 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Recibo PDF | Gerado no servidor com um escritor próprio (`shared/simplepdf`), sem biblioteca nova | Regra de não trazer frameworks; basta uma página de texto |
 | Ligação partilhada | Dura `share_ttl_minutes` (inicial 240). Na BD fica só o hash do token. Mostra estado, motorista, matrícula, posição e ETA, nunca telefones | Dados mínimos para seguir uma viagem |
 | Chamadas | Contrato HTTP simples: `POST {CALLS_BASE_URL}/sessions`, que devolve `proxy_number`. Quando houver fornecedor real pode precisar de um adaptador | Não existe fornecedor escolhido |
+| Reboque: valores | Preço por km a mais: Ligeiro 500 Kz, SUV 600 Kz, Motociclo 300 Kz. SUV exige viatura com 2 500 kg (**palpites**, alteráveis em `/admin/catalog/towing_vehicle`) | O brief só indica os preços base e os 10 km |
+| Código de entrega | 4 dígitos, 5 tentativas (`completion_code_attempts`). Depois disso só o operador pode concluir | 4 dígitos sem limite adivinham-se. O brief só pede que o código errado recuse |
+| Oficina recomendada | A oficina ativa mais próxima da recolha | O brief não define outro critério |

@@ -471,3 +471,11 @@ O SMS ao passageiro leva agora a ligação de seguimento. SSE novo: `request.mes
 ### Fase 9: viaturas do cliente e fotos no R2
 
 **Endpoints novos:** `GET,POST /users/me/vehicles`, `PUT,DELETE /users/me/vehicles/{id}`, `POST /media/photos`, `GET,POST /requests/{id}/photos`. Limite, tamanho e tipos em `platform_settings`. Antes de ligar a foto ao pedido, o servidor confirma no R2 que o ficheiro existe com o tipo e tamanho anunciados.
+
+### Fase 10: Reboque
+
+Um único serviço `towing` com tipos de viatura em `catalog_items` (C1): Ligeiro 25 000, SUV/Pick-up 32 000 e Motociclo 15 000 Kz, 10 km incluídos e preço por km a mais. O motorista só recebe ofertas que a viatura consegue carregar (`min_capacity_kg`). O pedido exige o incidente e se a viatura anda. A entrega exige o código que só o cliente vê, com limite de tentativas.
+
+**Endpoints novos:** `GET /towing/options`.
+
+**Alterados:** `POST /fare-estimates` na categoria `towing` devolve uma opção por tipo. `POST /requests` aceita `towing`. `POST /requests/{id}/complete` aceita `code`.
