@@ -498,13 +498,62 @@ def taxi():
         chk(sql(f"SELECT count(*) FROM ledger_transactions t WHERE t.request_id='{rid}' AND t.kind='tip'") == "1", "gorjeta registada no ledger")
 
     with Scenario("T8", "Voucher"):
+        admin = ADMIN[0]
+        now = dt.datetime.now(dt.timezone.utc)
+        def voucher(**extra):
+            code_ = "QA%06d" % random.randint(0, 999999)
+            body = {"code": code_, "discount_bps": 1000, "valid_from": (now - dt.timedelta(hours=1)).isoformat(), "valid_until": (now + dt.timedelta(hours=1)).isoformat(), "per_customer_limit": 1}
+            body.update(extra)
+            status, res = call("POST", "/admin/vouchers", body, admin, BACKOFFICE, log=False)
+            assert status == 201, res
+            return code_
+        taxi_category = sql("SELECT id FROM service_categories WHERE slug='taxi'")
+        towing_category = sql("SELECT id FROM service_categories WHERE slug='towing'")
         customer = new_user("customer", "Cliente T8")
         est = estimate(customer)
-        status, created = create(customer, est, voucher_code="TAXI10", discount_cents=99999)
-        chk(status == 201 and created.get("fare_cents", 0) < est["total_cents"], f"voucher de 10%: fare {created.get('fare_cents')} vs. {est['total_cents']}")
-        chk(any("voucher" in p for p in OPENAPI), "existe rota de vouchers")
-        if status == 201:
-            cancel(customer["tok"], created['id'])
+        fare = est["total_cents"]
+        status, res = create(customer, est, voucher_code="NAOEXISTE")
+        chk(code(res) == "VOUCHER_NOT_FOUND", f"voucher inexistente não é ignorado: {status} {code(res)}")
+        expired = voucher(valid_from=(now - dt.timedelta(days=3)).isoformat(), valid_until=(now - dt.timedelta(days=1)).isoformat(), category_id=taxi_category)
+        status, res = create(customer, est, voucher_code=expired)
+        chk(code(res) == "VOUCHER_EXPIRED", f"expirado é recusado: {status} {code(res)}")
+        other = voucher(category_id=towing_category)
+        status, res = create(customer, est, voucher_code=other)
+        chk(code(res) == "VOUCHER_NOT_APPLICABLE", f"de outro serviço é recusado: {status} {code(res)}")
+        good = voucher(category_id=taxi_category)
+        status, res = call("POST", "/vouchers/preview", {"code": good, "fare_estimate_id": est["fare_estimate_id"]}, customer["tok"])
+        chk(status == 200 and res.get("discount_cents") == round(fare * 0.1), f"pré-visualização de 10%: {res.get('discount_cents')} de {fare}")
+        status, created = create(customer, est, voucher_code=good, discount_cents=99999, payment_method="gpo")
+        discount = round(fare * 0.1)
+        chk(status == 201 and created.get("discount_cents") == discount and created.get("amount_due_cents") == fare - discount, f"desconto calculado no servidor, o do payload é ignorado: {created.get('discount_cents')}, a pagar {created.get('amount_due_cents')}")
+        chk(sql(f"SELECT discount_cents||'|'||voucher_code FROM service_requests WHERE id='{created.get('id')}'") == f"{discount}|{good}", "guardado na BD")
+        second = estimate(customer, STOPS[:1])
+        status, res = create(customer, second, STOPS[:1], voucher_code=good)
+        chk(code(res) == "VOUCHER_USED", f"segunda utilização pelo mesmo cliente: {status} {code(res)}")
+        cancel(customer["tok"], created["id"])
+        status, res = create(customer, estimate(customer, STOPS[1:2]), STOPS[1:2], voucher_code=good)
+        chk(status == 201, f"cancelar devolve o voucher: {status}")
+        cancel(customer["tok"], res.get("id"))
+        rider, driver = new_user("customer", "Cliente T8b"), new_user("provider", "Motorista T8", "taxi")
+        go_online(driver)
+        est = estimate(rider)
+        fare = est["total_cents"]
+        good = voucher(category_id=taxi_category)
+        status, created = create(rider, est, voucher_code=good, payment_method="gpo")
+        rid = created["id"]
+        accept(driver, wait_offer(driver, rid))
+        advance(driver, rid)
+        go_offline(driver)
+        status, payment = call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, rider["tok"])
+        discount = round(fare * 0.1)
+        chk(payment.get("amount_cents") == fare - discount, f"cobrança real com desconto: {payment.get('amount_cents')}")
+        wait_payment(rider, rid, "paid")
+        commission = int(sql(f"SELECT commission_cents FROM service_requests WHERE id='{rid}'"))
+        balance = int(sql(f"SELECT COALESCE(sum(amount_cents),0) FROM ledger_entries WHERE account_type='provider' AND account_id='{driver['id']}'"))
+        chk(balance == fare - commission, f"a AGORA paga o voucher, o motorista recebe {balance}")
+        _, view = call("GET", f"/requests/{rid}", None, rider["tok"])
+        breakdown = view.get("breakdown", {})
+        chk(any(i["code"] == "voucher" and i["amount_cents"] == -discount for i in breakdown.get("items", [])) and breakdown.get("total_cents") == fare - discount, f"aparece no total: {breakdown.get('items')}")
 
 
 def maintenance(admin, partner):
