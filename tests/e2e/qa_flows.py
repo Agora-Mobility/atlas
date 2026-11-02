@@ -1050,7 +1050,8 @@ def removals():
 def orders_and_account():
     with Scenario("P1", "Separadores e filtro por serviço"):
         customer, driver, done = completed_ride("cash")
-        call("POST", f"/requests/{done}/payments/cash", None, driver["tok"], PROVIDER)
+        status, _ = call("POST", f"/requests/{done}/payments/cash", None, driver["tok"], PROVIDER)
+        chk(status in (200, 201), f"o motorista confirma o dinheiro: {status}")
         luanda = dt.timezone(dt.timedelta(hours=1))
         when = (dt.datetime.now(luanda) + dt.timedelta(days=2)).replace(minute=0, second=0, microsecond=0).isoformat()
         status, scheduled = create(customer, estimate(customer, scheduled_for=when), scheduled_for=when)

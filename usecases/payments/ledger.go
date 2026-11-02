@@ -80,9 +80,10 @@ func (u *Usecase) postPayment(ctx context.Context, request *entities.ServiceRequ
 		}
 		legs = settlementOf(request, payment).Legs()
 	}
-	_, err := u.post(ctx, "payment:"+payment.ID.String(), kind, legs, payment.Currency, &request.ID, &payment.ID, nil, "", now)
-	if err != nil {
-		return err
+	if len(legs) > 0 {
+		if _, err := u.post(ctx, "payment:"+payment.ID.String(), kind, legs, payment.Currency, &request.ID, &payment.ID, nil, "", now); err != nil {
+			return err
+		}
 	}
 	if u.Rewards != nil && payment.Kind == entities.PaymentKindFare {
 		return u.Rewards.OnFirstPaidRequest(ctx, request, now)

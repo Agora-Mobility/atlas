@@ -203,3 +203,16 @@ func TestTheRealGatewayFeeIsACostOfThePlatformRecordedOnce(t *testing.T) {
 	assert.Equal(t, "GATEWAY_FEE_NOT_APPLICABLE", admin.do(t, http.MethodPut, "/api/v1/admin/payments/"+cash.str("id")+"/gateway-fee", map[string]any{"fee_cents": 1}, nil).code())
 	_ = cashCustomer
 }
+
+func TestCashWithoutCommissionStillConfirmsAndLeavesNoLedgerEntry(t *testing.T) {
+	ctx := context.Background()
+	customer, driver, id, _ := completedTaxi(t, "cash")
+	_, err := env.owner.Exec(ctx, `UPDATE service_requests SET commission_cents = 0 WHERE id = $1`, id)
+	require.NoError(t, err)
+	confirmed := driver.post(t, "/api/v1/requests/"+id+"/payments/cash", nil)
+	require.Equal(t, http.StatusOK, confirmed.status, confirmed.text)
+	assert.Equal(t, "paid", customer.get(t, "/api/v1/requests/"+id).str("payment_status"))
+	var entries int
+	require.NoError(t, env.owner.QueryRow(ctx, `SELECT count(*) FROM ledger_transactions WHERE request_id = $1`, id).Scan(&entries))
+	assert.Zero(t, entries, "nobody owes anything: the driver holds the whole fare")
+}
