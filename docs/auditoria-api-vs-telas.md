@@ -459,3 +459,11 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 **Novos no pedido:** `code` (TX-48271, com prefixo por categoria), `service_name`, `arrived_at` por paragem, `requests` em `/requests/active`.
 
 **Endpoints novos:** `GET /requests/{id}/receipt` (PDF), `POST /requests/{id}/repeat`, `POST /requests/{id}/stops/{position}/arrive`, `GET /users/me/recent-destinations`, `POST /requests/{id}/tickets`, `GET,POST /support/tickets`, `GET /support/tickets/{id}`, `POST /support/tickets/{id}/messages`, `GET /admin/support/tickets`, `GET /admin/support/tickets/{id}`, `POST /admin/support/tickets/{id}/messages`, `POST /admin/support/tickets/{id}/close`.
+
+### Fase 8: chat, chamada, partilha e SOS
+
+**Endpoints novos:** `GET,POST /requests/{id}/messages`, `GET /quick-replies`, `POST,DELETE /requests/{id}/share`, `GET /public/trips/{token}`, `GET /requests/{id}/eta`, `POST /requests/{id}/call`, `POST /requests/{id}/sos`, `GET /admin/sos`, `POST /admin/sos/{id}/resolve`.
+
+O SMS ao passageiro leva agora a ligação de seguimento. SSE novo: `request.message`.
+
+**Env novas:** `CALLS_BASE_URL`, `CALLS_API_KEY`, `CALLS_TIMEOUT`, `SHARE_BASE_URL`.

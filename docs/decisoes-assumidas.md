@@ -49,3 +49,5 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | TAXI10 | Criado no seed de desenvolvimento, não na migração | Em produção é a operação que decide os vouchers |
 | Repetir | `POST /requests/{id}/repeat` devolve a rota e novos preços. O pedido só é criado quando o cliente confirma | O preço pode ter mudado, e uma estimativa só serve um pedido |
 | Recibo PDF | Gerado no servidor com um escritor próprio (`shared/simplepdf`), sem biblioteca nova | Regra de não trazer frameworks; basta uma página de texto |
+| Ligação partilhada | Dura `share_ttl_minutes` (inicial 240). Na BD fica só o hash do token. Mostra estado, motorista, matrícula, posição e ETA, nunca telefones | Dados mínimos para seguir uma viagem |
+| Chamadas | Contrato HTTP simples: `POST {CALLS_BASE_URL}/sessions`, que devolve `proxy_number`. Quando houver fornecedor real pode precisar de um adaptador | Não existe fornecedor escolhido |
