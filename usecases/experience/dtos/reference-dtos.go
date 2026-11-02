@@ -237,3 +237,76 @@ type TowingOptions struct {
 	Incidents           []CatalogItemView    `json:"incidents"`
 	RecommendedWorkshop *RecommendedWorkshop `json:"recommended_workshop,omitempty"`
 }
+
+type PreferencesView struct {
+	NotifyStatus     bool   `json:"notify_status"`
+	NotifyPromotions bool   `json:"notify_promotions"`
+	NotifySMS        bool   `json:"notify_sms"`
+	ShareLocation    bool   `json:"share_location"`
+	Language         string `json:"language" binding:"required,oneof=pt en fr" enums:"pt,en,fr"`
+	Currency         string `json:"currency" binding:"required,oneof=AOA USD EUR" enums:"AOA,USD,EUR"`
+}
+
+type AvatarInput struct {
+	PhotoID uuid.UUID `json:"photo_id" binding:"required"`
+}
+
+type AvatarView struct {
+	URL       string     `json:"url,omitempty"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
+type ReferralView struct {
+	Code        string `json:"code" example:"AB2CD3EF"`
+	RewardCents int64  `json:"reward_cents" example:"100000"`
+	Invited     int64  `json:"invited"`
+	Rewarded    int64  `json:"rewarded"`
+	EarnedCents int64  `json:"earned_cents"`
+}
+
+type RedeemReferralInput struct {
+	Code string `json:"code" binding:"required,max=20" example:"AB2CD3EF"`
+}
+
+type InboxItemView struct {
+	ID        uuid.UUID  `json:"id"`
+	Kind      string     `json:"kind"`
+	Title     string     `json:"title"`
+	Body      string     `json:"body"`
+	LinkType  string     `json:"link_type,omitempty" enums:"request,offer,booking,ticket,wallet"`
+	LinkID    *uuid.UUID `json:"link_id,omitempty"`
+	ReadAt    *time.Time `json:"read_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+type InboxList struct {
+	Items  []InboxItemView `json:"items"`
+	Total  int64           `json:"total"`
+	Unread int64           `json:"unread"`
+	Page   int             `json:"page"`
+	Size   int             `json:"size"`
+}
+
+type MarkedView struct {
+	Marked int64 `json:"marked"`
+}
+
+type HelpTopicView struct {
+	ID    uuid.UUID `json:"id"`
+	Code  string    `json:"code"`
+	Title string    `json:"title"`
+	Body  string    `json:"body"`
+}
+
+type RecentRequestView struct {
+	ID       uuid.UUID `json:"id"`
+	Code     string    `json:"code"`
+	Category string    `json:"category"`
+	Status   string    `json:"status"`
+}
+
+type HelpView struct {
+	Topics        []HelpTopicView    `json:"topics"`
+	SupportPhone  string             `json:"support_phone"`
+	RecentRequest *RecentRequestView `json:"recent_request,omitempty"`
+}

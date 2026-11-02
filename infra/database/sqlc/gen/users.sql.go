@@ -48,7 +48,7 @@ VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8,
     $9, $10, $11, $12
 )
-RETURNING id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at
+RETURNING id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at, notify_status, notify_promotions, notify_sms, share_location, language, currency, avatar_upload_id, referral_code
 `
 
 type CreateUserParams struct {
@@ -95,12 +95,20 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.NotifyStatus,
+		&i.NotifyPromotions,
+		&i.NotifySms,
+		&i.ShareLocation,
+		&i.Language,
+		&i.Currency,
+		&i.AvatarUploadID,
+		&i.ReferralCode,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at FROM users
+SELECT id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at, notify_status, notify_promotions, notify_sms, share_location, language, currency, avatar_upload_id, referral_code FROM users
 WHERE lower(email) = lower($1) AND deleted_at IS NULL
 `
 
@@ -120,12 +128,20 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.NotifyStatus,
+		&i.NotifyPromotions,
+		&i.NotifySms,
+		&i.ShareLocation,
+		&i.Language,
+		&i.Currency,
+		&i.AvatarUploadID,
+		&i.ReferralCode,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at FROM users
+SELECT id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at, notify_status, notify_promotions, notify_sms, share_location, language, currency, avatar_upload_id, referral_code FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
 
@@ -145,12 +161,20 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.NotifyStatus,
+		&i.NotifyPromotions,
+		&i.NotifySms,
+		&i.ShareLocation,
+		&i.Language,
+		&i.Currency,
+		&i.AvatarUploadID,
+		&i.ReferralCode,
 	)
 	return i, err
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-SELECT id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at FROM users
+SELECT id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at, notify_status, notify_promotions, notify_sms, share_location, language, currency, avatar_upload_id, referral_code FROM users
 WHERE phone = $1 AND deleted_at IS NULL
 `
 
@@ -170,12 +194,20 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone *string) (User, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.NotifyStatus,
+		&i.NotifyPromotions,
+		&i.NotifySms,
+		&i.ShareLocation,
+		&i.Language,
+		&i.Currency,
+		&i.AvatarUploadID,
+		&i.ReferralCode,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at FROM users
+SELECT id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at, notify_status, notify_promotions, notify_sms, share_location, language, currency, avatar_upload_id, referral_code FROM users
 WHERE deleted_at IS NULL
   AND (cardinality($1::text[]) = 0 OR role::text = ANY ($1::text[]))
   AND ($2::user_status IS NULL OR status = $2::user_status)
@@ -225,6 +257,14 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.NotifyStatus,
+			&i.NotifyPromotions,
+			&i.NotifySms,
+			&i.ShareLocation,
+			&i.Language,
+			&i.Currency,
+			&i.AvatarUploadID,
+			&i.ReferralCode,
 		); err != nil {
 			return nil, err
 		}
@@ -267,7 +307,7 @@ SET name        = $1,
     role        = $7,
     updated_at  = $8
 WHERE id = $9 AND deleted_at IS NULL
-RETURNING id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at
+RETURNING id, name, email, password, phone, is_verified, status, role, last_login_at, created_at, updated_at, deleted_at, notify_status, notify_promotions, notify_sms, share_location, language, currency, avatar_upload_id, referral_code
 `
 
 type UpdateUserParams struct {
@@ -308,6 +348,14 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.NotifyStatus,
+		&i.NotifyPromotions,
+		&i.NotifySms,
+		&i.ShareLocation,
+		&i.Language,
+		&i.Currency,
+		&i.AvatarUploadID,
+		&i.ReferralCode,
 	)
 	return i, err
 }

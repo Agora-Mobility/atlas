@@ -20,6 +20,7 @@ package repository
 //go:generate go tool mockgen -source=support.go -destination=mocks/support_mock.go -package=mocks
 //go:generate go tool mockgen -source=live.go -destination=mocks/live_mock.go -package=mocks
 //go:generate go tool mockgen -source=garage.go -destination=mocks/garage_mock.go -package=mocks
+//go:generate go tool mockgen -source=account.go -destination=mocks/account_mock.go -package=mocks
 //go:generate go tool mockgen -source=bookings.go -destination=mocks/bookings_mock.go -package=mocks
 //go:generate go tool mockgen -source=workshops.go -destination=mocks/workshops_mock.go -package=mocks
 //go:generate go tool mockgen -source=ledger.go -destination=mocks/ledger_mock.go -package=mocks

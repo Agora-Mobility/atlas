@@ -6988,6 +6988,42 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/help": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Topics with search, the support line and the most recent request, to open a ticket about it.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Help center",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Text",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.HelpView"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/invitations/accept": {
             "post": {
                 "security": [
@@ -7830,6 +7866,117 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Outside the service area",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Read and unread items, each with a link_type and link_id to open the order, offer, booking or ticket.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "My notifications",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Only unread",
+                        "name": "unread",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.InboxList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/read-all": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Mark all notifications as read",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MarkedView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/{id}/read": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Mark a notification as read",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Done"
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -13137,6 +13284,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/users/me/avatar": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Read my profile photo",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AvatarView"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The photo is uploaded first through POST /media/photos and must belong to the user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Set my profile photo",
+                "parameters": [
+                    {
+                        "description": "Photo",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AvatarInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AvatarView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/me/mfa/recovery-codes": {
             "post": {
                 "security": [
@@ -13392,6 +13618,79 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/users/me/preferences": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Read my preferences",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PreferencesView"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Status pushes and SMS respect these values when they are sent. The code sent to confirm an identity is not affected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Save my preferences",
+                "parameters": [
+                    {
+                        "description": "Preferences",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PreferencesView"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PreferencesView"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/me/recent-destinations": {
             "get": {
                 "security": [
@@ -13422,6 +13721,87 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.RecentDestinationList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/referral": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "My invitation code and what it earned",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ReferralView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/referral/redeem": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Once per account and before the first paid request. The reward goes to the wallet of the friend when this account completes and pays its first request.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Use the code of a friend",
+                "parameters": [
+                    {
+                        "description": "Code",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RedeemReferralInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Done"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -14951,6 +15331,28 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "dtos.AvatarInput": {
+            "type": "object",
+            "required": [
+                "photo_id"
+            ],
+            "properties": {
+                "photo_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.AvatarView": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },
@@ -16662,6 +17064,40 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.HelpTopicView": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.HelpView": {
+            "type": "object",
+            "properties": {
+                "recent_request": {
+                    "$ref": "#/definitions/dtos.RecentRequestView"
+                },
+                "support_phone": {
+                    "type": "string"
+                },
+                "topics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.HelpTopicView"
+                    }
+                }
+            }
+        },
         "dtos.HoursInput": {
             "type": "object",
             "properties": {
@@ -16682,6 +17118,65 @@ const docTemplate = `{
                     "maximum": 6,
                     "minimum": 0,
                     "example": 1
+                }
+            }
+        },
+        "dtos.InboxItemView": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "link_id": {
+                    "type": "string"
+                },
+                "link_type": {
+                    "type": "string",
+                    "enum": [
+                        "request",
+                        "offer",
+                        "booking",
+                        "ticket",
+                        "wallet"
+                    ]
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.InboxList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.InboxItemView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unread": {
+                    "type": "integer"
                 }
             }
         },
@@ -16924,6 +17419,14 @@ const docTemplate = `{
                 "mfa_token": {
                     "type": "string",
                     "maxLength": 128
+                }
+            }
+        },
+        "dtos.MarkedView": {
+            "type": "object",
+            "properties": {
+                "marked": {
+                    "type": "integer"
                 }
             }
         },
@@ -18044,6 +18547,43 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.PreferencesView": {
+            "type": "object",
+            "required": [
+                "currency",
+                "language"
+            ],
+            "properties": {
+                "currency": {
+                    "type": "string",
+                    "enum": [
+                        "AOA",
+                        "USD",
+                        "EUR"
+                    ]
+                },
+                "language": {
+                    "type": "string",
+                    "enum": [
+                        "pt",
+                        "en",
+                        "fr"
+                    ]
+                },
+                "notify_promotions": {
+                    "type": "boolean"
+                },
+                "notify_sms": {
+                    "type": "boolean"
+                },
+                "notify_status": {
+                    "type": "boolean"
+                },
+                "share_location": {
+                    "type": "boolean"
+                }
+            }
+        },
         "dtos.PricingInput": {
             "type": "object",
             "properties": {
@@ -18484,6 +19024,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RecentRequestView": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.RecommendedWorkshop": {
             "type": "object",
             "properties": {
@@ -18557,6 +19114,19 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RedeemReferralInput": {
+            "type": "object",
+            "required": [
+                "code"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "AB2CD3EF"
+                }
+            }
+        },
         "dtos.ReferenceView": {
             "type": "object",
             "properties": {
@@ -18570,6 +19140,28 @@ const docTemplate = `{
                 "number": {
                     "type": "string",
                     "example": "968481213"
+                }
+            }
+        },
+        "dtos.ReferralView": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "AB2CD3EF"
+                },
+                "earned_cents": {
+                    "type": "integer"
+                },
+                "invited": {
+                    "type": "integer"
+                },
+                "reward_cents": {
+                    "type": "integer",
+                    "example": 100000
+                },
+                "rewarded": {
+                    "type": "integer"
                 }
             }
         },

@@ -19,6 +19,8 @@ func newExperienceModule(c *Container) *ExperienceModule {
 		Vouchers:  repository.NewVoucherRepository(c.Pool),
 		Support:   repository.NewSupportRepository(c.Pool),
 		Garage:    repository.NewGarageRepository(c.Pool),
+		Account:   repository.NewAccountRepository(c.Pool),
+		Ledger:    repository.NewLedgerRepository(c.Pool),
 		Workshops: repository.NewWorkshopDirectory(c.Pool),
 		Storage:   newObjectStorage(c.Config.R2),
 		Requests:  repository.NewRequestRepository(c.Pool),
@@ -26,6 +28,8 @@ func newExperienceModule(c *Container) *ExperienceModule {
 		Audit:     repository.NewAuditLogRepository(c.Pool),
 		Tx:        c.TxManager,
 	})
+	uc.Inbox = uc
+	c.Payments.Usecase.Rewards = uc
 	return &ExperienceModule{
 		Usecase: uc,
 		Router:  experiencerest.NewRouter(experiencerest.NewController(uc), c.Authenticator, c.Auth.Authorizer, c.ClientAuthorizer, middleware.NewIdempotency(c.Redis, c.Config.Dispatch.IdempotencyTTL)),

@@ -72,3 +72,7 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Mudanças: rota | Depois de marcada, a rota não muda (`ROUTE_CHANGE_FORBIDDEN`) | O preço está fechado |
 | Equipa | Registo informativo. O motorista regista, mas só o parceiro pode marcar `verified` | Verificado é um privilégio, não pode vir do motorista |
 | Propostas | O motor continua no código e nos testes (`TestRemovalsQuote...`, `TestExpiredQuote...`, que ligam o modo `quote` no próprio teste), mas nenhuma política o usa | Decisão C3. Remover o código era um passo à parte |
+| Preferências | `notify_status` e `notify_sms` são respeitadas no envio. O código de identidade e as ofertas ao motorista não dependem delas. `notify_promotions`, `share_location`, `language` e `currency` só ficam guardadas: ainda não há envio de promoções, textos noutras línguas nem outra moeda | **Por provar no envio.** Não há comportamento para estas 4 |
+| Caixa de notificações | Tabela nova `inbox_items`, criada nos eventos de pedido, oferta, marcação, pagamento, ticket e convite, com ligação para abrir. Não depende das preferências | `notifications` continua a ser o registo de envios |
+| Convite | Código criado no primeiro pedido de consulta, usado uma vez e antes do primeiro pedido pago. Prémio inicial de 1 000 Kz em `referral_reward_cents`, pago na Carteira | Do brief |
+| Linha de apoio | `support_phone` inicial `+244923000000` (**palpite, substitui pelo número real**) | O brief não indica o número |

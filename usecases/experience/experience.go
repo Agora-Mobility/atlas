@@ -28,6 +28,8 @@ type Deps struct {
 	Vouchers  repository.IVoucherRepository
 	Support   repository.ISupportRepository
 	Garage    repository.IGarageRepository
+	Account   repository.IAccountRepository
+	Ledger    repository.ILedgerRepository
 	Workshops repository.IWorkshopDirectory
 	Storage   services.IObjectStorage
 	Inbox     TicketNotifier

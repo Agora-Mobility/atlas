@@ -54,6 +54,17 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	signedIn.GET("/requests/:id/photos", r.controller.RequestPhotos)
 	signedIn.POST("/requests/:id/photos", r.controller.AttachRequestPhotos)
 
+	signedIn.GET("/users/me/preferences", r.controller.GetPreferences)
+	signedIn.PUT("/users/me/preferences", r.controller.SavePreferences)
+	signedIn.GET("/users/me/avatar", r.controller.GetAvatar)
+	signedIn.PUT("/users/me/avatar", r.controller.SetAvatar)
+	signedIn.GET("/users/me/referral", r.controller.GetReferral)
+	signedIn.POST("/users/me/referral/redeem", r.controller.RedeemReferral)
+	signedIn.GET("/notifications", r.controller.ListNotifications)
+	signedIn.POST("/notifications/read-all", r.controller.ReadAllNotifications)
+	signedIn.POST("/notifications/:id/read", r.controller.ReadNotification)
+	signedIn.GET("/help", r.controller.Help)
+
 	signedIn.GET("/towing/options", r.controller.TowingOptions)
 	signedIn.GET("/rating-options", r.controller.RatingOptions)
 	signedIn.POST("/requests/:id/rating", r.controller.RateRequest)

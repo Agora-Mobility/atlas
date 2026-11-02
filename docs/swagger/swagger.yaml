@@ -372,6 +372,20 @@ definitions:
     required:
     - photo_ids
     type: object
+  dtos.AvatarInput:
+    properties:
+      photo_id:
+        type: string
+    required:
+    - photo_id
+    type: object
+  dtos.AvatarView:
+    properties:
+      expires_at:
+        type: string
+      url:
+        type: string
+    type: object
   dtos.BlockReasonList:
     properties:
       items:
@@ -1561,6 +1575,28 @@ definitions:
       resolution:
         type: integer
     type: object
+  dtos.HelpTopicView:
+    properties:
+      body:
+        type: string
+      code:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+    type: object
+  dtos.HelpView:
+    properties:
+      recent_request:
+        $ref: '#/definitions/dtos.RecentRequestView'
+      support_phone:
+        type: string
+      topics:
+        items:
+          $ref: '#/definitions/dtos.HelpTopicView'
+        type: array
+    type: object
   dtos.HoursInput:
     properties:
       close_minute:
@@ -1577,6 +1613,46 @@ definitions:
         example: 1
         maximum: 6
         minimum: 0
+        type: integer
+    type: object
+  dtos.InboxItemView:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      link_id:
+        type: string
+      link_type:
+        enum:
+        - request
+        - offer
+        - booking
+        - ticket
+        - wallet
+        type: string
+      read_at:
+        type: string
+      title:
+        type: string
+    type: object
+  dtos.InboxList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.InboxItemView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      unread:
         type: integer
     type: object
   dtos.InvitationTokenInput:
@@ -1746,6 +1822,11 @@ definitions:
     required:
     - code
     - mfa_token
+    type: object
+  dtos.MarkedView:
+    properties:
+      marked:
+        type: integer
     type: object
   dtos.MechanicInput:
     properties:
@@ -2522,6 +2603,32 @@ definitions:
       lng:
         type: number
     type: object
+  dtos.PreferencesView:
+    properties:
+      currency:
+        enum:
+        - AOA
+        - USD
+        - EUR
+        type: string
+      language:
+        enum:
+        - pt
+        - en
+        - fr
+        type: string
+      notify_promotions:
+        type: boolean
+      notify_sms:
+        type: boolean
+      notify_status:
+        type: boolean
+      share_location:
+        type: boolean
+    required:
+    - currency
+    - language
+    type: object
   dtos.PricingInput:
     properties:
       base_fee_cents:
@@ -2814,6 +2921,17 @@ definitions:
           $ref: '#/definitions/dtos.RecentDestination'
         type: array
     type: object
+  dtos.RecentRequestView:
+    properties:
+      category:
+        type: string
+      code:
+        type: string
+      id:
+        type: string
+      status:
+        type: string
+    type: object
   dtos.RecommendedWorkshop:
     properties:
       address:
@@ -2864,6 +2982,15 @@ definitions:
     required:
     - phone
     type: object
+  dtos.RedeemReferralInput:
+    properties:
+      code:
+        example: AB2CD3EF
+        maxLength: 20
+        type: string
+    required:
+    - code
+    type: object
   dtos.ReferenceView:
     properties:
       due_at:
@@ -2874,6 +3001,21 @@ definitions:
       number:
         example: "968481213"
         type: string
+    type: object
+  dtos.ReferralView:
+    properties:
+      code:
+        example: AB2CD3EF
+        type: string
+      earned_cents:
+        type: integer
+      invited:
+        type: integer
+      reward_cents:
+        example: 100000
+        type: integer
+      rewarded:
+        type: integer
     type: object
   dtos.RefreshRequest:
     properties:
@@ -9427,6 +9569,28 @@ paths:
       summary: Update a service of a workshop
       tags:
       - Partner fleet
+  /api/v1/help:
+    get:
+      description: Topics with search, the support line and the most recent request,
+        to open a ticket about it.
+      parameters:
+      - description: Text
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.HelpView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Help center
+      tags:
+      - Account
   /api/v1/invitations/accept:
     post:
       consumes:
@@ -9974,6 +10138,72 @@ paths:
       summary: Providers near a point
       tags:
       - Dispatch
+  /api/v1/notifications:
+    get:
+      description: Read and unread items, each with a link_type and link_id to open
+        the order, offer, booking or ticket.
+      parameters:
+      - description: Only unread
+        in: query
+        name: unread
+        type: boolean
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.InboxList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: My notifications
+      tags:
+      - Account
+  /api/v1/notifications/{id}/read:
+    post:
+      parameters:
+      - description: Notification id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Done
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Mark a notification as read
+      tags:
+      - Account
+  /api/v1/notifications/read-all:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MarkedView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Mark all notifications as read
+      tags:
+      - Account
   /api/v1/offers/{id}:
     get:
       description: The event only carries the essentials; the rest comes from here.
@@ -13333,6 +13563,54 @@ paths:
       summary: Change a saved address
       tags:
       - Addresses
+  /api/v1/users/me/avatar:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AvatarView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Read my profile photo
+      tags:
+      - Account
+    put:
+      consumes:
+      - application/json
+      description: The photo is uploaded first through POST /media/photos and must
+        belong to the user.
+      parameters:
+      - description: Photo
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.AvatarInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AvatarView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set my profile photo
+      tags:
+      - Account
   /api/v1/users/me/mfa/recovery-codes:
     post:
       consumes:
@@ -13493,6 +13771,50 @@ paths:
       summary: Send a code to a new phone number
       tags:
       - Users
+  /api/v1/users/me/preferences:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PreferencesView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Read my preferences
+      tags:
+      - Account
+    put:
+      consumes:
+      - application/json
+      description: Status pushes and SMS respect these values when they are sent.
+        The code sent to confirm an identity is not affected.
+      parameters:
+      - description: Preferences
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PreferencesView'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.PreferencesView'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Save my preferences
+      tags:
+      - Account
   /api/v1/users/me/recent-destinations:
     get:
       parameters:
@@ -13513,6 +13835,56 @@ paths:
       summary: Last destinations of the customer, without repeats
       tags:
       - Dispatch
+  /api/v1/users/me/referral:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ReferralView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: My invitation code and what it earned
+      tags:
+      - Account
+  /api/v1/users/me/referral/redeem:
+    post:
+      consumes:
+      - application/json
+      description: Once per account and before the first paid request. The reward
+        goes to the wallet of the friend when this account completes and pays its
+        first request.
+      parameters:
+      - description: Code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RedeemReferralInput'
+      responses:
+        "204":
+          description: Done
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Use the code of a friend
+      tags:
+      - Account
   /api/v1/users/me/vehicles:
     get:
       produces:

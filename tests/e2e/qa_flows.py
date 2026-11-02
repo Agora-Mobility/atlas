@@ -1113,13 +1113,31 @@ def orders_and_account():
         chk(len(recent.get("items", [])) == 1, f"destinos recentes: {len(recent.get('items', []))}")
 
     with Scenario("P3", "Caixa de notificações"):
-        customer, _, rid = completed_ride("cash")
+        customer, driver, rid = completed_ride("cash")
+        def inbox(tok=customer["tok"], query=""):
+            return call("GET", "/notifications" + query, None, tok, log=False)[1]
         status, _ = call("GET", "/notifications", None, customer["tok"])
         chk(status == 200, f"caixa de entrada: {status}")
-        status, _ = call("POST", "/notifications/read-all", {}, customer["tok"])
-        chk(status in (200, 204), f"marcar lidas: {status}")
+        deadline = time.time() + 20
+        while time.time() < deadline and not any(i["title"] == "Serviço concluído" for i in inbox().get("items", [])):
+            time.sleep(0.5)
+        items = inbox().get("items", [])
+        titles = [i["title"] for i in items]
+        chk("Prestador atribuído" in titles and "Serviço concluído" in titles, f"criada nos eventos: {titles}")
+        done = next(i for i in items if i["title"] == "Serviço concluído")
+        chk(done["link_type"] == "request" and done["link_id"] == rid, f"deep link para o pedido: {done['link_type']} {done['link_id']}")
+        before = inbox()
+        chk(before["unread"] == before["total"] and before["unread"] >= 2, f"não lidas: {before['unread']} de {before['total']}")
+        chk(call("POST", f"/notifications/{done['id']}/read", None, new_user("customer", "Intruso P3")["tok"])[0] == 404, "outro cliente não marca")
+        chk(call("POST", f"/notifications/{done['id']}/read", None, customer["tok"])[0] == 204, "marcar uma como lida")
+        chk(inbox()["unread"] == before["unread"] - 1, f"menos uma por ler: {inbox()['unread']}")
+        status, marked = call("POST", "/notifications/read-all", {}, customer["tok"])
+        chk(status in (200, 204) and marked.get("marked") == before["unread"] - 1, f"marcar lidas: {status} {marked}")
+        chk(inbox()["unread"] == 0 and inbox(query="?unread=true")["items"] == [], "todas lidas (BD e filtro)")
+        chk(sql(f"SELECT count(*) FROM inbox_items WHERE user_id='{customer['id']}' AND read_at IS NULL") == "0", "BD confirma")
+        chk(any(i["link_type"] == "offer" for i in call("GET", "/notifications", None, driver["tok"], PROVIDER, log=False)[1].get("items", [])), "o motorista recebe a oferta com deep link")
         columns = sql("SELECT string_agg(column_name,',') FROM information_schema.columns WHERE table_schema='atlas' AND table_name='notifications'")
-        info("a tabela notifications é um registo de envios: " + columns)
+        info("a tabela notifications continua a ser o registo de envios: " + columns)
         log = sql(f"SELECT template,channel,status FROM notifications WHERE user_id='{customer['id']}' LIMIT 5").replace("\n", "; ")
         info("envios do cliente: " + (log or "nenhum"))
 
@@ -1140,9 +1158,148 @@ def orders_and_account():
         status, _ = call("GET", "/users/me", None, customer["tok"])
         chk(status == 401, f"a sessão termina: {status}")
         other = new_user("customer", "Cliente P4b")
-        status, _ = call("PATCH", "/users/me", {"notify_promotions": False, "notify_sms": False}, other["tok"])
+        prefs = {"notify_status": False, "notify_promotions": False, "notify_sms": False, "share_location": False, "language": "pt", "currency": "AOA"}
+        status, saved = call("PUT", "/users/me/preferences", prefs, other["tok"])
         persisted = "notify" in sql("SELECT string_agg(column_name,',') FROM information_schema.columns WHERE table_schema='atlas' AND table_name='users'")
-        chk(persisted, f"toggles persistidos: PATCH {status}, mas não há colunas de preferências")
+        chk(persisted and status == 200 and sql(f"SELECT notify_sms FROM users WHERE id='{other['id']}'") == "f", f"toggles persistidos: PUT {status} (BD)")
+        chk(call("PUT", "/users/me/preferences", dict(prefs, language="xx"), other["tok"])[0] >= 400, "idioma inválido recusado")
+        chk(call("GET", "/users/me/preferences", None, other["tok"])[1].get("notify_status") is False, "lê as preferências")
+        shop, shop_service = workshop_fixture(PARTNER_TOKEN[0], capacity=3)
+        sent_before = len(sms_to(other["phone"]))
+        status, muted = book(other, shop, [shop_service], slot_of(shop, shop_service, other))
+        deadline = time.time() + 15
+        while time.time() < deadline and sql(f"SELECT count(*) FROM inbox_items WHERE user_id='{other['id']}'") == "0":
+            time.sleep(0.5)
+        time.sleep(1)
+        chk(len(sms_to(other["phone"])) == sent_before, f"SMS desligado não é enviado: {len(sms_to(other['phone']))}")
+        chk(sql(f"SELECT count(*) FROM notifications WHERE user_id='{other['id']}' AND channel='sms' AND status='skipped'") != "0", "fica registado como não enviado")
+        status, _ = call("POST", "/users/me/verification-code", {}, other["tok"])
+        time.sleep(1)
+        chk(status < 300 and len(sms_to(other["phone"])) == sent_before + 1, f"o código de identidade não depende das preferências: {status} {len(sms_to(other['phone']))}")
+
+    with Scenario("P5", "Convites, ajuda e foto de perfil"):
+        friend, invited = new_user("customer", "Amigo P5"), new_user("customer", "Convidado P5")
+        status, referral = call("GET", "/users/me/referral", None, friend["tok"])
+        chk(status == 200 and referral.get("reward_cents") == 100000 and len(referral.get("code", "")) == 8, f"código e prémio: {referral}")
+        chk(code(call("POST", "/users/me/referral/redeem", {"code": referral["code"]}, friend["tok"])[1]) == "REFERRAL_OWN_CODE", "o próprio código é recusado")
+        chk(call("POST", "/users/me/referral/redeem", {"code": "NAOEXISTE"}, invited["tok"])[0] == 404, "código inexistente")
+        chk(call("POST", "/users/me/referral/redeem", {"code": referral["code"]}, invited["tok"])[0] == 204, "usar o código do amigo")
+        chk(code(call("POST", "/users/me/referral/redeem", {"code": referral["code"]}, invited["tok"])[1]) == "REFERRAL_ALREADY_USED", "só uma vez")
+        wallet = lambda tok: call("GET", "/wallet", None, tok, log=False)[1].get("balance_cents")
+        chk(wallet(friend["tok"]) == 0, "sem prémio antes de pagar")
+        driver = new_user("provider", "Motorista P5", "taxi")
+        go_online(driver)
+        est = estimate(invited)
+        _, created = create(invited, est, payment_method="gpo")
+        rid = created["id"]
+        accept(driver, wait_offer(driver, rid))
+        chk(wallet(friend["tok"]) == 0, "aceite ainda não dá prémio")
+        advance(driver, rid)
+        chk(wallet(friend["tok"]) == 0, "concluído sem pagar ainda não dá prémio")
+        call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, invited["tok"])
+        chk(wait_payment(invited, rid, "paid"), "o amigo pagou")
+        go_offline(driver)
+        chk(wallet(friend["tok"]) == 100000, f"o prémio vai para a Carteira: {wallet(friend['tok'])}")
+        chk(sql(f"SELECT count(*) FROM ledger_transactions WHERE kind='referral_reward' AND request_id='{rid}'") == "1", "registado uma vez no ledger (BD)")
+        chk(code(call("POST", "/users/me/referral/redeem", {"code": referral["code"]}, invited["tok"])[1]) in ("REFERRAL_TOO_LATE", "REFERRAL_ALREADY_USED"), "depois de pagar já não conta")
+        status, stats = call("GET", "/users/me/referral", None, friend["tok"])
+        chk(stats.get("rewarded") == 1 and stats.get("earned_cents") == 100000, f"o amigo vê o que ganhou: {stats}")
+        status, help_view = call("GET", "/help?search=reembolso", None, invited["tok"])
+        chk(status == 200 and [t["code"] for t in help_view.get("topics", [])] == ["payments"], f"pesquisa nos temas: {[t['code'] for t in help_view.get('topics', [])]}")
+        chk(help_view.get("support_phone") and help_view.get("recent_request", {}).get("id") == rid, "linha de apoio e pedido recente")
+        chk(len(call("GET", "/help", None, invited["tok"])[1].get("topics", [])) >= 6, "todos os temas")
+        status, photo = call("POST", "/media/photos", {"content_type": "image/jpeg", "size_bytes": 5}, invited["tok"], log=False)
+        req = urllib.request.Request(photo["upload_url"], data=b"hello", method="PUT", headers={"Content-Type": "image/jpeg"})
+        with urllib.request.urlopen(req, timeout=30) as sent:
+            assert sent.status in (200, 204)
+        chk(call("PUT", "/users/me/avatar", {"photo_id": photo["id"]}, friend["tok"])[0] == 404, "a foto de outro é recusada")
+        status, avatar = call("PUT", "/users/me/avatar", {"photo_id": photo["id"]}, invited["tok"])
+        chk(status == 200 and avatar.get("url"), f"foto de perfil: {status}")
+        chk(call("GET", "/users/me/avatar", None, invited["tok"])[1].get("url"), "ler a foto de perfil")
+
+    with Scenario("L1", "Chat, respostas rápidas e partilha"):
+        customer, driver = new_user("customer", "Cliente L1"), new_user("provider", "Motorista L1", "taxi")
+        go_online(driver)
+        _, created = create(customer, estimate(customer))
+        rid = created["id"]
+        chk(code(call("POST", f"/requests/{rid}/messages", {"body": "Olá"}, customer["tok"])[1]) == "CHAT_CLOSED", "sem motorista não há chat")
+        accept(driver, wait_offer(driver, rid))
+        chk(call("POST", f"/requests/{rid}/messages", {"body": "Estou à porta"}, customer["tok"])[0] == 201, "o cliente envia")
+        _, replies = call("GET", "/quick-replies?category=taxi", None, driver["tok"], PROVIDER)
+        reply = replies.get("items", [{}])[0]
+        status, sent = call("POST", f"/requests/{rid}/messages", {"quick_reply_id": reply.get("id")}, driver["tok"], PROVIDER)
+        chk(status == 201 and sent.get("body") == reply.get("label"), f"resposta rápida: {status} {sent.get('body')}")
+        intruder = new_user("customer", "Intruso L1")
+        chk(call("GET", f"/requests/{rid}/messages", None, intruder["tok"])[0] == 404, "outro cliente não lê")
+        chk(call("POST", f"/requests/{rid}/messages", {"body": "x"}, intruder["tok"])[0] == 404, "outro cliente não escreve")
+        _, chat = call("GET", f"/requests/{rid}/messages", None, customer["tok"])
+        chk(len(chat.get("items", [])) == 2, f"histórico: {len(chat.get('items', []))}")
+        status, res = call("POST", f"/requests/{rid}/call", None, customer["tok"])
+        chk(status == 503 and code(res) == "CALLS_UNAVAILABLE", f"sem fornecedor de chamadas: {status} {code(res)}")
+        status, share = call("POST", f"/requests/{rid}/share", None, customer["tok"])
+        chk(status in (200, 201) and share.get("token"), f"ligação temporária: {status}")
+        token = share.get("token", "")
+        chk(call("POST", f"/requests/{rid}/share", None, intruder["tok"])[0] == 404, "outro cliente não partilha")
+        with urllib.request.urlopen(BASE + f"/api/v1/public/trips/{token}", timeout=20) as res_public:
+            trip_text = res_public.read().decode()
+        chk(customer["phone"] not in trip_text and driver["phone"] not in trip_text and "plate" in trip_text.lower(), "a ligação pública mostra a matrícula e nunca telefones")
+        chk(token not in sql(f"SELECT token_hash FROM request_shares WHERE request_id='{rid}'"), "na BD só fica o hash")
+        chk(call("DELETE", f"/requests/{rid}/share", None, customer["tok"])[0] in (200, 204), "revogar")
+        try:
+            urllib.request.urlopen(BASE + f"/api/v1/public/trips/{token}", timeout=20)
+            revoked = 200
+        except urllib.error.HTTPError as err:
+            revoked = err.code
+        chk(revoked in (404, 410), f"revogada deixa de abrir: {revoked}")
+        status, eta = call("GET", f"/requests/{rid}/eta", None, customer["tok"])
+        chk(status == 200, f"ETA: {status} {eta.get('source')}")
+
+    with Scenario("L2", "SOS"):
+        status, res = call("POST", f"/requests/{rid}/sos", {"note": "Ajuda", "lat": -8.84, "lng": 13.24}, intruder["tok"])
+        chk(status == 404, f"outro cliente não aciona: {status}")
+        status, alert = call("POST", f"/requests/{rid}/sos", {"note": "Ajuda", "lat": -8.84, "lng": 13.24}, customer["tok"])
+        chk(status == 201 and alert.get("status") == "open", f"SOS registado: {status}")
+        status, again = call("POST", f"/requests/{rid}/sos", {"note": "Outra vez"}, customer["tok"])
+        chk(again.get("id") == alert.get("id"), f"o segundo toque não duplica: {status}")
+        chk(sql(f"SELECT count(*) FROM sos_alerts WHERE request_id='{rid}'") == "1", "uma linha na BD")
+        chk(call("GET", "/admin/sos?status=open", None, customer["tok"])[0] in (401, 403), "o cliente não vê a lista")
+        _, opened = call("GET", "/admin/sos?status=open", None, ADMIN[0], BACKOFFICE)
+        chk(alert.get("id") in [a["id"] for a in opened.get("items", [])], "o operador vê o alerta")
+        chk(call("POST", f"/admin/sos/{alert['id']}/resolve", None, ADMIN[0], BACKOFFICE)[0] in (200, 204), "o operador resolve")
+        advance(driver, rid, ("en-route", "arrive", "start", "complete"))
+        go_offline(driver)
+        chk(code(call("POST", f"/requests/{rid}/messages", {"body": "Tarde"}, customer["tok"])[1]) == "CHAT_CLOSED", "pedido terminado fecha o chat")
+
+    with Scenario("L3", "Ledger do motorista: comissão, gorjeta e liquidação"):
+        customer, driver, rid = completed_ride("gpo")
+        driver_id = driver["id"]
+        fare = int(sql(f"SELECT fare_cents FROM service_requests WHERE id='{rid}'"))
+        commission = int(sql(f"SELECT commission_cents FROM service_requests WHERE id='{rid}'"))
+        call("POST", f"/requests/{rid}/payments", {"method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"])
+        chk(wait_payment(customer, rid, "paid"), "pago")
+        balance = lambda: call("GET", f"/admin/providers/{driver_id}/ledger", None, ADMIN[0], BACKOFFICE, log=False)[1].get("balance_cents")
+        chk(balance() == fare - commission, f"o motorista recebe tarifa menos comissão: {balance()} = {fare} - {commission}")
+        chk(call("GET", f"/admin/providers/{driver_id}/ledger", None, customer["tok"])[0] in (401, 403), "o cliente não lê o ledger de outro")
+        _, summary = call("GET", "/admin/ledger/summary", None, ADMIN[0], BACKOFFICE)
+        chk(summary.get("unbalanced_transactions") == 0, f"as transações somam zero: {summary.get('unbalanced_transactions')}")
+        status, tip = call("POST", f"/requests/{rid}/tips", {"amount_cents": 50000, "method": "gpo", "phone_number": SIMULATED_OK}, customer["tok"], idem=str(uuid.uuid4()))
+        chk(status == 201, f"gorjeta: {status} {code(tip)}")
+        deadline = time.time() + 40
+        while time.time() < deadline and balance() != fare - commission + 50000:
+            time.sleep(1)
+        chk(balance() == fare - commission + 50000, f"gorjeta 100% para o motorista: {balance()}")
+        reference = "QA-" + uuid.uuid4().hex[:8]
+        amount = balance()
+        chk(code(call("POST", f"/admin/providers/{driver_id}/settlements", {"direction": "payout", "amount_cents": amount + 1, "reference": reference}, ADMIN[0], BACKOFFICE)[1]) is not None, "não paga acima do saldo")
+        status, settled = call("POST", f"/admin/providers/{driver_id}/settlements", {"direction": "payout", "amount_cents": amount, "reference": reference}, ADMIN[0], BACKOFFICE)
+        chk(status == 200 and settled.get("applied") is True and balance() == 0, f"liquidação: {status} {balance()}")
+        sql(f"INSERT INTO ledger_transactions (id,idempotency_key,kind,currency) VALUES ('{uuid.uuid4()}','qa-topup-{reference}','wallet_credit','AOA')")
+        top_up = sql(f"SELECT id FROM ledger_transactions WHERE idempotency_key='qa-topup-{reference}'")
+        sql(f"INSERT INTO ledger_entries (transaction_id,account_type,account_id,amount_cents) VALUES ('{top_up}','provider','{driver_id}',100)")
+        sql(f"INSERT INTO ledger_entries (transaction_id,account_type,amount_cents) VALUES ('{top_up}','external',-100)")
+        status, again = call("POST", f"/admin/providers/{driver_id}/settlements", {"direction": "payout", "amount_cents": 1, "reference": reference}, ADMIN[0], BACKOFFICE)
+        chk(status == 200 and again.get("applied") is False and balance() == 100, f"a mesma referência só conta uma vez: {status} {again.get('applied')} saldo {balance()}")
+
 
 
 def payments_real(admin):

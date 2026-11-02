@@ -51,6 +51,7 @@ type TripSharer interface {
 }
 
 type RequestNotifier struct {
+	account       repository.IAccountRepository
 	devices       repository.IDeviceRepository
 	requests      repository.IRequestRepository
 	shares        TripSharer
@@ -64,6 +65,10 @@ var _ dispatch.OfferChannels = (*RequestNotifier)(nil)
 
 func NewRequestNotifier(devices repository.IDeviceRepository, requests repository.IRequestRepository, push services.IPushSender, sms services.ISMSSender, deepLinkBase, operatorPhone string) *RequestNotifier {
 	return &RequestNotifier{devices: devices, requests: requests, push: push, sms: sms, deepLinkBase: deepLinkBase, operatorPhone: operatorPhone}
+}
+
+func (n *RequestNotifier) UseAccount(account repository.IAccountRepository) {
+	n.account = account
 }
 
 func (n *RequestNotifier) UseSharer(sharer TripSharer) {
@@ -86,6 +91,9 @@ func RequestBindingKeys() []string {
 }
 
 func (n *RequestNotifier) OnEvent(ctx context.Context, env events.Envelope) error {
+	if err := n.addToInbox(ctx, env); err != nil {
+		return err
+	}
 	switch env.EventType {
 	case events.OfferCreated:
 		return n.onOfferCreated(ctx, env)
@@ -184,7 +192,7 @@ func (n *RequestNotifier) onTransition(ctx context.Context, env events.Envelope)
 		return nil
 	}
 	data := map[string]string{"type": "request.status", "request_id": event.RequestID.String(), "status": event.To, "version": strconv.Itoa(event.Version), "event_id": env.EventID.String()}
-	err := n.pushTo(ctx, event.CustomerID, templateStatus, services.PushMessage{Title: message.title, Body: message.body, Data: data})
+	err := n.statusPush(ctx, event.CustomerID, templateStatus, services.PushMessage{Title: message.title, Body: message.body, Data: data})
 	if env.EventType != events.RequestAccepted {
 		return err
 	}
@@ -313,7 +321,36 @@ func (n *RequestNotifier) pushTo(ctx context.Context, userID uuid.UUID, template
 	return errors.Join(failures...)
 }
 
+func (n *RequestNotifier) preferencesOf(ctx context.Context, userID uuid.UUID) (*entities.Preferences, error) {
+	if n.account == nil {
+		return nil, nil
+	}
+	return n.account.Preferences(ctx, userID)
+}
+
+func (n *RequestNotifier) statusPush(ctx context.Context, userID uuid.UUID, template string, message services.PushMessage) error {
+	preferences, err := n.preferencesOf(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if preferences != nil && !preferences.AllowsStatusPush() {
+		n.record(ctx, &userID, entities.ChannelFCM, template, statusSkipped, "", "the user turned this off")
+		return nil
+	}
+	return n.pushTo(ctx, userID, template, message)
+}
+
 func (n *RequestNotifier) smsToUser(ctx context.Context, userID uuid.UUID, template, body string) error {
+	if template != templateOffer {
+		preferences, err := n.preferencesOf(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if preferences != nil && !preferences.AllowsSMS() {
+			n.record(ctx, &userID, entities.ChannelSMS, template, statusSkipped, "", "the user turned this off")
+			return nil
+		}
+	}
 	_, phone, err := n.devices.Contact(ctx, userID)
 	if err != nil {
 		return err
@@ -383,7 +420,7 @@ func (n *RequestNotifier) onBooking(ctx context.Context, env events.Envelope) er
 	if !known {
 		return nil
 	}
-	err := n.pushTo(ctx, event.CustomerID, templateBooking, services.PushMessage{
+	err := n.statusPush(ctx, event.CustomerID, templateBooking, services.PushMessage{
 		Title: message.title, Body: message.body,
 		Data: map[string]string{"type": "booking.status", "booking_id": event.BookingID.String(), "request_id": event.RequestID.String(), "status": event.Status, "event_id": env.EventID.String()},
 	})
@@ -399,10 +436,83 @@ func (n *RequestNotifier) onBookingExtra(ctx context.Context, env events.Envelop
 	if err := env.DecodePayload(&event); err != nil {
 		return err
 	}
-	return n.pushTo(ctx, event.CustomerID, templateBookingExtra, services.PushMessage{
+	return n.statusPush(ctx, event.CustomerID, templateBookingExtra, services.PushMessage{
 		Title: "Orçamento extra", Body: event.Description,
 		Data: map[string]string{"type": "booking.extra", "booking_id": event.BookingID.String(), "extra_id": event.ExtraID.String(), "event_id": env.EventID.String()},
 	})
 }
 
 var bookingZone = time.FixedZone("WAT", 3600)
+
+const (
+	linkRequest = "request"
+	linkOffer   = "offer"
+	linkBooking = "booking"
+)
+
+func (n *RequestNotifier) addToInbox(ctx context.Context, env events.Envelope) error {
+	if n.account == nil {
+		return nil
+	}
+	item, err := inboxItemOf(env)
+	if err != nil || item == nil {
+		return err
+	}
+	if item.ID, err = uuid.NewV7(); err != nil {
+		return err
+	}
+	item.EventID, item.CreatedAt = env.EventID.String(), time.Now().UTC()
+	return n.account.AddInboxItem(ctx, item)
+}
+
+func inboxItemOf(env events.Envelope) (*entities.InboxItem, error) {
+	switch env.EventType {
+	case events.OfferCreated:
+		var event events.RequestOfferV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		return &entities.InboxItem{UserID: event.ProviderID, Kind: "offer", Title: "Novo pedido", Body: "Tens uma nova oferta.", LinkType: linkOffer, LinkID: &event.OfferID}, nil
+	case events.BookingChanged:
+		var event events.BookingChangedV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		message, known := bookingMessages[event.Status]
+		if !known {
+			return nil, nil
+		}
+		return &entities.InboxItem{UserID: event.CustomerID, Kind: "booking", Title: message.title, Body: message.body, LinkType: linkBooking, LinkID: &event.BookingID}, nil
+	case events.BookingExtra:
+		var event events.BookingExtraV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		return &entities.InboxItem{UserID: event.CustomerID, Kind: "booking", Title: "Orçamento extra", Body: event.Description, LinkType: linkBooking, LinkID: &event.BookingID}, nil
+	case events.PaymentChanged:
+		var event events.PaymentChangedV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		message, known := paymentInbox[event.Status]
+		if !known {
+			return nil, nil
+		}
+		return &entities.InboxItem{UserID: event.CustomerID, Kind: "payment", Title: message.title, Body: message.body, LinkType: linkRequest, LinkID: &event.RequestID}, nil
+	}
+	message, known := statusMessages[env.EventType]
+	if !known {
+		return nil, nil
+	}
+	var event events.RequestTransitionV1
+	if err := env.DecodePayload(&event); err != nil {
+		return nil, err
+	}
+	return &entities.InboxItem{UserID: event.CustomerID, Kind: "request", Title: message.title, Body: message.body, LinkType: linkRequest, LinkID: &event.RequestID}, nil
+}
+
+var paymentInbox = map[string]struct{ title, body string }{
+	"paid":    {"Pagamento confirmado", "Recebemos o teu pagamento."},
+	"failed":  {"Pagamento recusado", "O pagamento não foi aceite. Tenta de novo."},
+	"expired": {"Pagamento expirado", "O prazo do pagamento terminou."},
+}

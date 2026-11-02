@@ -190,3 +190,85 @@ func (mr *MockILiveRepositoryMockRecorder) ShareByHash(ctx, tokenHash any) *gomo
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShareByHash", reflect.TypeOf((*MockILiveRepository)(nil).ShareByHash), ctx, tokenHash)
 }
+
+// MockIRemovalRepository is a mock of IRemovalRepository interface.
+type MockIRemovalRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockIRemovalRepositoryMockRecorder
+	isgomock struct{}
+}
+
+// MockIRemovalRepositoryMockRecorder is the mock recorder for MockIRemovalRepository.
+type MockIRemovalRepositoryMockRecorder struct {
+	mock *MockIRemovalRepository
+}
+
+// NewMockIRemovalRepository creates a new mock instance.
+func NewMockIRemovalRepository(ctrl *gomock.Controller) *MockIRemovalRepository {
+	mock := &MockIRemovalRepository{ctrl: ctrl}
+	mock.recorder = &MockIRemovalRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIRemovalRepository) EXPECT() *MockIRemovalRepositoryMockRecorder {
+	return m.recorder
+}
+
+// CountOfDay mocks base method.
+func (m *MockIRemovalRepository) CountOfDay(ctx context.Context, vehicleID uuid.UUID, day time.Time) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountOfDay", ctx, vehicleID, day)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountOfDay indicates an expected call of CountOfDay.
+func (mr *MockIRemovalRepositoryMockRecorder) CountOfDay(ctx, vehicleID, day any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountOfDay", reflect.TypeOf((*MockIRemovalRepository)(nil).CountOfDay), ctx, vehicleID, day)
+}
+
+// LockVehicle mocks base method.
+func (m *MockIRemovalRepository) LockVehicle(ctx context.Context, vehicleID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LockVehicle", ctx, vehicleID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// LockVehicle indicates an expected call of LockVehicle.
+func (mr *MockIRemovalRepositoryMockRecorder) LockVehicle(ctx, vehicleID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockVehicle", reflect.TypeOf((*MockIRemovalRepository)(nil).LockVehicle), ctx, vehicleID)
+}
+
+// ReplaceTeam mocks base method.
+func (m *MockIRemovalRepository) ReplaceTeam(ctx context.Context, requestID uuid.UUID, members []entities.TeamMember) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReplaceTeam", ctx, requestID, members)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReplaceTeam indicates an expected call of ReplaceTeam.
+func (mr *MockIRemovalRepositoryMockRecorder) ReplaceTeam(ctx, requestID, members any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceTeam", reflect.TypeOf((*MockIRemovalRepository)(nil).ReplaceTeam), ctx, requestID, members)
+}
+
+// Team mocks base method.
+func (m *MockIRemovalRepository) Team(ctx context.Context, requestID uuid.UUID) ([]entities.TeamMember, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Team", ctx, requestID)
+	ret0, _ := ret[0].([]entities.TeamMember)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Team indicates an expected call of Team.
+func (mr *MockIRemovalRepositoryMockRecorder) Team(ctx, requestID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Team", reflect.TypeOf((*MockIRemovalRepository)(nil).Team), ctx, requestID)
+}

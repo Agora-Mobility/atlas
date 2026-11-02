@@ -463,6 +463,19 @@ type FareEstimate struct {
 	Details         json.RawMessage `json:"details"`
 }
 
+type InboxItem struct {
+	ID        uuid.UUID  `json:"id"`
+	UserID    uuid.UUID  `json:"user_id"`
+	Kind      string     `json:"kind"`
+	Title     string     `json:"title"`
+	Body      string     `json:"body"`
+	LinkType  string     `json:"link_type"`
+	LinkID    *uuid.UUID `json:"link_id"`
+	EventID   string     `json:"event_id"`
+	ReadAt    *time.Time `json:"read_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
 type Invitation struct {
 	ID           uuid.UUID  `json:"id"`
 	MembershipID uuid.UUID  `json:"membership_id"`
@@ -704,6 +717,16 @@ type Rating struct {
 	Comment       string      `json:"comment"`
 	CreatedAt     time.Time   `json:"created_at"`
 	WorkshopID    *uuid.UUID  `json:"workshop_id"`
+}
+
+type Referral struct {
+	ID          uuid.UUID  `json:"id"`
+	ReferrerID  uuid.UUID  `json:"referrer_id"`
+	ReferredID  uuid.UUID  `json:"referred_id"`
+	Status      string     `json:"status"`
+	RewardCents int64      `json:"reward_cents"`
+	RewardedAt  *time.Time `json:"rewarded_at"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 type RefreshToken struct {
@@ -992,18 +1015,26 @@ type SupportTicket struct {
 }
 
 type User struct {
-	ID          uuid.UUID        `json:"id"`
-	Name        string           `json:"name"`
-	Email       *string          `json:"email"`
-	Password    string           `json:"password"`
-	Phone       *string          `json:"phone"`
-	IsVerified  bool             `json:"is_verified"`
-	Status      enums.UserStatus `json:"status"`
-	Role        enums.Role       `json:"role"`
-	LastLoginAt *time.Time       `json:"last_login_at"`
-	CreatedAt   time.Time        `json:"created_at"`
-	UpdatedAt   time.Time        `json:"updated_at"`
-	DeletedAt   *time.Time       `json:"deleted_at"`
+	ID               uuid.UUID        `json:"id"`
+	Name             string           `json:"name"`
+	Email            *string          `json:"email"`
+	Password         string           `json:"password"`
+	Phone            *string          `json:"phone"`
+	IsVerified       bool             `json:"is_verified"`
+	Status           enums.UserStatus `json:"status"`
+	Role             enums.Role       `json:"role"`
+	LastLoginAt      *time.Time       `json:"last_login_at"`
+	CreatedAt        time.Time        `json:"created_at"`
+	UpdatedAt        time.Time        `json:"updated_at"`
+	DeletedAt        *time.Time       `json:"deleted_at"`
+	NotifyStatus     bool             `json:"notify_status"`
+	NotifyPromotions bool             `json:"notify_promotions"`
+	NotifySms        bool             `json:"notify_sms"`
+	ShareLocation    bool             `json:"share_location"`
+	Language         string           `json:"language"`
+	Currency         string           `json:"currency"`
+	AvatarUploadID   *uuid.UUID       `json:"avatar_upload_id"`
+	ReferralCode     *string          `json:"referral_code"`
 }
 
 type UserAddress struct {

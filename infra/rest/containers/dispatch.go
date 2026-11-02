@@ -82,6 +82,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		RoadFactor: cfg.Mapbox.RoadFactor, AverageSpeedKmh: cfg.Mapbox.AverageSpeedKmh,
 	})
 	notifier.UseSharer(uc)
+	notifier.UseAccount(repository.NewAccountRepository(c.Pool))
 	streamer := sse.NewStreamer(c.SSE, mailbox, mailbox, sse.Settings{
 		Heartbeat: cfg.Realtime.Heartbeat, PollInterval: cfg.Realtime.PollInterval, DeadAfter: cfg.Realtime.DeadAfter,
 	})
