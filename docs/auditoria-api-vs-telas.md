@@ -101,37 +101,17 @@ O despacho (H3, ofertas, aceitação concorrente, watcher), o tempo real por SSE
 
 ## 5. Manutenção (MN01–MN07)
 
-Nenhuma rota de oficina é acessível à app do cliente: `/workshops` devolveu 404. As rotas existentes são de parceiro e admin (`infra/rest/fleet/router/fleet-router.go:30,46-53`). Sem testes permanentes: o CRUD foi verificado uma vez com um cenário temporário de integração, já removido, a pedido de não acrescentar testes.
+Modelo de marcações, com estados próprios. Prova: `tests/e2e/qa_flows.py` M1 a M6 e `test/e2e/bookings_test.go`.
 
-| Tela | Requisito | Estado | Endpoint(s) | Evidência | O que falta |
-|---|---|---|---|---|---|
-| MN01 | Lista e pesquisa de oficinas para o cliente | ❌ | | Só `GET /fleet/workshops` e `/admin/workshops` | Rota pública com pesquisa |
-| MN01 | Filtros por categoria | ❌ | | `workshop_services` sem categoria | Categorias |
-| MN01 | Distância e "Ver no mapa" | 🟡 | | `workshops.address_id` em `migrations/000020_workshops.up.sql`, com lat/lng | O dado existe; falta a consulta geográfica |
-| MN01 | Rating | ❌ | | | Avaliações |
-| MN01 | "Aberta até 18:00" | 🟡 | | `opening_hours TEXT` em `migrations/000020_workshops.up.sql:7` | Texto livre, não dá para calcular. Precisa de horário estruturado |
-| MN01 | Selo "Ao domicílio" | 🟡 | | `offers_home_service` na 000020 | Só nas rotas de parceiro e admin |
-| MN01 | Promoção com validade | ❌ | | | Motor de promoções |
-| MN02 | Catálogo com preço e duração | 🟡 | `POST /fleet/workshops/{id}/services` | `migrations/000020_workshops.up.sql:19-28` | Gestão feita; falta a leitura para o cliente |
-| MN02 | Vários serviços no mesmo pedido | ❌ | | | Tabela de itens |
-| MN02 | Avaliações e nº de avaliações | ❌ | | | Avaliações |
-| MN02 | Separador Sobre e garantia | ❌ | | Sem campos | Campos na oficina |
-| MN02 | Favoritos e partilha | ❌ | | | Tabela de favoritos. A partilha é da app |
-| MN03 | "As minhas viaturas" | ❌ | | `/users/me/vehicles` devolveu 404. `vehicles` é só para prestadores | Tabela nova |
-| MN03 | Descrição e quilometragem | 🟡 | `POST /requests` (`details`) | `usecases/dispatch/requests.go:83`, JSON sem validação | Campos validados |
-| MN03 | Até 5 fotos no R2 | ❌ | | R2 só para prestadores: `usecases/providers/providers.go:271-293` | Upload ligado ao pedido |
-| MN04 | Na oficina ou ao domicílio com taxa | 🟡 | | `home_service_fee_cents` em `migrations/000020_workshops.up.sql:9` | Valor configurável; não entra em nenhum preço |
-| MN04 | Dias Livre, Fechado e Esgotado | ❌ | | | Calendário |
-| MN04 | Horários por capacidade e duração | ❌ | | Sem capacidade nem marcações | Motor de horários |
-| MN05 | Desconto automático | ❌ | | | Promoções |
-| MN05 | Multicaixa e pagar depois de aprovar | 🟡 | `POST /requests/{id}/payments` | Express real; sem pré-autorização na AppyPay | O fluxo de marcação (C2) e o pedido de pagamento no fim do serviço |
-| MN06 | Código da marcação (MK-4821) | ❌ | | Só UUID | Código legível |
-| MN06 | SMS e dados de calendário | ❌ | | | Notificação e dados `.ics` ou equivalentes |
-| MN07 | Estados Viatura recebida, Em serviço e Pronta | ❌ | | `domain/entities/service_request.go:14-26` não tem estes estados | Máquina de estados própria |
-| MN07 | Hora prevista | ❌ | | | Campo atualizado pela oficina |
-| MN07 | Orçamento extra que o cliente aprova ou recusa | ❌ | | | Fluxo e regra de não entrar no total |
-| MN07 | Mecânico responsável | ❌ | | | Ligação ao mecânico |
-| MN07 | Chat e chamada | ❌ | | | Secção 11 |
+| Tela | Requisito | Estado | Endpoint(s) |
+|---|---|---|---|
+| MN01 | Lista, pesquisa, categoria, distância, rating, "Aberta até", Ao domicílio, promoção | ✅ | `GET /workshops` |
+| MN02 | Detalhe, garantia, Sobre, serviços, avaliações, favoritos | ✅ | `GET /workshops/{id}`, `/reviews`, `POST/DELETE /workshops/{id}/favorite` |
+| MN03 | Viaturas, descrição, quilometragem, até 5 fotos | ✅ | `/users/me/vehicles`, `POST /bookings`, `/media/photos`, `/requests/{id}/photos` |
+| MN04 | Oficina ou domicílio, Livre/Fechado/Esgotado, horários por capacidade e duração, corrida pelo último lugar | ✅ | `GET /workshops/{id}/availability`, `POST /bookings` |
+| MN05 | Desconto automático, Express só depois de aprovar | ✅ | `POST /bookings/{id}/approve`, `POST /requests/{id}/payments` |
+| MN06 | Código MK, SMS e calendário | ✅ | `GET /bookings/{id}/calendar` |
+| MN07 | Estados sem saltos, hora prevista, orçamento extra, mecânico, chat e chamada, rotas da oficina | ✅ | `/bookings/{id}/...`, `/fleet/bookings/{id}/...`, `/fleet/workshops/{id}/schedule`, `/closures`, `/mechanics` |
 
 ## 6. Reboque (RB01–RB06)
 
