@@ -26,6 +26,8 @@ const (
 	sseReminder       = "request.reminder"
 	ssePayment        = "request.payment"
 	sseMessage        = "request.message"
+	sseBooking        = "booking.status"
+	sseBookingExtra   = "booking.extra"
 	maxEventBytes     = 2048
 )
 
@@ -42,7 +44,7 @@ func BindingKeys() []string {
 	types := []string{
 		events.RequestSearching, events.RequestScheduled, events.RequestOffered, events.RequestAwaitingChoice, events.RequestAccepted, events.RequestProviderEnRoute,
 		events.RequestInProgress, events.RequestCompleted, events.RequestExpired, events.RequestCancelled, events.OfferCreated, events.OfferExpired,
-		events.OfferCancelled, events.RequestMessage, events.PaymentChanged, events.QuoteSubmitted, events.FareBoosted, events.RouteChanged, events.OperatorAlerted, events.ReminderDue,
+		events.OfferCancelled, events.RequestMessage, events.PaymentChanged, events.QuoteSubmitted, events.FareBoosted, events.RouteChanged, events.OperatorAlerted, events.ReminderDue, events.BookingChanged, events.BookingExtra,
 	}
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
@@ -106,6 +108,18 @@ func (p *Projector) project(env events.Envelope) (*projection, error) {
 			recipients: []uuid.UUID{event.ProviderID}, sseType: sseType, class: class,
 			body: map[string]any{"offer_id": event.OfferID, "request_id": event.RequestID, "request_version": event.Version, "reason": event.Reason},
 		}, nil
+	case events.BookingChanged:
+		var event events.BookingChangedV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		return &projection{recipients: []uuid.UUID{event.CustomerID}, sseType: sseBooking, class: services.ClassState, body: map[string]any{"booking_id": event.BookingID, "request_id": event.RequestID, "status": event.Status, "code": event.Code}}, nil
+	case events.BookingExtra:
+		var event events.BookingExtraV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		return &projection{recipients: []uuid.UUID{event.CustomerID}, sseType: sseBookingExtra, class: services.ClassState, body: map[string]any{"booking_id": event.BookingID, "extra_id": event.ExtraID, "description": event.Description, "amount_cents": event.AmountCents}}, nil
 	case events.RequestMessage:
 		var event events.RequestMessageV1
 		if err := env.DecodePayload(&event); err != nil {

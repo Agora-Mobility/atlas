@@ -51,7 +51,7 @@ func (q *Queries) CountVouchers(ctx context.Context) (int64, error) {
 }
 
 const getVoucher = `-- name: GetVoucher :one
-SELECT id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, created_at, updated_at FROM vouchers WHERE id = $1
+SELECT id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, created_at, updated_at, workshop_id, workshop_service_id, auto_apply FROM vouchers WHERE id = $1
 `
 
 func (q *Queries) GetVoucher(ctx context.Context, id uuid.UUID) (Voucher, error) {
@@ -75,12 +75,15 @@ func (q *Queries) GetVoucher(ctx context.Context, id uuid.UUID) (Voucher, error)
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WorkshopID,
+		&i.WorkshopServiceID,
+		&i.AutoApply,
 	)
 	return i, err
 }
 
 const getVoucherByCode = `-- name: GetVoucherByCode :one
-SELECT id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, created_at, updated_at FROM vouchers WHERE code = upper($1::text)
+SELECT id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, created_at, updated_at, workshop_id, workshop_service_id, auto_apply FROM vouchers WHERE code = upper($1::text)
 `
 
 func (q *Queries) GetVoucherByCode(ctx context.Context, code string) (Voucher, error) {
@@ -104,12 +107,15 @@ func (q *Queries) GetVoucherByCode(ctx context.Context, code string) (Voucher, e
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WorkshopID,
+		&i.WorkshopServiceID,
+		&i.AutoApply,
 	)
 	return i, err
 }
 
 const getVoucherByCodeForUpdate = `-- name: GetVoucherByCodeForUpdate :one
-SELECT id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, created_at, updated_at FROM vouchers WHERE code = upper($1::text) FOR UPDATE
+SELECT id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, created_at, updated_at, workshop_id, workshop_service_id, auto_apply FROM vouchers WHERE code = upper($1::text) FOR UPDATE
 `
 
 func (q *Queries) GetVoucherByCodeForUpdate(ctx context.Context, code string) (Voucher, error) {
@@ -133,31 +139,37 @@ func (q *Queries) GetVoucherByCodeForUpdate(ctx context.Context, code string) (V
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WorkshopID,
+		&i.WorkshopServiceID,
+		&i.AutoApply,
 	)
 	return i, err
 }
 
 const insertVoucher = `-- name: InsertVoucher :exec
-INSERT INTO vouchers (id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+INSERT INTO vouchers (id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, workshop_id, workshop_service_id, auto_apply)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 `
 
 type InsertVoucherParams struct {
-	ID               uuid.UUID  `json:"id"`
-	Code             *string    `json:"code"`
-	Description      string     `json:"description"`
-	CategoryID       *uuid.UUID `json:"category_id"`
-	ServiceID        *uuid.UUID `json:"service_id"`
-	DiscountBps      int32      `json:"discount_bps"`
-	DiscountCents    int64      `json:"discount_cents"`
-	MaxDiscountCents *int64     `json:"max_discount_cents"`
-	MinFareCents     int64      `json:"min_fare_cents"`
-	ValidFrom        time.Time  `json:"valid_from"`
-	ValidUntil       time.Time  `json:"valid_until"`
-	MaxRedemptions   *int32     `json:"max_redemptions"`
-	PerCustomerLimit int32      `json:"per_customer_limit"`
-	IsPublic         bool       `json:"is_public"`
-	IsActive         bool       `json:"is_active"`
+	ID                uuid.UUID  `json:"id"`
+	Code              *string    `json:"code"`
+	Description       string     `json:"description"`
+	CategoryID        *uuid.UUID `json:"category_id"`
+	ServiceID         *uuid.UUID `json:"service_id"`
+	DiscountBps       int32      `json:"discount_bps"`
+	DiscountCents     int64      `json:"discount_cents"`
+	MaxDiscountCents  *int64     `json:"max_discount_cents"`
+	MinFareCents      int64      `json:"min_fare_cents"`
+	ValidFrom         time.Time  `json:"valid_from"`
+	ValidUntil        time.Time  `json:"valid_until"`
+	MaxRedemptions    *int32     `json:"max_redemptions"`
+	PerCustomerLimit  int32      `json:"per_customer_limit"`
+	IsPublic          bool       `json:"is_public"`
+	IsActive          bool       `json:"is_active"`
+	WorkshopID        *uuid.UUID `json:"workshop_id"`
+	WorkshopServiceID *uuid.UUID `json:"workshop_service_id"`
+	AutoApply         bool       `json:"auto_apply"`
 }
 
 func (q *Queries) InsertVoucher(ctx context.Context, arg InsertVoucherParams) error {
@@ -177,6 +189,9 @@ func (q *Queries) InsertVoucher(ctx context.Context, arg InsertVoucherParams) er
 		arg.PerCustomerLimit,
 		arg.IsPublic,
 		arg.IsActive,
+		arg.WorkshopID,
+		arg.WorkshopServiceID,
+		arg.AutoApply,
 	)
 	return err
 }
@@ -203,7 +218,7 @@ func (q *Queries) InsertVoucherRedemption(ctx context.Context, arg InsertVoucher
 }
 
 const listPublicVouchers = `-- name: ListPublicVouchers :many
-SELECT v.id, v.code, v.description, v.category_id, v.service_id, v.discount_bps, v.discount_cents, v.max_discount_cents, v.min_fare_cents, v.valid_from, v.valid_until, v.max_redemptions, v.per_customer_limit, v.is_public, v.is_active, v.created_at, v.updated_at FROM vouchers v
+SELECT v.id, v.code, v.description, v.category_id, v.service_id, v.discount_bps, v.discount_cents, v.max_discount_cents, v.min_fare_cents, v.valid_from, v.valid_until, v.max_redemptions, v.per_customer_limit, v.is_public, v.is_active, v.created_at, v.updated_at, v.workshop_id, v.workshop_service_id, v.auto_apply FROM vouchers v
 LEFT JOIN service_categories c ON c.id = v.category_id
 WHERE v.is_active AND v.is_public AND v.code IS NOT NULL AND v.valid_from <= $1::timestamptz AND v.valid_until > $1::timestamptz
   AND ($2::text = '' OR c.slug = $2::text OR v.category_id IS NULL)
@@ -242,6 +257,9 @@ func (q *Queries) ListPublicVouchers(ctx context.Context, arg ListPublicVouchers
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.WorkshopID,
+			&i.WorkshopServiceID,
+			&i.AutoApply,
 		); err != nil {
 			return nil, err
 		}
@@ -254,7 +272,7 @@ func (q *Queries) ListPublicVouchers(ctx context.Context, arg ListPublicVouchers
 }
 
 const listVouchers = `-- name: ListVouchers :many
-SELECT id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, created_at, updated_at FROM vouchers ORDER BY created_at DESC LIMIT $2 OFFSET $1
+SELECT id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, created_at, updated_at, workshop_id, workshop_service_id, auto_apply FROM vouchers ORDER BY created_at DESC LIMIT $2 OFFSET $1
 `
 
 type ListVouchersParams struct {
@@ -289,6 +307,9 @@ func (q *Queries) ListVouchers(ctx context.Context, arg ListVouchersParams) ([]V
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.WorkshopID,
+			&i.WorkshopServiceID,
+			&i.AutoApply,
 		); err != nil {
 			return nil, err
 		}

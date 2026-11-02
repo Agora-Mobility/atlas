@@ -155,7 +155,7 @@ func (q *Queries) GetVehicle(ctx context.Context, id uuid.UUID) (GetVehicleRow, 
 }
 
 const getWorkshop = `-- name: GetWorkshop :one
-SELECT id, organization_id, address_id, name, phone, opening_hours, offers_home_service, home_service_fee_cents, currency, is_active, created_at, updated_at FROM workshops WHERE id = $1
+SELECT id, organization_id, address_id, name, phone, opening_hours, offers_home_service, home_service_fee_cents, currency, is_active, created_at, updated_at, capacity, about, warranty, rating_sum, rating_count FROM workshops WHERE id = $1
 `
 
 func (q *Queries) GetWorkshop(ctx context.Context, id uuid.UUID) (Workshop, error) {
@@ -174,12 +174,17 @@ func (q *Queries) GetWorkshop(ctx context.Context, id uuid.UUID) (Workshop, erro
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Capacity,
+		&i.About,
+		&i.Warranty,
+		&i.RatingSum,
+		&i.RatingCount,
 	)
 	return i, err
 }
 
 const getWorkshopService = `-- name: GetWorkshopService :one
-SELECT id, workshop_id, name, description, price_cents, duration_minutes, is_active, created_at, updated_at FROM workshop_services WHERE id = $1
+SELECT id, workshop_id, name, description, price_cents, duration_minutes, is_active, created_at, updated_at, category_id FROM workshop_services WHERE id = $1
 `
 
 func (q *Queries) GetWorkshopService(ctx context.Context, id uuid.UUID) (WorkshopService, error) {
@@ -195,6 +200,7 @@ func (q *Queries) GetWorkshopService(ctx context.Context, id uuid.UUID) (Worksho
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CategoryID,
 	)
 	return i, err
 }
@@ -346,7 +352,7 @@ func (q *Queries) ListVehicles(ctx context.Context, arg ListVehiclesParams) ([]L
 }
 
 const listWorkshopServices = `-- name: ListWorkshopServices :many
-SELECT id, workshop_id, name, description, price_cents, duration_minutes, is_active, created_at, updated_at FROM workshop_services WHERE workshop_id = $1 ORDER BY name
+SELECT id, workshop_id, name, description, price_cents, duration_minutes, is_active, created_at, updated_at, category_id FROM workshop_services WHERE workshop_id = $1 ORDER BY name
 `
 
 func (q *Queries) ListWorkshopServices(ctx context.Context, workshopID uuid.UUID) ([]WorkshopService, error) {
@@ -368,6 +374,7 @@ func (q *Queries) ListWorkshopServices(ctx context.Context, workshopID uuid.UUID
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -380,7 +387,7 @@ func (q *Queries) ListWorkshopServices(ctx context.Context, workshopID uuid.UUID
 }
 
 const listWorkshops = `-- name: ListWorkshops :many
-SELECT id, organization_id, address_id, name, phone, opening_hours, offers_home_service, home_service_fee_cents, currency, is_active, created_at, updated_at FROM workshops
+SELECT id, organization_id, address_id, name, phone, opening_hours, offers_home_service, home_service_fee_cents, currency, is_active, created_at, updated_at, capacity, about, warranty, rating_sum, rating_count FROM workshops
 WHERE ($1::uuid IS NULL OR organization_id = $1)
 ORDER BY name
 LIMIT $3 OFFSET $2
@@ -414,6 +421,11 @@ func (q *Queries) ListWorkshops(ctx context.Context, arg ListWorkshopsParams) ([
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Capacity,
+			&i.About,
+			&i.Warranty,
+			&i.RatingSum,
+			&i.RatingCount,
 		); err != nil {
 			return nil, err
 		}
@@ -472,20 +484,21 @@ func (q *Queries) SaveWorkshop(ctx context.Context, arg SaveWorkshopParams) erro
 }
 
 const saveWorkshopService = `-- name: SaveWorkshopService :exec
-INSERT INTO workshop_services (id, workshop_id, name, description, price_cents, duration_minutes, is_active)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO workshop_services (id, workshop_id, name, description, price_cents, duration_minutes, is_active, category_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (id) DO UPDATE
-SET name = EXCLUDED.name, description = EXCLUDED.description, price_cents = EXCLUDED.price_cents, duration_minutes = EXCLUDED.duration_minutes, is_active = EXCLUDED.is_active, updated_at = now()
+SET category_id = EXCLUDED.category_id, name = EXCLUDED.name, description = EXCLUDED.description, price_cents = EXCLUDED.price_cents, duration_minutes = EXCLUDED.duration_minutes, is_active = EXCLUDED.is_active, updated_at = now()
 `
 
 type SaveWorkshopServiceParams struct {
-	ID              uuid.UUID `json:"id"`
-	WorkshopID      uuid.UUID `json:"workshop_id"`
-	Name            string    `json:"name"`
-	Description     string    `json:"description"`
-	PriceCents      int64     `json:"price_cents"`
-	DurationMinutes int32     `json:"duration_minutes"`
-	IsActive        bool      `json:"is_active"`
+	ID              uuid.UUID  `json:"id"`
+	WorkshopID      uuid.UUID  `json:"workshop_id"`
+	Name            string     `json:"name"`
+	Description     string     `json:"description"`
+	PriceCents      int64      `json:"price_cents"`
+	DurationMinutes int32      `json:"duration_minutes"`
+	IsActive        bool       `json:"is_active"`
+	CategoryID      *uuid.UUID `json:"category_id"`
 }
 
 func (q *Queries) SaveWorkshopService(ctx context.Context, arg SaveWorkshopServiceParams) error {
@@ -497,6 +510,7 @@ func (q *Queries) SaveWorkshopService(ctx context.Context, arg SaveWorkshopServi
 		arg.PriceCents,
 		arg.DurationMinutes,
 		arg.IsActive,
+		arg.CategoryID,
 	)
 	return err
 }

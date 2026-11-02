@@ -60,10 +60,10 @@ LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 SELECT count(*) FROM workshops WHERE (sqlc.narg(organization_id)::uuid IS NULL OR organization_id = sqlc.narg(organization_id));
 
 -- name: SaveWorkshopService :exec
-INSERT INTO workshop_services (id, workshop_id, name, description, price_cents, duration_minutes, is_active)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO workshop_services (id, workshop_id, name, description, price_cents, duration_minutes, is_active, category_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (id) DO UPDATE
-SET name = EXCLUDED.name, description = EXCLUDED.description, price_cents = EXCLUDED.price_cents, duration_minutes = EXCLUDED.duration_minutes, is_active = EXCLUDED.is_active, updated_at = now();
+SET category_id = EXCLUDED.category_id, name = EXCLUDED.name, description = EXCLUDED.description, price_cents = EXCLUDED.price_cents, duration_minutes = EXCLUDED.duration_minutes, is_active = EXCLUDED.is_active, updated_at = now();
 
 -- name: GetWorkshopService :one
 SELECT * FROM workshop_services WHERE id = $1;

@@ -13,7 +13,7 @@ import (
 
 func toWorkshopServiceView(service *entities.WorkshopService) dtos.WorkshopServiceView {
 	return dtos.WorkshopServiceView{
-		ID: service.ID, Name: service.Name, Description: service.Description, PriceCents: service.PriceCents, DurationMinutes: service.DurationMinutes, IsActive: service.IsActive,
+		ID: service.ID, Name: service.Name, Description: service.Description, PriceCents: service.PriceCents, DurationMinutes: service.DurationMinutes, IsActive: service.IsActive, CategoryID: service.CategoryID,
 	}
 }
 
@@ -157,7 +157,7 @@ func (u *Usecase) CreateWorkshopService(ctx context.Context, actor entities.Acto
 		return nil, err
 	}
 	return u.saveWorkshopService(ctx, actor, "workshop.service.create", &entities.WorkshopService{
-		ID: id, WorkshopID: workshopID, Name: in.Name, Description: in.Description, PriceCents: in.PriceCents, DurationMinutes: in.DurationMinutes, IsActive: activeOr(in.IsActive, true),
+		ID: id, WorkshopID: workshopID, Name: in.Name, Description: in.Description, PriceCents: in.PriceCents, DurationMinutes: in.DurationMinutes, IsActive: activeOr(in.IsActive, true), CategoryID: in.CategoryID,
 	})
 }
 
@@ -181,7 +181,7 @@ func (u *Usecase) UpdateWorkshopService(ctx context.Context, actor entities.Acto
 		return nil, err
 	}
 	service.Name, service.Description, service.PriceCents, service.DurationMinutes = in.Name, in.Description, in.PriceCents, in.DurationMinutes
-	service.IsActive = activeOr(in.IsActive, service.IsActive)
+	service.IsActive, service.CategoryID = activeOr(in.IsActive, service.IsActive), in.CategoryID
 	return u.saveWorkshopService(ctx, actor, "workshop.service.update", service)
 }
 

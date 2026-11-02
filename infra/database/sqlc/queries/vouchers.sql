@@ -21,8 +21,8 @@ WHERE v.is_active AND v.is_public AND v.code IS NOT NULL AND v.valid_from <= sql
 ORDER BY v.valid_until;
 
 -- name: InsertVoucher :exec
-INSERT INTO vouchers (id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
+INSERT INTO vouchers (id, code, description, category_id, service_id, discount_bps, discount_cents, max_discount_cents, min_fare_cents, valid_from, valid_until, max_redemptions, per_customer_limit, is_public, is_active, workshop_id, workshop_service_id, auto_apply)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);
 
 -- name: UpdateVoucher :exec
 UPDATE vouchers

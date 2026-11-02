@@ -14,6 +14,7 @@ const (
 	AccountWallet   LedgerAccountType = "wallet"
 	AccountPlatform LedgerAccountType = "platform"
 	AccountExternal LedgerAccountType = "external"
+	AccountWorkshop LedgerAccountType = "workshop"
 )
 
 type LedgerKind string
@@ -91,7 +92,15 @@ type Settlement struct {
 	PaidCents       int64
 	Method          PaymentMethod
 	ProviderID      *uuid.UUID
+	PayeeType       LedgerAccountType
 	CustomerID      uuid.UUID
+}
+
+func (s Settlement) payee() LedgerAccountType {
+	if s.PayeeType != "" {
+		return s.PayeeType
+	}
+	return AccountProvider
 }
 
 func (s Settlement) payerLeg() LedgerLeg {
@@ -113,19 +122,27 @@ func (s Settlement) Legs() []LedgerLeg {
 	}
 	net := s.FareCents - s.CommissionCents
 	if s.Method == PaymentCash {
-		return nonZeroLegs(LedgerLeg{AccountType: AccountProvider, AccountID: s.ProviderID, AmountCents: net - s.PaidCents}, LedgerLeg{AccountType: AccountPlatform, AmountCents: platform})
+		return nonZeroLegs(LedgerLeg{AccountType: s.payee(), AccountID: s.ProviderID, AmountCents: net - s.PaidCents}, LedgerLeg{AccountType: AccountPlatform, AmountCents: platform})
 	}
-	return nonZeroLegs(s.payerLeg(), LedgerLeg{AccountType: AccountProvider, AccountID: s.ProviderID, AmountCents: net}, LedgerLeg{AccountType: AccountPlatform, AmountCents: platform})
+	return nonZeroLegs(s.payerLeg(), LedgerLeg{AccountType: s.payee(), AccountID: s.ProviderID, AmountCents: net}, LedgerLeg{AccountType: AccountPlatform, AmountCents: platform})
 }
 
 func TipLegs(method PaymentMethod, customerID, providerID uuid.UUID, cents int64) []LedgerLeg {
+	return TipLegsTo(AccountProvider, method, customerID, providerID, cents)
+}
+
+func TipLegsTo(payee LedgerAccountType, method PaymentMethod, customerID, payeeID uuid.UUID, cents int64) []LedgerLeg {
 	payer := Settlement{Method: method, CustomerID: customerID, PaidCents: cents}.payerLeg()
-	return []LedgerLeg{payer, {AccountType: AccountProvider, AccountID: &providerID, AmountCents: cents}}
+	return []LedgerLeg{payer, {AccountType: payee, AccountID: &payeeID, AmountCents: cents}}
 }
 
 // RefundLegs takes the money back from the provider and the platform in the
 // proportion they received it.
 func RefundLegs(toWallet bool, customerID uuid.UUID, providerID *uuid.UUID, cents, paidCents, commissionCents int64) []LedgerLeg {
+	return RefundLegsOf(AccountProvider, toWallet, customerID, providerID, cents, paidCents, commissionCents)
+}
+
+func RefundLegsOf(payee LedgerAccountType, toWallet bool, customerID uuid.UUID, providerID *uuid.UUID, cents, paidCents, commissionCents int64) []LedgerLeg {
 	target := LedgerLeg{AccountType: AccountExternal, AmountCents: cents}
 	if toWallet {
 		target = LedgerLeg{AccountType: AccountWallet, AccountID: &customerID, AmountCents: cents}
@@ -134,10 +151,14 @@ func RefundLegs(toWallet bool, customerID uuid.UUID, providerID *uuid.UUID, cent
 		return nonZeroLegs(target, LedgerLeg{AccountType: AccountPlatform, AmountCents: -cents})
 	}
 	fromPlatform := roundedDivide(cents*commissionCents, paidCents)
-	return nonZeroLegs(target, LedgerLeg{AccountType: AccountProvider, AccountID: providerID, AmountCents: -(cents - fromPlatform)}, LedgerLeg{AccountType: AccountPlatform, AmountCents: -fromPlatform})
+	return nonZeroLegs(target, LedgerLeg{AccountType: payee, AccountID: providerID, AmountCents: -(cents - fromPlatform)}, LedgerLeg{AccountType: AccountPlatform, AmountCents: -fromPlatform})
 }
 
 func SettlementLegs(direction string, providerID uuid.UUID, balance, cents int64) ([]LedgerLeg, error) {
+	return SettlementLegsOf(AccountProvider, direction, providerID, balance, cents)
+}
+
+func SettlementLegsOf(account LedgerAccountType, direction string, providerID uuid.UUID, balance, cents int64) ([]LedgerLeg, error) {
 	if cents <= 0 || cents > MaxFeeCents {
 		return nil, ErrInvalidLedgerAmount
 	}
@@ -146,12 +167,12 @@ func SettlementLegs(direction string, providerID uuid.UUID, balance, cents int64
 		if cents > balance {
 			return nil, ErrSettlementTooLarge
 		}
-		return []LedgerLeg{{AccountType: AccountProvider, AccountID: &providerID, AmountCents: -cents}, {AccountType: AccountExternal, AmountCents: cents}}, nil
+		return []LedgerLeg{{AccountType: account, AccountID: &providerID, AmountCents: -cents}, {AccountType: AccountExternal, AmountCents: cents}}, nil
 	case SettlementCollect:
 		if cents > -balance {
 			return nil, ErrSettlementTooLarge
 		}
-		return []LedgerLeg{{AccountType: AccountProvider, AccountID: &providerID, AmountCents: cents}, {AccountType: AccountExternal, AmountCents: -cents}}, nil
+		return []LedgerLeg{{AccountType: account, AccountID: &providerID, AmountCents: cents}, {AccountType: AccountExternal, AmountCents: -cents}}, nil
 	}
 	return nil, ErrInvalidLedgerAmount
 }

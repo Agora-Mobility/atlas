@@ -207,6 +207,9 @@ type ServiceRequest struct {
 	VoucherCode     string
 	VoucherID       *uuid.UUID
 	VehicleTypeID   *uuid.UUID
+	WorkshopID      *uuid.UUID
+	Prepay          bool
+	ExtraDueCents   int64
 	CompletionCode  string
 	CompletionTries int
 	AcceptedAt      *time.Time
@@ -447,6 +450,18 @@ func (r *ServiceRequest) ScheduleSearch(policy *DispatchPolicy, now time.Time) {
 	r.NextActionAt = &at
 }
 
+// FollowBooking moves the billing request of a workshop booking. The booking has
+// its own states, and this request only mirrors them for the order lists.
+func (r *ServiceRequest) FollowBooking(to RequestStatus, actor RequestActor, reason string, now time.Time) *RequestStatusChange {
+	change := &RequestStatusChange{From: r.Status, To: to, Actor: actor, Reason: reason, At: now, ExpectedVersion: r.Version}
+	r.Status = to
+	r.Version++
+	r.UpdatedAt = now
+	change.Version = r.Version
+	r.applyStatusFields(to, actor, reason, now)
+	return change
+}
+
 func (r *ServiceRequest) ChangeRoute(destination RequestPlace, stops []RequestPlace, policy *DispatchPolicy, fareCents, commissionCents int64) error {
 	normalized, err := destination.normalized("destination")
 	if err != nil {
@@ -494,6 +509,9 @@ func (r *ServiceRequest) ExpectedDueCents() int64 {
 	if r.Status == RequestCancelled {
 		return r.CancelFeeCents
 	}
+	if r.Prepay && r.Status == RequestCompleted {
+		return r.ExtraDueCents
+	}
 	if r.Fare.Cents == nil {
 		return 0
 	}
@@ -503,6 +521,15 @@ func (r *ServiceRequest) ExpectedDueCents() int64 {
 func (r *ServiceRequest) AmountDueCents() int64 {
 	if r.Status == RequestCancelled {
 		return r.CancelFeeCents
+	}
+	if r.Prepay && r.Fare.Cents != nil {
+		if r.Status == RequestScheduled {
+			return *r.Fare.Cents - r.DiscountCents
+		}
+		if r.Status == RequestCompleted {
+			return r.ExtraDueCents
+		}
+		return 0
 	}
 	if r.Status != RequestCompleted || r.Fare.Cents == nil {
 		return 0

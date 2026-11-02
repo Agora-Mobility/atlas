@@ -25,6 +25,7 @@ const (
 	PaymentKindFare            PaymentKind = "fare"
 	PaymentKindCancellationFee PaymentKind = "cancellation_fee"
 	PaymentKindTip             PaymentKind = "tip"
+	PaymentKindExtra           PaymentKind = "extra"
 )
 
 func (m PaymentMethod) UsesGateway() bool {
@@ -137,10 +138,8 @@ type NewPaymentInput struct {
 }
 
 func NewPayment(in NewPaymentInput) (*Payment, error) {
-	amount, kind := in.Request.AmountDueCents(), PaymentKindFare
-	if in.Request.Status == RequestCancelled {
-		kind = PaymentKindCancellationFee
-	}
+	amount := in.Request.AmountDueCents()
+	kind := in.Request.DueKind()
 	if in.TipCents > 0 {
 		amount, kind = in.TipCents, PaymentKindTip
 	}
@@ -215,4 +214,14 @@ func (p *Payment) RefundsToWallet() bool {
 func (p *Payment) AddRefund(cents int64, now time.Time) {
 	p.RefundedCents += cents
 	p.UpdatedAt = now
+}
+
+func (r *ServiceRequest) DueKind() PaymentKind {
+	switch {
+	case r.Status == RequestCancelled:
+		return PaymentKindCancellationFee
+	case r.Prepay && r.Status == RequestCompleted:
+		return PaymentKindExtra
+	}
+	return PaymentKindFare
 }

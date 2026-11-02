@@ -255,3 +255,40 @@ func (e RequestMessageV1) EventType() string     { return RequestMessage }
 func (e RequestMessageV1) EventVersion() int     { return 1 }
 func (e RequestMessageV1) AggregateType() string { return ServiceRequestAggregate }
 func (e RequestMessageV1) AggregateID() string   { return e.RequestID.String() }
+
+const (
+	BookingAggregate = "booking"
+	BookingChanged   = "bookings.changed"
+	BookingExtra     = "bookings.extra"
+)
+
+type BookingChangedV1 struct {
+	BookingID    uuid.UUID `json:"booking_id"`
+	RequestID    uuid.UUID `json:"request_id"`
+	CustomerID   uuid.UUID `json:"customer_id"`
+	Code         string    `json:"code"`
+	WorkshopName string    `json:"workshop_name"`
+	Status       string    `json:"status"`
+	StartsAt     time.Time `json:"starts_at"`
+	OccurredAt   time.Time `json:"occurred_at"`
+}
+
+func (BookingChangedV1) EventType() string     { return BookingChanged }
+func (BookingChangedV1) EventVersion() int     { return 1 }
+func (BookingChangedV1) AggregateType() string { return BookingAggregate }
+func (e BookingChangedV1) AggregateID() string { return e.BookingID.String() }
+
+type BookingExtraV1 struct {
+	BookingID   uuid.UUID `json:"booking_id"`
+	RequestID   uuid.UUID `json:"request_id"`
+	CustomerID  uuid.UUID `json:"customer_id"`
+	ExtraID     uuid.UUID `json:"extra_id"`
+	Description string    `json:"description"`
+	AmountCents int64     `json:"amount_cents"`
+	OccurredAt  time.Time `json:"occurred_at"`
+}
+
+func (BookingExtraV1) EventType() string     { return BookingExtra }
+func (BookingExtraV1) EventVersion() int     { return 1 }
+func (BookingExtraV1) AggregateType() string { return BookingAggregate }
+func (e BookingExtraV1) AggregateID() string { return e.BookingID.String() }

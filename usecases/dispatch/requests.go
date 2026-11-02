@@ -42,10 +42,6 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	if service == nil || !service.IsOffered {
 		return nil, false, ErrServiceNotOffered
 	}
-	paymentMethod, err := u.checkPayment(ctx, customerID, service.CategoryID, in.PaymentMethod)
-	if err != nil {
-		return nil, false, err
-	}
 	pickup := in.Pickup.ToPlace()
 	if err := pickup.Point.Validate("pickup"); err != nil {
 		return nil, false, err
@@ -63,6 +59,13 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	}
 	if policy == nil {
 		return nil, false, ErrServiceNotOffered
+	}
+	if policy.BookingOnly {
+		return nil, false, entities.ErrBookingOnly
+	}
+	paymentMethod, err := u.checkPayment(ctx, customerID, service.CategoryID, in.PaymentMethod)
+	if err != nil {
+		return nil, false, err
 	}
 	now := u.now()
 	var destination *entities.RequestPlace
@@ -402,6 +405,9 @@ func (u *Usecase) cancel(ctx context.Context, requestID uuid.UUID, order cancelO
 		}
 		if request == nil || !order.allowed(request) {
 			return ErrRequestNotFound
+		}
+		if request.WorkshopID != nil {
+			return entities.ErrBookingManaged
 		}
 		now := u.now()
 		reason := order.text

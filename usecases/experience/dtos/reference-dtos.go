@@ -89,38 +89,44 @@ type RatingList struct {
 }
 
 type VoucherInput struct {
-	Code             string     `json:"code" binding:"max=30" example:"TAXI10"`
-	Description      string     `json:"description" binding:"max=300"`
-	CategoryID       *uuid.UUID `json:"category_id"`
-	ServiceID        *uuid.UUID `json:"service_id"`
-	DiscountBps      int        `json:"discount_bps" binding:"min=0,max=10000" example:"1000"`
-	DiscountCents    int64      `json:"discount_cents" binding:"min=0,max=10000000000"`
-	MaxDiscountCents *int64     `json:"max_discount_cents" binding:"omitempty,min=0,max=10000000000"`
-	MinFareCents     int64      `json:"min_fare_cents" binding:"min=0,max=10000000000"`
-	ValidFrom        time.Time  `json:"valid_from" binding:"required"`
-	ValidUntil       time.Time  `json:"valid_until" binding:"required"`
-	MaxRedemptions   *int       `json:"max_redemptions" binding:"omitempty,min=1,max=1000000000"`
-	PerCustomerLimit int        `json:"per_customer_limit" binding:"min=0,max=9999"`
-	IsPublic         bool       `json:"is_public"`
-	IsActive         *bool      `json:"is_active"`
+	Code              string     `json:"code" binding:"max=30" example:"TAXI10"`
+	Description       string     `json:"description" binding:"max=300"`
+	CategoryID        *uuid.UUID `json:"category_id"`
+	ServiceID         *uuid.UUID `json:"service_id"`
+	DiscountBps       int        `json:"discount_bps" binding:"min=0,max=10000" example:"1000"`
+	DiscountCents     int64      `json:"discount_cents" binding:"min=0,max=10000000000"`
+	MaxDiscountCents  *int64     `json:"max_discount_cents" binding:"omitempty,min=0,max=10000000000"`
+	MinFareCents      int64      `json:"min_fare_cents" binding:"min=0,max=10000000000"`
+	ValidFrom         time.Time  `json:"valid_from" binding:"required"`
+	ValidUntil        time.Time  `json:"valid_until" binding:"required"`
+	MaxRedemptions    *int       `json:"max_redemptions" binding:"omitempty,min=1,max=1000000000"`
+	PerCustomerLimit  int        `json:"per_customer_limit" binding:"min=0,max=9999"`
+	IsPublic          bool       `json:"is_public"`
+	IsActive          *bool      `json:"is_active"`
+	WorkshopID        *uuid.UUID `json:"workshop_id,omitempty"`
+	WorkshopServiceID *uuid.UUID `json:"workshop_service_id,omitempty"`
+	AutoApply         bool       `json:"auto_apply,omitempty"`
 }
 
 type VoucherView struct {
-	ID               uuid.UUID  `json:"id"`
-	Code             string     `json:"code,omitempty"`
-	Description      string     `json:"description,omitempty"`
-	CategoryID       *uuid.UUID `json:"category_id,omitempty"`
-	ServiceID        *uuid.UUID `json:"service_id,omitempty"`
-	DiscountBps      int        `json:"discount_bps"`
-	DiscountCents    int64      `json:"discount_cents"`
-	MaxDiscountCents *int64     `json:"max_discount_cents,omitempty"`
-	MinFareCents     int64      `json:"min_fare_cents"`
-	ValidFrom        time.Time  `json:"valid_from"`
-	ValidUntil       time.Time  `json:"valid_until"`
-	MaxRedemptions   *int       `json:"max_redemptions,omitempty"`
-	PerCustomerLimit int        `json:"per_customer_limit"`
-	IsPublic         bool       `json:"is_public"`
-	IsActive         bool       `json:"is_active"`
+	ID                uuid.UUID  `json:"id"`
+	Code              string     `json:"code,omitempty"`
+	Description       string     `json:"description,omitempty"`
+	CategoryID        *uuid.UUID `json:"category_id,omitempty"`
+	ServiceID         *uuid.UUID `json:"service_id,omitempty"`
+	DiscountBps       int        `json:"discount_bps"`
+	DiscountCents     int64      `json:"discount_cents"`
+	MaxDiscountCents  *int64     `json:"max_discount_cents,omitempty"`
+	MinFareCents      int64      `json:"min_fare_cents"`
+	ValidFrom         time.Time  `json:"valid_from"`
+	ValidUntil        time.Time  `json:"valid_until"`
+	MaxRedemptions    *int       `json:"max_redemptions,omitempty"`
+	PerCustomerLimit  int        `json:"per_customer_limit"`
+	IsPublic          bool       `json:"is_public"`
+	IsActive          bool       `json:"is_active"`
+	WorkshopID        *uuid.UUID `json:"workshop_id,omitempty"`
+	WorkshopServiceID *uuid.UUID `json:"workshop_service_id,omitempty"`
+	AutoApply         bool       `json:"auto_apply,omitempty"`
 }
 
 type VoucherList struct {

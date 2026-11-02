@@ -827,7 +827,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dtos.AssignInput"
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.AssignInput"
                         }
                     }
                 ],
@@ -3428,6 +3428,109 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/workshops/{id}/ledger": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Statement of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AccountStatement"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/workshops/{id}/settlements": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Same rules as the settlement of a provider.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice"
+                ],
+                "summary": "Settle the balance of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Settlement",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SettlementInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SettlementResult"
+                        }
+                    },
+                    "422": {
+                        "description": "Above the balance",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/zones": {
             "get": {
                 "security": [
@@ -4313,6 +4416,525 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/bookings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "List my bookings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingList"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Needs an Idempotency-Key. The price comes from the services of the workshop, the home fee and the best promotion still unused by the customer. If two customers race for the last place of a slot, the second gets 409 BOOKING_SLOT_FULL. With a reference the booking waits for the payment; with Express or wallet it confirms now and is charged after the customer approves the finished work.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Book a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Unique key",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CreateBookingInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bookings/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Read my booking",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bookings/{id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Moves a ready booking to completed. Only from here can the service be paid through POST /requests/{request_id}/payments.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Approve the finished work",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bookings/{id}/calendar": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Text/calendar (.ics).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Download the booking as a calendar file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Done"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bookings/{id}/call": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Answers 503 CALLS_UNAVAILABLE without a provider.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Call the workshop through a masked number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.CallView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bookings/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Free until the vehicle arrives at the workshop. What was paid ahead by reference goes to the wallet.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Cancel my booking",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CancelBookingInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bookings/{id}/extras/{extraId}/answer": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Only an approved extra enters the total.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Approve or decline an extra budget",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Extra id",
+                        "name": "extraId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AnswerExtraInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bookings/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Read the messages with the workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Send a message to the workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MessageInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/cancellation-reasons": {
             "get": {
                 "security": [
@@ -4506,6 +5128,390 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/bookings/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Read a booking of the partner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/assignment": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Set the mechanic and the expected time",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.AssignInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Cancel a booking on behalf of the workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MessageInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/extras": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Only while the vehicle is at the workshop. The customer approves or declines it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Propose an extra budget",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ExtraInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Read the messages of a booking",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Answer the customer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MessageInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/status": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Confirmed to vehicle_received to in_service to ready, without skipping. Ready is refused while an extra waits for an answer.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Move a booking to its next state",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MoveBookingInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -5407,6 +6413,367 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/fleet/workshops/{id}/bookings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "List the bookings of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BookingList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/closures": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Block a day",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ClosureInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Done"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/closures/{date}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Open a blocked day again",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "YYYY-MM-DD",
+                        "name": "date",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Done"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/mechanics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "List the mechanics of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MechanicList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "A mechanic is a record of the workshop, without an account.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Register a mechanic",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MechanicInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MechanicView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/mechanics/{mechanicId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Deactivate a mechanic",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Mechanic id",
+                        "name": "mechanicId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Done"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/schedule": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Set capacity, hours, about and warranty",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ScheduleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Done"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/fleet/workshops/{id}/services": {
             "post": {
                 "security": [
@@ -5450,7 +6817,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dtos.WorkshopServiceView"
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView"
                         }
                     },
                     "404": {
@@ -5512,7 +6879,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.WorkshopServiceView"
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView"
                         }
                     },
                     "404": {
@@ -7742,7 +9109,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dtos.WorkshopServiceView"
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView"
                         }
                     },
                     "404": {
@@ -7811,7 +9178,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.WorkshopServiceView"
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView"
                         }
                     },
                     "404": {
@@ -9295,7 +10662,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.CallView"
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.CallView"
                         }
                     },
                     "404": {
@@ -9607,7 +10974,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.MessageList"
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageList"
                         }
                     },
                     "404": {
@@ -9660,7 +11027,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dtos.MessageView"
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageView"
                         }
                     },
                     "404": {
@@ -12392,6 +13759,344 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/workshops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Search by name, filter by category code, distance, rating, favorites and home service. Each card has the calculated open state and the promotions the customer can still use.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "List workshops for a customer",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude",
+                        "name": "lng",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category code",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius",
+                        "name": "max_distance_km",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Minimum stars",
+                        "name": "min_rating",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only favorites",
+                        "name": "favorites",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only with home service",
+                        "name": "home_service",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "distance or rating",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopCardList"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workshops/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "About, warranty, structured hours and active services with price and duration.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Read a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Latitude",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude",
+                        "name": "lng",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopDetailView"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workshops/{id}/availability": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Status free, closed or full per day, with the slots where the whole duration of the chosen services fits within the capacity.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Days and free slots of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma separated service ids",
+                        "name": "service_ids",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "First day, YYYY-MM-DD",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of days, default 1, at most 62",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CalendarView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workshops/{id}/favorite": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Add a workshop to the favorites",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Done"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Remove a workshop from the favorites",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Done"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workshops/{id}/reviews": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "List the reviews of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ReviewList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "security": [
@@ -12948,6 +14653,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.AnswerExtraInput": {
+            "type": "object",
+            "required": [
+                "approve"
+            ],
+            "properties": {
+                "approve": {
+                    "type": "boolean"
+                }
+            }
+        },
         "dtos.ApplicationList": {
             "type": "object",
             "properties": {
@@ -13002,17 +14718,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "vehicle_plate": {
-                    "type": "string"
-                }
-            }
-        },
-        "dtos.AssignInput": {
-            "type": "object",
-            "required": [
-                "provider_id"
-            ],
-            "properties": {
-                "provider_id": {
                     "type": "string"
                 }
             }
@@ -13095,6 +14800,144 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.BookingItemView": {
+            "type": "object",
+            "properties": {
+                "duration_minutes": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price_cents": {
+                    "type": "integer"
+                },
+                "service_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.BookingList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.BookingView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.BookingView": {
+            "type": "object",
+            "properties": {
+                "amount_due_cents": {
+                    "type": "integer"
+                },
+                "at_home": {
+                    "type": "boolean"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "discount_cents": {
+                    "type": "integer"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "expected_ready_at": {
+                    "type": "string"
+                },
+                "extras": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ExtraView"
+                    }
+                },
+                "extras_cents": {
+                    "type": "integer"
+                },
+                "home_fee_cents": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.BookingItemView"
+                    }
+                },
+                "mechanic": {
+                    "type": "string"
+                },
+                "mileage_km": {
+                    "type": "integer"
+                },
+                "payment_method": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "type": "string"
+                },
+                "promotion": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "services_cents": {
+                    "type": "integer"
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "awaiting_payment",
+                        "confirmed",
+                        "vehicle_received",
+                        "in_service",
+                        "ready",
+                        "completed",
+                        "cancelled"
+                    ]
+                },
+                "total_cents": {
+                    "type": "integer"
+                },
+                "vehicle": {
+                    "$ref": "#/definitions/dtos.VehicleSummary"
+                },
+                "workshop_id": {
+                    "type": "string"
+                },
+                "workshop_name": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.BoostInput": {
             "type": "object",
             "required": [
@@ -13150,13 +14993,31 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.CallView": {
+        "dtos.CalendarView": {
             "type": "object",
             "properties": {
-                "expires_at": {
-                    "type": "string"
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DayView"
+                    }
                 },
-                "proxy_number": {
+                "duration_minutes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.CancelBookingInput": {
+            "type": "object",
+            "required": [
+                "reason_id"
+            ],
+            "properties": {
+                "note": {
+                    "type": "string",
+                    "maxLength": 600
+                },
+                "reason_id": {
                     "type": "string"
                 }
             }
@@ -13583,6 +15444,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ClosureInput": {
+            "type": "object",
+            "required": [
+                "date"
+            ],
+            "properties": {
+                "date": {
+                    "type": "string",
+                    "example": "2026-12-25"
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "Feriado"
+                }
+            }
+        },
         "dtos.CompleteInput": {
             "type": "object",
             "properties": {
@@ -13630,6 +15508,64 @@ const docTemplate = `{
                 },
                 "radius_km": {
                     "type": "number"
+                }
+            }
+        },
+        "dtos.CreateBookingInput": {
+            "type": "object",
+            "required": [
+                "service_ids",
+                "starts_at",
+                "vehicle_id",
+                "workshop_id"
+            ],
+            "properties": {
+                "at_home": {
+                    "type": "boolean"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                },
+                "home_address": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "home_lat": {
+                    "type": "number"
+                },
+                "home_lng": {
+                    "type": "number"
+                },
+                "mileage_km": {
+                    "type": "integer",
+                    "maximum": 5000000,
+                    "minimum": 0
+                },
+                "payment_method": {
+                    "type": "string",
+                    "enum": [
+                        "gpo",
+                        "reference",
+                        "wallet"
+                    ]
+                },
+                "service_ids": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "vehicle_id": {
+                    "type": "string"
+                },
+                "workshop_id": {
+                    "type": "string"
                 }
             }
         },
@@ -13952,6 +15888,28 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.DayView": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "slots": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.SlotView"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "free",
+                        "closed",
+                        "full"
+                    ]
+                }
+            }
+        },
         "dtos.DeleteAccountInput": {
             "type": "object",
             "properties": {
@@ -14142,6 +16100,51 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.ExtraInput": {
+            "type": "object",
+            "required": [
+                "amount_cents",
+                "description"
+            ],
+            "properties": {
+                "amount_cents": {
+                    "type": "integer",
+                    "maximum": 10000000000,
+                    "minimum": 1,
+                    "example": 1200000
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "example": "Trocar pastilhas de travão"
+                }
+            }
+        },
+        "dtos.ExtraView": {
+            "type": "object",
+            "properties": {
+                "amount_cents": {
+                    "type": "integer"
+                },
+                "decided_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "approved",
+                        "declined"
+                    ]
                 }
             }
         },
@@ -14445,6 +16448,29 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.HoursInput": {
+            "type": "object",
+            "properties": {
+                "close_minute": {
+                    "type": "integer",
+                    "maximum": 1440,
+                    "minimum": 1,
+                    "example": 1080
+                },
+                "open_minute": {
+                    "type": "integer",
+                    "maximum": 1439,
+                    "minimum": 0,
+                    "example": 480
+                },
+                "weekday": {
+                    "type": "integer",
+                    "maximum": 6,
+                    "minimum": 0,
+                    "example": 1
+                }
+            }
+        },
         "dtos.InvitationTokenInput": {
             "type": "object",
             "required": [
@@ -14687,6 +16713,41 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.MechanicInput": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Domingos Paulo"
+                }
+            }
+        },
+        "dtos.MechanicList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.MechanicView"
+                    }
+                }
+            }
+        },
+        "dtos.MechanicView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.MemberPage": {
             "type": "object",
             "properties": {
@@ -14753,14 +16814,16 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.MessageList": {
+        "dtos.MessageInput": {
             "type": "object",
+            "required": [
+                "body"
+            ],
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dtos.MessageView"
-                    }
+                "body": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "A viatura já está pronta."
                 }
             }
         },
@@ -14768,29 +16831,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "dtos.MessageView": {
-            "type": "object",
-            "properties": {
-                "body": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "quick_reply_id": {
-                    "type": "string"
-                },
-                "read_at": {
-                    "type": "string"
-                },
-                "sender": {
                     "type": "string"
                 }
             }
@@ -14823,6 +16863,22 @@ const docTemplate = `{
                 },
                 "method": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.MoveBookingInput": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "vehicle_received",
+                        "in_service",
+                        "ready"
+                    ]
                 }
             }
         },
@@ -15808,6 +17864,29 @@ const docTemplate = `{
                 "per_minute_fee_cents": {
                     "type": "integer",
                     "example": 0
+                }
+            }
+        },
+        "dtos.PromotionView": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "discount_bps": {
+                    "type": "integer"
+                },
+                "discount_cents": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "valid_until": {
+                    "type": "string"
                 }
             }
         },
@@ -16863,6 +18942,29 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ReviewList": {
+            "type": "object",
+            "properties": {
+                "average": {
+                    "type": "number"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ReviewView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.ReviewProviderInput": {
             "type": "object",
             "required": [
@@ -16890,6 +18992,23 @@ const docTemplate = `{
                         "rejected",
                         "suspended"
                     ]
+                }
+            }
+        },
+        "dtos.ReviewView": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "stars": {
+                    "type": "integer"
                 }
             }
         },
@@ -17041,6 +19160,36 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.ScheduleInput": {
+            "type": "object",
+            "required": [
+                "capacity"
+            ],
+            "properties": {
+                "about": {
+                    "type": "string",
+                    "maxLength": 4000
+                },
+                "capacity": {
+                    "type": "integer",
+                    "maximum": 500,
+                    "minimum": 1,
+                    "example": 2
+                },
+                "hours": {
+                    "type": "array",
+                    "maxItems": 7,
+                    "items": {
+                        "$ref": "#/definitions/dtos.HoursInput"
+                    }
+                },
+                "warranty": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "example": "3 meses em peças e mão de obra"
                 }
             }
         },
@@ -17299,6 +19448,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.SlotView": {
+            "type": "object",
+            "properties": {
+                "ends_at": {
+                    "type": "string"
+                },
+                "starts_at": {
                     "type": "string"
                 }
             }
@@ -18153,6 +20313,20 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.VehicleSummary": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "plate": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.VehicleView": {
             "type": "object",
             "properties": {
@@ -18189,6 +20363,9 @@ const docTemplate = `{
                 "valid_until"
             ],
             "properties": {
+                "auto_apply": {
+                    "type": "boolean"
+                },
                 "category_id": {
                     "type": "string"
                 },
@@ -18245,6 +20422,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "valid_until": {
+                    "type": "string"
+                },
+                "workshop_id": {
+                    "type": "string"
+                },
+                "workshop_service_id": {
                     "type": "string"
                 }
             }
@@ -18309,6 +20492,9 @@ const docTemplate = `{
         "dtos.VoucherView": {
             "type": "object",
             "properties": {
+                "auto_apply": {
+                    "type": "boolean"
+                },
                 "category_id": {
                     "type": "string"
                 },
@@ -18352,6 +20538,156 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "valid_until": {
+                    "type": "string"
+                },
+                "workshop_id": {
+                    "type": "string"
+                },
+                "workshop_service_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.WorkshopCardList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.WorkshopCardView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.WorkshopCardView": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "distance_m": {
+                    "type": "integer"
+                },
+                "home_service_fee_cents": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_favorite": {
+                    "type": "boolean"
+                },
+                "is_open": {
+                    "type": "boolean"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "offers_home_service": {
+                    "type": "boolean"
+                },
+                "open_until": {
+                    "type": "string"
+                },
+                "promotions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.PromotionView"
+                    }
+                },
+                "rating": {
+                    "type": "number"
+                },
+                "rating_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.WorkshopDetailView": {
+            "type": "object",
+            "properties": {
+                "about": {
+                    "type": "string"
+                },
+                "address": {
+                    "type": "string"
+                },
+                "capacity": {
+                    "type": "integer"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "distance_m": {
+                    "type": "integer"
+                },
+                "home_service_fee_cents": {
+                    "type": "integer"
+                },
+                "hours": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.HoursInput"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_favorite": {
+                    "type": "boolean"
+                },
+                "is_open": {
+                    "type": "boolean"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "offers_home_service": {
+                    "type": "boolean"
+                },
+                "open_until": {
+                    "type": "string"
+                },
+                "promotions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.PromotionView"
+                    }
+                },
+                "rating": {
+                    "type": "number"
+                },
+                "rating_count": {
+                    "type": "integer"
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.WorkshopServiceView"
+                    }
+                },
+                "warranty": {
                     "type": "string"
                 }
             }
@@ -18425,6 +20761,9 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
+                "category_id": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string",
                     "maxLength": 500
@@ -18448,29 +20787,6 @@ const docTemplate = `{
                     "maximum": 10000000000,
                     "minimum": 0,
                     "example": 2500000
-                }
-            }
-        },
-        "dtos.WorkshopServiceView": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "duration_minutes": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price_cents": {
-                    "type": "integer"
                 }
             }
         },
@@ -18510,7 +20826,7 @@ const docTemplate = `{
                 "services": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dtos.WorkshopServiceView"
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView"
                     }
                 }
             }
@@ -18635,6 +20951,162 @@ const docTemplate = `{
                 "UserStatusInactive",
                 "UserStatusBlocked"
             ]
+        },
+        "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.AssignInput": {
+            "type": "object",
+            "properties": {
+                "expected_ready_at": {
+                    "type": "string"
+                },
+                "mechanic_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.CallView": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "proxy_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageView"
+                    }
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageView": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "sender": {
+                    "type": "string",
+                    "enum": [
+                        "customer",
+                        "workshop"
+                    ]
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.WorkshopServiceView": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "duration_minutes": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price_cents": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.AssignInput": {
+            "type": "object",
+            "required": [
+                "provider_id"
+            ],
+            "properties": {
+                "provider_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.CallView": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "proxy_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageView"
+                    }
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageView": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "quick_reply_id": {
+                    "type": "string"
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "sender": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration_minutes": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price_cents": {
+                    "type": "integer"
+                }
+            }
         },
         "shared.ErrorBody": {
             "type": "object",

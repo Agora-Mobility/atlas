@@ -308,7 +308,7 @@ func (q *Queries) GetCategoryBySlug(ctx context.Context, slug string) (ServiceCa
 }
 
 const getDispatchPolicy = `-- name: GetDispatchPolicy :one
-SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at, max_stops, schedule_slot_minutes, requires_completion_code FROM dispatch_policies WHERE id = $1
+SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at, max_stops, schedule_slot_minutes, requires_completion_code, booking_only FROM dispatch_policies WHERE id = $1
 `
 
 func (q *Queries) GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error) {
@@ -344,6 +344,7 @@ func (q *Queries) GetDispatchPolicy(ctx context.Context, id uuid.UUID) (Dispatch
 		&i.MaxStops,
 		&i.ScheduleSlotMinutes,
 		&i.RequiresCompletionCode,
+		&i.BookingOnly,
 	)
 	return i, err
 }
@@ -600,7 +601,7 @@ func (q *Queries) ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTarif
 }
 
 const listDispatchPolicies = `-- name: ListDispatchPolicies :many
-SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at, max_stops, schedule_slot_minutes, requires_completion_code FROM dispatch_policies ORDER BY category_id, zone_id NULLS FIRST
+SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at, max_stops, schedule_slot_minutes, requires_completion_code, booking_only FROM dispatch_policies ORDER BY category_id, zone_id NULLS FIRST
 `
 
 func (q *Queries) ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error) {
@@ -642,6 +643,7 @@ func (q *Queries) ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, e
 			&i.MaxStops,
 			&i.ScheduleSlotMinutes,
 			&i.RequiresCompletionCode,
+			&i.BookingOnly,
 		); err != nil {
 			return nil, err
 		}
@@ -761,7 +763,7 @@ func (q *Queries) RecordETAObservation(ctx context.Context, arg RecordETAObserva
 }
 
 const resolveDispatchPolicy = `-- name: ResolveDispatchPolicy :one
-SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at, max_stops, schedule_slot_minutes, requires_completion_code FROM dispatch_policies
+SELECT id, category_id, zone_id, candidate_source, h3_resolution, radii_km, offer_mode, batch_size, offer_ttl_seconds, search_ttl_seconds, ack_timeout_seconds, ack_giveup_seconds, initial_channels, fallback_channels, ranking, tracking_statuses, on_exhausted, reserve_provider, schedule_max_days, search_lead_seconds, pricing_mode, allow_boost, rank_by_eta, sms_on_accept, created_at, updated_at, max_stops, schedule_slot_minutes, requires_completion_code, booking_only FROM dispatch_policies
 WHERE category_id = $1 AND (zone_id = $2 OR zone_id IS NULL)
 ORDER BY zone_id NULLS LAST
 LIMIT 1
@@ -805,6 +807,7 @@ func (q *Queries) ResolveDispatchPolicy(ctx context.Context, arg ResolveDispatch
 		&i.MaxStops,
 		&i.ScheduleSlotMinutes,
 		&i.RequiresCompletionCode,
+		&i.BookingOnly,
 	)
 	return i, err
 }

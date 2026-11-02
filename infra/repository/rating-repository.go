@@ -29,7 +29,7 @@ func (r *RatingRepository) Create(ctx context.Context, rating *entities.Rating) 
 	queries := postgres.Queries(ctx, r.pool)
 	rows, err := queries.InsertRating(ctx, gen.InsertRatingParams{
 		ID: rating.ID, RequestID: rating.RequestID, CustomerID: rating.CustomerID, ProviderID: rating.ProviderID, Stars: int16(rating.Stars), // #nosec G115 -- 1 to 5
-		ComplimentIds: rating.ComplimentIDs, Comment: rating.Comment, CreatedAt: rating.CreatedAt,
+		ComplimentIds: rating.ComplimentIDs, Comment: rating.Comment, CreatedAt: rating.CreatedAt, WorkshopID: rating.WorkshopID,
 	})
 	if err != nil {
 		return false, fmt.Errorf("create rating: %w", err)
@@ -40,6 +40,11 @@ func (r *RatingRepository) Create(ctx context.Context, rating *entities.Rating) 
 	if rating.ProviderID != nil {
 		if err := queries.AddProviderRating(ctx, gen.AddProviderRatingParams{Stars: int64(rating.Stars), ProviderID: *rating.ProviderID}); err != nil {
 			return false, fmt.Errorf("add provider rating: %w", err)
+		}
+	}
+	if rating.WorkshopID != nil {
+		if err := queries.AddWorkshopRating(ctx, gen.AddWorkshopRatingParams{Stars: int64(rating.Stars), WorkshopID: *rating.WorkshopID}); err != nil {
+			return false, fmt.Errorf("add workshop rating: %w", err)
 		}
 	}
 	return true, nil

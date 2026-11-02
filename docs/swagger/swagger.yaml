@@ -309,6 +309,13 @@ definitions:
       zone_name:
         type: string
     type: object
+  dtos.AnswerExtraInput:
+    properties:
+      approve:
+        type: boolean
+    required:
+    - approve
+    type: object
   dtos.ApplicationList:
     properties:
       items:
@@ -346,13 +353,6 @@ definitions:
         type: string
       vehicle_plate:
         type: string
-    type: object
-  dtos.AssignInput:
-    properties:
-      provider_id:
-        type: string
-    required:
-    - provider_id
     type: object
   dtos.AssignVehicleInput:
     properties:
@@ -407,6 +407,99 @@ definitions:
     required:
     - reason_ids
     type: object
+  dtos.BookingItemView:
+    properties:
+      duration_minutes:
+        type: integer
+      name:
+        type: string
+      price_cents:
+        type: integer
+      service_id:
+        type: string
+    type: object
+  dtos.BookingList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.BookingView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.BookingView:
+    properties:
+      amount_due_cents:
+        type: integer
+      at_home:
+        type: boolean
+      code:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      description:
+        type: string
+      discount_cents:
+        type: integer
+      ends_at:
+        type: string
+      expected_ready_at:
+        type: string
+      extras:
+        items:
+          $ref: '#/definitions/dtos.ExtraView'
+        type: array
+      extras_cents:
+        type: integer
+      home_fee_cents:
+        type: integer
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/dtos.BookingItemView'
+        type: array
+      mechanic:
+        type: string
+      mileage_km:
+        type: integer
+      payment_method:
+        type: string
+      payment_status:
+        type: string
+      promotion:
+        type: string
+      request_id:
+        type: string
+      services_cents:
+        type: integer
+      starts_at:
+        type: string
+      status:
+        enum:
+        - awaiting_payment
+        - confirmed
+        - vehicle_received
+        - in_service
+        - ready
+        - completed
+        - cancelled
+        type: string
+      total_cents:
+        type: integer
+      vehicle:
+        $ref: '#/definitions/dtos.VehicleSummary'
+      workshop_id:
+        type: string
+      workshop_name:
+        type: string
+    type: object
   dtos.BoostInput:
     properties:
       percent:
@@ -443,12 +536,24 @@ definitions:
       send_gps:
         type: boolean
     type: object
-  dtos.CallView:
+  dtos.CalendarView:
     properties:
-      expires_at:
+      days:
+        items:
+          $ref: '#/definitions/dtos.DayView'
+        type: array
+      duration_minutes:
+        type: integer
+    type: object
+  dtos.CancelBookingInput:
+    properties:
+      note:
+        maxLength: 600
         type: string
-      proxy_number:
+      reason_id:
         type: string
+    required:
+    - reason_id
     type: object
   dtos.CancelInput:
     properties:
@@ -742,6 +847,18 @@ definitions:
     required:
     - destination
     type: object
+  dtos.ClosureInput:
+    properties:
+      date:
+        example: "2026-12-25"
+        type: string
+      reason:
+        example: Feriado
+        maxLength: 200
+        type: string
+    required:
+    - date
+    type: object
   dtos.CompleteInput:
     properties:
       code:
@@ -775,6 +892,48 @@ definitions:
         type: number
       radius_km:
         type: number
+    type: object
+  dtos.CreateBookingInput:
+    properties:
+      at_home:
+        type: boolean
+      description:
+        maxLength: 2000
+        type: string
+      home_address:
+        maxLength: 200
+        type: string
+      home_lat:
+        type: number
+      home_lng:
+        type: number
+      mileage_km:
+        maximum: 5000000
+        minimum: 0
+        type: integer
+      payment_method:
+        enum:
+        - gpo
+        - reference
+        - wallet
+        type: string
+      service_ids:
+        items:
+          type: string
+        maxItems: 20
+        minItems: 1
+        type: array
+      starts_at:
+        type: string
+      vehicle_id:
+        type: string
+      workshop_id:
+        type: string
+    required:
+    - service_ids
+    - starts_at
+    - vehicle_id
+    - workshop_id
     type: object
   dtos.CreateCategoryInput:
     properties:
@@ -1013,6 +1172,21 @@ definitions:
       year:
         type: integer
     type: object
+  dtos.DayView:
+    properties:
+      date:
+        type: string
+      slots:
+        items:
+          $ref: '#/definitions/dtos.SlotView'
+        type: array
+      status:
+        enum:
+        - free
+        - closed
+        - full
+        type: string
+    type: object
   dtos.DeleteAccountInput:
     properties:
       code:
@@ -1139,6 +1313,38 @@ definitions:
       source:
         type: string
       status:
+        type: string
+    type: object
+  dtos.ExtraInput:
+    properties:
+      amount_cents:
+        example: 1200000
+        maximum: 10000000000
+        minimum: 1
+        type: integer
+      description:
+        example: Trocar pastilhas de travão
+        maxLength: 300
+        type: string
+    required:
+    - amount_cents
+    - description
+    type: object
+  dtos.ExtraView:
+    properties:
+      amount_cents:
+        type: integer
+      decided_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      status:
+        enum:
+        - pending
+        - approved
+        - declined
         type: string
     type: object
   dtos.FareBreakdown:
@@ -1349,6 +1555,24 @@ definitions:
       resolution:
         type: integer
     type: object
+  dtos.HoursInput:
+    properties:
+      close_minute:
+        example: 1080
+        maximum: 1440
+        minimum: 1
+        type: integer
+      open_minute:
+        example: 480
+        maximum: 1439
+        minimum: 0
+        type: integer
+      weekday:
+        example: 1
+        maximum: 6
+        minimum: 0
+        type: integer
+    type: object
   dtos.InvitationTokenInput:
     properties:
       token:
@@ -1517,6 +1741,29 @@ definitions:
     - code
     - mfa_token
     type: object
+  dtos.MechanicInput:
+    properties:
+      name:
+        example: Domingos Paulo
+        maxLength: 120
+        type: string
+    required:
+    - name
+    type: object
+  dtos.MechanicList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.MechanicView'
+        type: array
+    type: object
+  dtos.MechanicView:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
   dtos.MemberPage:
     properties:
       items:
@@ -1559,31 +1806,18 @@ definitions:
       user_id:
         type: string
     type: object
-  dtos.MessageList:
+  dtos.MessageInput:
     properties:
-      items:
-        items:
-          $ref: '#/definitions/dtos.MessageView'
-        type: array
+      body:
+        example: A viatura já está pronta.
+        maxLength: 1000
+        type: string
+    required:
+    - body
     type: object
   dtos.MessageOutput:
     properties:
       message:
-        type: string
-    type: object
-  dtos.MessageView:
-    properties:
-      body:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      quick_reply_id:
-        type: string
-      read_at:
-        type: string
-      sender:
         type: string
     type: object
   dtos.MethodList:
@@ -1605,6 +1839,17 @@ definitions:
         type: boolean
       method:
         type: string
+    type: object
+  dtos.MoveBookingInput:
+    properties:
+      status:
+        enum:
+        - vehicle_received
+        - in_service
+        - ready
+        type: string
+    required:
+    - status
     type: object
   dtos.MyAccessView:
     properties:
@@ -2297,6 +2542,21 @@ definitions:
       per_minute_fee_cents:
         example: 0
         type: integer
+    type: object
+  dtos.PromotionView:
+    properties:
+      description:
+        type: string
+      discount_bps:
+        type: integer
+      discount_cents:
+        type: integer
+      id:
+        type: string
+      service_id:
+        type: string
+      valid_until:
+        type: string
     type: object
   dtos.ProviderBalanceView:
     properties:
@@ -3006,6 +3266,21 @@ definitions:
     required:
     - status
     type: object
+  dtos.ReviewList:
+    properties:
+      average:
+        type: number
+      items:
+        items:
+          $ref: '#/definitions/dtos.ReviewView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
   dtos.ReviewProviderInput:
     properties:
       note:
@@ -3026,6 +3301,17 @@ definitions:
         type: string
     required:
     - status
+    type: object
+  dtos.ReviewView:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      stars:
+        type: integer
     type: object
   dtos.RoleList:
     properties:
@@ -3126,6 +3412,28 @@ definitions:
         type: string
       user_id:
         type: string
+    type: object
+  dtos.ScheduleInput:
+    properties:
+      about:
+        maxLength: 4000
+        type: string
+      capacity:
+        example: 2
+        maximum: 500
+        minimum: 1
+        type: integer
+      hours:
+        items:
+          $ref: '#/definitions/dtos.HoursInput'
+        maxItems: 7
+        type: array
+      warranty:
+        example: 3 meses em peças e mão de obra
+        maxLength: 4000
+        type: string
+    required:
+    - capacity
     type: object
   dtos.SelectQuoteInput:
     properties:
@@ -3304,6 +3612,13 @@ definitions:
       token:
         type: string
       url:
+        type: string
+    type: object
+  dtos.SlotView:
+    properties:
+      ends_at:
+        type: string
+      starts_at:
         type: string
     type: object
   dtos.TariffInput:
@@ -3914,6 +4229,15 @@ definitions:
       total:
         type: integer
     type: object
+  dtos.VehicleSummary:
+    properties:
+      brand:
+        type: string
+      model:
+        type: string
+      plate:
+        type: string
+    type: object
   dtos.VehicleView:
     properties:
       brand:
@@ -3935,6 +4259,8 @@ definitions:
     type: object
   dtos.VoucherInput:
     properties:
+      auto_apply:
+        type: boolean
       category_id:
         type: string
       code:
@@ -3978,6 +4304,10 @@ definitions:
       valid_from:
         type: string
       valid_until:
+        type: string
+      workshop_id:
+        type: string
+      workshop_service_id:
         type: string
     required:
     - valid_from
@@ -4023,6 +4353,8 @@ definitions:
     type: object
   dtos.VoucherView:
     properties:
+      auto_apply:
+        type: boolean
       category_id:
         type: string
       code:
@@ -4052,6 +4384,105 @@ definitions:
       valid_from:
         type: string
       valid_until:
+        type: string
+      workshop_id:
+        type: string
+      workshop_service_id:
+        type: string
+    type: object
+  dtos.WorkshopCardList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.WorkshopCardView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+    type: object
+  dtos.WorkshopCardView:
+    properties:
+      address:
+        type: string
+      currency:
+        type: string
+      distance_m:
+        type: integer
+      home_service_fee_cents:
+        type: integer
+      id:
+        type: string
+      is_favorite:
+        type: boolean
+      is_open:
+        type: boolean
+      lat:
+        type: number
+      lng:
+        type: number
+      name:
+        type: string
+      offers_home_service:
+        type: boolean
+      open_until:
+        type: string
+      promotions:
+        items:
+          $ref: '#/definitions/dtos.PromotionView'
+        type: array
+      rating:
+        type: number
+      rating_count:
+        type: integer
+    type: object
+  dtos.WorkshopDetailView:
+    properties:
+      about:
+        type: string
+      address:
+        type: string
+      capacity:
+        type: integer
+      currency:
+        type: string
+      distance_m:
+        type: integer
+      home_service_fee_cents:
+        type: integer
+      hours:
+        items:
+          $ref: '#/definitions/dtos.HoursInput'
+        type: array
+      id:
+        type: string
+      is_favorite:
+        type: boolean
+      is_open:
+        type: boolean
+      lat:
+        type: number
+      lng:
+        type: number
+      name:
+        type: string
+      offers_home_service:
+        type: boolean
+      open_until:
+        type: string
+      promotions:
+        items:
+          $ref: '#/definitions/dtos.PromotionView'
+        type: array
+      rating:
+        type: number
+      rating_count:
+        type: integer
+      services:
+        items:
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.WorkshopServiceView'
+        type: array
+      warranty:
         type: string
     type: object
   dtos.WorkshopInput:
@@ -4101,6 +4532,8 @@ definitions:
     type: object
   dtos.WorkshopServiceInput:
     properties:
+      category_id:
+        type: string
       description:
         maxLength: 500
         type: string
@@ -4122,21 +4555,6 @@ definitions:
         type: integer
     required:
     - name
-    type: object
-  dtos.WorkshopServiceView:
-    properties:
-      description:
-        type: string
-      duration_minutes:
-        type: integer
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      price_cents:
-        type: integer
     type: object
   dtos.WorkshopView:
     properties:
@@ -4162,7 +4580,7 @@ definitions:
         type: string
       services:
         items:
-          $ref: '#/definitions/dtos.WorkshopServiceView'
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView'
         type: array
     type: object
   dtos.ZoneInput:
@@ -4252,6 +4670,107 @@ definitions:
     - UserStatusActive
     - UserStatusInactive
     - UserStatusBlocked
+  github_com_Agora-Mobility_atlas_usecases_bookings_dtos.AssignInput:
+    properties:
+      expected_ready_at:
+        type: string
+      mechanic_id:
+        type: string
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_bookings_dtos.CallView:
+    properties:
+      expires_at:
+        type: string
+      proxy_number:
+        type: string
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageView'
+        type: array
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageView:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      sender:
+        enum:
+        - customer
+        - workshop
+        type: string
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_bookings_dtos.WorkshopServiceView:
+    properties:
+      description:
+        type: string
+      duration_minutes:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      price_cents:
+        type: integer
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.AssignInput:
+    properties:
+      provider_id:
+        type: string
+    required:
+    - provider_id
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.CallView:
+    properties:
+      expires_at:
+        type: string
+      proxy_number:
+        type: string
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageView'
+        type: array
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageView:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      quick_reply_id:
+        type: string
+      read_at:
+        type: string
+      sender:
+        type: string
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView:
+    properties:
+      category_id:
+        type: string
+      description:
+        type: string
+      duration_minutes:
+        type: integer
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price_cents:
+        type: integer
+    type: object
   shared.ErrorBody:
     properties:
       code:
@@ -4776,7 +5295,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/dtos.AssignInput'
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.AssignInput'
       produces:
       - application/json
       responses:
@@ -6415,6 +6934,69 @@ paths:
       summary: List the workshops of every partner
       tags:
       - Backoffice partners
+  /api/v1/admin/workshops/{id}/ledger:
+    get:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AccountStatement'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Statement of a workshop
+      tags:
+      - Backoffice
+  /api/v1/admin/workshops/{id}/settlements:
+    post:
+      consumes:
+      - application/json
+      description: Same rules as the settlement of a provider.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Settlement
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SettlementInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SettlementResult'
+        "422":
+          description: Above the balance
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Settle the balance of a workshop
+      tags:
+      - Backoffice
   /api/v1/admin/zones:
     get:
       produces:
@@ -6996,6 +7578,331 @@ paths:
       summary: Register a new user
       tags:
       - Auth
+  /api/v1/bookings:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingList'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List my bookings
+      tags:
+      - Maintenance
+    post:
+      consumes:
+      - application/json
+      description: Needs an Idempotency-Key. The price comes from the services of
+        the workshop, the home fee and the best promotion still unused by the customer.
+        If two customers race for the last place of a slot, the second gets 409 BOOKING_SLOT_FULL.
+        With a reference the booking waits for the payment; with Express or wallet
+        it confirms now and is charged after the customer approves the finished work.
+      parameters:
+      - description: Unique key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateBookingInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Book a workshop
+      tags:
+      - Maintenance
+  /api/v1/bookings/{id}:
+    get:
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Read my booking
+      tags:
+      - Maintenance
+  /api/v1/bookings/{id}/approve:
+    post:
+      description: Moves a ready booking to completed. Only from here can the service
+        be paid through POST /requests/{request_id}/payments.
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Approve the finished work
+      tags:
+      - Maintenance
+  /api/v1/bookings/{id}/calendar:
+    get:
+      description: Text/calendar (.ics).
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Done
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Download the booking as a calendar file
+      tags:
+      - Maintenance
+  /api/v1/bookings/{id}/call:
+    post:
+      description: Answers 503 CALLS_UNAVAILABLE without a provider.
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.CallView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Call the workshop through a masked number
+      tags:
+      - Maintenance
+  /api/v1/bookings/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: Free until the vehicle arrives at the workshop. What was paid ahead
+        by reference goes to the wallet.
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CancelBookingInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Cancel my booking
+      tags:
+      - Maintenance
+  /api/v1/bookings/{id}/extras/{extraId}/answer:
+    post:
+      consumes:
+      - application/json
+      description: Only an approved extra enters the total.
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Extra id
+        in: path
+        name: extraId
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.AnswerExtraInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Approve or decline an extra budget
+      tags:
+      - Maintenance
+  /api/v1/bookings/{id}/messages:
+    get:
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Read the messages with the workshop
+      tags:
+      - Maintenance
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.MessageInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Send a message to the workshop
+      tags:
+      - Maintenance
   /api/v1/cancellation-reasons:
     get:
       description: List managed in the backoffice, per actor and category.
@@ -7120,6 +8027,244 @@ paths:
       summary: Fixed price before confirming
       tags:
       - Dispatch
+  /api/v1/fleet/bookings/{id}:
+    get:
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Read a booking of the partner
+      tags:
+      - Workshop operations
+  /api/v1/fleet/bookings/{id}/assignment:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.AssignInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set the mechanic and the expected time
+      tags:
+      - Workshop operations
+  /api/v1/fleet/bookings/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.MessageInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Cancel a booking on behalf of the workshop
+      tags:
+      - Workshop operations
+  /api/v1/fleet/bookings/{id}/extras:
+    post:
+      consumes:
+      - application/json
+      description: Only while the vehicle is at the workshop. The customer approves
+        or declines it.
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ExtraInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Propose an extra budget
+      tags:
+      - Workshop operations
+  /api/v1/fleet/bookings/{id}/messages:
+    get:
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Read the messages of a booking
+      tags:
+      - Workshop operations
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.MessageInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Answer the customer
+      tags:
+      - Workshop operations
+  /api/v1/fleet/bookings/{id}/status:
+    post:
+      consumes:
+      - application/json
+      description: Confirmed to vehicle_received to in_service to ready, without skipping.
+        Ready is refused while an extra waits for an answer.
+      parameters:
+      - description: Booking id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.MoveBookingInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Move a booking to its next state
+      tags:
+      - Workshop operations
   /api/v1/fleet/drivers:
     get:
       description: Requires partner.providers:read on /fleet, for the partner of the
@@ -7692,6 +8837,227 @@ paths:
       summary: Update a workshop
       tags:
       - Partner fleet
+  /api/v1/fleet/workshops/{id}/bookings:
+    get:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BookingList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the bookings of a workshop
+      tags:
+      - Workshop operations
+  /api/v1/fleet/workshops/{id}/closures:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ClosureInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Done
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Block a day
+      tags:
+      - Workshop operations
+  /api/v1/fleet/workshops/{id}/closures/{date}:
+    delete:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: YYYY-MM-DD
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Done
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Open a blocked day again
+      tags:
+      - Workshop operations
+  /api/v1/fleet/workshops/{id}/mechanics:
+    get:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.MechanicList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the mechanics of a workshop
+      tags:
+      - Workshop operations
+    post:
+      consumes:
+      - application/json
+      description: A mechanic is a record of the workshop, without an account.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.MechanicInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.MechanicView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Register a mechanic
+      tags:
+      - Workshop operations
+  /api/v1/fleet/workshops/{id}/mechanics/{mechanicId}:
+    delete:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Mechanic id
+        in: path
+        name: mechanicId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Done
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Deactivate a mechanic
+      tags:
+      - Workshop operations
+  /api/v1/fleet/workshops/{id}/schedule:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ScheduleInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Done
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set capacity, hours, about and warranty
+      tags:
+      - Workshop operations
   /api/v1/fleet/workshops/{id}/services:
     post:
       consumes:
@@ -7716,7 +9082,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dtos.WorkshopServiceView'
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView'
         "404":
           description: WORKSHOP_NOT_FOUND
           schema:
@@ -7783,7 +9149,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.WorkshopServiceView'
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView'
         "404":
           description: WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND
           schema:
@@ -9194,7 +10560,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dtos.WorkshopServiceView'
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView'
         "404":
           description: WORKSHOP_NOT_FOUND
           schema:
@@ -9271,7 +10637,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.WorkshopServiceView'
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_fleet_dtos.WorkshopServiceView'
         "404":
           description: WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND
           schema:
@@ -10150,7 +11516,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.CallView'
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.CallView'
         "404":
           description: Not Found
           schema:
@@ -10348,7 +11714,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.MessageList'
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageList'
         "404":
           description: Not Found
           schema:
@@ -10383,7 +11749,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dtos.MessageView'
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageView'
         "404":
           description: Not Found
           schema:
@@ -12120,6 +13486,219 @@ paths:
       summary: AppyPay payment notification
       tags:
       - Payments
+  /api/v1/workshops:
+    get:
+      description: Search by name, filter by category code, distance, rating, favorites
+        and home service. Each card has the calculated open state and the promotions
+        the customer can still use.
+      parameters:
+      - description: Latitude
+        in: query
+        name: lat
+        type: number
+      - description: Longitude
+        in: query
+        name: lng
+        type: number
+      - description: Name
+        in: query
+        name: search
+        type: string
+      - description: Category code
+        in: query
+        name: category
+        type: string
+      - description: Radius
+        in: query
+        name: max_distance_km
+        type: number
+      - description: Minimum stars
+        in: query
+        name: min_rating
+        type: number
+      - description: Only favorites
+        in: query
+        name: favorites
+        type: boolean
+      - description: Only with home service
+        in: query
+        name: home_service
+        type: boolean
+      - description: distance or rating
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopCardList'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List workshops for a customer
+      tags:
+      - Maintenance
+  /api/v1/workshops/{id}:
+    get:
+      description: About, warranty, structured hours and active services with price
+        and duration.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Latitude
+        in: query
+        name: lat
+        type: number
+      - description: Longitude
+        in: query
+        name: lng
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopDetailView'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Read a workshop
+      tags:
+      - Maintenance
+  /api/v1/workshops/{id}/availability:
+    get:
+      description: Status free, closed or full per day, with the slots where the whole
+        duration of the chosen services fits within the capacity.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Comma separated service ids
+        in: query
+        name: service_ids
+        required: true
+        type: string
+      - description: First day, YYYY-MM-DD
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: Number of days, default 1, at most 62
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CalendarView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Days and free slots of a workshop
+      tags:
+      - Maintenance
+  /api/v1/workshops/{id}/favorite:
+    delete:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Done
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Remove a workshop from the favorites
+      tags:
+      - Maintenance
+    post:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Done
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Add a workshop to the favorites
+      tags:
+      - Maintenance
+  /api/v1/workshops/{id}/reviews:
+    get:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ReviewList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the reviews of a workshop
+      tags:
+      - Maintenance
   /events:
     get:
       description: Server-Sent Events of the signed-in customer or provider. Send

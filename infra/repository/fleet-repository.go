@@ -226,7 +226,7 @@ func (r *FleetRepository) hydrateWorkshop(ctx context.Context, queries *gen.Quer
 func toWorkshopService(row *gen.WorkshopService) entities.WorkshopService {
 	return entities.WorkshopService{
 		ID: row.ID, WorkshopID: row.WorkshopID, Name: row.Name, Description: row.Description, PriceCents: row.PriceCents,
-		DurationMinutes: int(row.DurationMinutes), IsActive: row.IsActive,
+		DurationMinutes: int(row.DurationMinutes), IsActive: row.IsActive, CategoryID: row.CategoryID,
 	}
 }
 
@@ -265,7 +265,7 @@ func (r *FleetRepository) ListWorkshops(ctx context.Context, organizationID *uui
 
 func (r *FleetRepository) SaveWorkshopService(ctx context.Context, s *entities.WorkshopService) error {
 	err := postgres.Queries(ctx, r.pool).SaveWorkshopService(ctx, gen.SaveWorkshopServiceParams{
-		ID: s.ID, WorkshopID: s.WorkshopID, Name: s.Name, Description: s.Description, PriceCents: s.PriceCents, DurationMinutes: int32(s.DurationMinutes), IsActive: s.IsActive, // #nosec G115 -- validated by the entity
+		ID: s.ID, WorkshopID: s.WorkshopID, Name: s.Name, Description: s.Description, PriceCents: s.PriceCents, DurationMinutes: int32(s.DurationMinutes), IsActive: s.IsActive, CategoryID: s.CategoryID, // #nosec G115 -- validated by the entity
 	})
 	if err != nil {
 		return fmt.Errorf("save workshop service: %w", err)

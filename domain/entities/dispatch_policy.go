@@ -98,6 +98,7 @@ type DispatchPolicy struct {
 	MaxStops          int
 	ScheduleSlotMin   int
 	RequiresCode      bool
+	BookingOnly       bool
 }
 
 func (p *DispatchPolicy) Validate(cellCount func(radiusKm float64, resolution int) int) error {

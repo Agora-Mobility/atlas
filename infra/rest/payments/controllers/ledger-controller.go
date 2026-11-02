@@ -138,6 +138,63 @@ func (c *PaymentController) Settle(ctx *gin.Context) {
 	respond(ctx, http.StatusOK, view, err)
 }
 
+// WorkshopLedger godoc
+//
+//	@Summary	Statement of a workshop
+//	@Tags		Backoffice
+//	@Produce	json
+//	@Param		id		path		string	true	"Workshop id"
+//	@Param		page	query		int		false	"Page"
+//	@Param		size	query		int		false	"Page size"
+//	@Success	200		{object}	dtos.AccountStatement
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/admin/workshops/{id}/ledger [get]
+func (c *PaymentController) WorkshopLedger(ctx *gin.Context) {
+	id, ok := providerParam(ctx)
+	if !ok {
+		return
+	}
+	page, ok := pageParams(ctx)
+	if !ok {
+		return
+	}
+	view, err := c.payments.WorkshopLedger(ctx.Request.Context(), id, page)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// SettleWorkshop godoc
+//
+//	@Summary		Settle the balance of a workshop
+//	@Description	Same rules as the settlement of a provider.
+//	@Tags			Backoffice
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Workshop id"
+//	@Param			body	body		dtos.SettlementInput	true	"Settlement"
+//	@Success		200		{object}	dtos.SettlementResult
+//	@Failure		422		{object}	shared.ErrorResponse	"Above the balance"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/workshops/{id}/settlements [post]
+func (c *PaymentController) SettleWorkshop(ctx *gin.Context) {
+	actor, ok := staffActor(ctx)
+	if !ok {
+		return
+	}
+	id, ok := providerParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.SettlementInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.payments.SettleWorkshop(ctx.Request.Context(), actor, id, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
 // SetGatewayFee godoc
 //
 //	@Summary		Record the real fee of the gateway

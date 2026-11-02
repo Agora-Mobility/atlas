@@ -237,7 +237,7 @@ func (u *Usecase) RateRequest(ctx context.Context, customerID, requestID uuid.UU
 		if request.Status != entities.RequestCompleted {
 			return entities.ErrRatingNotAllowed
 		}
-		rating.ProviderID = request.ProviderID
+		rating.ProviderID, rating.WorkshopID = request.ProviderID, request.WorkshopID
 		if options, err = u.checkCompliments(ctx, rating.ComplimentIDs, request.CategoryID); err != nil {
 			return err
 		}

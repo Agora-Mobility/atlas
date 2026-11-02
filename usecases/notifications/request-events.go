@@ -30,6 +30,8 @@ const (
 	templateOperator       = "operator_alert"
 	templateProviderReview = "provider_review"
 	templatePayment        = "payment_status"
+	templateBooking        = "booking_status"
+	templateBookingExtra   = "booking_extra"
 	statusSent             = "sent"
 	statusFailed           = "failed"
 	statusSkipped          = "skipped"
@@ -75,7 +77,7 @@ func RequestBindingKeys() []string {
 	}
 	slices.Sort(types)
 	types = append(types, events.PaymentChanged, events.OfferCreated, events.OfferCancelled, events.QuoteSubmitted, events.ReminderDue, events.OperatorAlerted,
-		events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended)
+		events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended, events.BookingChanged, events.BookingExtra)
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
 		keys = append(keys, events.RoutingKey(eventType, 1))
@@ -99,6 +101,10 @@ func (n *RequestNotifier) OnEvent(ctx context.Context, env events.Envelope) erro
 		return n.onProviderReview(ctx, env)
 	case events.PaymentChanged:
 		return n.onPayment(ctx, env)
+	case events.BookingChanged:
+		return n.onBooking(ctx, env)
+	case events.BookingExtra:
+		return n.onBookingExtra(ctx, env)
 	default:
 		return n.onTransition(ctx, env)
 	}
@@ -357,3 +363,46 @@ func (n *RequestNotifier) onPayment(ctx context.Context, env events.Envelope) er
 	}
 	return errors.Join(failures...)
 }
+
+var bookingMessages = map[string]struct{ title, body string }{
+	"awaiting_payment": {"Marcação à espera de pagamento", "Paga a referência para confirmar a marcação."},
+	"confirmed":        {"Marcação confirmada", "A tua marcação está confirmada."},
+	"vehicle_received": {"Viatura recebida", "A oficina recebeu a tua viatura."},
+	"in_service":       {"Em serviço", "A tua viatura está em serviço."},
+	"ready":            {"Pronta para levantar", "A viatura está pronta. Aprova o serviço para pagar."},
+	"completed":        {"Serviço concluído", "Obrigado! Já podes pagar e avaliar."},
+	"cancelled":        {"Marcação cancelada", "A marcação foi cancelada."},
+}
+
+func (n *RequestNotifier) onBooking(ctx context.Context, env events.Envelope) error {
+	var event events.BookingChangedV1
+	if err := env.DecodePayload(&event); err != nil {
+		return err
+	}
+	message, known := bookingMessages[event.Status]
+	if !known {
+		return nil
+	}
+	err := n.pushTo(ctx, event.CustomerID, templateBooking, services.PushMessage{
+		Title: message.title, Body: message.body,
+		Data: map[string]string{"type": "booking.status", "booking_id": event.BookingID.String(), "request_id": event.RequestID.String(), "status": event.Status, "event_id": env.EventID.String()},
+	})
+	if event.Status != "confirmed" {
+		return err
+	}
+	sms := fmt.Sprintf("AGORA: marcação %s confirmada em %s, %s.", event.Code, event.WorkshopName, event.StartsAt.In(bookingZone).Format("02/01 15:04"))
+	return errors.Join(err, n.smsToUser(ctx, event.CustomerID, templateBooking, sms))
+}
+
+func (n *RequestNotifier) onBookingExtra(ctx context.Context, env events.Envelope) error {
+	var event events.BookingExtraV1
+	if err := env.DecodePayload(&event); err != nil {
+		return err
+	}
+	return n.pushTo(ctx, event.CustomerID, templateBookingExtra, services.PushMessage{
+		Title: "Orçamento extra", Body: event.Description,
+		Data: map[string]string{"type": "booking.extra", "booking_id": event.BookingID.String(), "extra_id": event.ExtraID.String(), "event_id": env.EventID.String()},
+	})
+}
+
+var bookingZone = time.FixedZone("WAT", 3600)

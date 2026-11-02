@@ -52,11 +52,19 @@ type Deps struct {
 	Gateway  services.IPaymentGateway
 	Ledger   repository.ILedgerRepository
 	Rewards  RewardHook
+	Prepaid  PrepaidHook
 	Settings repository.IReferenceRepository
 }
 
 type RewardHook interface {
 	OnFirstPaidRequest(ctx context.Context, request *entities.ServiceRequest, now time.Time) error
+}
+
+// PrepaidHook is told about the reference that holds a booking: it confirms when
+// paid and frees the slot when it expires.
+type PrepaidHook interface {
+	OnPrepaid(ctx context.Context, request *entities.ServiceRequest, now time.Time) error
+	OnPrepayExpired(ctx context.Context, request *entities.ServiceRequest, now time.Time) error
 }
 
 type Usecase struct {
@@ -216,10 +224,10 @@ func (u *Usecase) Pay(ctx context.Context, customerID, requestID uuid.UUID, in d
 		if request.PaymentStatus == entities.RequestPaid || request.PaymentStatus == entities.RequestFullyRefunded {
 			return entities.ErrPaymentAlreadyPaid
 		}
-		kind := entities.PaymentKindFare
-		if request.Status == entities.RequestCancelled {
-			kind = entities.PaymentKindCancellationFee
+		if request.Prepay && request.Status == entities.RequestScheduled && method != entities.PaymentReference {
+			return entities.ErrPaymentNotPayable
 		}
+		kind := request.DueKind()
 		pending, err := u.Payments.PendingOfRequest(ctx, requestID, kind)
 		if err != nil {
 			return err
@@ -393,7 +401,31 @@ func (u *Usecase) persistChange(ctx context.Context, payment *entities.Payment, 
 			return err
 		}
 	}
+	if err := u.notifyPrepaid(ctx, request, payment, now); err != nil {
+		return err
+	}
 	return u.publish(ctx, request, payment, payment.Method, string(payment.Status), now)
+}
+
+func (u *Usecase) notifyPrepaid(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, now time.Time) error {
+	if !request.Prepay || payment.Kind != entities.PaymentKindFare {
+		return nil
+	}
+	if request.Status == entities.RequestCancelled && payment.Status == entities.PaymentPaid {
+		_, err := u.Refund(ctx, entities.SystemActor(), payment.ID, dtos.RefundInput{Reason: "Pagamento depois do cancelamento"})
+		return err
+	}
+	if u.Prepaid == nil || request.Status != entities.RequestScheduled {
+		return nil
+	}
+	switch payment.Status {
+	case entities.PaymentPaid:
+		return u.Prepaid.OnPrepaid(ctx, request, now)
+	case entities.PaymentExpired:
+		return u.Prepaid.OnPrepayExpired(ctx, request, now)
+	case entities.PaymentPending, entities.PaymentFailed:
+	}
+	return nil
 }
 
 func (u *Usecase) lookup(ctx context.Context, payment *entities.Payment) (*services.Charge, error) {
@@ -763,4 +795,15 @@ func (u *Usecase) AdminGet(ctx context.Context, paymentID uuid.UUID) (*dtos.Admi
 		detail.Refunds = append(detail.Refunds, dtos.RefundView{ID: refund.ID, AmountCents: refund.AmountCents, Reason: refund.Reason, ActorID: refund.ActorID, CreatedAt: refund.CreatedAt})
 	}
 	return detail, nil
+}
+
+// RefundPrepaid gives back what a customer paid ahead for a booking that was
+// cancelled. A reference goes to the wallet, because the gateway cannot refund it.
+func (u *Usecase) RefundPrepaid(ctx context.Context, requestID uuid.UUID, reason string) error {
+	paid, err := u.Payments.PaidOfRequest(ctx, requestID, entities.PaymentKindFare)
+	if err != nil || paid == nil {
+		return err
+	}
+	_, err = u.Refund(ctx, entities.SystemActor(), paid.ID, dtos.RefundInput{Reason: reason})
+	return err
 }

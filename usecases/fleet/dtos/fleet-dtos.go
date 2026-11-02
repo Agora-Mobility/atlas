@@ -97,20 +97,22 @@ type WorkshopInput struct {
 }
 
 type WorkshopServiceInput struct {
-	Name            string `json:"name" binding:"required,max=120" example:"Mudança de óleo"`
-	Description     string `json:"description" binding:"max=500"`
-	PriceCents      int64  `json:"price_cents" binding:"min=0,max=10000000000" example:"2500000"`
-	DurationMinutes int    `json:"duration_minutes" binding:"min=0,max=10080" example:"45"`
-	IsActive        *bool  `json:"is_active"`
+	Name            string     `json:"name" binding:"required,max=120" example:"Mudança de óleo"`
+	Description     string     `json:"description" binding:"max=500"`
+	PriceCents      int64      `json:"price_cents" binding:"min=0,max=10000000000" example:"2500000"`
+	DurationMinutes int        `json:"duration_minutes" binding:"min=0,max=10080" example:"45"`
+	IsActive        *bool      `json:"is_active"`
+	CategoryID      *uuid.UUID `json:"category_id"`
 }
 
 type WorkshopServiceView struct {
-	ID              uuid.UUID `json:"id"`
-	Name            string    `json:"name"`
-	Description     string    `json:"description,omitempty"`
-	PriceCents      int64     `json:"price_cents"`
-	DurationMinutes int       `json:"duration_minutes"`
-	IsActive        bool      `json:"is_active"`
+	ID              uuid.UUID  `json:"id"`
+	Name            string     `json:"name"`
+	Description     string     `json:"description,omitempty"`
+	PriceCents      int64      `json:"price_cents"`
+	DurationMinutes int        `json:"duration_minutes"`
+	IsActive        bool       `json:"is_active"`
+	CategoryID      *uuid.UUID `json:"category_id,omitempty"`
 }
 
 type WorkshopView struct {

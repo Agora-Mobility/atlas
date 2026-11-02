@@ -30,7 +30,7 @@ func NewVoucherRepository(pool *pgxpool.Pool) *VoucherRepository {
 func toVoucher(row *gen.Voucher) *entities.Voucher {
 	voucher := &entities.Voucher{
 		ID: row.ID, Code: row.Code, Description: row.Description, CategoryID: row.CategoryID, ServiceID: row.ServiceID, DiscountBps: int(row.DiscountBps), DiscountCents: row.DiscountCents,
-		MaxDiscountCents: row.MaxDiscountCents, MinFareCents: row.MinFareCents, ValidFrom: row.ValidFrom, ValidUntil: row.ValidUntil, PerCustomerLimit: int(row.PerCustomerLimit), IsPublic: row.IsPublic, IsActive: row.IsActive,
+		MaxDiscountCents: row.MaxDiscountCents, MinFareCents: row.MinFareCents, ValidFrom: row.ValidFrom, ValidUntil: row.ValidUntil, PerCustomerLimit: int(row.PerCustomerLimit), IsPublic: row.IsPublic, IsActive: row.IsActive, WorkshopID: row.WorkshopID, WorkshopService: row.WorkshopServiceID, AutoApply: row.AutoApply,
 	}
 	if row.MaxRedemptions != nil {
 		value := int(*row.MaxRedemptions)
@@ -105,7 +105,7 @@ func (r *VoucherRepository) Create(ctx context.Context, v *entities.Voucher) err
 	err := postgres.Queries(ctx, r.pool).InsertVoucher(ctx, gen.InsertVoucherParams{
 		ID: v.ID, Code: v.Code, Description: v.Description, CategoryID: v.CategoryID, ServiceID: v.ServiceID, DiscountBps: int32(v.DiscountBps), DiscountCents: v.DiscountCents, // #nosec G115 -- validated by the entity
 		MaxDiscountCents: v.MaxDiscountCents, MinFareCents: v.MinFareCents, ValidFrom: v.ValidFrom, ValidUntil: v.ValidUntil, MaxRedemptions: maxRedemptions(v),
-		PerCustomerLimit: int32(v.PerCustomerLimit), IsPublic: v.IsPublic, IsActive: v.IsActive, // #nosec G115 -- validated by the entity
+		PerCustomerLimit: int32(v.PerCustomerLimit), IsPublic: v.IsPublic, IsActive: v.IsActive, WorkshopID: v.WorkshopID, WorkshopServiceID: v.WorkshopService, AutoApply: v.AutoApply, // #nosec G115 -- validated by the entity
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {

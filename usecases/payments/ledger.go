@@ -28,12 +28,20 @@ func (u *Usecase) post(ctx context.Context, key string, kind entities.LedgerKind
 	})
 }
 
+func payeeOf(request *entities.ServiceRequest) (*uuid.UUID, entities.LedgerAccountType) {
+	if request.WorkshopID != nil {
+		return request.WorkshopID, entities.AccountWorkshop
+	}
+	return request.ProviderID, entities.AccountProvider
+}
+
 func settlementOf(request *entities.ServiceRequest, payment *entities.Payment) entities.Settlement {
 	settlement := entities.Settlement{PaidCents: payment.AmountCents, Method: payment.Method, CustomerID: request.CustomerID}
-	if request.ProviderID == nil {
+	payee, payeeType := payeeOf(request)
+	if payee == nil {
 		return settlement
 	}
-	settlement.ProviderID = request.ProviderID
+	settlement.ProviderID, settlement.PayeeType = payee, payeeType
 	fare, commission := int64(0), int64(0)
 	if request.Fare.Cents != nil {
 		fare = *request.Fare.Cents
@@ -41,7 +49,7 @@ func settlementOf(request *entities.ServiceRequest, payment *entities.Payment) e
 	if request.Fare.CommissionCents != nil {
 		commission = *request.Fare.CommissionCents
 	}
-	if payment.Kind == entities.PaymentKindCancellationFee {
+	if payment.Kind == entities.PaymentKindCancellationFee || payment.Kind == entities.PaymentKindExtra {
 		if fare > 0 {
 			settlement.CommissionCents = payment.AmountCents * commission / fare
 		}
@@ -57,12 +65,15 @@ func (u *Usecase) postPayment(ctx context.Context, request *entities.ServiceRequ
 	var legs []entities.LedgerLeg
 	switch payment.Kind {
 	case entities.PaymentKindTip:
-		if request.ProviderID == nil {
+		payee, payeeType := payeeOf(request)
+		if payee == nil {
 			return entities.ErrPaymentNotPayable
 		}
-		kind, legs = entities.LedgerTip, entities.TipLegs(payment.Method, request.CustomerID, *request.ProviderID, payment.AmountCents)
+		kind, legs = entities.LedgerTip, entities.TipLegsTo(payeeType, payment.Method, request.CustomerID, *payee, payment.AmountCents)
 	case entities.PaymentKindCancellationFee:
 		kind, legs = entities.LedgerCancellationFee, settlementOf(request, payment).Legs()
+	case entities.PaymentKindExtra:
+		legs = settlementOf(request, payment).Legs()
 	case entities.PaymentKindFare:
 		if payment.Method == entities.PaymentCash {
 			kind = entities.LedgerCashPayment
@@ -109,8 +120,8 @@ func (u *Usecase) postRefund(ctx context.Context, request *entities.ServiceReque
 	if payment.Kind == entities.PaymentKindFare {
 		commission = settlementOf(request, payment).CommissionCents - request.DiscountCents
 	}
-	provider := request.ProviderID
-	legs := entities.RefundLegs(payment.RefundsToWallet(), request.CustomerID, provider, cents, payment.AmountCents, commission)
+	payee, payeeType := payeeOf(request)
+	legs := entities.RefundLegsOf(payeeType, payment.RefundsToWallet(), request.CustomerID, payee, cents, payment.AmountCents, commission)
 	_, err := u.post(ctx, "refund:"+refundID.String(), entities.LedgerRefund, legs, payment.Currency, &request.ID, &payment.ID, nil, "", now)
 	return err
 }
@@ -141,6 +152,14 @@ func (u *Usecase) ProviderLedger(ctx context.Context, providerID uuid.UUID, page
 	return u.statement(ctx, entities.AccountProvider, providerID, page)
 }
 
+func (u *Usecase) WorkshopLedger(ctx context.Context, workshopID uuid.UUID, page pagination.Params) (*dtos.AccountStatement, error) {
+	return u.statement(ctx, entities.AccountWorkshop, workshopID, page)
+}
+
+func (u *Usecase) SettleWorkshop(ctx context.Context, actor entities.Actor, workshopID uuid.UUID, in dtos.SettlementInput) (*dtos.SettlementResult, error) {
+	return u.settleAccount(ctx, actor, entities.AccountWorkshop, workshopID, in)
+}
+
 func (u *Usecase) Settle(ctx context.Context, actor entities.Actor, providerID uuid.UUID, in dtos.SettlementInput) (*dtos.SettlementResult, error) {
 	user, err := u.Users.FindByID(ctx, providerID)
 	if err != nil {
@@ -149,16 +168,20 @@ func (u *Usecase) Settle(ctx context.Context, actor entities.Actor, providerID u
 	if user == nil {
 		return nil, ErrProviderNotFound
 	}
+	return u.settleAccount(ctx, actor, entities.AccountProvider, providerID, in)
+}
+
+func (u *Usecase) settleAccount(ctx context.Context, actor entities.Actor, account entities.LedgerAccountType, providerID uuid.UUID, in dtos.SettlementInput) (*dtos.SettlementResult, error) {
 	result := &dtos.SettlementResult{Currency: u.settings.Currency}
-	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		if err := u.Ledger.LockAccount(ctx, entities.AccountProvider, providerID); err != nil {
+	err := u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := u.Ledger.LockAccount(ctx, account, providerID); err != nil {
 			return err
 		}
-		balance, err := u.Ledger.Balance(ctx, entities.AccountProvider, providerID)
+		balance, err := u.Ledger.Balance(ctx, account, providerID)
 		if err != nil {
 			return err
 		}
-		legs, err := entities.SettlementLegs(in.Direction, providerID, balance, in.AmountCents)
+		legs, err := entities.SettlementLegsOf(account, in.Direction, providerID, balance, in.AmountCents)
 		if err != nil {
 			result.BalanceCents = balance
 			return err
@@ -168,10 +191,10 @@ func (u *Usecase) Settle(ctx context.Context, actor entities.Actor, providerID u
 			return err
 		}
 		result.Applied = applied
-		if result.BalanceCents, err = u.Ledger.Balance(ctx, entities.AccountProvider, providerID); err != nil {
+		if result.BalanceCents, err = u.Ledger.Balance(ctx, account, providerID); err != nil {
 			return err
 		}
-		entry, err := entities.NewAuditEntry(actor, "ledger.settlement", "provider", providerID.String(), nil, in, in.Note, logger.CorrelationID(ctx))
+		entry, err := entities.NewAuditEntry(actor, "ledger.settlement", string(account), providerID.String(), nil, in, in.Note, logger.CorrelationID(ctx))
 		if err != nil {
 			return err
 		}
@@ -262,7 +285,7 @@ func (u *Usecase) Tip(ctx context.Context, customerID, requestID uuid.UUID, in d
 		if request == nil || !request.IsCustomer(customerID) {
 			return ErrRequestNotFound
 		}
-		if request.Status != entities.RequestCompleted || request.ProviderID == nil {
+		if payee, _ := payeeOf(request); request.Status != entities.RequestCompleted || payee == nil {
 			return entities.ErrTipNotAllowed
 		}
 		paid, err := u.Payments.PaidOfRequest(ctx, requestID, entities.PaymentKindTip)

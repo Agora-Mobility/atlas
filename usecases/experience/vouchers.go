@@ -12,7 +12,7 @@ import (
 
 func toVoucherView(v *entities.Voucher) dtos.VoucherView {
 	view := dtos.VoucherView{ID: v.ID, Description: v.Description, CategoryID: v.CategoryID, ServiceID: v.ServiceID, DiscountBps: v.DiscountBps, DiscountCents: v.DiscountCents, MaxDiscountCents: v.MaxDiscountCents,
-		MinFareCents: v.MinFareCents, ValidFrom: v.ValidFrom, ValidUntil: v.ValidUntil, MaxRedemptions: v.MaxRedemptions, PerCustomerLimit: v.PerCustomerLimit, IsPublic: v.IsPublic, IsActive: v.IsActive}
+		MinFareCents: v.MinFareCents, ValidFrom: v.ValidFrom, ValidUntil: v.ValidUntil, MaxRedemptions: v.MaxRedemptions, PerCustomerLimit: v.PerCustomerLimit, IsPublic: v.IsPublic, IsActive: v.IsActive, WorkshopID: v.WorkshopID, WorkshopServiceID: v.WorkshopService, AutoApply: v.AutoApply}
 	if v.Code != nil {
 		view.Code = *v.Code
 	}
@@ -21,7 +21,7 @@ func toVoucherView(v *entities.Voucher) dtos.VoucherView {
 
 func voucherFrom(in dtos.VoucherInput, id uuid.UUID) *entities.Voucher {
 	voucher := &entities.Voucher{ID: id, Description: in.Description, CategoryID: in.CategoryID, ServiceID: in.ServiceID, DiscountBps: in.DiscountBps, DiscountCents: in.DiscountCents, MaxDiscountCents: in.MaxDiscountCents,
-		MinFareCents: in.MinFareCents, ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil, MaxRedemptions: in.MaxRedemptions, PerCustomerLimit: in.PerCustomerLimit, IsPublic: in.IsPublic, IsActive: in.IsActive == nil || *in.IsActive}
+		MinFareCents: in.MinFareCents, ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil, MaxRedemptions: in.MaxRedemptions, PerCustomerLimit: in.PerCustomerLimit, IsPublic: in.IsPublic, IsActive: in.IsActive == nil || *in.IsActive, WorkshopID: in.WorkshopID, WorkshopService: in.WorkshopServiceID, AutoApply: in.AutoApply}
 	if voucher.PerCustomerLimit == 0 {
 		voucher.PerCustomerLimit = 1
 	}

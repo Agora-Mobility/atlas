@@ -37,6 +37,9 @@ type Voucher struct {
 	PerCustomerLimit int
 	IsPublic         bool
 	IsActive         bool
+	WorkshopID       *uuid.UUID
+	WorkshopService  *uuid.UUID
+	AutoApply        bool
 }
 
 func (v *Voucher) Normalize() error {
@@ -70,6 +73,9 @@ func (v *Voucher) Normalize() error {
 	}
 	if v.PerCustomerLimit < 1 || v.PerCustomerLimit > maxReasonOrder {
 		return validationError("per_customer_limit", "O limite por cliente tem de estar entre 1 e 9999.")
+	}
+	if v.AutoApply && v.WorkshopID == nil {
+		return validationError("auto_apply", "Só uma promoção de oficina se aplica sozinha.")
 	}
 	if v.MaxRedemptions != nil && (*v.MaxRedemptions < 1 || *v.MaxRedemptions > 1_000_000_000) {
 		return validationError("max_redemptions", "O limite total não é válido.")
@@ -110,4 +116,21 @@ func (v *Voucher) DiscountFor(fareCents int64) (int64, error) {
 		discount = max(limit, 0)
 	}
 	return discount, nil
+}
+
+// AppliesToBooking is the rule of a workshop promotion, which can be tied to a
+// single service of the workshop.
+func (v *Voucher) AppliesToBooking(workshopID uuid.UUID, serviceIDs []uuid.UUID) bool {
+	if v.WorkshopID != nil && *v.WorkshopID != workshopID {
+		return false
+	}
+	if v.WorkshopService == nil {
+		return true
+	}
+	for _, id := range serviceIDs {
+		if id == *v.WorkshopService {
+			return true
+		}
+	}
+	return false
 }

@@ -39,7 +39,7 @@ func (r *RequestRepository) Create(ctx context.Context, s *entities.ServiceReque
 			DestinationH3R8: s.DestinationH3, PassengerName: s.PassengerName, PassengerPhone: s.PassengerPhone, Details: s.Details,
 			ScheduledFor: s.ScheduledFor, SearchRound: int16(s.SearchRound), SearchExtended: s.SearchExtended, SearchDeadlineAt: s.SearchDeadline, // #nosec G115 -- small counter
 			NextActionAt: s.NextActionAt, ReminderAt: s.ReminderAt, FareEstimateID: s.Fare.EstimateID, FareCents: s.Fare.Cents, CommissionCents: s.Fare.CommissionCents,
-			BoostBps: int32(s.Fare.BoostBps), Currency: s.Fare.Currency, IdempotencyKey: s.IdempotencyKey, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, PaymentMethod: string(s.PaymentMethod), PublicCode: s.PublicCode, VehicleTypeID: s.VehicleTypeID, CompletionCode: s.CompletionCode, // #nosec G115 -- 0 to 2000
+			BoostBps: int32(s.Fare.BoostBps), Currency: s.Fare.Currency, IdempotencyKey: s.IdempotencyKey, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, PaymentMethod: string(s.PaymentMethod), PublicCode: s.PublicCode, VehicleTypeID: s.VehicleTypeID, CompletionCode: s.CompletionCode, WorkshopID: s.WorkshopID, Prepay: s.Prepay, // #nosec G115 -- 0 to 2000
 		}
 		if s.Destination != nil {
 			if err := saveAddressOfPlace(ctx, queries, s.Destination); err != nil {
@@ -105,7 +105,7 @@ func (r *RequestRepository) Update(ctx context.Context, s *entities.ServiceReque
 		ID: s.ID, ExpectedVersion: int32(expectedVersion), Status: string(s.Status), Version: int32(s.Version), DestinationH3R8: s.DestinationH3, // #nosec G115 -- small counter
 		SearchRound: int16(s.SearchRound), SearchExtended: s.SearchExtended, SearchDeadlineAt: s.SearchDeadline, NextActionAt: s.NextActionAt, ReminderAt: s.ReminderAt, // #nosec G115 -- small counter
 		ProviderID: s.ProviderID, FareCents: s.Fare.Cents, CommissionCents: s.Fare.CommissionCents, BoostBps: int32(s.Fare.BoostBps), NeedsOperator: s.NeedsOperator, // #nosec G115 -- 0 to 2000
-		OperatorReason: s.OperatorReason, CancelReason: s.CancelReason, CancelledBy: s.CancelledBy, CancelReasonID: s.CancelReasonID, CancelFeeCents: s.CancelFeeCents, VoucherID: s.VoucherID, VoucherCode: s.VoucherCode, DiscountCents: s.DiscountCents, CompletionAttempts: int16(s.CompletionTries), // #nosec G115 -- small counter
+		OperatorReason: s.OperatorReason, CancelReason: s.CancelReason, CancelledBy: s.CancelledBy, CancelReasonID: s.CancelReasonID, CancelFeeCents: s.CancelFeeCents, VoucherID: s.VoucherID, VoucherCode: s.VoucherCode, DiscountCents: s.DiscountCents, CompletionAttempts: int16(s.CompletionTries), ExtraDueCents: s.ExtraDueCents, // #nosec G115 -- small counter
 		AcceptedAt: s.AcceptedAt, ArrivedAt: s.ArrivedAt,
 		StartedAt: s.StartedAt, CompletedAt: s.CompletedAt, UpdatedAt: s.UpdatedAt,
 	}
@@ -444,7 +444,7 @@ func toRequest(row *gen.ServiceRequest) *entities.ServiceRequest {
 		Details: row.Details, ScheduledFor: row.ScheduledFor, SearchRound: int(row.SearchRound), SearchExtended: row.SearchExtended, SearchDeadline: row.SearchDeadlineAt,
 		NextActionAt: row.NextActionAt, ReminderAt: row.ReminderAt, ProviderID: row.ProviderID,
 		Fare:          entities.RequestFare{EstimateID: row.FareEstimateID, Cents: row.FareCents, CommissionCents: row.CommissionCents, BoostBps: int(row.BoostBps), Currency: row.Currency},
-		NeedsOperator: row.NeedsOperator, OperatorReason: row.OperatorReason, IdempotencyKey: row.IdempotencyKey, CancelReason: row.CancelReason, CancelledBy: row.CancelledBy, CancelReasonID: row.CancelReasonID, CancelFeeCents: row.CancelFeeCents, VoucherID: row.VoucherID, VoucherCode: row.VoucherCode, DiscountCents: row.DiscountCents, VehicleTypeID: row.VehicleTypeID, CompletionCode: row.CompletionCode, CompletionTries: int(row.CompletionAttempts),
+		NeedsOperator: row.NeedsOperator, OperatorReason: row.OperatorReason, IdempotencyKey: row.IdempotencyKey, CancelReason: row.CancelReason, CancelledBy: row.CancelledBy, CancelReasonID: row.CancelReasonID, CancelFeeCents: row.CancelFeeCents, VoucherID: row.VoucherID, VoucherCode: row.VoucherCode, DiscountCents: row.DiscountCents, VehicleTypeID: row.VehicleTypeID, WorkshopID: row.WorkshopID, Prepay: row.Prepay, ExtraDueCents: row.ExtraDueCents, CompletionCode: row.CompletionCode, CompletionTries: int(row.CompletionAttempts),
 		AcceptedAt: row.AcceptedAt, ArrivedAt: row.ArrivedAt, StartedAt: row.StartedAt, CompletedAt: row.CompletedAt, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 	}
 }

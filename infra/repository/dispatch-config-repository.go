@@ -242,7 +242,7 @@ func toPolicy(row *gen.DispatchPolicy) *entities.DispatchPolicy {
 		AckGiveUpSeconds: int(row.AckGiveupSeconds), InitialChannels: row.InitialChannels, FallbackChannels: row.FallbackChannels,
 		Ranking: entities.Ranking(row.Ranking), TrackingStatuses: tracking, OnExhausted: entities.ExhaustedAction(row.OnExhausted),
 		ReserveProvider: row.ReserveProvider, ScheduleMaxDays: int(row.ScheduleMaxDays), SearchLeadSeconds: int(row.SearchLeadSeconds),
-		PricingMode: entities.PricingMode(row.PricingMode), AllowBoost: row.AllowBoost, RankByETA: row.RankByEta, SMSOnAccept: row.SmsOnAccept, MaxStops: int(row.MaxStops), ScheduleSlotMin: int(row.ScheduleSlotMinutes), RequiresCode: row.RequiresCompletionCode,
+		PricingMode: entities.PricingMode(row.PricingMode), AllowBoost: row.AllowBoost, RankByETA: row.RankByEta, SMSOnAccept: row.SmsOnAccept, MaxStops: int(row.MaxStops), ScheduleSlotMin: int(row.ScheduleSlotMinutes), RequiresCode: row.RequiresCompletionCode, BookingOnly: row.BookingOnly,
 	}
 }
 

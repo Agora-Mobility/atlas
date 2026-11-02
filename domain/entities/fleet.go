@@ -90,6 +90,7 @@ type WorkshopService struct {
 	PriceCents      int64
 	DurationMinutes int
 	IsActive        bool
+	CategoryID      *uuid.UUID
 }
 
 func (s *WorkshopService) Normalize() error {

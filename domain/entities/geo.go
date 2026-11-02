@@ -44,3 +44,6 @@ func DistanceMeters(a, b GeoPoint) float64 {
 func radians(degrees float64) float64 {
 	return degrees * math.Pi / 180
 }
+
+// AnalyticsResolution is the H3 resolution of the cells kept on each request.
+const AnalyticsResolution = 8

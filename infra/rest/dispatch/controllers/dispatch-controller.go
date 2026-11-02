@@ -132,6 +132,8 @@ var errorTable = []struct {
 	{dispatch.ErrFareEstimateRequired, http.StatusUnprocessableEntity, "FARE_ESTIMATE_REQUIRED", "This service needs a fare estimate."},
 	{dispatch.ErrFareEstimateInvalid, http.StatusConflict, "FARE_ESTIMATE_INVALID", "The price does not match this route. Ask for a new one."},
 	{dispatch.ErrFareEstimateUsed, http.StatusConflict, "FARE_ESTIMATE_USED", "This price was already used. Ask for a new one."},
+	{entities.ErrBookingOnly, http.StatusUnprocessableEntity, "USE_BOOKINGS", "This service works through a booking: POST /bookings."},
+	{entities.ErrBookingManaged, http.StatusConflict, "BOOKING_MANAGED", "This request is managed through its booking."},
 	{dispatch.ErrDuplicateRequest, http.StatusConflict, "DUPLICATE_REQUEST", "You already have this request active."},
 	{dispatch.ErrReasonNotApplicable, http.StatusUnprocessableEntity, "REASON_NOT_APPLICABLE", "This reason does not exist or does not apply here."},
 	{dispatch.ErrUnknownReasonActor, http.StatusUnprocessableEntity, "UNKNOWN_REASON_ACTOR", "actor must be customer, provider or offer."},

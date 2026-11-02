@@ -36,6 +36,8 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	signedIn.GET("/admin/ledger/summary", can(entities.PermFinanceRead), r.controller.LedgerSummary)
 	signedIn.GET("/admin/providers/:id/ledger", can(entities.PermFinanceRead), r.controller.ProviderLedger)
 	signedIn.POST("/admin/providers/:id/settlements", can(entities.PermRefundsApprove), r.controller.Settle)
+	signedIn.GET("/admin/workshops/:id/ledger", can(entities.PermFinanceRead), r.controller.WorkshopLedger)
+	signedIn.POST("/admin/workshops/:id/settlements", can(entities.PermRefundsApprove), r.controller.SettleWorkshop)
 	signedIn.PUT("/admin/payments/:id/gateway-fee", can(entities.PermRefundsApprove), r.controller.SetGatewayFee)
 
 	signedIn.GET("/admin/payment-methods", can(entities.PermServicesManage), r.controller.AdminMethods)

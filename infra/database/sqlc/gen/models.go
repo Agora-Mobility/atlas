@@ -274,6 +274,55 @@ type BlockReason struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type Booking struct {
+	ID              uuid.UUID  `json:"id"`
+	RequestID       uuid.UUID  `json:"request_id"`
+	WorkshopID      uuid.UUID  `json:"workshop_id"`
+	CustomerID      uuid.UUID  `json:"customer_id"`
+	VehicleID       uuid.UUID  `json:"vehicle_id"`
+	MechanicID      *uuid.UUID `json:"mechanic_id"`
+	Status          string     `json:"status"`
+	AtHome          bool       `json:"at_home"`
+	HomeFeeCents    int64      `json:"home_fee_cents"`
+	ServicesCents   int64      `json:"services_cents"`
+	StartsAt        time.Time  `json:"starts_at"`
+	EndsAt          time.Time  `json:"ends_at"`
+	ExpectedReadyAt *time.Time `json:"expected_ready_at"`
+	Description     string     `json:"description"`
+	MileageKm       *int32     `json:"mileage_km"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+type BookingEvent struct {
+	ID         int64      `json:"id"`
+	BookingID  uuid.UUID  `json:"booking_id"`
+	FromStatus string     `json:"from_status"`
+	ToStatus   string     `json:"to_status"`
+	ActorType  string     `json:"actor_type"`
+	ActorID    *uuid.UUID `json:"actor_id"`
+	OccurredAt time.Time  `json:"occurred_at"`
+}
+
+type BookingExtra struct {
+	ID          uuid.UUID  `json:"id"`
+	BookingID   uuid.UUID  `json:"booking_id"`
+	Description string     `json:"description"`
+	AmountCents int64      `json:"amount_cents"`
+	Status      string     `json:"status"`
+	DecidedAt   *time.Time `json:"decided_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+type BookingItem struct {
+	ID              uuid.UUID `json:"id"`
+	BookingID       uuid.UUID `json:"booking_id"`
+	ServiceID       uuid.UUID `json:"service_id"`
+	Name            string    `json:"name"`
+	PriceCents      int64     `json:"price_cents"`
+	DurationMinutes int32     `json:"duration_minutes"`
+}
+
 type CancellationRule struct {
 	ServiceID              uuid.UUID `json:"service_id"`
 	FeeCents               int64     `json:"fee_cents"`
@@ -369,6 +418,7 @@ type DispatchPolicy struct {
 	MaxStops               int16      `json:"max_stops"`
 	ScheduleSlotMinutes    int16      `json:"schedule_slot_minutes"`
 	RequiresCompletionCode bool       `json:"requires_completion_code"`
+	BookingOnly            bool       `json:"booking_only"`
 }
 
 type EtaObservation struct {
@@ -652,6 +702,7 @@ type Rating struct {
 	ComplimentIds []uuid.UUID `json:"compliment_ids"`
 	Comment       string      `json:"comment"`
 	CreatedAt     time.Time   `json:"created_at"`
+	WorkshopID    *uuid.UUID  `json:"workshop_id"`
 }
 
 type RefreshToken struct {
@@ -832,6 +883,9 @@ type ServiceRequest struct {
 	VehicleTypeID        *uuid.UUID      `json:"vehicle_type_id"`
 	CompletionCode       string          `json:"completion_code"`
 	CompletionAttempts   int16           `json:"completion_attempts"`
+	WorkshopID           *uuid.UUID      `json:"workshop_id"`
+	Prepay               bool            `json:"prepay"`
+	ExtraDueCents        int64           `json:"extra_due_cents"`
 }
 
 type ServiceRequestEvent struct {
@@ -988,23 +1042,26 @@ type Vehicle struct {
 }
 
 type Voucher struct {
-	ID               uuid.UUID  `json:"id"`
-	Code             *string    `json:"code"`
-	Description      string     `json:"description"`
-	CategoryID       *uuid.UUID `json:"category_id"`
-	ServiceID        *uuid.UUID `json:"service_id"`
-	DiscountBps      int32      `json:"discount_bps"`
-	DiscountCents    int64      `json:"discount_cents"`
-	MaxDiscountCents *int64     `json:"max_discount_cents"`
-	MinFareCents     int64      `json:"min_fare_cents"`
-	ValidFrom        time.Time  `json:"valid_from"`
-	ValidUntil       time.Time  `json:"valid_until"`
-	MaxRedemptions   *int32     `json:"max_redemptions"`
-	PerCustomerLimit int32      `json:"per_customer_limit"`
-	IsPublic         bool       `json:"is_public"`
-	IsActive         bool       `json:"is_active"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	ID                uuid.UUID  `json:"id"`
+	Code              *string    `json:"code"`
+	Description       string     `json:"description"`
+	CategoryID        *uuid.UUID `json:"category_id"`
+	ServiceID         *uuid.UUID `json:"service_id"`
+	DiscountBps       int32      `json:"discount_bps"`
+	DiscountCents     int64      `json:"discount_cents"`
+	MaxDiscountCents  *int64     `json:"max_discount_cents"`
+	MinFareCents      int64      `json:"min_fare_cents"`
+	ValidFrom         time.Time  `json:"valid_from"`
+	ValidUntil        time.Time  `json:"valid_until"`
+	MaxRedemptions    *int32     `json:"max_redemptions"`
+	PerCustomerLimit  int32      `json:"per_customer_limit"`
+	IsPublic          bool       `json:"is_public"`
+	IsActive          bool       `json:"is_active"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	WorkshopID        *uuid.UUID `json:"workshop_id"`
+	WorkshopServiceID *uuid.UUID `json:"workshop_service_id"`
+	AutoApply         bool       `json:"auto_apply"`
 }
 
 type VoucherRedemption struct {
@@ -1030,16 +1087,49 @@ type Workshop struct {
 	IsActive            bool      `json:"is_active"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
+	Capacity            int32     `json:"capacity"`
+	About               string    `json:"about"`
+	Warranty            string    `json:"warranty"`
+	RatingSum           int64     `json:"rating_sum"`
+	RatingCount         int32     `json:"rating_count"`
+}
+
+type WorkshopClosure struct {
+	WorkshopID uuid.UUID `json:"workshop_id"`
+	ClosedOn   time.Time `json:"closed_on"`
+	Reason     string    `json:"reason"`
+}
+
+type WorkshopFavorite struct {
+	CustomerID uuid.UUID `json:"customer_id"`
+	WorkshopID uuid.UUID `json:"workshop_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type WorkshopHour struct {
+	WorkshopID  uuid.UUID `json:"workshop_id"`
+	Weekday     int16     `json:"weekday"`
+	OpenMinute  int32     `json:"open_minute"`
+	CloseMinute int32     `json:"close_minute"`
+}
+
+type WorkshopMechanic struct {
+	ID         uuid.UUID `json:"id"`
+	WorkshopID uuid.UUID `json:"workshop_id"`
+	Name       string    `json:"name"`
+	IsActive   bool      `json:"is_active"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 type WorkshopService struct {
-	ID              uuid.UUID `json:"id"`
-	WorkshopID      uuid.UUID `json:"workshop_id"`
-	Name            string    `json:"name"`
-	Description     string    `json:"description"`
-	PriceCents      int64     `json:"price_cents"`
-	DurationMinutes int32     `json:"duration_minutes"`
-	IsActive        bool      `json:"is_active"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              uuid.UUID  `json:"id"`
+	WorkshopID      uuid.UUID  `json:"workshop_id"`
+	Name            string     `json:"name"`
+	Description     string     `json:"description"`
+	PriceCents      int64      `json:"price_cents"`
+	DurationMinutes int32      `json:"duration_minutes"`
+	IsActive        bool       `json:"is_active"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	CategoryID      *uuid.UUID `json:"category_id"`
 }

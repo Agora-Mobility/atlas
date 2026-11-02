@@ -26,6 +26,20 @@ func (q *Queries) AddProviderRating(ctx context.Context, arg AddProviderRatingPa
 	return err
 }
 
+const addWorkshopRating = `-- name: AddWorkshopRating :exec
+UPDATE workshops SET rating_sum = rating_sum + $1::bigint, rating_count = rating_count + 1, updated_at = now() WHERE id = $2
+`
+
+type AddWorkshopRatingParams struct {
+	Stars      int64     `json:"stars"`
+	WorkshopID uuid.UUID `json:"workshop_id"`
+}
+
+func (q *Queries) AddWorkshopRating(ctx context.Context, arg AddWorkshopRatingParams) error {
+	_, err := q.db.Exec(ctx, addWorkshopRating, arg.Stars, arg.WorkshopID)
+	return err
+}
+
 const countProviderRatings = `-- name: CountProviderRatings :one
 SELECT count(*) FROM ratings WHERE provider_id = $1
 `
@@ -37,8 +51,19 @@ func (q *Queries) CountProviderRatings(ctx context.Context, providerID *uuid.UUI
 	return count, err
 }
 
+const countWorkshopRatings = `-- name: CountWorkshopRatings :one
+SELECT count(*) FROM ratings WHERE workshop_id = $1
+`
+
+func (q *Queries) CountWorkshopRatings(ctx context.Context, workshopID *uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countWorkshopRatings, workshopID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getRatingOfRequest = `-- name: GetRatingOfRequest :one
-SELECT id, request_id, customer_id, provider_id, stars, compliment_ids, comment, created_at FROM ratings WHERE request_id = $1
+SELECT id, request_id, customer_id, provider_id, stars, compliment_ids, comment, created_at, workshop_id FROM ratings WHERE request_id = $1
 `
 
 func (q *Queries) GetRatingOfRequest(ctx context.Context, requestID *uuid.UUID) (Rating, error) {
@@ -53,13 +78,14 @@ func (q *Queries) GetRatingOfRequest(ctx context.Context, requestID *uuid.UUID) 
 		&i.ComplimentIds,
 		&i.Comment,
 		&i.CreatedAt,
+		&i.WorkshopID,
 	)
 	return i, err
 }
 
 const insertRating = `-- name: InsertRating :execrows
-INSERT INTO ratings (id, request_id, customer_id, provider_id, stars, compliment_ids, comment, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO ratings (id, request_id, customer_id, provider_id, stars, compliment_ids, comment, created_at, workshop_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (request_id) DO NOTHING
 `
 
@@ -72,6 +98,7 @@ type InsertRatingParams struct {
 	ComplimentIds []uuid.UUID `json:"compliment_ids"`
 	Comment       string      `json:"comment"`
 	CreatedAt     time.Time   `json:"created_at"`
+	WorkshopID    *uuid.UUID  `json:"workshop_id"`
 }
 
 func (q *Queries) InsertRating(ctx context.Context, arg InsertRatingParams) (int64, error) {
@@ -84,6 +111,7 @@ func (q *Queries) InsertRating(ctx context.Context, arg InsertRatingParams) (int
 		arg.ComplimentIds,
 		arg.Comment,
 		arg.CreatedAt,
+		arg.WorkshopID,
 	)
 	if err != nil {
 		return 0, err
@@ -122,6 +150,55 @@ func (q *Queries) ListProviderRatings(ctx context.Context, arg ListProviderRatin
 	items := []ListProviderRatingsRow{}
 	for rows.Next() {
 		var i ListProviderRatingsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Stars,
+			&i.Comment,
+			&i.ComplimentIds,
+			&i.CreatedAt,
+			&i.RequestID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWorkshopRatings = `-- name: ListWorkshopRatings :many
+SELECT r.id, r.stars, r.comment, r.compliment_ids, r.created_at, r.request_id
+FROM ratings r WHERE r.workshop_id = $1
+ORDER BY r.created_at DESC
+LIMIT $3 OFFSET $2
+`
+
+type ListWorkshopRatingsParams struct {
+	WorkshopID *uuid.UUID `json:"workshop_id"`
+	PageOffset int32      `json:"page_offset"`
+	PageLimit  int32      `json:"page_limit"`
+}
+
+type ListWorkshopRatingsRow struct {
+	ID            uuid.UUID   `json:"id"`
+	Stars         int16       `json:"stars"`
+	Comment       string      `json:"comment"`
+	ComplimentIds []uuid.UUID `json:"compliment_ids"`
+	CreatedAt     time.Time   `json:"created_at"`
+	RequestID     *uuid.UUID  `json:"request_id"`
+}
+
+func (q *Queries) ListWorkshopRatings(ctx context.Context, arg ListWorkshopRatingsParams) ([]ListWorkshopRatingsRow, error) {
+	rows, err := q.db.Query(ctx, listWorkshopRatings, arg.WorkshopID, arg.PageOffset, arg.PageLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWorkshopRatingsRow{}
+	for rows.Next() {
+		var i ListWorkshopRatingsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Stars,
