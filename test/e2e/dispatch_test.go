@@ -239,7 +239,7 @@ func TestCriterion4ConcurrentAcceptsYieldExactlyOneWinner(t *testing.T) {
 	}
 	customer := newCustomer(t)
 	estimateID, serviceID := estimateFor(t, customer, "towing")
-	res := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	res := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"towing": towingDetails(t, customer), "service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	require.Equal(t, http.StatusCreated, res.status, res.text)
 
 	offers := make([]sseEvent, len(providers))
@@ -607,7 +607,7 @@ func TestTowingParallelOffersWithLateAcceptAndOperatorAlert(t *testing.T) {
 	firstStream, secondStream := first.listen(t, ""), second.listen(t, "")
 	customer := newCustomer(t)
 	estimateID, serviceID := estimateFor(t, customer, "towing")
-	created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"towing": towingDetails(t, customer), "service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	require.Equal(t, http.StatusCreated, created.status, created.text)
 
 	offerA, offerB := firstStream.waitFor(t, "request.offer", nil), secondStream.waitFor(t, "request.offer", nil)
@@ -625,7 +625,7 @@ func TestTowingParallelOffersWithLateAcceptAndOperatorAlert(t *testing.T) {
 	setPolicy(t, "towing", "search_ttl_seconds = 2, offer_ttl_seconds = 1")
 	stranded := newCustomer(t)
 	estimateID, serviceID = estimateFor(t, stranded, "towing")
-	queued := stranded.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	queued := stranded.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"towing": towingDetails(t, stranded), "service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	require.Equal(t, http.StatusCreated, queued.status, queued.text)
 	stream := stranded.listen(t, "")
 	alert := stream.waitFor(t, "request.alert", nil)
@@ -934,7 +934,7 @@ func TestOperatorDispatchesByHandRetriesAndCancels(t *testing.T) {
 	usecase := env.api.container.Dispatch.Usecase
 	stranded := newCustomer(t)
 	estimateID, serviceID := estimateFor(t, stranded, "towing")
-	queued := stranded.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	queued := stranded.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"towing": towingDetails(t, stranded), "service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	require.Equal(t, http.StatusCreated, queued.status, queued.text)
 	id := uuid.MustParse(queued.str("id"))
 

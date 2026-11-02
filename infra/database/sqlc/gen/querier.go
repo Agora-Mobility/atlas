@@ -264,6 +264,7 @@ type Querier interface {
 	MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error
 	MarkRequestMessagesRead(ctx context.Context, arg MarkRequestMessagesReadParams) error
 	MarkStopArrived(ctx context.Context, arg MarkStopArrivedParams) (int64, error)
+	NearestWorkshop(ctx context.Context, arg NearestWorkshopParams) (NearestWorkshopRow, error)
 	NextRequestCode(ctx context.Context, id uuid.UUID) (string, error)
 	NextTicketCode(ctx context.Context) (string, error)
 	OfferRejectionReport(ctx context.Context, arg OfferRejectionReportParams) ([]OfferRejectionReportRow, error)

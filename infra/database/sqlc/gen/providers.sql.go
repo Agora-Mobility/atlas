@@ -89,7 +89,7 @@ func (q *Queries) DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDevic
 }
 
 const filterEligibleProviders = `-- name: FilterEligibleProviders :many
-SELECT p.user_id, p.last_job_completed_at, p.created_at, b.lat AS base_lat, b.lng AS base_lng, p.service_radius_km, u.phone
+SELECT p.user_id, p.last_job_completed_at, p.created_at, b.lat AS base_lat, b.lng AS base_lng, p.service_radius_km, u.phone, COALESCE((SELECT v.capacity_kg FROM vehicles v WHERE v.provider_id = p.user_id AND v.is_active LIMIT 1), 0)::int AS capacity_kg
 FROM providers p
 LEFT JOIN addresses b ON b.id = p.base_address_id
 JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
@@ -111,6 +111,7 @@ type FilterEligibleProvidersRow struct {
 	BaseLng            *float64   `json:"base_lng"`
 	ServiceRadiusKm    *float64   `json:"service_radius_km"`
 	Phone              *string    `json:"phone"`
+	CapacityKg         int32      `json:"capacity_kg"`
 }
 
 func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibleProvidersParams) ([]FilterEligibleProvidersRow, error) {
@@ -130,6 +131,7 @@ func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibl
 			&i.BaseLng,
 			&i.ServiceRadiusKm,
 			&i.Phone,
+			&i.CapacityKg,
 		); err != nil {
 			return nil, err
 		}

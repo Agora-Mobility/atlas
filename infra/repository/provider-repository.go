@@ -174,6 +174,11 @@ func (r *ProviderRepository) FilterEligible(ctx context.Context, serviceID uuid.
 		if row.BaseLat != nil && row.BaseLng != nil {
 			provider.Base = &entities.GeoPoint{Lat: *row.BaseLat, Lng: *row.BaseLng}
 		}
+		capacity := int(row.CapacityKg)
+		provider.CapacityKg = &capacity
+		if row.CapacityKg == 0 {
+			provider.CapacityKg = nil
+		}
 		out = append(out, provider)
 	}
 	return out, nil

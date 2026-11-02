@@ -2,9 +2,11 @@ package experience
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/infra/rest/binding"
 	"github.com/Agora-Mobility/atlas/shared"
 	"github.com/Agora-Mobility/atlas/shared/enums"
@@ -216,4 +218,32 @@ func (c *Controller) MyRatings(ctx *gin.Context) {
 	}
 	list, err := c.uc.ProviderRatings(ctx.Request.Context(), providerID, page)
 	respond(ctx, http.StatusOK, list, err)
+}
+
+// TowingOptions godoc
+//
+//	@Summary		What the towing form needs
+//	@Description	Vehicle types with their price, incidents, and the nearest partner workshop as the default destination when lat and lng are given.
+//	@Tags			Towing
+//	@Produce		json
+//	@Param			lat	query		number	false	"Latitude"
+//	@Param			lng	query		number	false	"Longitude"
+//	@Success		200	{object}	dtos.TowingOptions
+//	@Failure		422	{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/towing/options [get]
+func (c *Controller) TowingOptions(ctx *gin.Context) {
+	var point *entities.GeoPoint
+	if ctx.Query("lat") != "" || ctx.Query("lng") != "" {
+		lat, latErr := strconv.ParseFloat(ctx.Query("lat"), 64)
+		lng, lngErr := strconv.ParseFloat(ctx.Query("lng"), 64)
+		if latErr != nil || lngErr != nil {
+			shared.BadRequest(ctx, shared.CodeInvalidRequest, "lat and lng must be numbers.")
+			return
+		}
+		point = &entities.GeoPoint{Lat: lat, Lng: lng}
+	}
+	view, err := c.uc.TowingOptions(ctx.Request.Context(), point)
+	respond(ctx, http.StatusOK, view, err)
 }

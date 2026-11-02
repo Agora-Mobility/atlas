@@ -340,34 +340,35 @@ type DeviceToken struct {
 }
 
 type DispatchPolicy struct {
-	ID                  uuid.UUID  `json:"id"`
-	CategoryID          uuid.UUID  `json:"category_id"`
-	ZoneID              *uuid.UUID `json:"zone_id"`
-	CandidateSource     string     `json:"candidate_source"`
-	H3Resolution        int16      `json:"h3_resolution"`
-	RadiiKm             []float64  `json:"radii_km"`
-	OfferMode           string     `json:"offer_mode"`
-	BatchSize           int16      `json:"batch_size"`
-	OfferTtlSeconds     int32      `json:"offer_ttl_seconds"`
-	SearchTtlSeconds    int32      `json:"search_ttl_seconds"`
-	AckTimeoutSeconds   int32      `json:"ack_timeout_seconds"`
-	AckGiveupSeconds    int32      `json:"ack_giveup_seconds"`
-	InitialChannels     []string   `json:"initial_channels"`
-	FallbackChannels    []string   `json:"fallback_channels"`
-	Ranking             string     `json:"ranking"`
-	TrackingStatuses    []string   `json:"tracking_statuses"`
-	OnExhausted         string     `json:"on_exhausted"`
-	ReserveProvider     bool       `json:"reserve_provider"`
-	ScheduleMaxDays     int32      `json:"schedule_max_days"`
-	SearchLeadSeconds   int32      `json:"search_lead_seconds"`
-	PricingMode         string     `json:"pricing_mode"`
-	AllowBoost          bool       `json:"allow_boost"`
-	RankByEta           bool       `json:"rank_by_eta"`
-	SmsOnAccept         bool       `json:"sms_on_accept"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at"`
-	MaxStops            int16      `json:"max_stops"`
-	ScheduleSlotMinutes int16      `json:"schedule_slot_minutes"`
+	ID                     uuid.UUID  `json:"id"`
+	CategoryID             uuid.UUID  `json:"category_id"`
+	ZoneID                 *uuid.UUID `json:"zone_id"`
+	CandidateSource        string     `json:"candidate_source"`
+	H3Resolution           int16      `json:"h3_resolution"`
+	RadiiKm                []float64  `json:"radii_km"`
+	OfferMode              string     `json:"offer_mode"`
+	BatchSize              int16      `json:"batch_size"`
+	OfferTtlSeconds        int32      `json:"offer_ttl_seconds"`
+	SearchTtlSeconds       int32      `json:"search_ttl_seconds"`
+	AckTimeoutSeconds      int32      `json:"ack_timeout_seconds"`
+	AckGiveupSeconds       int32      `json:"ack_giveup_seconds"`
+	InitialChannels        []string   `json:"initial_channels"`
+	FallbackChannels       []string   `json:"fallback_channels"`
+	Ranking                string     `json:"ranking"`
+	TrackingStatuses       []string   `json:"tracking_statuses"`
+	OnExhausted            string     `json:"on_exhausted"`
+	ReserveProvider        bool       `json:"reserve_provider"`
+	ScheduleMaxDays        int32      `json:"schedule_max_days"`
+	SearchLeadSeconds      int32      `json:"search_lead_seconds"`
+	PricingMode            string     `json:"pricing_mode"`
+	AllowBoost             bool       `json:"allow_boost"`
+	RankByEta              bool       `json:"rank_by_eta"`
+	SmsOnAccept            bool       `json:"sms_on_accept"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
+	MaxStops               int16      `json:"max_stops"`
+	ScheduleSlotMinutes    int16      `json:"schedule_slot_minutes"`
+	RequiresCompletionCode bool       `json:"requires_completion_code"`
 }
 
 type EtaObservation struct {
@@ -408,6 +409,7 @@ type FareEstimate struct {
 	CreatedAt       time.Time       `json:"created_at"`
 	ScheduledFor    *time.Time      `json:"scheduled_for"`
 	UsedAt          *time.Time      `json:"used_at"`
+	VehicleTypeID   *uuid.UUID      `json:"vehicle_type_id"`
 }
 
 type Invitation struct {
@@ -827,6 +829,9 @@ type ServiceRequest struct {
 	VoucherCode          string          `json:"voucher_code"`
 	DiscountCents        int64           `json:"discount_cents"`
 	PublicCode           string          `json:"public_code"`
+	VehicleTypeID        *uuid.UUID      `json:"vehicle_type_id"`
+	CompletionCode       string          `json:"completion_code"`
+	CompletionAttempts   int16           `json:"completion_attempts"`
 }
 
 type ServiceRequestEvent struct {

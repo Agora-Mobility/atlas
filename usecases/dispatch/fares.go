@@ -79,6 +79,10 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 
 	list := &dtos.FareEstimateList{Items: make([]dtos.FareEstimateView, 0, len(offered))}
 	expiresAt := now.Add(u.settings.FareEstimateTTL)
+	vehicleTypes, err := u.Reference.Items(ctx, entities.CatalogTowingVehicle, in.Category, false)
+	if err != nil {
+		return nil, err
+	}
 	for i := range offered {
 		service := &offered[i]
 		tariff, err := u.Pricing.CurrentTariff(ctx, service.ID, zone.ID)
@@ -86,6 +90,12 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 			return nil, err
 		}
 		if tariff == nil {
+			continue
+		}
+		if len(vehicleTypes) > 0 {
+			if err := u.towingEstimates(ctx, list, vehicleTypes, service, tariff, customerID, pickup, destination, stops, in, route, now, expiresAt); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		total := tariff.FareForRoute(route.DistanceMeters, route.Duration, local, len(stops))
@@ -111,6 +121,32 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 		return nil, ErrNoTariff
 	}
 	return list, nil
+}
+
+func (u *Usecase) towingEstimates(ctx context.Context, list *dtos.FareEstimateList, vehicleTypes []entities.CatalogItem, service *entities.DispatchService, tariff *entities.ServiceTariff, customerID uuid.UUID, pickup entities.GeoPoint, destination *entities.GeoPoint, stops []entities.GeoPoint, in dtos.FareEstimateInput, route services.Route, now, expiresAt time.Time) error {
+	for i := range vehicleTypes {
+		vehicleType := &vehicleTypes[i]
+		total := entities.TowingFare(vehicleType, vehicleType.PriceAt(now), route.DistanceMeters)
+		id, err := newUUID()
+		if err != nil {
+			return err
+		}
+		typeID := vehicleType.ID
+		estimate := &entities.FareEstimate{
+			ID: id, CustomerID: customerID, TariffID: tariff.ID, ServiceID: service.ID, Origin: pickup, Destination: destination, Stops: stops, ScheduledFor: in.ScheduledFor, VehicleTypeID: &typeID,
+			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source),
+			TotalCents: total, CommissionCents: tariff.CommissionFor(total), Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
+		}
+		if err := u.Pricing.CreateEstimate(ctx, estimate); err != nil {
+			return err
+		}
+		included := vehicleType.AttrInt(entities.AttrIncludedKm)
+		list.Items = append(list.Items, dtos.FareEstimateView{
+			FareEstimateID: id, ServiceID: service.ID, ServiceName: service.Name, ServiceSlug: service.Slug, TotalCents: total, Currency: tariff.Currency, DistanceM: route.DistanceMeters,
+			DurationS: int(route.Duration.Seconds()), RouteSource: string(route.Source), ExpiresInS: int(u.settings.FareEstimateTTL.Seconds()), VehicleTypeID: &typeID, VehicleType: vehicleType.Label, IncludedKm: &included,
+		})
+	}
+	return nil
 }
 
 func (u *Usecase) routeFor(ctx context.Context, pickup entities.GeoPoint, destination *entities.GeoPoint, stops []entities.GeoPoint, hour int) (services.Route, error) {

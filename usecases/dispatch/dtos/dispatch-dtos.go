@@ -32,11 +32,21 @@ type CreateRequestInput struct {
 	FareEstimateID *uuid.UUID      `json:"fare_estimate_id"`
 	PaymentMethod  string          `json:"payment_method" binding:"omitempty,oneof=cash gpo reference wallet" example:"cash"`
 	VoucherCode    string          `json:"voucher_code" binding:"max=30" example:"TAXI10"`
+	Towing         *TowingInput    `json:"towing"`
 }
 
 type PassengerInput struct {
 	Name  string `json:"name" binding:"required,max=80"`
 	Phone string `json:"phone" binding:"required,max=20"`
+}
+
+type TowingInput struct {
+	IncidentID uuid.UUID `json:"incident_id" binding:"required"`
+	Drivable   *bool     `json:"drivable" binding:"required"`
+}
+
+type CompleteInput struct {
+	Code string `json:"code" binding:"max=10" example:"4821"`
 }
 
 type VoucherPreviewInput struct {
@@ -61,16 +71,19 @@ type FareEstimateInput struct {
 }
 
 type FareEstimateView struct {
-	FareEstimateID uuid.UUID `json:"fare_estimate_id"`
-	ServiceID      uuid.UUID `json:"service_id"`
-	ServiceName    string    `json:"service_name"`
-	ServiceSlug    string    `json:"service_slug"`
-	TotalCents     int64     `json:"total_cents"`
-	Currency       string    `json:"currency"`
-	DistanceM      int       `json:"distance_m"`
-	DurationS      int       `json:"duration_s"`
-	RouteSource    string    `json:"route_source"`
-	ExpiresInS     int       `json:"expires_in_s"`
+	FareEstimateID uuid.UUID  `json:"fare_estimate_id"`
+	ServiceID      uuid.UUID  `json:"service_id"`
+	ServiceName    string     `json:"service_name"`
+	ServiceSlug    string     `json:"service_slug"`
+	TotalCents     int64      `json:"total_cents"`
+	Currency       string     `json:"currency"`
+	DistanceM      int        `json:"distance_m"`
+	DurationS      int        `json:"duration_s"`
+	RouteSource    string     `json:"route_source"`
+	ExpiresInS     int        `json:"expires_in_s"`
+	VehicleTypeID  *uuid.UUID `json:"vehicle_type_id,omitempty"`
+	VehicleType    string     `json:"vehicle_type,omitempty"`
+	IncludedKm     *int64     `json:"included_km,omitempty"`
 }
 
 type FareEstimateList struct {
@@ -164,6 +177,7 @@ type RequestView struct {
 	DiscountCents   int64            `json:"discount_cents"`
 	VoucherCode     string           `json:"voucher_code,omitempty"`
 	AmountDueCents  int64            `json:"amount_due_cents"`
+	CompletionCode  string           `json:"completion_code,omitempty"`
 	CanBoost        bool             `json:"can_boost"`
 	NeedsOperator   bool             `json:"needs_operator,omitempty"`
 	OperatorReason  string           `json:"operator_reason,omitempty"`

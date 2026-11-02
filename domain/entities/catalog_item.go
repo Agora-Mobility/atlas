@@ -167,6 +167,7 @@ const (
 	SettingRemovalMaxDays       = "removal_max_days"
 	SettingMaxPhotosPerBooking  = "max_booking_photos"
 	SettingTowingCompletionCode = "towing_code_digits"
+	SettingCompletionAttempts   = "completion_code_attempts"
 )
 
 var settingRules = map[string]settingRule{
@@ -185,6 +186,7 @@ var settingRules = map[string]settingRule{
 	SettingBookingSlotMinutes:   {SettingCount, 5, 240},
 	SettingRemovalMaxDays:       {SettingCount, 1, 365},
 	SettingTowingCompletionCode: {SettingCount, 4, 8},
+	SettingCompletionAttempts:   {SettingCount, 1, 100},
 }
 
 func ValidateSetting(key, value string) error {

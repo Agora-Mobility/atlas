@@ -131,6 +131,7 @@ type RequestFare struct {
 	CommissionCents *int64
 	BoostBps        int
 	Currency        string
+	VehicleTypeID   *uuid.UUID
 }
 
 func (f RequestFare) ProviderNetCents() *int64 {
@@ -165,52 +166,55 @@ type NewRequestInput struct {
 }
 
 type ServiceRequest struct {
-	ID             uuid.UUID
-	PublicCode     string
-	CustomerID     uuid.UUID
-	CategoryID     uuid.UUID
-	CategorySlug   string
-	ServiceID      uuid.UUID
-	ZoneID         uuid.UUID
-	PolicyID       uuid.UUID
-	Status         RequestStatus
-	Version        int
-	Pickup         RequestPlace
-	PickupH3R8     int64
-	Destination    *RequestPlace
-	DestinationH3  *int64
-	Stops          []RequestPlace
-	ContactPhone   string
-	PassengerName  string
-	PassengerPhone string
-	Details        json.RawMessage
-	ScheduledFor   *time.Time
-	SearchRound    int
-	SearchExtended bool
-	SearchDeadline *time.Time
-	NextActionAt   *time.Time
-	ReminderAt     *time.Time
-	ProviderID     *uuid.UUID
-	Fare           RequestFare
-	PaymentMethod  PaymentMethod
-	PaymentStatus  RequestPaymentStatus
-	NeedsOperator  bool
-	OperatorReason string
-	IdempotencyKey string
-	RouteChanged   bool
-	CancelReason   string
-	CancelledBy    string
-	CancelReasonID *uuid.UUID
-	CancelFeeCents int64
-	DiscountCents  int64
-	VoucherCode    string
-	VoucherID      *uuid.UUID
-	AcceptedAt     *time.Time
-	ArrivedAt      *time.Time
-	StartedAt      *time.Time
-	CompletedAt    *time.Time
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID              uuid.UUID
+	PublicCode      string
+	CustomerID      uuid.UUID
+	CategoryID      uuid.UUID
+	CategorySlug    string
+	ServiceID       uuid.UUID
+	ZoneID          uuid.UUID
+	PolicyID        uuid.UUID
+	Status          RequestStatus
+	Version         int
+	Pickup          RequestPlace
+	PickupH3R8      int64
+	Destination     *RequestPlace
+	DestinationH3   *int64
+	Stops           []RequestPlace
+	ContactPhone    string
+	PassengerName   string
+	PassengerPhone  string
+	Details         json.RawMessage
+	ScheduledFor    *time.Time
+	SearchRound     int
+	SearchExtended  bool
+	SearchDeadline  *time.Time
+	NextActionAt    *time.Time
+	ReminderAt      *time.Time
+	ProviderID      *uuid.UUID
+	Fare            RequestFare
+	PaymentMethod   PaymentMethod
+	PaymentStatus   RequestPaymentStatus
+	NeedsOperator   bool
+	OperatorReason  string
+	IdempotencyKey  string
+	RouteChanged    bool
+	CancelReason    string
+	CancelledBy     string
+	CancelReasonID  *uuid.UUID
+	CancelFeeCents  int64
+	DiscountCents   int64
+	VoucherCode     string
+	VoucherID       *uuid.UUID
+	VehicleTypeID   *uuid.UUID
+	CompletionCode  string
+	CompletionTries int
+	AcceptedAt      *time.Time
+	ArrivedAt       *time.Time
+	StartedAt       *time.Time
+	CompletedAt     *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 func NewServiceRequest(in NewRequestInput) (*ServiceRequest, error) {

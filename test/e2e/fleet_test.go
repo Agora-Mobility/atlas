@@ -163,14 +163,15 @@ func TestRequestReportsSeparateThePartnersAndHideTheCustomerPhone(t *testing.T) 
 	stream := driver.listen(t, "")
 	customer := newCustomer(t)
 	estimateID, serviceID := estimateFor(t, customer, "towing")
-	created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target, "contact_phone": "+244923456789"}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"towing": towingDetails(t, customer), "service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target, "contact_phone": "+244923456789"}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	require.Equal(t, http.StatusCreated, created.status, created.text)
 	id := created.str("id")
 	offer := stream.waitFor(t, "request.offer", nil)
 	require.Equal(t, http.StatusOK, acceptOffer(t, driver, offer).status)
-	for _, step := range []string{"en-route", "arrive", "start", "complete"} {
+	for _, step := range []string{"en-route", "arrive", "start"} {
 		require.Equal(t, http.StatusOK, driver.post(t, "/api/v1/requests/"+id+"/"+step, nil).status, step)
 	}
+	require.Equal(t, http.StatusOK, driver.post(t, "/api/v1/requests/"+id+"/complete", map[string]any{"code": created.str("completion_code")}).status)
 
 	var stored string
 	require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT organization_id FROM service_requests WHERE id = $1`, id).Scan(&stored))

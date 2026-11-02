@@ -13,6 +13,14 @@ type EligibleProvider struct {
 	ServiceRadiusKm    *float64
 	LastJobCompletedAt *time.Time
 	CreatedAt          time.Time
+	CapacityKg         *int
+}
+
+func (p *EligibleProvider) CanCarry(minimumKg int64) bool {
+	if minimumKg <= 0 {
+		return true
+	}
+	return p.CapacityKg != nil && int64(*p.CapacityKg) >= minimumKg
 }
 
 type LiveIndex struct {

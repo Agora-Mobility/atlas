@@ -229,6 +229,9 @@ func (u *Usecase) liveCandidates(ctx context.Context, request *entities.ServiceR
 	if err != nil {
 		return nil, err
 	}
+	if eligible, err = u.filterByVehicleType(ctx, request, eligible); err != nil {
+		return nil, err
+	}
 	sort.Slice(eligible, func(i, j int) bool { return distances[eligible[i].UserID] < distances[eligible[j].UserID] })
 	if len(eligible) > maxCandidatesPerSearch {
 		eligible = eligible[:maxCandidatesPerSearch]

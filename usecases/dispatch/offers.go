@@ -117,6 +117,13 @@ func (u *Usecase) requireEligible(ctx context.Context, request *entities.Service
 	if len(eligible) == 0 {
 		return ErrProviderNotApproved
 	}
+	capable, err := u.filterByVehicleType(ctx, request, eligible)
+	if err != nil {
+		return err
+	}
+	if len(capable) == 0 {
+		return ErrProviderNotEligible
+	}
 	return nil
 }
 
@@ -371,7 +378,10 @@ func (u *Usecase) StartJob(ctx context.Context, providerID, requestID uuid.UUID)
 	return u.providerStep(ctx, providerID, requestID, entities.RequestInProgress, u.chargeWaiting)
 }
 
-func (u *Usecase) CompleteJob(ctx context.Context, providerID, requestID uuid.UUID) (*dtos.RequestView, error) {
+func (u *Usecase) CompleteJob(ctx context.Context, providerID, requestID uuid.UUID, in dtos.CompleteInput) (*dtos.RequestView, error) {
+	if err := u.checkCompletionCode(ctx, providerID, requestID, in.Code); err != nil {
+		return nil, err
+	}
 	view, err := u.providerStep(ctx, providerID, requestID, entities.RequestCompleted, nil)
 	if err != nil {
 		return nil, err

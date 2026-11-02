@@ -20,7 +20,7 @@ func TestARequestHasAReadableCodeByCategory(t *testing.T) {
 	customer := newCustomer(t)
 	taxi := requestTaxi(t, customer)
 	assert.Regexp(t, regexp.MustCompile(`^TX-\d{5,}$`), taxi.str("code"))
-	tow := requestCategory(t, customer, "towing", map[string]any{"destination": target, "fare_estimate_id": mustEstimate(t, customer, "towing")})
+	tow := requestCategory(t, customer, "towing", map[string]any{"destination": target, "fare_estimate_id": mustEstimate(t, customer, "towing"), "towing": towingDetails(t, customer)})
 	assert.Regexp(t, regexp.MustCompile(`^RB-\d{5,}$`), tow.str("code"))
 	assert.NotEmpty(t, tow.str("service_name"))
 	assert.NotEqual(t, strings.Split(taxi.str("code"), "-")[1], strings.Split(tow.str("code"), "-")[1])

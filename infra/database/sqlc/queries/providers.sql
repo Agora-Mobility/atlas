@@ -67,7 +67,7 @@ JOIN service_categories c ON c.id = s.category_id
 WHERE p.user_id = $1;
 
 -- name: FilterEligibleProviders :many
-SELECT p.user_id, p.last_job_completed_at, p.created_at, b.lat AS base_lat, b.lng AS base_lng, p.service_radius_km, u.phone
+SELECT p.user_id, p.last_job_completed_at, p.created_at, b.lat AS base_lat, b.lng AS base_lng, p.service_radius_km, u.phone, COALESCE((SELECT v.capacity_kg FROM vehicles v WHERE v.provider_id = p.user_id AND v.is_active LIMIT 1), 0)::int AS capacity_kg
 FROM providers p
 LEFT JOIN addresses b ON b.id = p.base_address_id
 JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL

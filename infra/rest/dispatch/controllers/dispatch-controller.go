@@ -151,6 +151,10 @@ var errorTable = []struct {
 	{entities.ErrNoETA, http.StatusConflict, "ETA_NOT_AVAILABLE", "There is no position to calculate the arrival."},
 	{entities.ErrCallNotAvailable, http.StatusConflict, "CALL_NOT_AVAILABLE", "A call needs an active request with a provider."},
 	{services.ErrCallsUnavailable, http.StatusServiceUnavailable, "CALLS_UNAVAILABLE", "Calls are not available."},
+	{entities.ErrCompletionCodeWrong, http.StatusUnprocessableEntity, "COMPLETION_CODE_WRONG", "The code is wrong."},
+	{entities.ErrCompletionCodeLocked, http.StatusConflict, "COMPLETION_CODE_LOCKED", "Too many wrong codes. An operator has to finish this request."},
+	{entities.ErrTowingDetailsMissing, http.StatusUnprocessableEntity, "TOWING_DETAILS_REQUIRED", "Towing needs the incident and whether the vehicle moves."},
+	{entities.ErrUnknownIncident, http.StatusUnprocessableEntity, "INCIDENT_NOT_FOUND", "This incident does not exist."},
 	{dispatch.ErrNoTariff, http.StatusUnprocessableEntity, "NO_TARIFF", "There is no tariff for this service here yet."},
 	{dispatch.ErrRequestConflict, http.StatusConflict, "REQUEST_CONFLICT", "The request changed in the meantime."},
 	{dispatch.ErrProviderNotApproved, http.StatusForbidden, "PROVIDER_NOT_APPROVED", "The provider is not approved for this."},
@@ -842,9 +846,26 @@ func (c *DispatchController) StartJob(ctx *gin.Context) {
 //	@Failure	409	{object}	shared.ErrorResponse
 //	@Security	BearerAuth
 //	@Security	ClientId
+//	@Param		body	body	dtos.CompleteInput	false	"Code the customer shows, when the service needs one"
 //	@Router		/api/v1/requests/{id}/complete [post]
 func (c *DispatchController) CompleteJob(ctx *gin.Context) {
-	c.providerAction(ctx, c.dispatch.CompleteJob)
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.CompleteInput
+	if ctx.Request.ContentLength != 0 {
+		if err := binding.JSON(ctx, &in); err != nil {
+			shared.InvalidRequest(ctx, err)
+			return
+		}
+	}
+	view, err := c.dispatch.CompleteJob(ctx.Request.Context(), providerID, id, in)
+	respond(ctx, http.StatusOK, view, err)
 }
 
 func (c *DispatchController) providerAction(ctx *gin.Context, action providerRequestAction) {

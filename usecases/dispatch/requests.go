@@ -95,6 +95,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	if err != nil {
 		return nil, false, err
 	}
+	if err := u.prepareTowing(ctx, request, policy, in); err != nil {
+		return nil, false, err
+	}
 	if request.PublicCode, err = u.Requests.NextPublicCode(ctx, service.CategoryID); err != nil {
 		return nil, false, err
 	}
@@ -282,7 +285,7 @@ func (u *Usecase) resolveFare(ctx context.Context, customerID uuid.UUID, service
 	}
 	id := estimate.ID
 	total, commission := estimate.TotalCents, estimate.CommissionCents
-	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency}, nil
+	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency, VehicleTypeID: estimate.VehicleTypeID}, nil
 }
 
 func (u *Usecase) GetRequest(ctx context.Context, userID, requestID uuid.UUID) (*dtos.RequestView, error) {
@@ -580,6 +583,15 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 			priceAt = *request.ScheduledFor
 		}
 		base := tariff.FareForRoute(route.DistanceMeters, route.Duration, priceAt.In(location), len(stops))
+		if request.VehicleTypeID != nil {
+			vehicleType, err := u.Reference.Item(ctx, *request.VehicleTypeID)
+			if err != nil {
+				return err
+			}
+			if vehicleType != nil {
+				base = entities.TowingFare(vehicleType, vehicleType.PriceAt(estimate.CreatedAt), route.DistanceMeters)
+			}
+		}
 		boosted := base + base*int64(request.Fare.BoostBps)/10_000
 		difference := boosted - *request.Fare.Cents
 		if err := u.repriceVoucher(ctx, request, boosted); err != nil {
@@ -620,6 +632,7 @@ func (u *Usecase) customerSummary(ctx context.Context, request *entities.Service
 	view.PassengerPhone = request.PassengerPhone
 	view.ContactPhone = request.ContactPhone
 	view.Details = request.Details
+	view.CompletionCode = request.CompletionCode
 	provider, err := u.providerSummary(ctx, request.ProviderID)
 	if err != nil {
 		return nil, err

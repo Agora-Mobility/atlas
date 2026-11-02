@@ -216,3 +216,18 @@ type PhotoView struct {
 type PhotoList struct {
 	Items []PhotoView `json:"items"`
 }
+
+type RecommendedWorkshop struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	Lat       float64   `json:"lat"`
+	Lng       float64   `json:"lng"`
+	Address   string    `json:"address"`
+	DistanceM int       `json:"distance_m"`
+}
+
+type TowingOptions struct {
+	VehicleTypes        []CatalogItemView    `json:"vehicle_types"`
+	Incidents           []CatalogItemView    `json:"incidents"`
+	RecommendedWorkshop *RecommendedWorkshop `json:"recommended_workshop,omitempty"`
+}

@@ -742,6 +742,13 @@ definitions:
     required:
     - destination
     type: object
+  dtos.CompleteInput:
+    properties:
+      code:
+        example: "4821"
+        maxLength: 10
+        type: string
+    type: object
   dtos.CoverageInput:
     properties:
       lat:
@@ -873,6 +880,8 @@ definitions:
           $ref: '#/definitions/dtos.PlaceInput'
         maxItems: 20
         type: array
+      towing:
+        $ref: '#/definitions/dtos.TowingInput'
       voucher_code:
         example: TAXI10
         maxLength: 30
@@ -1198,6 +1207,8 @@ definitions:
         type: integer
       fare_estimate_id:
         type: string
+      included_km:
+        type: integer
       route_source:
         type: string
       service_id:
@@ -1208,6 +1219,10 @@ definitions:
         type: string
       total_cents:
         type: integer
+      vehicle_type:
+        type: string
+      vehicle_type_id:
+        type: string
     type: object
   dtos.FleetVehicleInput:
     properties:
@@ -2533,6 +2548,21 @@ definitions:
           $ref: '#/definitions/dtos.RecentDestination'
         type: array
     type: object
+  dtos.RecommendedWorkshop:
+    properties:
+      address:
+        type: string
+      distance_m:
+        type: integer
+      id:
+        type: string
+      lat:
+        type: number
+      lng:
+        type: number
+      name:
+        type: string
+    type: object
   dtos.RecoveryCodesOutput:
     properties:
       recovery_codes:
@@ -2871,6 +2901,8 @@ definitions:
       commission_cents:
         type: integer
       completed_at:
+        type: string
+      completion_code:
         type: string
       contact_phone:
         type: string
@@ -3483,6 +3515,29 @@ definitions:
         type: integer
       label:
         type: string
+    type: object
+  dtos.TowingInput:
+    properties:
+      drivable:
+        type: boolean
+      incident_id:
+        type: string
+    required:
+    - drivable
+    - incident_id
+    type: object
+  dtos.TowingOptions:
+    properties:
+      incidents:
+        items:
+          $ref: '#/definitions/dtos.CatalogItemView'
+        type: array
+      recommended_workshop:
+        $ref: '#/definitions/dtos.RecommendedWorkshop'
+      vehicle_types:
+        items:
+          $ref: '#/definitions/dtos.CatalogItemView'
+        type: array
     type: object
   dtos.UnblockUserInput:
     properties:
@@ -10192,6 +10247,11 @@ paths:
         name: id
         required: true
         type: string
+      - description: Code the customer shows, when the service needs one
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/dtos.CompleteInput'
       produces:
       - application/json
       responses:
@@ -11277,6 +11337,36 @@ paths:
       summary: Write in a support ticket
       tags:
       - Support
+  /api/v1/towing/options:
+    get:
+      description: Vehicle types with their price, incidents, and the nearest partner
+        workshop as the default destination when lat and lng are given.
+      parameters:
+      - description: Latitude
+        in: query
+        name: lat
+        type: number
+      - description: Longitude
+        in: query
+        name: lng
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TowingOptions'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: What the towing form needs
+      tags:
+      - Towing
   /api/v1/users/me:
     delete:
       consumes:

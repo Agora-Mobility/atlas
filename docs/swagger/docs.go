@@ -9447,6 +9447,14 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Code the customer shows, when the service needs one",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CompleteInput"
+                        }
                     }
                 ],
                 "responses": {
@@ -11123,6 +11131,54 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Closed",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/towing/options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Vehicle types with their price, incidents, and the nearest partner workshop as the default destination when lat and lng are given.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towing"
+                ],
+                "summary": "What the towing form needs",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude",
+                        "name": "lng",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TowingOptions"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -13527,6 +13583,16 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CompleteInput": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "example": "4821"
+                }
+            }
+        },
         "dtos.CoverageInput": {
             "type": "object",
             "required": [
@@ -13710,6 +13776,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dtos.PlaceInput"
                     }
+                },
+                "towing": {
+                    "$ref": "#/definitions/dtos.TowingInput"
                 },
                 "voucher_code": {
                     "type": "string",
@@ -14175,6 +14244,9 @@ const docTemplate = `{
                 "fare_estimate_id": {
                     "type": "string"
                 },
+                "included_km": {
+                    "type": "integer"
+                },
                 "route_source": {
                     "type": "string"
                 },
@@ -14189,6 +14261,12 @@ const docTemplate = `{
                 },
                 "total_cents": {
                     "type": "integer"
+                },
+                "vehicle_type": {
+                    "type": "string"
+                },
+                "vehicle_type_id": {
+                    "type": "string"
                 }
             }
         },
@@ -16113,6 +16191,29 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RecommendedWorkshop": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "distance_m": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.RecoveryCodesOutput": {
             "type": "object",
             "properties": {
@@ -16604,6 +16705,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "completed_at": {
+                    "type": "string"
+                },
+                "completion_code": {
                     "type": "string"
                 },
                 "contact_phone": {
@@ -17495,6 +17599,41 @@ const docTemplate = `{
                 },
                 "label": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.TowingInput": {
+            "type": "object",
+            "required": [
+                "drivable",
+                "incident_id"
+            ],
+            "properties": {
+                "drivable": {
+                    "type": "boolean"
+                },
+                "incident_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.TowingOptions": {
+            "type": "object",
+            "properties": {
+                "incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CatalogItemView"
+                    }
+                },
+                "recommended_workshop": {
+                    "$ref": "#/definitions/dtos.RecommendedWorkshop"
+                },
+                "vehicle_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CatalogItemView"
+                    }
                 }
             }
         },

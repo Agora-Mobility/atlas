@@ -120,6 +120,7 @@ type FareEstimate struct {
 	Stops           []GeoPoint
 	ScheduledFor    *time.Time
 	UsedAt          *time.Time
+	VehicleTypeID   *uuid.UUID
 	DistanceMeters  int
 	DurationSeconds int
 	RouteSource     string
