@@ -453,15 +453,49 @@ def taxi():
         go_offline(first, second)
 
     with Scenario("T7", "Avaliação, gorjeta e média"):
-        customer, driver, rid = completed_ride()
-        body = {"stars": 4, "compliments": ["Condução segura", "Viatura limpa"], "tip_cents": 50000}
+        customer, driver, rid = completed_ride("cash")
+        call("POST", f"/requests/{rid}/payments/cash", None, driver["tok"], PROVIDER)
+        fare, commission = map(int, sql(f"SELECT fare_cents,commission_cents FROM service_requests WHERE id='{rid}'").split("|"))
+        _, view = call("GET", f"/requests/{rid}", None, customer["tok"])
+        breakdown = view.get("breakdown", {})
+        chk(breakdown.get("total_cents") == fare and sum(i["amount_cents"] for i in breakdown.get("items", [])) == fare, f"resumo: linhas {breakdown.get('items')} somam o total {fare}")
+        chk(view.get("can_rate") is True, "o histórico indica Avaliar")
+        status, options = call("GET", "/rating-options?category=taxi", None, customer["tok"])
+        codes = {c["code"]: c["id"] for c in options.get("compliments", [])}
+        chk(status == 200 and "clean_car" in codes and len(options.get("tips", [])) == 3, f"elogios e gorjetas sugeridas do serviço: {list(codes)} {[t['amount_cents'] for t in options.get('tips', [])]}")
+        intruder = new_user("customer", "Intruso T7")
+        chk(call("POST", f"/requests/{rid}/rating", {"stars": 5}, intruder["tok"])[0] == 404, "outro cliente não avalia")
+        for stars in (0, 6, 99999999999):
+            status, _ = call("POST", f"/requests/{rid}/rating", {"stars": stars}, customer["tok"])
+            chk(status == 422, f"{stars} estrelas: {status}")
+        status, _ = call("POST", f"/requests/{rid}/rating", {}, customer["tok"])
+        chk(status == 422, f"estrelas obrigatórias: {status}")
+        body = {"stars": 4, "compliment_ids": [codes["clean_car"], codes["safe_driving"]], "comment": "Boa viagem"}
         status, res = call("POST", f"/requests/{rid}/rating", body, customer["tok"])
-        chk(status in (200, 201), f"avaliar: {status}")
-        status, res = call("POST", f"/requests/{rid}/ratings", body, customer["tok"])
-        chk(status in (200, 201), f"rota alternativa /ratings: {status}")
-        chk(any("rating" in p or "review" in p and "provider" not in p for p in OPENAPI), "existe rota de avaliação no OpenAPI")
-        tables = sql("SELECT count(*) FROM information_schema.tables WHERE table_schema='atlas' AND (table_name ILIKE '%rating%' OR table_name ILIKE '%tip%')")
-        chk(int(tables) > 0, f"tabelas de avaliação/gorjeta: {tables}")
+        chk(status == 201, f"avaliar: {status}")
+        status, res = call("POST", f"/requests/{rid}/rating", body, customer["tok"])
+        chk(code(res) == "ALREADY_RATED", f"avaliar duas vezes: {status} {code(res)}")
+        stored = sql(f"SELECT rating_sum,rating_count,completed_requests FROM providers WHERE user_id='{driver['id']}'")
+        chk(stored == "4|1|1", f"média e contagem na BD (soma|contagem|serviços): {stored}")
+        _, view = call("GET", f"/requests/{rid}", None, customer["tok"])
+        provider = view.get("provider", {})
+        chk(provider.get("rating") == 4 and provider.get("rating_count") == 1 and provider.get("completed_requests") == 1, f"a app vê rating e nº de serviços: {provider.get('rating')} {provider.get('rating_count')} {provider.get('completed_requests')}")
+        chk(view.get("can_rate") is False and view.get("rating", {}).get("stars") == 4, "a avaliação dada aparece no pedido")
+        active = new_user("customer", "Cliente T7b")
+        status, created = create(active, estimate(active))
+        status, res = call("POST", f"/requests/{created['id']}/rating", {"stars": 5}, active["tok"])
+        chk(code(res) == "RATING_NOT_ALLOWED", f"pedido não concluído: {status} {code(res)}")
+        cancel(active["tok"], created["id"])
+        status, res = call("POST", f"/requests/{rid}/tips", {"amount_cents": 100000000, "phone_number": SIMULATED_OK}, customer["tok"])
+        chk(code(res) == "TIP_OUT_OF_RANGE", f"gorjeta acima do limite: {status} {code(res)}")
+        status, tip = call("POST", f"/requests/{rid}/tips", {"amount_cents": 50000, "phone_number": SIMULATED_OK}, customer["tok"])
+        chk(status == 201 and tip.get("method") == "gpo" and tip.get("amount_cents") == 50000, f"gorjeta digital em corrida a dinheiro, AppyPay real: {status} {tip.get('method')}")
+        end = time.time() + 60
+        while time.time() < end and sql(f"SELECT status FROM payments WHERE id='{tip.get('id')}'") != "paid":
+            time.sleep(1)
+        balance = int(sql(f"SELECT COALESCE(sum(amount_cents),0) FROM ledger_entries WHERE account_type='provider' AND account_id='{driver['id']}'"))
+        chk(balance == 50000 - commission, f"gorjeta 100% para o motorista no ledger: {balance}, com comissão {commission} em dívida")
+        chk(sql(f"SELECT count(*) FROM ledger_transactions t WHERE t.request_id='{rid}' AND t.kind='tip'") == "1", "gorjeta registada no ledger")
 
     with Scenario("T8", "Voucher"):
         customer = new_user("customer", "Cliente T8")
