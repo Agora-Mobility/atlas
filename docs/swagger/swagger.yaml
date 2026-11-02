@@ -161,6 +161,10 @@ definitions:
     properties:
       name:
         type: string
+      organization_id:
+        type: string
+      organization_name:
+        type: string
       phone:
         type: string
       requested_service_id:
@@ -184,6 +188,13 @@ definitions:
         type: string
     required:
     - provider_id
+    type: object
+  dtos.AssignVehicleInput:
+    properties:
+      vehicle_id:
+        type: string
+    required:
+    - vehicle_id
     type: object
   dtos.BlockReasonList:
     properties:
@@ -429,6 +440,31 @@ definitions:
     required:
     - name
     type: object
+  dtos.CreateRejectionReasonInput:
+    properties:
+      code:
+        example: blurry_photo
+        maxLength: 40
+        type: string
+      display_order:
+        type: integer
+      label:
+        example: Fotografia desfocada
+        maxLength: 120
+        type: string
+      requires_note:
+        type: boolean
+      scope:
+        enum:
+        - document
+        - provider
+        - suspension
+        type: string
+    required:
+    - code
+    - label
+    - scope
+    type: object
   dtos.CreateRequestInput:
     properties:
       contact_phone:
@@ -572,6 +608,10 @@ definitions:
         type: string
       rejection_reason:
         type: string
+      rejection_reasons:
+        items:
+          $ref: '#/definitions/dtos.RejectionReasonView'
+        type: array
       reviewed_at:
         type: string
       size_bytes:
@@ -585,6 +625,42 @@ definitions:
       url:
         type: string
       url_expires_at:
+        type: string
+    type: object
+  dtos.DriverList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.DriverView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.DriverView:
+    properties:
+      is_verified:
+        type: boolean
+      name:
+        type: string
+      phone:
+        type: string
+      requested_service_id:
+        type: string
+      service_id:
+        type: string
+      service_name:
+        type: string
+      status:
+        type: string
+      user_id:
+        type: string
+      vehicle_id:
+        type: string
+      vehicle_plate:
         type: string
     type: object
   dtos.FareEstimateInput:
@@ -633,6 +709,83 @@ definitions:
       service_slug:
         type: string
       total_cents:
+        type: integer
+    type: object
+  dtos.FleetVehicleInput:
+    properties:
+      brand:
+        example: Isuzu
+        maxLength: 120
+        type: string
+      capacity_kg:
+        example: 3500
+        minimum: 0
+        type: integer
+      color:
+        example: Branco
+        maxLength: 120
+        type: string
+      driver_id:
+        type: string
+      kind:
+        enum:
+        - car
+        - motorcycle
+        - van
+        - truck
+        - tow_truck
+        example: tow_truck
+        type: string
+      model:
+        example: NPR
+        maxLength: 120
+        type: string
+      plate:
+        example: LD-45-21-AF
+        maxLength: 20
+        type: string
+      seats:
+        example: 3
+        type: integer
+      year:
+        example: 2020
+        type: integer
+    required:
+    - brand
+    - color
+    - kind
+    - model
+    - plate
+    - seats
+    - year
+    type: object
+  dtos.FleetVehicleView:
+    properties:
+      brand:
+        type: string
+      capacity_kg:
+        type: integer
+      color:
+        type: string
+      driver_id:
+        type: string
+      driver_name:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      kind:
+        type: string
+      model:
+        type: string
+      organization_id:
+        type: string
+      plate:
+        type: string
+      seats:
+        type: integer
+      year:
         type: integer
     type: object
   dtos.HeatCell:
@@ -1401,6 +1554,8 @@ definitions:
         type: object
       name:
         type: string
+      organization_id:
+        type: string
       phone:
         type: string
       requested_service_id:
@@ -1417,6 +1572,10 @@ definitions:
         type: string
       status_reason:
         type: string
+      status_reasons:
+        items:
+          $ref: '#/definitions/dtos.RejectionReasonView'
+        type: array
       submitted_at:
         type: string
       user_id:
@@ -1506,6 +1665,29 @@ definitions:
     - document_type
     - object_key
     type: object
+  dtos.RegisterDriverInput:
+    properties:
+      email:
+        example: pedro@exemplo.ao
+        maxLength: 254
+        type: string
+      name:
+        example: Pedro Cunga
+        maxLength: 120
+        type: string
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
+      service_id:
+        type: string
+      vehicle_id:
+        type: string
+    required:
+    - name
+    - phone
+    - service_id
+    type: object
   dtos.RegisterInput:
     properties:
       phone:
@@ -1550,6 +1732,33 @@ definitions:
         type: string
       status:
         example: draft
+        type: string
+    type: object
+  dtos.RejectionReasonList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.RejectionReasonView'
+        type: array
+    type: object
+  dtos.RejectionReasonView:
+    properties:
+      code:
+        example: illegible
+        type: string
+      display_order:
+        type: integer
+      id:
+        type: string
+      is_active:
+        type: boolean
+      label:
+        example: Documento ilegível
+        type: string
+      requires_note:
+        type: boolean
+      scope:
+        example: document
         type: string
     type: object
   dtos.ReplaceRolesInput:
@@ -1679,9 +1888,14 @@ definitions:
     type: object
   dtos.ReviewDocumentInput:
     properties:
-      reason:
-        maxLength: 500
+      note:
+        maxLength: 400
         type: string
+      reason_ids:
+        items:
+          type: string
+        maxItems: 10
+        type: array
       status:
         enum:
         - approved
@@ -1692,9 +1906,14 @@ definitions:
     type: object
   dtos.ReviewProviderInput:
     properties:
-      reason:
-        maxLength: 500
+      note:
+        maxLength: 400
         type: string
+      reason_ids:
+        items:
+          type: string
+        maxItems: 10
+        type: array
       service_id:
         type: string
       status:
@@ -2021,6 +2240,20 @@ definitions:
         maxLength: 120
         type: string
     type: object
+  dtos.UpdateRejectionReasonInput:
+    properties:
+      display_order:
+        type: integer
+      is_active:
+        type: boolean
+      label:
+        maxLength: 120
+        type: string
+      requires_note:
+        type: boolean
+    required:
+    - label
+    type: object
   dtos.UpdateRoleInput:
     properties:
       name:
@@ -2061,6 +2294,46 @@ definitions:
         $ref: '#/definitions/dtos.PricingInput'
       requires_destination:
         type: boolean
+    type: object
+  dtos.UpdateVehicleInput:
+    properties:
+      brand:
+        maxLength: 120
+        type: string
+      capacity_kg:
+        minimum: 0
+        type: integer
+      color:
+        maxLength: 120
+        type: string
+      is_active:
+        type: boolean
+      kind:
+        enum:
+        - car
+        - motorcycle
+        - van
+        - truck
+        - tow_truck
+        type: string
+      model:
+        maxLength: 120
+        type: string
+      plate:
+        maxLength: 20
+        type: string
+      seats:
+        type: integer
+      year:
+        type: integer
+    required:
+    - brand
+    - color
+    - kind
+    - model
+    - plate
+    - seats
+    - year
     type: object
   dtos.UploadURLInput:
     properties:
@@ -2212,9 +2485,22 @@ definitions:
         example: Toyota
         maxLength: 120
         type: string
+      capacity_kg:
+        example: 1500
+        minimum: 0
+        type: integer
       color:
         example: Branco
         maxLength: 120
+        type: string
+      kind:
+        enum:
+        - car
+        - motorcycle
+        - van
+        - truck
+        - tow_truck
+        example: car
         type: string
       model:
         example: Corolla
@@ -2238,11 +2524,28 @@ definitions:
     - seats
     - year
     type: object
+  dtos.VehicleList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.FleetVehicleView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
   dtos.VehicleView:
     properties:
       brand:
         type: string
+      capacity_kg:
+        type: integer
       color:
+        type: string
+      kind:
         type: string
       model:
         type: string
@@ -2252,6 +2555,114 @@ definitions:
         type: integer
       year:
         type: integer
+    type: object
+  dtos.WorkshopInput:
+    properties:
+      address:
+        $ref: '#/definitions/dtos.AddressInput'
+      currency:
+        example: AOA
+        type: string
+      home_service_fee_cents:
+        minimum: 0
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        example: Oficina Central
+        maxLength: 120
+        type: string
+      offers_home_service:
+        type: boolean
+      opening_hours:
+        example: Seg-Sáb 08:00-18:00
+        maxLength: 200
+        type: string
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
+    required:
+    - address
+    - currency
+    - name
+    type: object
+  dtos.WorkshopList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.WorkshopView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.WorkshopServiceInput:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      duration_minutes:
+        example: 45
+        minimum: 0
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        example: Mudança de óleo
+        maxLength: 120
+        type: string
+      price_cents:
+        example: 2500000
+        minimum: 0
+        type: integer
+    required:
+    - name
+    type: object
+  dtos.WorkshopServiceView:
+    properties:
+      description:
+        type: string
+      duration_minutes:
+        type: integer
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price_cents:
+        type: integer
+    type: object
+  dtos.WorkshopView:
+    properties:
+      address:
+        $ref: '#/definitions/dtos.AddressView'
+      currency:
+        type: string
+      home_service_fee_cents:
+        type: integer
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      offers_home_service:
+        type: boolean
+      opening_hours:
+        type: string
+      organization_id:
+        type: string
+      phone:
+        type: string
+      services:
+        items:
+          $ref: '#/definitions/dtos.WorkshopServiceView'
+        type: array
     type: object
   dtos.ZoneInput:
     properties:
@@ -2788,6 +3199,22 @@ paths:
         in: query
         name: status
         type: string
+      - description: Partner of the provider
+        in: query
+        name: organization_id
+        type: string
+      - description: Active or requested service
+        in: query
+        name: service_id
+        type: string
+      - description: Category slug, such as taxi or towing
+        in: query
+        name: category
+        type: string
+      - description: Name, phone or plate
+        in: query
+        name: search
+        type: string
       - description: Page
         in: query
         name: page
@@ -2841,8 +3268,10 @@ paths:
       - application/json
       description: 'Requires providers:approve. Never creates a provider: accounts
         are created in the app. Approving needs service_id, usually the requested
-        service, and every required document approved. Rejecting and suspending need
-        a reason. A suspended provider can be approved again.'
+        service, and every required document approved. Rejecting needs reason_ids
+        with scope provider and suspending needs reason_ids with scope suspension.
+        A reason with requires_note also needs note. A suspended provider can be approved
+        again.'
       parameters:
       - description: User id of the provider
         in: path
@@ -2884,7 +3313,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Requires providers:approve. Rejecting needs a reason.
+      description: Requires providers:approve. Rejecting needs reason_ids from GET
+        /admin/rejection-reasons?scope=document. A reason with requires_note also
+        needs note.
       parameters:
       - description: User id of the provider
         in: path
@@ -2918,13 +3349,102 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "422":
-          description: REASON_REQUIRED
+          description: REASON_REQUIRED or UNKNOWN_REJECTION_REASON
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - BearerAuth: []
       - ClientId: []
       summary: Approve or reject a document
+      tags:
+      - Backoffice providers
+  /api/v1/admin/rejection-reasons:
+    get:
+      description: 'Requires providers:read. Fills the reason selector of a review.
+        Scopes: document, provider and suspension.'
+      parameters:
+      - description: document, provider or suspension
+        in: query
+        name: scope
+        type: string
+      - description: Also return inactive reasons
+        in: query
+        name: include_inactive
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RejectionReasonList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List rejection reasons
+      tags:
+      - Backoffice providers
+    post:
+      consumes:
+      - application/json
+      description: Requires providers:approve.
+      parameters:
+      - description: Reason
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateRejectionReasonInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.RejectionReasonView'
+        "409":
+          description: REJECTION_REASON_CODE_TAKEN
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a rejection reason
+      tags:
+      - Backoffice providers
+  /api/v1/admin/rejection-reasons/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Requires providers:approve. Set is_active to false to retire a
+        reason; past reviews keep it.
+      parameters:
+      - description: Reason id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateRejectionReasonInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RejectionReasonView'
+        "404":
+          description: REJECTION_REASON_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update a rejection reason
       tags:
       - Backoffice providers
   /api/v1/admin/services:
@@ -3404,6 +3924,72 @@ paths:
       summary: Unblock a customer or provider account
       tags:
       - Backoffice users
+  /api/v1/admin/vehicles:
+    get:
+      description: Requires providers:read.
+      parameters:
+      - description: Partner
+        in: query
+        name: organization_id
+        type: string
+      - description: car, motorcycle, van, truck or tow_truck
+        in: query
+        name: kind
+        type: string
+      - description: Plate
+        in: query
+        name: search
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.VehicleList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the vehicles of every partner
+      tags:
+      - Backoffice partners
+  /api/v1/admin/workshops:
+    get:
+      description: Requires partners:read. To create or change one, use /partners/{orgId}/fleet/workshops.
+      parameters:
+      - description: Partner
+        in: query
+        name: organization_id
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the workshops of every partner
+      tags:
+      - Backoffice partners
   /api/v1/admin/zones:
     get:
       produces:
@@ -4078,6 +4664,571 @@ paths:
       summary: Fixed price before confirming
       tags:
       - Dispatch
+  /api/v1/fleet/drivers:
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet.
+      parameters:
+      - description: draft, pending, approved, rejected or suspended
+        in: query
+        name: status
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DriverList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the drivers of a fleet
+      tags:
+      - Partner fleet
+    post:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Creates the account
+        as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm
+        and sends the documents in the app. AGORA still reviews and approves. vehicle_id
+        is optional and can be associated later.
+      parameters:
+      - description: Driver
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RegisterDriverInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.ProviderView'
+        "409":
+          description: PHONE_ALREADY_EXISTS or VEHICLE_NOT_AVAILABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: SERVICE_NOT_OPEN or VEHICLE_NOT_SUITABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Register a driver in a fleet
+      tags:
+      - Partner fleet
+  /api/v1/fleet/drivers/{id}:
+    get:
+      description: 'Requires partner.providers:read on /fleet, for the partner of
+        the token, or partners:read on /partners/{orgId}/fleet. Document files are
+        not linked here: they are reviewed by AGORA.'
+      parameters:
+      - description: Driver user id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderView'
+        "404":
+          description: DRIVER_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a driver of a fleet
+      tags:
+      - Partner fleet
+  /api/v1/fleet/drivers/{id}/vehicle:
+    delete:
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. The driver goes
+        offline and cannot go online until another vehicle is associated.
+      parameters:
+      - description: Driver user id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: DRIVER_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: DRIVER_BUSY
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Take the vehicle away from a driver
+      tags:
+      - Partner fleet
+    put:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Replaces the current
+        vehicle. The vehicle must suit the service of the driver and be free.
+      parameters:
+      - description: Driver user id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.AssignVehicleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderView'
+        "404":
+          description: DRIVER_NOT_FOUND or VEHICLE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: DRIVER_BUSY or VEHICLE_NOT_AVAILABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: VEHICLE_NOT_SUITABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Associate a vehicle with a driver
+      tags:
+      - Partner fleet
+  /api/v1/fleet/vehicles:
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet.
+      parameters:
+      - description: car, motorcycle, van, truck or tow_truck
+        in: query
+        name: kind
+        type: string
+      - description: Plate
+        in: query
+        name: search
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.VehicleList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the vehicles of a fleet
+      tags:
+      - Partner fleet
+    post:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Send driver_id to
+        associate it at once. Tow trucks serve towing; vans and trucks serve removals.
+      parameters:
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.FleetVehicleInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.FleetVehicleView'
+        "409":
+          description: PLATE_TAKEN or DRIVER_BUSY
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: VEHICLE_NOT_SUITABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a vehicle in a fleet
+      tags:
+      - Partner fleet
+  /api/v1/fleet/vehicles/{id}:
+    delete:
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Also releases it
+        from its driver.
+      parameters:
+      - description: Vehicle id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: VEHICLE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: DRIVER_BUSY
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Deactivate a vehicle of a fleet
+      tags:
+      - Partner fleet
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet.
+      parameters:
+      - description: Vehicle id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.FleetVehicleView'
+        "404":
+          description: VEHICLE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a vehicle of a fleet
+      tags:
+      - Partner fleet
+    put:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Vehicle id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateVehicleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.FleetVehicleView'
+        "404":
+          description: VEHICLE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: PLATE_TAKEN or VEHICLE_IN_USE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: VEHICLE_NOT_SUITABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update a vehicle of a fleet
+      tags:
+      - Partner fleet
+  /api/v1/fleet/workshops:
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet. Maintenance.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the workshops of a partner
+      tags:
+      - Partner fleet
+    post:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Maintenance.
+      parameters:
+      - description: Workshop
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.WorkshopView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a workshop for a partner
+      tags:
+      - Partner fleet
+  /api/v1/fleet/workshops/{id}:
+    delete:
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: WORKSHOP_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Deactivate a workshop
+      tags:
+      - Partner fleet
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopView'
+        "404":
+          description: WORKSHOP_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a workshop with its services
+      tags:
+      - Partner fleet
+    put:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workshop
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopView'
+        "404":
+          description: WORKSHOP_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update a workshop
+      tags:
+      - Partner fleet
+  /api/v1/fleet/workshops/{id}/services:
+    post:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Service
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopServiceInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.WorkshopServiceView'
+        "404":
+          description: WORKSHOP_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Add a service to a workshop
+      tags:
+      - Partner fleet
+  /api/v1/fleet/workshops/{id}/services/{serviceId}:
+    delete:
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workshop service id
+        in: path
+        name: serviceId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Deactivate a service of a workshop
+      tags:
+      - Partner fleet
+    put:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workshop service id
+        in: path
+        name: serviceId
+        required: true
+        type: string
+      - description: Service
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopServiceInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopServiceView'
+        "404":
+          description: WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update a service of a workshop
+      tags:
+      - Partner fleet
   /api/v1/invitations/accept:
     post:
       consumes:
@@ -4863,6 +6014,661 @@ paths:
       summary: Update a partner organization
       tags:
       - Partners
+  /api/v1/partners/{orgId}/fleet/drivers:
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: draft, pending, approved, rejected or suspended
+        in: query
+        name: status
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DriverList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the drivers of a fleet
+      tags:
+      - Partner fleet
+    post:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Creates the account
+        as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm
+        and sends the documents in the app. AGORA still reviews and approves. vehicle_id
+        is optional and can be associated later.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Driver
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RegisterDriverInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.ProviderView'
+        "409":
+          description: PHONE_ALREADY_EXISTS or VEHICLE_NOT_AVAILABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: SERVICE_NOT_OPEN or VEHICLE_NOT_SUITABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Register a driver in a fleet
+      tags:
+      - Partner fleet
+  /api/v1/partners/{orgId}/fleet/drivers/{id}:
+    get:
+      description: 'Requires partner.providers:read on /fleet, for the partner of
+        the token, or partners:read on /partners/{orgId}/fleet. Document files are
+        not linked here: they are reviewed by AGORA.'
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Driver user id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderView'
+        "404":
+          description: DRIVER_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a driver of a fleet
+      tags:
+      - Partner fleet
+  /api/v1/partners/{orgId}/fleet/drivers/{id}/vehicle:
+    delete:
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. The driver goes
+        offline and cannot go online until another vehicle is associated.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Driver user id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: DRIVER_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: DRIVER_BUSY
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Take the vehicle away from a driver
+      tags:
+      - Partner fleet
+    put:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Replaces the current
+        vehicle. The vehicle must suit the service of the driver and be free.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Driver user id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.AssignVehicleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderView'
+        "404":
+          description: DRIVER_NOT_FOUND or VEHICLE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: DRIVER_BUSY or VEHICLE_NOT_AVAILABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: VEHICLE_NOT_SUITABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Associate a vehicle with a driver
+      tags:
+      - Partner fleet
+  /api/v1/partners/{orgId}/fleet/vehicles:
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: car, motorcycle, van, truck or tow_truck
+        in: query
+        name: kind
+        type: string
+      - description: Plate
+        in: query
+        name: search
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.VehicleList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the vehicles of a fleet
+      tags:
+      - Partner fleet
+    post:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Send driver_id to
+        associate it at once. Tow trucks serve towing; vans and trucks serve removals.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.FleetVehicleInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.FleetVehicleView'
+        "409":
+          description: PLATE_TAKEN or DRIVER_BUSY
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: VEHICLE_NOT_SUITABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a vehicle in a fleet
+      tags:
+      - Partner fleet
+  /api/v1/partners/{orgId}/fleet/vehicles/{id}:
+    delete:
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Also releases it
+        from its driver.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Vehicle id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: VEHICLE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: DRIVER_BUSY
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Deactivate a vehicle of a fleet
+      tags:
+      - Partner fleet
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Vehicle id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.FleetVehicleView'
+        "404":
+          description: VEHICLE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a vehicle of a fleet
+      tags:
+      - Partner fleet
+    put:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Vehicle id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateVehicleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.FleetVehicleView'
+        "404":
+          description: VEHICLE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: PLATE_TAKEN or VEHICLE_IN_USE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: VEHICLE_NOT_SUITABLE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update a vehicle of a fleet
+      tags:
+      - Partner fleet
+  /api/v1/partners/{orgId}/fleet/workshops:
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet. Maintenance.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the workshops of a partner
+      tags:
+      - Partner fleet
+    post:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet. Maintenance.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Workshop
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.WorkshopView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Create a workshop for a partner
+      tags:
+      - Partner fleet
+  /api/v1/partners/{orgId}/fleet/workshops/{id}:
+    delete:
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: WORKSHOP_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Deactivate a workshop
+      tags:
+      - Partner fleet
+    get:
+      description: Requires partner.providers:read on /fleet, for the partner of the
+        token, or partners:read on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopView'
+        "404":
+          description: WORKSHOP_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a workshop with its services
+      tags:
+      - Partner fleet
+    put:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workshop
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopView'
+        "404":
+          description: WORKSHOP_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update a workshop
+      tags:
+      - Partner fleet
+  /api/v1/partners/{orgId}/fleet/workshops/{id}/services:
+    post:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Service
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopServiceInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.WorkshopServiceView'
+        "404":
+          description: WORKSHOP_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Add a service to a workshop
+      tags:
+      - Partner fleet
+  /api/v1/partners/{orgId}/fleet/workshops/{id}/services/{serviceId}:
+    delete:
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workshop service id
+        in: path
+        name: serviceId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Deactivate a service of a workshop
+      tags:
+      - Partner fleet
+    put:
+      consumes:
+      - application/json
+      description: Requires partner.providers:manage on /fleet, for the partner of
+        the token, or partners:manage on /partners/{orgId}/fleet.
+      parameters:
+      - description: Partner id, only on /partners/{orgId}/fleet
+        in: path
+        name: orgId
+        required: true
+        type: string
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workshop service id
+        in: path
+        name: serviceId
+        required: true
+        type: string
+      - description: Service
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopServiceInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopServiceView'
+        "404":
+          description: WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Update a service of a workshop
+      tags:
+      - Partner fleet
   /api/v1/partners/{orgId}/members:
     get:
       description: Requires partners:read (AGORA only).

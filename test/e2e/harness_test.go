@@ -539,6 +539,8 @@ func newProviderOfService(t *testing.T, serviceID string, at point) *person {
 	provider := newPerson(t, enums.RoleProvider)
 	_, err := env.owner.Exec(context.Background(), `INSERT INTO providers (user_id, status, service_id) VALUES ($1, 'approved', $2)`, provider.id, serviceID)
 	require.NoError(t, err)
+	_, err = env.owner.Exec(context.Background(), `INSERT INTO vehicles (provider_id, brand, model, year, color, plate, seats) VALUES ($1, 'Toyota', 'Corolla', 2020, 'Branco', 'LD-45-21-AF', 7)`, provider.id)
+	require.NoError(t, err)
 	first := positionAt(at)
 	first["age_s"] = 120
 	res := provider.post(t, "/api/v1/providers/me/online", map[string]any{"position": first})
@@ -824,4 +826,20 @@ func setPolicy(t *testing.T, category, assignments string) {
 			FROM (SELECT $1::jsonb AS j) s WHERE p.id = (s.j->>'id')::uuid`, restore[0])
 		require.NoError(t, err)
 	})
+}
+
+func reasonID(t *testing.T, admin *person, scope, code string) string {
+	t.Helper()
+	list := admin.get(t, "/api/v1/admin/rejection-reasons?scope="+scope)
+	require.Equal(t, http.StatusOK, list.status, list.text)
+	items, _ := list.body["items"].([]any)
+	for _, item := range items {
+		reason, _ := item.(map[string]any)
+		if reason["code"] == code {
+			id, _ := reason["id"].(string)
+			return id
+		}
+	}
+	require.Failf(t, "unknown rejection reason", "%s/%s", scope, code)
+	return ""
 }

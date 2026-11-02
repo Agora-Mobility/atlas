@@ -40,7 +40,8 @@ SELECT * FROM service_requests WHERE customer_id = $1 AND idempotency_key = $2;
 UPDATE service_requests
 SET status = sqlc.arg(status), version = sqlc.arg(version), destination_address_id = sqlc.arg(destination_address_id), destination_h3_r8 = sqlc.arg(destination_h3_r8),
     search_round = sqlc.arg(search_round), search_extended = sqlc.arg(search_extended), search_deadline_at = sqlc.arg(search_deadline_at),
-    next_action_at = sqlc.arg(next_action_at), reminder_at = sqlc.arg(reminder_at), provider_id = sqlc.arg(provider_id), fare_cents = sqlc.arg(fare_cents),
+    next_action_at = sqlc.arg(next_action_at), reminder_at = sqlc.arg(reminder_at), provider_id = sqlc.arg(provider_id),
+    organization_id = CASE WHEN provider_id IS NOT DISTINCT FROM sqlc.arg(provider_id) THEN organization_id ELSE (SELECT p.organization_id FROM providers p WHERE p.user_id = sqlc.arg(provider_id)) END, fare_cents = sqlc.arg(fare_cents),
     commission_cents = sqlc.arg(commission_cents), boost_bps = sqlc.arg(boost_bps), needs_operator = sqlc.arg(needs_operator), operator_reason = sqlc.arg(operator_reason),
     cancel_reason = sqlc.arg(cancel_reason), cancelled_by = sqlc.arg(cancelled_by), accepted_at = sqlc.arg(accepted_at), arrived_at = sqlc.arg(arrived_at),
     started_at = sqlc.arg(started_at), completed_at = sqlc.arg(completed_at), updated_at = sqlc.arg(updated_at)

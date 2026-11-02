@@ -432,9 +432,9 @@ func (m *MockIProviderRepository) EXPECT() *MockIProviderRepositoryMockRecorder 
 }
 
 // Applications mocks base method.
-func (m *MockIProviderRepository) Applications(ctx context.Context, status string, limit, offset int) ([]repository.ProviderApplication, int64, error) {
+func (m *MockIProviderRepository) Applications(ctx context.Context, filter repository.ProviderApplicationFilter) ([]repository.ProviderApplication, int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Applications", ctx, status, limit, offset)
+	ret := m.ctrl.Call(m, "Applications", ctx, filter)
 	ret0, _ := ret[0].([]repository.ProviderApplication)
 	ret1, _ := ret[1].(int64)
 	ret2, _ := ret[2].(error)
@@ -442,9 +442,9 @@ func (m *MockIProviderRepository) Applications(ctx context.Context, status strin
 }
 
 // Applications indicates an expected call of Applications.
-func (mr *MockIProviderRepositoryMockRecorder) Applications(ctx, status, limit, offset any) *gomock.Call {
+func (mr *MockIProviderRepositoryMockRecorder) Applications(ctx, filter any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Applications", reflect.TypeOf((*MockIProviderRepository)(nil).Applications), ctx, status, limit, offset)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Applications", reflect.TypeOf((*MockIProviderRepository)(nil).Applications), ctx, filter)
 }
 
 // CategoryOf mocks base method.

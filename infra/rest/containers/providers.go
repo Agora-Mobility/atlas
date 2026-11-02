@@ -13,7 +13,8 @@ import (
 )
 
 type ProvidersModule struct {
-	Router *providersrouter.Router
+	Router  *providersrouter.Router
+	Usecase *providers.Usecase
 }
 
 func newObjectStorage(cfg config.R2Config) services.IObjectStorage {
@@ -42,6 +43,7 @@ func newProvidersModule(c *Container, storage services.IObjectStorage) *Provider
 		Passwords: usecases.ValidatePassword,
 	})
 	return &ProvidersModule{
-		Router: providersrouter.NewRouter(controllers.NewProviderController(uc), c.Authenticator, c.Auth.Authorizer, c.ClientAuthorizer, authLimiter(c, "provider-register")),
+		Usecase: uc,
+		Router:  providersrouter.NewRouter(controllers.NewProviderController(uc), c.Authenticator, c.Auth.Authorizer, c.ClientAuthorizer, authLimiter(c, "provider-register")),
 	}
 }

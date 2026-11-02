@@ -44,7 +44,7 @@ func (r *ProviderRepository) Find(ctx context.Context, userID uuid.UUID) (*entit
 		return nil, fmt.Errorf("get provider: %w", err)
 	}
 	provider := &entities.Provider{
-		UserID: row.UserID, Status: entities.ProviderStatus(row.Status), ServiceID: row.ServiceID, RequestedServiceID: row.RequestedServiceID,
+		UserID: row.UserID, Status: entities.ProviderStatus(row.Status), OrganizationID: row.OrganizationID, ServiceID: row.ServiceID, RequestedServiceID: row.RequestedServiceID,
 		BirthDate: row.BirthDate, IDNumber: row.IDNumber, StatusReason: row.StatusReason, SubmittedAt: row.SubmittedAt, ReviewedAt: row.ReviewedAt,
 		ServiceRadiusKm: row.ServiceRadiusKm, LastJobCompletedAt: row.LastJobCompletedAt, CreatedAt: row.CreatedAt,
 	}
@@ -62,20 +62,14 @@ func (r *ProviderRepository) Find(ctx context.Context, userID uuid.UUID) (*entit
 			provider.Base, provider.BaseAddressID = &base.Point, &base.ID
 		}
 	}
-	vehicle, err := queries.GetVehicleOfProvider(ctx, userID)
+	vehicle, err := queries.GetVehicleOfProvider(ctx, &userID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return provider, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get vehicle: %w", err)
 	}
-	provider.Vehicle = entities.Vehicle{Brand: vehicle.Brand, Model: vehicle.Model, Color: vehicle.Color, Plate: vehicle.Plate}
-	if vehicle.Year != nil {
-		provider.Vehicle.Year = int(*vehicle.Year)
-	}
-	if vehicle.Seats != nil {
-		provider.Vehicle.Seats = int(*vehicle.Seats)
-	}
+	provider.Vehicle = vehicleFromRow(vehicle.Kind, vehicle.Brand, vehicle.Model, vehicle.Color, vehicle.Plate, vehicle.Year, vehicle.Seats, vehicle.CapacityKg)
 	return provider, nil
 }
 
@@ -91,7 +85,7 @@ func (r *ProviderRepository) Save(ctx context.Context, p *entities.Provider) err
 		}
 		err := queries.UpsertProvider(ctx, gen.UpsertProviderParams{
 			UserID: p.UserID, Status: string(p.Status), ServiceID: p.ServiceID, RequestedServiceID: p.RequestedServiceID, BirthDate: p.BirthDate,
-			IDNumber: p.IDNumber, HomeAddressID: homeAddressID, StatusReason: p.StatusReason, SubmittedAt: p.SubmittedAt, ReviewedAt: p.ReviewedAt,
+			IDNumber: p.IDNumber, HomeAddressID: homeAddressID, StatusReason: p.StatusReason, SubmittedAt: p.SubmittedAt, ReviewedAt: p.ReviewedAt, OrganizationID: p.OrganizationID,
 		})
 		if err != nil {
 			return fmt.Errorf("save provider: %w", err)
@@ -101,7 +95,7 @@ func (r *ProviderRepository) Save(ctx context.Context, p *entities.Provider) err
 		}
 		year, seats := int32(p.Vehicle.Year), int32(p.Vehicle.Seats) // #nosec G115 -- validated by the entity
 		err = queries.UpsertVehicle(ctx, gen.UpsertVehicleParams{
-			ProviderID: p.UserID, Brand: p.Vehicle.Brand, Model: p.Vehicle.Model, Year: &year, Color: p.Vehicle.Color, Plate: p.Vehicle.Plate, Seats: &seats,
+			ProviderID: &p.UserID, Kind: p.Vehicle.Kind, Brand: p.Vehicle.Brand, Model: p.Vehicle.Model, Year: &year, Color: p.Vehicle.Color, Plate: p.Vehicle.Plate, Seats: &seats, CapacityKg: toInt32Pointer(p.Vehicle.CapacityKg),
 		})
 		if err != nil {
 			return fmt.Errorf("save vehicle: %w", err)
@@ -110,13 +104,16 @@ func (r *ProviderRepository) Save(ctx context.Context, p *entities.Provider) err
 	})
 }
 
-func (r *ProviderRepository) Applications(ctx context.Context, status string, limit, offset int) ([]repository.ProviderApplication, int64, error) {
+func (r *ProviderRepository) Applications(ctx context.Context, f repository.ProviderApplicationFilter) ([]repository.ProviderApplication, int64, error) {
 	queries := postgres.Queries(ctx, r.pool)
-	rows, err := queries.ListProviderApplications(ctx, gen.ListProviderApplicationsParams{Status: status, PageLimit: int32(limit), PageOffset: int32(offset)}) // #nosec G115 -- bounded by pagination
+	search := likePattern(f.Search)
+	rows, err := queries.ListProviderApplications(ctx, gen.ListProviderApplicationsParams{
+		Status: f.Status, OrganizationID: f.OrganizationID, ServiceID: f.ServiceID, Category: f.Category, Search: search, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list provider applications: %w", err)
 	}
-	total, err := queries.CountProviderApplications(ctx, status)
+	total, err := queries.CountProviderApplications(ctx, gen.CountProviderApplicationsParams{Status: f.Status, OrganizationID: f.OrganizationID, ServiceID: f.ServiceID, Category: f.Category, Search: search})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count provider applications: %w", err)
 	}
@@ -124,7 +121,8 @@ func (r *ProviderRepository) Applications(ctx context.Context, status string, li
 	for i := range rows {
 		row := &rows[i]
 		application := repository.ProviderApplication{
-			UserID: row.UserID, Name: row.Name, Status: entities.ProviderStatus(row.Status), RequestedServiceID: row.RequestedServiceID, ServiceID: row.ServiceID, SubmittedAt: row.SubmittedAt,
+			UserID: row.UserID, Name: row.Name, Status: entities.ProviderStatus(row.Status), RequestedServiceID: row.RequestedServiceID, ServiceID: row.ServiceID,
+			OrganizationID: row.OrganizationID, SubmittedAt: row.SubmittedAt,
 		}
 		if row.Phone != nil {
 			application.Phone = *row.Phone
@@ -134,6 +132,9 @@ func (r *ProviderRepository) Applications(ctx context.Context, status string, li
 		}
 		if row.VehiclePlate != nil {
 			application.VehiclePlate = *row.VehiclePlate
+		}
+		if row.OrganizationName != nil {
+			application.OrganizationName = *row.OrganizationName
 		}
 		out = append(out, application)
 	}

@@ -21,7 +21,14 @@ func (u *Usecase) GoOnline(ctx context.Context, providerID uuid.UUID, in dtos.On
 	if err != nil {
 		return nil, err
 	}
-	if profile == nil || profile.Status != entities.ProviderApproved {
+	if profile == nil || profile.Status != entities.ProviderApproved || profile.ServiceID == nil {
+		return nil, ErrProviderNotApproved
+	}
+	eligible, err := u.Providers.FilterEligible(ctx, *profile.ServiceID, []uuid.UUID{providerID})
+	if err != nil {
+		return nil, err
+	}
+	if len(eligible) == 0 {
 		return nil, ErrProviderNotApproved
 	}
 	indexes, err := u.liveIndexesOf(ctx, providerID)

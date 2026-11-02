@@ -16,28 +16,38 @@ type Querier interface {
 	AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) error
 	ActiveRequestOfCustomer(ctx context.Context, customerID uuid.UUID) (ServiceRequest, error)
 	ActiveRequestOfProvider(ctx context.Context, providerID *uuid.UUID) (ServiceRequest, error)
+	AddDocumentRejectionReasons(ctx context.Context, arg AddDocumentRejectionReasonsParams) error
 	AddMembershipRoles(ctx context.Context, arg AddMembershipRolesParams) error
+	AddProviderRejectionReasons(ctx context.Context, arg AddProviderRejectionReasonsParams) error
 	AddRolePermissions(ctx context.Context, arg AddRolePermissionsParams) error
+	AssignVehicleToProvider(ctx context.Context, arg AssignVehicleToProviderParams) (int64, error)
 	BumpMembershipsWithRole(ctx context.Context, arg BumpMembershipsWithRoleParams) ([]uuid.UUID, error)
+	ClearDocumentRejectionReasons(ctx context.Context, arg ClearDocumentRejectionReasonsParams) error
+	ClearProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) error
 	CloseServiceTariff(ctx context.Context, arg CloseServiceTariffParams) error
+	CountFleetDrivers(ctx context.Context, arg CountFleetDriversParams) (int64, error)
 	CountMembers(ctx context.Context, arg CountMembersParams) (int64, error)
 	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
 	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
 	CountPendingOutboxEvents(ctx context.Context) (int64, error)
-	CountProviderApplications(ctx context.Context, status string) (int64, error)
+	CountProviderApplications(ctx context.Context, arg CountProviderApplicationsParams) (int64, error)
 	CountRequestsOfCustomer(ctx context.Context, arg CountRequestsOfCustomerParams) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
 	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
+	CountVehicles(ctx context.Context, arg CountVehiclesParams) (int64, error)
+	CountWorkshops(ctx context.Context, organizationID *uuid.UUID) (int64, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
 	CreateDispatchPolicy(ctx context.Context, arg CreateDispatchPolicyParams) error
 	CreateFareEstimate(ctx context.Context, arg CreateFareEstimateParams) error
+	CreateFleetVehicle(ctx context.Context, arg CreateFleetVehicleParams) error
 	CreateInvitation(ctx context.Context, arg CreateInvitationParams) error
 	CreateMembership(ctx context.Context, arg CreateMembershipParams) error
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) error
 	CreateProvider(ctx context.Context, userID uuid.UUID) error
 	CreateRecoveryCodes(ctx context.Context, arg CreateRecoveryCodesParams) error
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
+	CreateRejectionReason(ctx context.Context, arg CreateRejectionReasonParams) error
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
 	CreateService(ctx context.Context, arg CreateServiceParams) error
 	CreateServiceCategory(ctx context.Context, arg CreateServiceCategoryParams) error
@@ -91,6 +101,7 @@ type Querier interface {
 	GetProviderDocument(ctx context.Context, arg GetProviderDocumentParams) (GetProviderDocumentRow, error)
 	GetProviderRequirements(ctx context.Context, serviceID uuid.UUID) (GetProviderRequirementsRow, error)
 	GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash string) (RefreshToken, error)
+	GetRejectionReason(ctx context.Context, id uuid.UUID) (RejectionReason, error)
 	GetRequestOffer(ctx context.Context, id uuid.UUID) (RequestOffer, error)
 	GetRequestOfferForUpdate(ctx context.Context, id uuid.UUID) (RequestOffer, error)
 	GetRolesByIDs(ctx context.Context, ids []uuid.UUID) ([]Role, error)
@@ -108,7 +119,10 @@ type Querier interface {
 	GetUserByPhone(ctx context.Context, phone *string) (User, error)
 	GetUserContact(ctx context.Context, id uuid.UUID) (GetUserContactRow, error)
 	GetUserMFA(ctx context.Context, userID uuid.UUID) (UserMfa, error)
-	GetVehicleOfProvider(ctx context.Context, providerID uuid.UUID) (Vehicle, error)
+	GetVehicle(ctx context.Context, id uuid.UUID) (GetVehicleRow, error)
+	GetVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) (Vehicle, error)
+	GetWorkshop(ctx context.Context, id uuid.UUID) (Workshop, error)
+	GetWorkshopService(ctx context.Context, id uuid.UUID) (WorkshopService, error)
 	InsertFareAdjustment(ctx context.Context, arg InsertFareAdjustmentParams) error
 	InsertLocationSample(ctx context.Context, arg InsertLocationSampleParams) error
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
@@ -120,12 +134,15 @@ type Querier interface {
 	ListActiveBlockReasons(ctx context.Context) ([]BlockReason, error)
 	ListActiveBlockReasonsByIDs(ctx context.Context, ids []uuid.UUID) ([]BlockReason, error)
 	ListActiveMembershipsForSignIn(ctx context.Context, arg ListActiveMembershipsForSignInParams) ([]Membership, error)
+	ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListActiveRejectionReasonsByIDsParams) ([]RejectionReason, error)
 	ListActiveServicesOfActiveCategories(ctx context.Context) ([]Service, error)
 	ListActiveServicesOfCategory(ctx context.Context, slug string) ([]ListActiveServicesOfCategoryRow, error)
 	ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error)
 	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
 	ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error)
+	ListDocumentRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]ListDocumentRejectionReasonsRow, error)
 	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]ListFareAdjustmentsRow, error)
+	ListFleetDrivers(ctx context.Context, arg ListFleetDriversParams) ([]ListFleetDriversRow, error)
 	ListLiveIndexes(ctx context.Context) ([]ListLiveIndexesRow, error)
 	ListMembers(ctx context.Context, arg ListMembersParams) ([]ListMembersRow, error)
 	ListMembershipPermissions(ctx context.Context, membershipID uuid.UUID) ([]string, error)
@@ -136,6 +153,8 @@ type Querier interface {
 	ListPermissionsByScope(ctx context.Context, scope enums.OrganizationType) ([]ListPermissionsByScopeRow, error)
 	ListProviderApplications(ctx context.Context, arg ListProviderApplicationsParams) ([]ListProviderApplicationsRow, error)
 	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error)
+	ListProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]RejectionReason, error)
+	ListRejectionReasons(ctx context.Context, arg ListRejectionReasonsParams) ([]RejectionReason, error)
 	ListRequestOffers(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestOffersForUpdate(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
 	ListRequestPlaces(ctx context.Context, requestIds []uuid.UUID) ([]ListRequestPlacesRow, error)
@@ -151,6 +170,9 @@ type Querier interface {
 	ListUserAddresses(ctx context.Context, userID uuid.UUID) ([]ListUserAddressesRow, error)
 	ListUserSessionsIssuedSince(ctx context.Context, arg ListUserSessionsIssuedSinceParams) ([]uuid.UUID, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	ListVehicles(ctx context.Context, arg ListVehiclesParams) ([]ListVehiclesRow, error)
+	ListWorkshopServices(ctx context.Context, workshopID uuid.UUID) ([]WorkshopService, error)
+	ListWorkshops(ctx context.Context, arg ListWorkshopsParams) ([]Workshop, error)
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error
 	MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error
@@ -159,6 +181,7 @@ type Querier interface {
 	PurgeLocationSamples(ctx context.Context, recordedAt time.Time) (int64, error)
 	RecordETAObservation(ctx context.Context, arg RecordETAObservationParams) error
 	RecordNotification(ctx context.Context, arg RecordNotificationParams) error
+	ReleaseVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) error
 	ResolveDispatchPolicy(ctx context.Context, arg ResolveDispatchPolicyParams) (DispatchPolicy, error)
 	RevokePendingInvitations(ctx context.Context, arg RevokePendingInvitationsParams) error
 	RevokeRefreshToken(ctx context.Context, arg RevokeRefreshTokenParams) error
@@ -169,13 +192,17 @@ type Querier interface {
 	SavePendingUserMFA(ctx context.Context, arg SavePendingUserMFAParams) error
 	SaveProviderDocument(ctx context.Context, arg SaveProviderDocumentParams) error
 	SaveUserAddress(ctx context.Context, arg SaveUserAddressParams) error
+	SaveWorkshop(ctx context.Context, arg SaveWorkshopParams) error
+	SaveWorkshopService(ctx context.Context, arg SaveWorkshopServiceParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	UpdateDispatchPolicy(ctx context.Context, arg UpdateDispatchPolicyParams) (int64, error)
+	UpdateFleetVehicle(ctx context.Context, arg UpdateFleetVehicleParams) error
 	UpdateMembership(ctx context.Context, arg UpdateMembershipParams) error
 	UpdatePartnerOrganization(ctx context.Context, arg UpdatePartnerOrganizationParams) (int64, error)
 	UpdateProviderBase(ctx context.Context, arg UpdateProviderBaseParams) (int64, error)
+	UpdateRejectionReason(ctx context.Context, arg UpdateRejectionReasonParams) error
 	UpdateRequestOffer(ctx context.Context, arg UpdateRequestOfferParams) error
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (int64, error)
 	UpdateService(ctx context.Context, arg UpdateServiceParams) error

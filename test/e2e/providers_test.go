@@ -55,8 +55,13 @@ func comfortWithTariff(t *testing.T) string {
 	return id
 }
 
+var cachedStaff *person
+
 func staffToken(t *testing.T) *person {
 	t.Helper()
+	if cachedStaff != nil {
+		return cachedStaff
+	}
 	ctx := context.Background()
 	const email, secret = "admin-e2e@agora.ao", "uma-frase-longa-segura"
 	pool := env.api.container.Pool
@@ -75,6 +80,7 @@ func staffToken(t *testing.T) *person {
 	verified := staff.post(t, "/api/v1/auth/mfa/verify", map[string]string{"mfa_token": login.str("mfa_token"), "code": code})
 	require.Equal(t, http.StatusOK, verified.status, verified.text)
 	staff.token = verified.str("access_token")
+	cachedStaff = staff
 	return staff
 }
 
@@ -241,20 +247,20 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 	t.Run("one rejected document goes back and is sent again on its own", func(t *testing.T) {
 		path := "/api/v1/admin/providers/" + pedro.id.String()
 		assert.Equal(t, "REASON_REQUIRED", admin.post(t, path+"/documents/id_card/review", map[string]string{"status": "rejected"}).code())
-		rejectedDocument := admin.post(t, path+"/documents/id_card/review", map[string]string{"status": "rejected", "reason": "Foto ilegível"})
+		rejectedDocument := admin.post(t, path+"/documents/id_card/review", map[string]any{"status": "rejected", "reason_ids": []string{reasonID(t, admin, "document", "illegible")}})
 		require.Equal(t, http.StatusOK, rejectedDocument.status, rejectedDocument.text)
 		for _, document := range allDocuments {
 			if document != "id_card" {
 				require.Equal(t, http.StatusOK, admin.post(t, path+"/documents/"+document+"/review", map[string]string{"status": "approved"}).status)
 			}
 		}
-		rejected := admin.do(t, http.MethodPut, path, map[string]any{"status": "rejected", "reason": "Corrige o BI"}, nil)
+		rejected := admin.do(t, http.MethodPut, path, map[string]any{"status": "rejected", "reason_ids": []string{reasonID(t, admin, "provider", "other")}, "note": "Corrige o BI"}, nil)
 		require.Equal(t, http.StatusOK, rejected.status, rejected.text)
 
 		mine := pedro.get(t, "/api/v1/providers/me/profile")
 		assert.Equal(t, "rejected", mine.str("status"))
-		assert.Equal(t, "Corrige o BI", mine.str("status_reason"))
-		assert.Contains(t, mine.body["missing"].(map[string]any)["documents.id_card"], "Foto ilegível")
+		assert.Equal(t, "Outro motivo; Corrige o BI", mine.str("status_reason"))
+		assert.Contains(t, mine.body["missing"].(map[string]any)["documents.id_card"], "Documento ilegível")
 		assert.Equal(t, "PROFILE_INCOMPLETE", pedro.post(t, "/api/v1/providers/me/submit", nil).code(), "the rejected document must be replaced")
 
 		pedro.sendDocument(t, "id_card")
@@ -351,7 +357,7 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 
 		path := "/api/v1/admin/providers/" + pedro.id.String()
 		assert.Equal(t, "REASON_REQUIRED", admin.do(t, http.MethodPut, path, map[string]any{"status": "suspended"}, nil).code())
-		require.Equal(t, http.StatusOK, admin.do(t, http.MethodPut, path, map[string]any{"status": "suspended", "reason": "Queixas"}, nil).status)
+		require.Equal(t, http.StatusOK, admin.do(t, http.MethodPut, path, map[string]any{"status": "suspended", "reason_ids": []string{reasonID(t, admin, "suspension", "customer_complaints")}}, nil).status)
 
 		assert.Equal(t, http.StatusForbidden, acceptOffer(t, pedro, offer).status)
 		assert.Equal(t, http.StatusForbidden, pedro.post(t, "/api/v1/providers/me/online", nil).status)

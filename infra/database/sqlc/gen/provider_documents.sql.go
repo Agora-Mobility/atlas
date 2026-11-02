@@ -12,6 +12,86 @@ import (
 	"github.com/google/uuid"
 )
 
+const addDocumentRejectionReasons = `-- name: AddDocumentRejectionReasons :exec
+INSERT INTO provider_document_rejection_reasons (provider_id, document_type, reason_id)
+SELECT $1::uuid, $2::text, unnest($3::uuid[])
+`
+
+type AddDocumentRejectionReasonsParams struct {
+	ProviderID   uuid.UUID   `json:"provider_id"`
+	DocumentType string      `json:"document_type"`
+	ReasonIds    []uuid.UUID `json:"reason_ids"`
+}
+
+func (q *Queries) AddDocumentRejectionReasons(ctx context.Context, arg AddDocumentRejectionReasonsParams) error {
+	_, err := q.db.Exec(ctx, addDocumentRejectionReasons, arg.ProviderID, arg.DocumentType, arg.ReasonIds)
+	return err
+}
+
+const addProviderRejectionReasons = `-- name: AddProviderRejectionReasons :exec
+INSERT INTO provider_rejection_reasons (provider_id, reason_id) SELECT $1::uuid, unnest($2::uuid[])
+`
+
+type AddProviderRejectionReasonsParams struct {
+	ProviderID uuid.UUID   `json:"provider_id"`
+	ReasonIds  []uuid.UUID `json:"reason_ids"`
+}
+
+func (q *Queries) AddProviderRejectionReasons(ctx context.Context, arg AddProviderRejectionReasonsParams) error {
+	_, err := q.db.Exec(ctx, addProviderRejectionReasons, arg.ProviderID, arg.ReasonIds)
+	return err
+}
+
+const clearDocumentRejectionReasons = `-- name: ClearDocumentRejectionReasons :exec
+DELETE FROM provider_document_rejection_reasons WHERE provider_id = $1 AND document_type = $2
+`
+
+type ClearDocumentRejectionReasonsParams struct {
+	ProviderID   uuid.UUID `json:"provider_id"`
+	DocumentType string    `json:"document_type"`
+}
+
+func (q *Queries) ClearDocumentRejectionReasons(ctx context.Context, arg ClearDocumentRejectionReasonsParams) error {
+	_, err := q.db.Exec(ctx, clearDocumentRejectionReasons, arg.ProviderID, arg.DocumentType)
+	return err
+}
+
+const clearProviderRejectionReasons = `-- name: ClearProviderRejectionReasons :exec
+DELETE FROM provider_rejection_reasons WHERE provider_id = $1
+`
+
+func (q *Queries) ClearProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearProviderRejectionReasons, providerID)
+	return err
+}
+
+const createRejectionReason = `-- name: CreateRejectionReason :exec
+INSERT INTO rejection_reasons (id, scope, code, label, requires_note, is_active, display_order) VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type CreateRejectionReasonParams struct {
+	ID           uuid.UUID `json:"id"`
+	Scope        string    `json:"scope"`
+	Code         string    `json:"code"`
+	Label        string    `json:"label"`
+	RequiresNote bool      `json:"requires_note"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+}
+
+func (q *Queries) CreateRejectionReason(ctx context.Context, arg CreateRejectionReasonParams) error {
+	_, err := q.db.Exec(ctx, createRejectionReason,
+		arg.ID,
+		arg.Scope,
+		arg.Code,
+		arg.Label,
+		arg.RequiresNote,
+		arg.IsActive,
+		arg.DisplayOrder,
+	)
+	return err
+}
+
 const getDocumentType = `-- name: GetDocumentType :one
 SELECT code, name, scope, allowed_content_types, max_size_bytes FROM provider_document_types WHERE code = $1
 `
@@ -87,7 +167,7 @@ func (q *Queries) GetProviderDocument(ctx context.Context, arg GetProviderDocume
 }
 
 const getProviderRequirements = `-- name: GetProviderRequirements :one
-SELECT o.service_id, o.requires_vehicle, o.min_vehicle_seats, s.name AS service_name
+SELECT o.service_id, o.requires_vehicle, o.min_vehicle_seats, o.vehicle_kinds, o.self_signup, s.name AS service_name
 FROM service_provider_requirements o
 JOIN services s ON s.id = o.service_id
 JOIN service_categories c ON c.id = s.category_id
@@ -98,6 +178,8 @@ type GetProviderRequirementsRow struct {
 	ServiceID       uuid.UUID `json:"service_id"`
 	RequiresVehicle bool      `json:"requires_vehicle"`
 	MinVehicleSeats int32     `json:"min_vehicle_seats"`
+	VehicleKinds    []string  `json:"vehicle_kinds"`
+	SelfSignup      bool      `json:"self_signup"`
 	ServiceName     string    `json:"service_name"`
 }
 
@@ -108,9 +190,119 @@ func (q *Queries) GetProviderRequirements(ctx context.Context, serviceID uuid.UU
 		&i.ServiceID,
 		&i.RequiresVehicle,
 		&i.MinVehicleSeats,
+		&i.VehicleKinds,
+		&i.SelfSignup,
 		&i.ServiceName,
 	)
 	return i, err
+}
+
+const getRejectionReason = `-- name: GetRejectionReason :one
+SELECT id, scope, code, label, requires_note, is_active, display_order, created_at, updated_at FROM rejection_reasons WHERE id = $1
+`
+
+func (q *Queries) GetRejectionReason(ctx context.Context, id uuid.UUID) (RejectionReason, error) {
+	row := q.db.QueryRow(ctx, getRejectionReason, id)
+	var i RejectionReason
+	err := row.Scan(
+		&i.ID,
+		&i.Scope,
+		&i.Code,
+		&i.Label,
+		&i.RequiresNote,
+		&i.IsActive,
+		&i.DisplayOrder,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listActiveRejectionReasonsByIDs = `-- name: ListActiveRejectionReasonsByIDs :many
+SELECT id, scope, code, label, requires_note, is_active, display_order, created_at, updated_at FROM rejection_reasons
+WHERE is_active AND scope = $1::text AND id = ANY($2::uuid[])
+ORDER BY display_order, label
+`
+
+type ListActiveRejectionReasonsByIDsParams struct {
+	Scope string      `json:"scope"`
+	Ids   []uuid.UUID `json:"ids"`
+}
+
+func (q *Queries) ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListActiveRejectionReasonsByIDsParams) ([]RejectionReason, error) {
+	rows, err := q.db.Query(ctx, listActiveRejectionReasonsByIDs, arg.Scope, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RejectionReason{}
+	for rows.Next() {
+		var i RejectionReason
+		if err := rows.Scan(
+			&i.ID,
+			&i.Scope,
+			&i.Code,
+			&i.Label,
+			&i.RequiresNote,
+			&i.IsActive,
+			&i.DisplayOrder,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDocumentRejectionReasons = `-- name: ListDocumentRejectionReasons :many
+SELECT dr.document_type, r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order
+FROM provider_document_rejection_reasons dr JOIN rejection_reasons r ON r.id = dr.reason_id
+WHERE dr.provider_id = $1 ORDER BY r.display_order, r.label
+`
+
+type ListDocumentRejectionReasonsRow struct {
+	DocumentType string    `json:"document_type"`
+	ID           uuid.UUID `json:"id"`
+	Scope        string    `json:"scope"`
+	Code         string    `json:"code"`
+	Label        string    `json:"label"`
+	RequiresNote bool      `json:"requires_note"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+}
+
+func (q *Queries) ListDocumentRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]ListDocumentRejectionReasonsRow, error) {
+	rows, err := q.db.Query(ctx, listDocumentRejectionReasons, providerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDocumentRejectionReasonsRow{}
+	for rows.Next() {
+		var i ListDocumentRejectionReasonsRow
+		if err := rows.Scan(
+			&i.DocumentType,
+			&i.ID,
+			&i.Scope,
+			&i.Code,
+			&i.Label,
+			&i.RequiresNote,
+			&i.IsActive,
+			&i.DisplayOrder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listProviderDocuments = `-- name: ListProviderDocuments :many
@@ -171,6 +363,82 @@ func (q *Queries) ListProviderDocuments(ctx context.Context, providerID uuid.UUI
 	return items, nil
 }
 
+const listProviderRejectionReasons = `-- name: ListProviderRejectionReasons :many
+SELECT r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order, r.created_at, r.updated_at FROM provider_rejection_reasons pr JOIN rejection_reasons r ON r.id = pr.reason_id
+WHERE pr.provider_id = $1 ORDER BY r.display_order, r.label
+`
+
+func (q *Queries) ListProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]RejectionReason, error) {
+	rows, err := q.db.Query(ctx, listProviderRejectionReasons, providerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RejectionReason{}
+	for rows.Next() {
+		var i RejectionReason
+		if err := rows.Scan(
+			&i.ID,
+			&i.Scope,
+			&i.Code,
+			&i.Label,
+			&i.RequiresNote,
+			&i.IsActive,
+			&i.DisplayOrder,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRejectionReasons = `-- name: ListRejectionReasons :many
+SELECT id, scope, code, label, requires_note, is_active, display_order, created_at, updated_at FROM rejection_reasons
+WHERE ($1::text = '' OR scope = $1::text) AND ($2::boolean OR is_active)
+ORDER BY scope, display_order, label
+`
+
+type ListRejectionReasonsParams struct {
+	Scope           string `json:"scope"`
+	IncludeInactive bool   `json:"include_inactive"`
+}
+
+func (q *Queries) ListRejectionReasons(ctx context.Context, arg ListRejectionReasonsParams) ([]RejectionReason, error) {
+	rows, err := q.db.Query(ctx, listRejectionReasons, arg.Scope, arg.IncludeInactive)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RejectionReason{}
+	for rows.Next() {
+		var i RejectionReason
+		if err := rows.Scan(
+			&i.ID,
+			&i.Scope,
+			&i.Code,
+			&i.Label,
+			&i.RequiresNote,
+			&i.IsActive,
+			&i.DisplayOrder,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRequiredDocuments = `-- name: ListRequiredDocuments :many
 SELECT t.code, t.name, t.scope, t.allowed_content_types, t.max_size_bytes
 FROM service_required_documents r
@@ -218,7 +486,7 @@ SELECT s.id, s.slug, s.name, s.description, c.id AS category_id, c.slug AS categ
 FROM service_provider_requirements o
 JOIN services s ON s.id = o.service_id
 JOIN service_categories c ON c.id = s.category_id
-WHERE s.is_active AND c.is_active
+WHERE s.is_active AND c.is_active AND o.self_signup
 ORDER BY c.display_order, s.display_order
 `
 
@@ -301,6 +569,29 @@ func (q *Queries) SaveProviderDocument(ctx context.Context, arg SaveProviderDocu
 		arg.ReviewedAt,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+	)
+	return err
+}
+
+const updateRejectionReason = `-- name: UpdateRejectionReason :exec
+UPDATE rejection_reasons SET label = $2, requires_note = $3, is_active = $4, display_order = $5, updated_at = now() WHERE id = $1
+`
+
+type UpdateRejectionReasonParams struct {
+	ID           uuid.UUID `json:"id"`
+	Label        string    `json:"label"`
+	RequiresNote bool      `json:"requires_note"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+}
+
+func (q *Queries) UpdateRejectionReason(ctx context.Context, arg UpdateRejectionReasonParams) error {
+	_, err := q.db.Exec(ctx, updateRejectionReason,
+		arg.ID,
+		arg.Label,
+		arg.RequiresNote,
+		arg.IsActive,
+		arg.DisplayOrder,
 	)
 	return err
 }

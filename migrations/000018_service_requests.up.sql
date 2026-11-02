@@ -23,6 +23,7 @@ CREATE TABLE service_requests (
     next_action_at       TIMESTAMPTZ,
     reminder_at          TIMESTAMPTZ,
     provider_id          UUID             REFERENCES users (id),
+    organization_id      UUID             REFERENCES organizations (id),
     fare_estimate_id     UUID             REFERENCES fare_estimates (id),
     fare_cents           BIGINT,
     commission_cents     BIGINT,
@@ -46,6 +47,8 @@ CREATE INDEX service_requests_due_idx ON service_requests (next_action_at) WHERE
 CREATE INDEX service_requests_reminder_idx ON service_requests (reminder_at) WHERE reminder_at IS NOT NULL;
 CREATE INDEX service_requests_customer_idx ON service_requests (customer_id, created_at DESC);
 CREATE INDEX service_requests_provider_idx ON service_requests (provider_id, created_at DESC) WHERE provider_id IS NOT NULL;
+CREATE INDEX service_requests_organization_idx ON service_requests (organization_id, created_at DESC) WHERE organization_id IS NOT NULL;
+CREATE INDEX service_requests_status_idx ON service_requests (status, created_at DESC);
 CREATE INDEX service_requests_operator_idx ON service_requests (created_at) WHERE needs_operator;
 CREATE INDEX service_requests_h3_idx ON service_requests (pickup_h3_r8, created_at);
 

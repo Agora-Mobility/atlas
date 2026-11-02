@@ -1,3 +1,6 @@
+DROP TABLE provider_document_rejection_reasons;
+DROP TABLE provider_rejection_reasons;
+DROP TABLE rejection_reasons;
 DROP TABLE provider_documents;
 DROP TABLE service_required_documents;
 DROP TABLE service_provider_requirements;

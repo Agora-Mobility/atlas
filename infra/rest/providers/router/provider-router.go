@@ -47,4 +47,9 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	admin.GET("/:id", can(entities.PermProvidersRead), r.controller.GetApplication)
 	admin.PUT("/:id", can(entities.PermProvidersApprove), r.controller.ReviewProvider)
 	admin.POST("/:id/documents/:type/review", can(entities.PermProvidersApprove), r.controller.ReviewDocument)
+
+	reasons := api.Group("/admin/rejection-reasons", clients, r.authenticator.RequireAuth())
+	reasons.GET("", can(entities.PermProvidersRead), r.controller.ListRejectionReasons)
+	reasons.POST("", can(entities.PermProvidersApprove), r.controller.CreateRejectionReason)
+	reasons.PUT("/:id", can(entities.PermProvidersApprove), r.controller.UpdateRejectionReason)
 }

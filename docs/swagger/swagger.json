@@ -706,6 +706,30 @@
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Partner of the provider",
+                        "name": "organization_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Active or requested service",
+                        "name": "service_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug, such as taxi or towing",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name, phone or plate",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page",
                         "name": "page",
@@ -779,7 +803,7 @@
                         "ClientId": []
                     }
                 ],
-                "description": "Requires providers:approve. Never creates a provider: accounts are created in the app. Approving needs service_id, usually the requested service, and every required document approved. Rejecting and suspending need a reason. A suspended provider can be approved again.",
+                "description": "Requires providers:approve. Never creates a provider: accounts are created in the app. Approving needs service_id, usually the requested service, and every required document approved. Rejecting needs reason_ids with scope provider and suspending needs reason_ids with scope suspension. A reason with requires_note also needs note. A suspended provider can be approved again.",
                 "consumes": [
                     "application/json"
                 ],
@@ -846,7 +870,7 @@
                         "ClientId": []
                     }
                 ],
-                "description": "Requires providers:approve. Rejecting needs a reason.",
+                "description": "Requires providers:approve. Rejecting needs reason_ids from GET /admin/rejection-reasons?scope=document. A reason with requires_note also needs note.",
                 "consumes": [
                     "application/json"
                 ],
@@ -902,7 +926,150 @@
                         }
                     },
                     "422": {
-                        "description": "REASON_REQUIRED",
+                        "description": "REASON_REQUIRED or UNKNOWN_REJECTION_REASON",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/rejection-reasons": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires providers:read. Fills the reason selector of a review. Scopes: document, provider and suspension.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice providers"
+                ],
+                "summary": "List rejection reasons",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "document, provider or suspension",
+                        "name": "scope",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Also return inactive reasons",
+                        "name": "include_inactive",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RejectionReasonList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires providers:approve.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice providers"
+                ],
+                "summary": "Create a rejection reason",
+                "parameters": [
+                    {
+                        "description": "Reason",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CreateRejectionReasonInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RejectionReasonView"
+                        }
+                    },
+                    "409": {
+                        "description": "REJECTION_REASON_CODE_TAKEN",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/rejection-reasons/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires providers:approve. Set is_active to false to retire a reason; past reviews keep it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice providers"
+                ],
+                "summary": "Update a rejection reason",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Reason id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reason",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateRejectionReasonInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RejectionReasonView"
+                        }
+                    },
+                    "404": {
+                        "description": "REJECTION_REASON_NOT_FOUND",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -1652,6 +1819,114 @@
                         "description": "Internal error",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/vehicles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires providers:read.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice partners"
+                ],
+                "summary": "List the vehicles of every partner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner",
+                        "name": "organization_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "car, motorcycle, van, truck or tow_truck",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Plate",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VehicleList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/workshops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partners:read. To create or change one, use /partners/{orgId}/fleet/workshops.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice partners"
+                ],
+                "summary": "List the workshops of every partner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner",
+                        "name": "organization_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopList"
                         }
                     }
                 }
@@ -2685,6 +2960,884 @@
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/drivers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "List the drivers of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "draft, pending, approved, rejected or suspended",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DriverList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Register a driver in a fleet",
+                "parameters": [
+                    {
+                        "description": "Driver",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RegisterDriverInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    },
+                    "409": {
+                        "description": "PHONE_ALREADY_EXISTS or VEHICLE_NOT_AVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "SERVICE_NOT_OPEN or VEHICLE_NOT_SUITABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/drivers/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet. Document files are not linked here: they are reviewed by AGORA.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Get a driver of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Driver user id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    },
+                    "404": {
+                        "description": "DRIVER_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/drivers/{id}/vehicle": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Replaces the current vehicle. The vehicle must suit the service of the driver and be free.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Associate a vehicle with a driver",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Driver user id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AssignVehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    },
+                    "404": {
+                        "description": "DRIVER_NOT_FOUND or VEHICLE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "DRIVER_BUSY or VEHICLE_NOT_AVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "VEHICLE_NOT_SUITABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. The driver goes offline and cannot go online until another vehicle is associated.",
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Take the vehicle away from a driver",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Driver user id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "DRIVER_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "DRIVER_BUSY",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/vehicles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "List the vehicles of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "car, motorcycle, van, truck or tow_truck",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Plate",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VehicleList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Send driver_id to associate it at once. Tow trucks serve towing; vans and trucks serve removals.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Create a vehicle in a fleet",
+                "parameters": [
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FleetVehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FleetVehicleView"
+                        }
+                    },
+                    "409": {
+                        "description": "PLATE_TAKEN or DRIVER_BUSY",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "VEHICLE_NOT_SUITABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/vehicles/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Get a vehicle of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Vehicle id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FleetVehicleView"
+                        }
+                    },
+                    "404": {
+                        "description": "VEHICLE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Update a vehicle of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Vehicle id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateVehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FleetVehicleView"
+                        }
+                    },
+                    "404": {
+                        "description": "VEHICLE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "PLATE_TAKEN or VEHICLE_IN_USE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "VEHICLE_NOT_SUITABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Also releases it from its driver.",
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Deactivate a vehicle of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Vehicle id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "VEHICLE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "DRIVER_BUSY",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet. Maintenance.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "List the workshops of a partner",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Maintenance.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Create a workshop for a partner",
+                "parameters": [
+                    {
+                        "description": "Workshop",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Get a workshop with its services",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopView"
+                        }
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Update a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Workshop",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopView"
+                        }
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Deactivate a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/services": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Add a service to a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Service",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopServiceView"
+                        }
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/services/{serviceId}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Update a service of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop service id",
+                        "name": "serviceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Service",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopServiceView"
+                        }
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Deactivate a service of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop service id",
+                        "name": "serviceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -3914,6 +5067,1010 @@
                     },
                     "422": {
                         "description": "Invalid fields or NIF",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/drivers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "List the drivers of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "draft, pending, approved, rejected or suspended",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DriverList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Register a driver in a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Driver",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RegisterDriverInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    },
+                    "409": {
+                        "description": "PHONE_ALREADY_EXISTS or VEHICLE_NOT_AVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "SERVICE_NOT_OPEN or VEHICLE_NOT_SUITABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/drivers/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet. Document files are not linked here: they are reviewed by AGORA.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Get a driver of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Driver user id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    },
+                    "404": {
+                        "description": "DRIVER_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/drivers/{id}/vehicle": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Replaces the current vehicle. The vehicle must suit the service of the driver and be free.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Associate a vehicle with a driver",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Driver user id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AssignVehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    },
+                    "404": {
+                        "description": "DRIVER_NOT_FOUND or VEHICLE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "DRIVER_BUSY or VEHICLE_NOT_AVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "VEHICLE_NOT_SUITABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. The driver goes offline and cannot go online until another vehicle is associated.",
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Take the vehicle away from a driver",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Driver user id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "DRIVER_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "DRIVER_BUSY",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/vehicles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "List the vehicles of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "car, motorcycle, van, truck or tow_truck",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Plate",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VehicleList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Send driver_id to associate it at once. Tow trucks serve towing; vans and trucks serve removals.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Create a vehicle in a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FleetVehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FleetVehicleView"
+                        }
+                    },
+                    "409": {
+                        "description": "PLATE_TAKEN or DRIVER_BUSY",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "VEHICLE_NOT_SUITABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/vehicles/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Get a vehicle of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Vehicle id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FleetVehicleView"
+                        }
+                    },
+                    "404": {
+                        "description": "VEHICLE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Update a vehicle of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Vehicle id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateVehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FleetVehicleView"
+                        }
+                    },
+                    "404": {
+                        "description": "VEHICLE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "PLATE_TAKEN or VEHICLE_IN_USE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "VEHICLE_NOT_SUITABLE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Also releases it from its driver.",
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Deactivate a vehicle of a fleet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Vehicle id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "VEHICLE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "DRIVER_BUSY",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/workshops": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet. Maintenance.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "List the workshops of a partner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Maintenance.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Create a workshop for a partner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Workshop",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/workshops/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Get a workshop with its services",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopView"
+                        }
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Update a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Workshop",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopView"
+                        }
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Deactivate a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/workshops/{id}/services": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Add a service to a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Service",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopServiceView"
+                        }
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/workshops/{id}/services/{serviceId}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Update a service of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop service id",
+                        "name": "serviceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Service",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopServiceView"
+                        }
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
+                "tags": [
+                    "Partner fleet"
+                ],
+                "summary": "Deactivate a service of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner id, only on /partners/{orgId}/fleet",
+                        "name": "orgId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workshop service id",
+                        "name": "serviceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "WORKSHOP_NOT_FOUND or WORKSHOP_SERVICE_NOT_FOUND",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -6840,6 +8997,12 @@
                 "name": {
                     "type": "string"
                 },
+                "organization_id": {
+                    "type": "string"
+                },
+                "organization_name": {
+                    "type": "string"
+                },
                 "phone": {
                     "type": "string"
                 },
@@ -6873,6 +9036,17 @@
             ],
             "properties": {
                 "provider_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.AssignVehicleInput": {
+            "type": "object",
+            "required": [
+                "vehicle_id"
+            ],
+            "properties": {
+                "vehicle_id": {
                     "type": "string"
                 }
             }
@@ -7229,6 +9403,40 @@
                 }
             }
         },
+        "dtos.CreateRejectionReasonInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "label",
+                "scope"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "example": "blurry_photo"
+                },
+                "display_order": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Fotografia desfocada"
+                },
+                "requires_note": {
+                    "type": "boolean"
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": [
+                        "document",
+                        "provider",
+                        "suspension"
+                    ]
+                }
+            }
+        },
         "dtos.CreateRequestInput": {
             "type": "object",
             "required": [
@@ -7429,6 +9637,12 @@
                 "rejection_reason": {
                     "type": "string"
                 },
+                "rejection_reasons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RejectionReasonView"
+                    }
+                },
                 "reviewed_at": {
                     "type": "string"
                 },
@@ -7448,6 +9662,61 @@
                     "type": "string"
                 },
                 "url_expires_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.DriverList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DriverView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.DriverView": {
+            "type": "object",
+            "properties": {
+                "is_verified": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "requested_service_id": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "vehicle_id": {
+                    "type": "string"
+                },
+                "vehicle_plate": {
                     "type": "string"
                 }
             }
@@ -7520,6 +9789,111 @@
                     "type": "string"
                 },
                 "total_cents": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.FleetVehicleInput": {
+            "type": "object",
+            "required": [
+                "brand",
+                "color",
+                "kind",
+                "model",
+                "plate",
+                "seats",
+                "year"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Isuzu"
+                },
+                "capacity_kg": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 3500
+                },
+                "color": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Branco"
+                },
+                "driver_id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "car",
+                        "motorcycle",
+                        "van",
+                        "truck",
+                        "tow_truck"
+                    ],
+                    "example": "tow_truck"
+                },
+                "model": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "NPR"
+                },
+                "plate": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "LD-45-21-AF"
+                },
+                "seats": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "year": {
+                    "type": "integer",
+                    "example": 2020
+                }
+            }
+        },
+        "dtos.FleetVehicleView": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "capacity_kg": {
+                    "type": "integer"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "driver_id": {
+                    "type": "string"
+                },
+                "driver_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "organization_id": {
+                    "type": "string"
+                },
+                "plate": {
+                    "type": "string"
+                },
+                "seats": {
+                    "type": "integer"
+                },
+                "year": {
                     "type": "integer"
                 }
             }
@@ -8626,6 +11000,9 @@
                 "name": {
                     "type": "string"
                 },
+                "organization_id": {
+                    "type": "string"
+                },
                 "phone": {
                     "type": "string"
                 },
@@ -8649,6 +11026,12 @@
                 },
                 "status_reason": {
                     "type": "string"
+                },
+                "status_reasons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RejectionReasonView"
+                    }
                 },
                 "submitted_at": {
                     "type": "string"
@@ -8780,6 +11163,37 @@
                 }
             }
         },
+        "dtos.RegisterDriverInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "phone",
+                "service_id"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "pedro@exemplo.ao"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Pedro Cunga"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000000"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "vehicle_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.RegisterInput": {
             "type": "object",
             "required": [
@@ -8841,6 +11255,46 @@
                 "status": {
                     "type": "string",
                     "example": "draft"
+                }
+            }
+        },
+        "dtos.RejectionReasonList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.RejectionReasonView"
+                    }
+                }
+            }
+        },
+        "dtos.RejectionReasonView": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "illegible"
+                },
+                "display_order": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Documento ilegível"
+                },
+                "requires_note": {
+                    "type": "boolean"
+                },
+                "scope": {
+                    "type": "string",
+                    "example": "document"
                 }
             }
         },
@@ -9039,9 +11493,16 @@
                 "status"
             ],
             "properties": {
-                "reason": {
+                "note": {
                     "type": "string",
-                    "maxLength": 500
+                    "maxLength": 400
+                },
+                "reason_ids": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "status": {
                     "type": "string",
@@ -9058,9 +11519,16 @@
                 "status"
             ],
             "properties": {
-                "reason": {
+                "note": {
                     "type": "string",
-                    "maxLength": 500
+                    "maxLength": 400
+                },
+                "reason_ids": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "service_id": {
                     "type": "string"
@@ -9524,6 +11992,27 @@
                 }
             }
         },
+        "dtos.UpdateRejectionReasonInput": {
+            "type": "object",
+            "required": [
+                "label"
+            ],
+            "properties": {
+                "display_order": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "requires_note": {
+                    "type": "boolean"
+                }
+            }
+        },
         "dtos.UpdateRoleInput": {
             "type": "object",
             "properties": {
@@ -9578,6 +12067,59 @@
                 },
                 "requires_destination": {
                     "type": "boolean"
+                }
+            }
+        },
+        "dtos.UpdateVehicleInput": {
+            "type": "object",
+            "required": [
+                "brand",
+                "color",
+                "kind",
+                "model",
+                "plate",
+                "seats",
+                "year"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "capacity_kg": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "color": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "car",
+                        "motorcycle",
+                        "van",
+                        "truck",
+                        "tow_truck"
+                    ]
+                },
+                "model": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "plate": {
+                    "type": "string",
+                    "maxLength": 20
+                },
+                "seats": {
+                    "type": "integer"
+                },
+                "year": {
+                    "type": "integer"
                 }
             }
         },
@@ -9803,10 +12345,26 @@
                     "maxLength": 120,
                     "example": "Toyota"
                 },
+                "capacity_kg": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1500
+                },
                 "color": {
                     "type": "string",
                     "maxLength": 120,
                     "example": "Branco"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "car",
+                        "motorcycle",
+                        "van",
+                        "truck",
+                        "tow_truck"
+                    ],
+                    "example": "car"
                 },
                 "model": {
                     "type": "string",
@@ -9828,13 +12386,39 @@
                 }
             }
         },
+        "dtos.VehicleList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.FleetVehicleView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.VehicleView": {
             "type": "object",
             "properties": {
                 "brand": {
                     "type": "string"
                 },
+                "capacity_kg": {
+                    "type": "integer"
+                },
                 "color": {
+                    "type": "string"
+                },
+                "kind": {
                     "type": "string"
                 },
                 "model": {
@@ -9848,6 +12432,162 @@
                 },
                 "year": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.WorkshopInput": {
+            "type": "object",
+            "required": [
+                "address",
+                "currency",
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "$ref": "#/definitions/dtos.AddressInput"
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "AOA"
+                },
+                "home_service_fee_cents": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Oficina Central"
+                },
+                "offers_home_service": {
+                    "type": "boolean"
+                },
+                "opening_hours": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "Seg-Sáb 08:00-18:00"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000000"
+                }
+            }
+        },
+        "dtos.WorkshopList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.WorkshopView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.WorkshopServiceInput": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "duration_minutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 45
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Mudança de óleo"
+                },
+                "price_cents": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 2500000
+                }
+            }
+        },
+        "dtos.WorkshopServiceView": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "duration_minutes": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price_cents": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.WorkshopView": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "$ref": "#/definitions/dtos.AddressView"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "home_service_fee_cents": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "offers_home_service": {
+                    "type": "boolean"
+                },
+                "opening_hours": {
+                    "type": "string"
+                },
+                "organization_id": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.WorkshopServiceView"
+                    }
                 }
             }
         },

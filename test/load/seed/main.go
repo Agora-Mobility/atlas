@@ -107,6 +107,9 @@ func run() error {
 		if _, err := pool.Exec(ctx, `INSERT INTO providers (user_id, status, service_id) VALUES ($1, 'approved', $2)`, provider.ID, out.ServiceID); err != nil {
 			return err
 		}
+		if _, err := pool.Exec(ctx, `INSERT INTO vehicles (provider_id, brand, model, year, color, plate, seats) VALUES ($1, 'Toyota', 'Corolla', 2020, 'Branco', 'LD-45-21-AF', 7)`, provider.ID); err != nil {
+			return err
+		}
 	}
 	encoded, err := json.Marshal(out)
 	if err != nil {

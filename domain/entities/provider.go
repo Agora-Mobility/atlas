@@ -32,7 +32,7 @@ const (
 	minVehicleYear      = 1950
 	maxVehicleSeats     = 60
 	maxProfileTextLen   = 120
-	maxReasonTextLen    = 500
+	maxReasonTextLen    = 2000
 )
 
 var (
@@ -42,15 +42,26 @@ var (
 )
 
 type Vehicle struct {
-	Brand string
-	Model string
-	Year  int
-	Color string
-	Plate string
-	Seats int
+	Kind       string
+	CapacityKg *int
+	Brand      string
+	Model      string
+	Year       int
+	Color      string
+	Plate      string
+	Seats      int
 }
 
 func (v Vehicle) Normalized(now time.Time) (Vehicle, error) {
+	if v.Kind == "" {
+		v.Kind = VehicleKindCar
+	}
+	if !IsVehicleKind(v.Kind) {
+		return v, validationError("kind", "O tipo de viatura não é válido.")
+	}
+	if v.CapacityKg != nil && *v.CapacityKg < 0 {
+		return v, validationError("capacity_kg", "A capacidade não é válida.")
+	}
 	v.Brand, v.Model = strings.TrimSpace(v.Brand), strings.TrimSpace(v.Model)
 	v.Color = strings.TrimSpace(v.Color)
 	v.Plate = strings.ToUpper(strings.TrimSpace(v.Plate))
@@ -75,6 +86,7 @@ func (v Vehicle) Description() string {
 type Provider struct {
 	UserID             uuid.UUID
 	Status             ProviderStatus
+	OrganizationID     *uuid.UUID
 	ServiceID          *uuid.UUID
 	RequestedServiceID *uuid.UUID
 	BirthDate          *time.Time
@@ -93,6 +105,10 @@ type Provider struct {
 
 func (p *Provider) IsEditable() bool {
 	return p.Status == ProviderDraft || p.Status == ProviderRejected
+}
+
+func (p *Provider) IsFleetDriver() bool {
+	return p.OrganizationID != nil
 }
 
 func (p *Provider) RequestService(serviceID uuid.UUID) error {
@@ -192,7 +208,7 @@ func normalizedReason(reason string) (string, error) {
 		return "", ErrReviewReasonRequired
 	}
 	if len([]rune(reason)) > maxReasonTextLen {
-		return "", validationError("reason", "O motivo tem no máximo 500 caracteres.")
+		return "", validationError("reason", "O motivo tem no máximo 2000 caracteres.")
 	}
 	return reason, nil
 }
@@ -253,6 +269,8 @@ type ProviderRequirements struct {
 	ServiceName     string
 	RequiresVehicle bool
 	MinVehicleSeats int
+	VehicleKinds    []string
+	SelfSignup      bool
 	Documents       []DocumentType
 }
 
@@ -297,6 +315,29 @@ func (r *ProviderRequirements) addVehicleGaps(vehicle Vehicle, missing map[strin
 	if vehicle.Seats < r.MinVehicleSeats {
 		missing["vehicle.seats"] = "Este serviço exige uma viatura com mais lugares."
 	}
+	if !r.AcceptsKind(vehicle.Kind) {
+		missing["vehicle.kind"] = "Este serviço não aceita este tipo de viatura."
+	}
+}
+
+func (r *ProviderRequirements) AcceptsKind(kind string) bool {
+	if len(r.VehicleKinds) == 0 {
+		return true
+	}
+	for _, accepted := range r.VehicleKinds {
+		if accepted == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *ProviderRequirements) VehicleGaps(vehicle Vehicle) map[string]string {
+	gaps := map[string]string{}
+	if r.RequiresVehicle {
+		r.addVehicleGaps(vehicle, gaps)
+	}
+	return gaps
 }
 
 func (r *ProviderRequirements) NotApproved(documents []*ProviderDocument) map[string]string {

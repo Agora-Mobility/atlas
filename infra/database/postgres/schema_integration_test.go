@@ -19,11 +19,11 @@ import (
 var appTables = []string{
 	"addresses", "audit_log", "block_reasons", "clients", "device_tokens", "dispatch_policies", "eta_observations",
 	"fare_adjustments", "fare_estimates", "invitations", "membership_roles", "memberships", "mfa_recovery_codes", "notifications",
-	"organizations", "outbox", "permissions", "provider_coverage", "provider_document_types", "provider_documents",
-	"provider_location_samples", "providers", "refresh_tokens", "request_offers", "role_permissions", "roles", "schema_migrations",
+	"organizations", "outbox", "permissions", "provider_coverage", "provider_document_rejection_reasons", "provider_document_types", "provider_documents",
+	"provider_location_samples", "provider_rejection_reasons", "providers", "refresh_tokens", "rejection_reasons", "request_offers", "role_permissions", "roles", "schema_migrations",
 	"service_categories", "service_provider_requirements", "service_request_events", "service_request_stops", "service_requests",
 	"service_required_documents", "service_tariffs", "service_zones", "services", "user_addresses", "user_block_reasons",
-	"user_blocks", "user_mfa", "users", "vehicles",
+	"user_blocks", "user_mfa", "users", "vehicles", "workshop_services", "workshops",
 }
 
 func startPostgres(t *testing.T) string {
@@ -120,7 +120,7 @@ func TestMigrate_NewDatabaseLivesInAtlas(t *testing.T) {
 	var version int
 	var dirty bool
 	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
-	assert.Equal(t, 19, version)
+	assert.Equal(t, 20, version)
 	assert.False(t, dirty)
 
 	var inMeters float64

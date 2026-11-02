@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
@@ -55,7 +56,7 @@ func (r *ProviderDocumentRepository) Requirements(ctx context.Context, serviceID
 		return nil, fmt.Errorf("list required documents: %w", err)
 	}
 	requirements := &entities.ProviderRequirements{
-		ServiceID: row.ServiceID, ServiceName: row.ServiceName, RequiresVehicle: row.RequiresVehicle, MinVehicleSeats: int(row.MinVehicleSeats),
+		ServiceID: row.ServiceID, ServiceName: row.ServiceName, RequiresVehicle: row.RequiresVehicle, MinVehicleSeats: int(row.MinVehicleSeats), VehicleKinds: row.VehicleKinds, SelfSignup: row.SelfSignup,
 		Documents: make([]entities.DocumentType, 0, len(documents)),
 	}
 	for _, document := range documents {
@@ -116,4 +117,122 @@ func (r *ProviderDocumentRepository) SaveDocument(ctx context.Context, d *entiti
 		return fmt.Errorf("save provider document: %w", err)
 	}
 	return nil
+}
+
+func toRejectionReason(row *gen.RejectionReason) entities.RejectionReason {
+	return entities.RejectionReason{
+		ID: row.ID, Scope: entities.RejectionScope(row.Scope), Code: row.Code, Label: row.Label, RequiresNote: row.RequiresNote, IsActive: row.IsActive, DisplayOrder: int(row.DisplayOrder),
+	}
+}
+
+func toRejectionReasons(rows []gen.RejectionReason) []entities.RejectionReason {
+	out := make([]entities.RejectionReason, 0, len(rows))
+	for i := range rows {
+		out = append(out, toRejectionReason(&rows[i]))
+	}
+	return out
+}
+
+func (r *ProviderDocumentRepository) ListReasons(ctx context.Context, scope string, includeInactive bool) ([]entities.RejectionReason, error) {
+	rows, err := postgres.Queries(ctx, r.pool).ListRejectionReasons(ctx, gen.ListRejectionReasonsParams{Scope: scope, IncludeInactive: includeInactive})
+	if err != nil {
+		return nil, fmt.Errorf("list rejection reasons: %w", err)
+	}
+	return toRejectionReasons(rows), nil
+}
+
+func (r *ProviderDocumentRepository) ActiveReasonsByIDs(ctx context.Context, scope entities.RejectionScope, ids []uuid.UUID) ([]entities.RejectionReason, error) {
+	rows, err := postgres.Queries(ctx, r.pool).ListActiveRejectionReasonsByIDs(ctx, gen.ListActiveRejectionReasonsByIDsParams{Scope: string(scope), Ids: ids})
+	if err != nil {
+		return nil, fmt.Errorf("list rejection reasons by id: %w", err)
+	}
+	return toRejectionReasons(rows), nil
+}
+
+func (r *ProviderDocumentRepository) FindReason(ctx context.Context, id uuid.UUID) (*entities.RejectionReason, error) {
+	row, err := postgres.Queries(ctx, r.pool).GetRejectionReason(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get rejection reason: %w", err)
+	}
+	reason := toRejectionReason(&row)
+	return &reason, nil
+}
+
+func (r *ProviderDocumentRepository) CreateReason(ctx context.Context, reason *entities.RejectionReason) error {
+	err := postgres.Queries(ctx, r.pool).CreateRejectionReason(ctx, gen.CreateRejectionReasonParams{
+		ID: reason.ID, Scope: string(reason.Scope), Code: reason.Code, Label: reason.Label, RequiresNote: reason.RequiresNote, IsActive: reason.IsActive, DisplayOrder: int32(reason.DisplayOrder), // #nosec G115 -- small value
+	})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+		return repository.ErrRejectionReasonCodeTaken
+	}
+	if err != nil {
+		return fmt.Errorf("create rejection reason: %w", err)
+	}
+	return nil
+}
+
+func (r *ProviderDocumentRepository) UpdateReason(ctx context.Context, reason *entities.RejectionReason) error {
+	err := postgres.Queries(ctx, r.pool).UpdateRejectionReason(ctx, gen.UpdateRejectionReasonParams{
+		ID: reason.ID, Label: reason.Label, RequiresNote: reason.RequiresNote, IsActive: reason.IsActive, DisplayOrder: int32(reason.DisplayOrder), // #nosec G115 -- small value
+	})
+	if err != nil {
+		return fmt.Errorf("update rejection reason: %w", err)
+	}
+	return nil
+}
+
+func (r *ProviderDocumentRepository) ReplaceProviderReasons(ctx context.Context, providerID uuid.UUID, reasonIDs []uuid.UUID) error {
+	queries := postgres.Queries(ctx, r.pool)
+	if err := queries.ClearProviderRejectionReasons(ctx, providerID); err != nil {
+		return fmt.Errorf("clear provider reasons: %w", err)
+	}
+	if len(reasonIDs) == 0 {
+		return nil
+	}
+	if err := queries.AddProviderRejectionReasons(ctx, gen.AddProviderRejectionReasonsParams{ProviderID: providerID, ReasonIds: reasonIDs}); err != nil {
+		return fmt.Errorf("add provider reasons: %w", err)
+	}
+	return nil
+}
+
+func (r *ProviderDocumentRepository) ProviderReasons(ctx context.Context, providerID uuid.UUID) ([]entities.RejectionReason, error) {
+	rows, err := postgres.Queries(ctx, r.pool).ListProviderRejectionReasons(ctx, providerID)
+	if err != nil {
+		return nil, fmt.Errorf("list provider reasons: %w", err)
+	}
+	return toRejectionReasons(rows), nil
+}
+
+func (r *ProviderDocumentRepository) ReplaceDocumentReasons(ctx context.Context, providerID uuid.UUID, documentType string, reasonIDs []uuid.UUID) error {
+	queries := postgres.Queries(ctx, r.pool)
+	if err := queries.ClearDocumentRejectionReasons(ctx, gen.ClearDocumentRejectionReasonsParams{ProviderID: providerID, DocumentType: documentType}); err != nil {
+		return fmt.Errorf("clear document reasons: %w", err)
+	}
+	if len(reasonIDs) == 0 {
+		return nil
+	}
+	err := queries.AddDocumentRejectionReasons(ctx, gen.AddDocumentRejectionReasonsParams{ProviderID: providerID, DocumentType: documentType, ReasonIds: reasonIDs})
+	if err != nil {
+		return fmt.Errorf("add document reasons: %w", err)
+	}
+	return nil
+}
+
+func (r *ProviderDocumentRepository) DocumentReasons(ctx context.Context, providerID uuid.UUID) (map[string][]entities.RejectionReason, error) {
+	rows, err := postgres.Queries(ctx, r.pool).ListDocumentRejectionReasons(ctx, providerID)
+	if err != nil {
+		return nil, fmt.Errorf("list document reasons: %w", err)
+	}
+	out := map[string][]entities.RejectionReason{}
+	for i := range rows {
+		row := &rows[i]
+		out[row.DocumentType] = append(out[row.DocumentType], entities.RejectionReason{
+			ID: row.ID, Scope: entities.RejectionScope(row.Scope), Code: row.Code, Label: row.Label, RequiresNote: row.RequiresNote, IsActive: row.IsActive, DisplayOrder: int(row.DisplayOrder),
+		})
+	}
+	return out, nil
 }

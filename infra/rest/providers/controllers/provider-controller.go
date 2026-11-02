@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
+	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/rest/binding"
@@ -46,6 +47,10 @@ var errorTable = []struct {
 	{providers.ErrProviderNotFound, http.StatusNotFound, "PROVIDER_NOT_FOUND", "Provider not found."},
 	{providers.ErrProviderBusy, http.StatusConflict, "PROVIDER_BUSY", "The provider has an active job."},
 	{providers.ErrReviewNotAllowed, http.StatusConflict, "REVIEW_NOT_ALLOWED", "Documents are reviewed while the application is pending."},
+	{providers.ErrManagedByFleet, http.StatusConflict, "MANAGED_BY_FLEET", "The fleet manages this for its drivers."},
+	{providers.ErrRejectionReasonUnknown, http.StatusNotFound, "REJECTION_REASON_NOT_FOUND", "Rejection reason not found."},
+	{entities.ErrUnknownRejectionReason, http.StatusUnprocessableEntity, "UNKNOWN_REJECTION_REASON", "A reason does not exist or does not apply here."},
+	{repository.ErrRejectionReasonCodeTaken, http.StatusConflict, "REJECTION_REASON_CODE_TAKEN", "This scope already has a reason with this code."},
 	{entities.ErrProfileLocked, http.StatusConflict, "PROFILE_LOCKED", "The profile cannot change in this state."},
 	{entities.ErrInvalidProviderTransition, http.StatusConflict, "INVALID_PROVIDER_TRANSITION", "This change of status is not possible."},
 	{entities.ErrReviewReasonRequired, http.StatusUnprocessableEntity, "REASON_REQUIRED", "A reason is required."},
@@ -366,10 +371,14 @@ func (c *ProviderController) Submit(ctx *gin.Context) {
 //	@Description	Requires providers:read. Oldest submission first.
 //	@Tags			Backoffice providers
 //	@Produce		json
-//	@Param			status	query		string	false	"draft, pending, approved, rejected or suspended"
-//	@Param			page	query		int		false	"Page"
-//	@Param			size	query		int		false	"Page size"
-//	@Success		200		{object}	dtos.ApplicationList
+//	@Param			status			query		string	false	"draft, pending, approved, rejected or suspended"
+//	@Param			organization_id	query		string	false	"Partner of the provider"
+//	@Param			service_id		query		string	false	"Active or requested service"
+//	@Param			category		query		string	false	"Category slug, such as taxi or towing"
+//	@Param			search			query		string	false	"Name, phone or plate"
+//	@Param			page			query		int		false	"Page"
+//	@Param			size			query		int		false	"Page size"
+//	@Success		200				{object}	dtos.ApplicationList
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/providers [get]
@@ -379,7 +388,16 @@ func (c *ProviderController) ListApplications(ctx *gin.Context) {
 		shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid pagination.")
 		return
 	}
-	list, err := c.providers.ListApplications(ctx.Request.Context(), ctx.Query("status"), page)
+	organizationID, ok := optionalUUID(ctx, "organization_id")
+	if !ok {
+		return
+	}
+	serviceID, ok := optionalUUID(ctx, "service_id")
+	if !ok {
+		return
+	}
+	filter := dtos.ApplicationFilter{Status: ctx.Query("status"), OrganizationID: organizationID, ServiceID: serviceID, Category: ctx.Query("category"), Search: ctx.Query("search")}
+	list, err := c.providers.ListApplications(ctx.Request.Context(), filter, page)
 	respond(ctx, http.StatusOK, list, err)
 }
 
@@ -407,7 +425,7 @@ func (c *ProviderController) GetApplication(ctx *gin.Context) {
 // ReviewDocument godoc
 //
 //	@Summary		Approve or reject a document
-//	@Description	Requires providers:approve. Rejecting needs a reason.
+//	@Description	Requires providers:approve. Rejecting needs reason_ids from GET /admin/rejection-reasons?scope=document. A reason with requires_note also needs note.
 //	@Tags			Backoffice providers
 //	@Accept			json
 //	@Produce		json
@@ -417,7 +435,7 @@ func (c *ProviderController) GetApplication(ctx *gin.Context) {
 //	@Success		200		{object}	dtos.ProviderView
 //	@Failure		404		{object}	shared.ErrorResponse
 //	@Failure		409		{object}	shared.ErrorResponse	"REVIEW_NOT_ALLOWED"
-//	@Failure		422		{object}	shared.ErrorResponse	"REASON_REQUIRED"
+//	@Failure		422		{object}	shared.ErrorResponse	"REASON_REQUIRED or UNKNOWN_REJECTION_REASON"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/providers/{id}/documents/{type}/review [post]
@@ -442,7 +460,7 @@ func (c *ProviderController) ReviewDocument(ctx *gin.Context) {
 // ReviewProvider godoc
 //
 //	@Summary		Decide on a provider
-//	@Description	Requires providers:approve. Never creates a provider: accounts are created in the app. Approving needs service_id, usually the requested service, and every required document approved. Rejecting and suspending need a reason. A suspended provider can be approved again.
+//	@Description	Requires providers:approve. Never creates a provider: accounts are created in the app. Approving needs service_id, usually the requested service, and every required document approved. Rejecting needs reason_ids with scope provider and suspending needs reason_ids with scope suspension. A reason with requires_note also needs note. A suspended provider can be approved again.
 //	@Tags			Backoffice providers
 //	@Accept			json
 //	@Produce		json
@@ -470,5 +488,95 @@ func (c *ProviderController) ReviewProvider(ctx *gin.Context) {
 		return
 	}
 	view, err := c.providers.ReviewProvider(ctx.Request.Context(), actor, id, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+func optionalUUID(ctx *gin.Context, name string) (*uuid.UUID, bool) {
+	raw := ctx.Query(name)
+	if raw == "" {
+		return nil, true
+	}
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid "+name+".")
+		return nil, false
+	}
+	return &id, true
+}
+
+// ListRejectionReasons godoc
+//
+//	@Summary		List rejection reasons
+//	@Description	Requires providers:read. Fills the reason selector of a review. Scopes: document, provider and suspension.
+//	@Tags			Backoffice providers
+//	@Produce		json
+//	@Param			scope				query		string	false	"document, provider or suspension"
+//	@Param			include_inactive	query		bool	false	"Also return inactive reasons"
+//	@Success		200					{object}	dtos.RejectionReasonList
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/rejection-reasons [get]
+func (c *ProviderController) ListRejectionReasons(ctx *gin.Context) {
+	list, err := c.providers.ListRejectionReasons(ctx.Request.Context(), ctx.Query("scope"), ctx.Query("include_inactive") == "true")
+	respond(ctx, http.StatusOK, list, err)
+}
+
+// CreateRejectionReason godoc
+//
+//	@Summary		Create a rejection reason
+//	@Description	Requires providers:approve.
+//	@Tags			Backoffice providers
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.CreateRejectionReasonInput	true	"Reason"
+//	@Success		201		{object}	dtos.RejectionReasonView
+//	@Failure		409		{object}	shared.ErrorResponse	"REJECTION_REASON_CODE_TAKEN"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/rejection-reasons [post]
+func (c *ProviderController) CreateRejectionReason(ctx *gin.Context) {
+	actor, ok := staffActor(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.CreateRejectionReasonInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.providers.CreateRejectionReason(ctx.Request.Context(), actor, in)
+	respond(ctx, http.StatusCreated, view, err)
+}
+
+// UpdateRejectionReason godoc
+//
+//	@Summary		Update a rejection reason
+//	@Description	Requires providers:approve. Set is_active to false to retire a reason; past reviews keep it.
+//	@Tags			Backoffice providers
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string							true	"Reason id"
+//	@Param			body	body		dtos.UpdateRejectionReasonInput	true	"Reason"
+//	@Success		200		{object}	dtos.RejectionReasonView
+//	@Failure		404		{object}	shared.ErrorResponse	"REJECTION_REASON_NOT_FOUND"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/rejection-reasons/{id} [put]
+func (c *ProviderController) UpdateRejectionReason(ctx *gin.Context) {
+	actor, ok := staffActor(ctx)
+	if !ok {
+		return
+	}
+	id, err := uuid.Parse(ctx.Param("id"))
+	if err != nil {
+		shared.NotFound(ctx, "REJECTION_REASON_NOT_FOUND", "Rejection reason not found.")
+		return
+	}
+	var in dtos.UpdateRejectionReasonInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.providers.UpdateRejectionReason(ctx.Request.Context(), actor, id, in)
 	respond(ctx, http.StatusOK, view, err)
 }

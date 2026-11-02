@@ -440,6 +440,7 @@ type Permission struct {
 type Provider struct {
 	UserID             uuid.UUID  `json:"user_id"`
 	Status             string     `json:"status"`
+	OrganizationID     *uuid.UUID `json:"organization_id"`
 	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
 	ServiceID          *uuid.UUID `json:"service_id"`
 	BirthDate          *time.Time `json:"birth_date"`
@@ -476,6 +477,12 @@ type ProviderDocument struct {
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
+type ProviderDocumentRejectionReason struct {
+	ProviderID   uuid.UUID `json:"provider_id"`
+	DocumentType string    `json:"document_type"`
+	ReasonID     uuid.UUID `json:"reason_id"`
+}
+
 type ProviderDocumentType struct {
 	Code                string   `json:"code"`
 	Name                string   `json:"name"`
@@ -494,6 +501,11 @@ type ProviderLocationSample struct {
 	RecordedAt time.Time `json:"recorded_at"`
 }
 
+type ProviderRejectionReason struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	ReasonID   uuid.UUID `json:"reason_id"`
+}
+
 type RefreshToken struct {
 	ID           uuid.UUID  `json:"id"`
 	UserID       uuid.UUID  `json:"user_id"`
@@ -507,6 +519,18 @@ type RefreshToken struct {
 	IpAddress    string     `json:"ip_address"`
 	CreatedAt    time.Time  `json:"created_at"`
 	MembershipID *uuid.UUID `json:"membership_id"`
+}
+
+type RejectionReason struct {
+	ID           uuid.UUID `json:"id"`
+	Scope        string    `json:"scope"`
+	Code         string    `json:"code"`
+	Label        string    `json:"label"`
+	RequiresNote bool      `json:"requires_note"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type RequestOffer struct {
@@ -578,6 +602,8 @@ type ServiceProviderRequirement struct {
 	ServiceID       uuid.UUID `json:"service_id"`
 	RequiresVehicle bool      `json:"requires_vehicle"`
 	MinVehicleSeats int32     `json:"min_vehicle_seats"`
+	VehicleKinds    []string  `json:"vehicle_kinds"`
+	SelfSignup      bool      `json:"self_signup"`
 }
 
 type ServiceRequest struct {
@@ -605,6 +631,7 @@ type ServiceRequest struct {
 	NextActionAt         *time.Time      `json:"next_action_at"`
 	ReminderAt           *time.Time      `json:"reminder_at"`
 	ProviderID           *uuid.UUID      `json:"provider_id"`
+	OrganizationID       *uuid.UUID      `json:"organization_id"`
 	FareEstimateID       *uuid.UUID      `json:"fare_estimate_id"`
 	FareCents            *int64          `json:"fare_cents"`
 	CommissionCents      *int64          `json:"commission_cents"`
@@ -724,14 +751,45 @@ type UserMfa struct {
 }
 
 type Vehicle struct {
-	ID         uuid.UUID `json:"id"`
-	ProviderID uuid.UUID `json:"provider_id"`
-	Brand      string    `json:"brand"`
-	Model      string    `json:"model"`
-	Year       *int32    `json:"year"`
-	Color      string    `json:"color"`
-	Plate      string    `json:"plate"`
-	Seats      *int32    `json:"seats"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID             uuid.UUID  `json:"id"`
+	ProviderID     *uuid.UUID `json:"provider_id"`
+	OrganizationID *uuid.UUID `json:"organization_id"`
+	Kind           string     `json:"kind"`
+	Brand          string     `json:"brand"`
+	Model          string     `json:"model"`
+	Year           *int32     `json:"year"`
+	Color          string     `json:"color"`
+	Plate          string     `json:"plate"`
+	Seats          *int32     `json:"seats"`
+	CapacityKg     *int32     `json:"capacity_kg"`
+	IsActive       bool       `json:"is_active"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type Workshop struct {
+	ID                  uuid.UUID `json:"id"`
+	OrganizationID      uuid.UUID `json:"organization_id"`
+	AddressID           uuid.UUID `json:"address_id"`
+	Name                string    `json:"name"`
+	Phone               string    `json:"phone"`
+	OpeningHours        string    `json:"opening_hours"`
+	OffersHomeService   bool      `json:"offers_home_service"`
+	HomeServiceFeeCents int64     `json:"home_service_fee_cents"`
+	Currency            string    `json:"currency"`
+	IsActive            bool      `json:"is_active"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+type WorkshopService struct {
+	ID              uuid.UUID `json:"id"`
+	WorkshopID      uuid.UUID `json:"workshop_id"`
+	Name            string    `json:"name"`
+	Description     string    `json:"description"`
+	PriceCents      int64     `json:"price_cents"`
+	DurationMinutes int32     `json:"duration_minutes"`
+	IsActive        bool      `json:"is_active"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }

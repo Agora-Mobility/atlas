@@ -13,11 +13,35 @@ import (
 )
 
 const countProviderApplications = `-- name: CountProviderApplications :one
-SELECT count(*) FROM providers p WHERE $1::text = '' OR p.status = $1::text
+SELECT count(*)
+FROM providers p
+JOIN users u ON u.id = p.user_id
+LEFT JOIN vehicles v ON v.provider_id = p.user_id
+LEFT JOIN services active ON active.id = COALESCE(p.service_id, p.requested_service_id)
+LEFT JOIN service_categories c ON c.id = active.category_id
+WHERE ($1::text = '' OR p.status = $1::text)
+  AND ($2::uuid IS NULL OR p.organization_id = $2)
+  AND ($3::uuid IS NULL OR COALESCE(p.service_id, p.requested_service_id) = $3)
+  AND ($4::text = '' OR c.slug = $4::text)
+  AND ($5::text = '' OR u.name ILIKE $5::text OR u.phone ILIKE $5::text OR v.plate ILIKE $5::text)
 `
 
-func (q *Queries) CountProviderApplications(ctx context.Context, status string) (int64, error) {
-	row := q.db.QueryRow(ctx, countProviderApplications, status)
+type CountProviderApplicationsParams struct {
+	Status         string     `json:"status"`
+	OrganizationID *uuid.UUID `json:"organization_id"`
+	ServiceID      *uuid.UUID `json:"service_id"`
+	Category       string     `json:"category"`
+	Search         string     `json:"search"`
+}
+
+func (q *Queries) CountProviderApplications(ctx context.Context, arg CountProviderApplicationsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countProviderApplications,
+		arg.Status,
+		arg.OrganizationID,
+		arg.ServiceID,
+		arg.Category,
+		arg.Search,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -69,7 +93,9 @@ SELECT p.user_id, p.last_job_completed_at, p.created_at, b.lat AS base_lat, b.ln
 FROM providers p
 LEFT JOIN addresses b ON b.id = p.base_address_id
 JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
+LEFT JOIN service_provider_requirements r ON r.service_id = p.service_id
 WHERE p.user_id = ANY($1::uuid[]) AND p.status = 'approved' AND p.service_id = $2::uuid
+  AND (NOT COALESCE(r.requires_vehicle, false) OR EXISTS (SELECT 1 FROM vehicles v WHERE v.provider_id = p.user_id AND v.is_active))
 `
 
 type FilterEligibleProvidersParams struct {
@@ -116,7 +142,7 @@ func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibl
 }
 
 const getProvider = `-- name: GetProvider :one
-SELECT user_id, status, requested_service_id, service_id, birth_date, id_number, home_address_id, base_address_id, service_radius_km, status_reason, submitted_at, reviewed_at, last_job_completed_at, created_at, updated_at FROM providers WHERE user_id = $1
+SELECT user_id, status, organization_id, requested_service_id, service_id, birth_date, id_number, home_address_id, base_address_id, service_radius_km, status_reason, submitted_at, reviewed_at, last_job_completed_at, created_at, updated_at FROM providers WHERE user_id = $1
 `
 
 func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error) {
@@ -125,6 +151,7 @@ func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, 
 	err := row.Scan(
 		&i.UserID,
 		&i.Status,
+		&i.OrganizationID,
 		&i.RequestedServiceID,
 		&i.ServiceID,
 		&i.BirthDate,
@@ -179,21 +206,25 @@ func (q *Queries) GetUserContact(ctx context.Context, id uuid.UUID) (GetUserCont
 }
 
 const getVehicleOfProvider = `-- name: GetVehicleOfProvider :one
-SELECT id, provider_id, brand, model, year, color, plate, seats, created_at, updated_at FROM vehicles WHERE provider_id = $1
+SELECT id, provider_id, organization_id, kind, brand, model, year, color, plate, seats, capacity_kg, is_active, created_at, updated_at FROM vehicles WHERE provider_id = $1
 `
 
-func (q *Queries) GetVehicleOfProvider(ctx context.Context, providerID uuid.UUID) (Vehicle, error) {
+func (q *Queries) GetVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) (Vehicle, error) {
 	row := q.db.QueryRow(ctx, getVehicleOfProvider, providerID)
 	var i Vehicle
 	err := row.Scan(
 		&i.ID,
 		&i.ProviderID,
+		&i.OrganizationID,
+		&i.Kind,
 		&i.Brand,
 		&i.Model,
 		&i.Year,
 		&i.Color,
 		&i.Plate,
 		&i.Seats,
+		&i.CapacityKg,
+		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -242,20 +273,32 @@ func (q *Queries) ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]str
 }
 
 const listProviderApplications = `-- name: ListProviderApplications :many
-SELECT p.user_id, p.status, p.requested_service_id, p.service_id, p.submitted_at, p.reviewed_at, v.plate AS vehicle_plate, u.name, u.phone, s.name AS requested_service_name
+SELECT p.user_id, p.status, p.requested_service_id, p.service_id, p.organization_id, p.submitted_at, p.reviewed_at, v.plate AS vehicle_plate, u.name, u.phone,
+       s.name AS requested_service_name, o.name AS organization_name
 FROM providers p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN vehicles v ON v.provider_id = p.user_id
 LEFT JOIN services s ON s.id = p.requested_service_id
-WHERE $1::text = '' OR p.status = $1::text
+LEFT JOIN organizations o ON o.id = p.organization_id
+LEFT JOIN services active ON active.id = COALESCE(p.service_id, p.requested_service_id)
+LEFT JOIN service_categories c ON c.id = active.category_id
+WHERE ($1::text = '' OR p.status = $1::text)
+  AND ($2::uuid IS NULL OR p.organization_id = $2)
+  AND ($3::uuid IS NULL OR COALESCE(p.service_id, p.requested_service_id) = $3)
+  AND ($4::text = '' OR c.slug = $4::text)
+  AND ($5::text = '' OR u.name ILIKE $5::text OR u.phone ILIKE $5::text OR v.plate ILIKE $5::text)
 ORDER BY p.submitted_at NULLS LAST, p.created_at
-LIMIT $3 OFFSET $2
+LIMIT $7 OFFSET $6
 `
 
 type ListProviderApplicationsParams struct {
-	Status     string `json:"status"`
-	PageOffset int32  `json:"page_offset"`
-	PageLimit  int32  `json:"page_limit"`
+	Status         string     `json:"status"`
+	OrganizationID *uuid.UUID `json:"organization_id"`
+	ServiceID      *uuid.UUID `json:"service_id"`
+	Category       string     `json:"category"`
+	Search         string     `json:"search"`
+	PageOffset     int32      `json:"page_offset"`
+	PageLimit      int32      `json:"page_limit"`
 }
 
 type ListProviderApplicationsRow struct {
@@ -263,16 +306,26 @@ type ListProviderApplicationsRow struct {
 	Status               string     `json:"status"`
 	RequestedServiceID   *uuid.UUID `json:"requested_service_id"`
 	ServiceID            *uuid.UUID `json:"service_id"`
+	OrganizationID       *uuid.UUID `json:"organization_id"`
 	SubmittedAt          *time.Time `json:"submitted_at"`
 	ReviewedAt           *time.Time `json:"reviewed_at"`
 	VehiclePlate         *string    `json:"vehicle_plate"`
 	Name                 string     `json:"name"`
 	Phone                *string    `json:"phone"`
 	RequestedServiceName *string    `json:"requested_service_name"`
+	OrganizationName     *string    `json:"organization_name"`
 }
 
 func (q *Queries) ListProviderApplications(ctx context.Context, arg ListProviderApplicationsParams) ([]ListProviderApplicationsRow, error) {
-	rows, err := q.db.Query(ctx, listProviderApplications, arg.Status, arg.PageOffset, arg.PageLimit)
+	rows, err := q.db.Query(ctx, listProviderApplications,
+		arg.Status,
+		arg.OrganizationID,
+		arg.ServiceID,
+		arg.Category,
+		arg.Search,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -285,12 +338,14 @@ func (q *Queries) ListProviderApplications(ctx context.Context, arg ListProvider
 			&i.Status,
 			&i.RequestedServiceID,
 			&i.ServiceID,
+			&i.OrganizationID,
 			&i.SubmittedAt,
 			&i.ReviewedAt,
 			&i.VehiclePlate,
 			&i.Name,
 			&i.Phone,
 			&i.RequestedServiceName,
+			&i.OrganizationName,
 		); err != nil {
 			return nil, err
 		}
@@ -436,12 +491,12 @@ func (q *Queries) UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenPa
 }
 
 const upsertProvider = `-- name: UpsertProvider :exec
-INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, home_address_id, status_reason, submitted_at, reviewed_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, home_address_id, status_reason, submitted_at, reviewed_at, organization_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 ON CONFLICT (user_id) DO UPDATE
 SET status = EXCLUDED.status, service_id = EXCLUDED.service_id, requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date,
     id_number = EXCLUDED.id_number, home_address_id = EXCLUDED.home_address_id, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
-    reviewed_at = EXCLUDED.reviewed_at, updated_at = now()
+    reviewed_at = EXCLUDED.reviewed_at, organization_id = EXCLUDED.organization_id, updated_at = now()
 `
 
 type UpsertProviderParams struct {
@@ -455,6 +510,7 @@ type UpsertProviderParams struct {
 	StatusReason       string     `json:"status_reason"`
 	SubmittedAt        *time.Time `json:"submitted_at"`
 	ReviewedAt         *time.Time `json:"reviewed_at"`
+	OrganizationID     *uuid.UUID `json:"organization_id"`
 }
 
 func (q *Queries) UpsertProvider(ctx context.Context, arg UpsertProviderParams) error {
@@ -469,36 +525,42 @@ func (q *Queries) UpsertProvider(ctx context.Context, arg UpsertProviderParams) 
 		arg.StatusReason,
 		arg.SubmittedAt,
 		arg.ReviewedAt,
+		arg.OrganizationID,
 	)
 	return err
 }
 
 const upsertVehicle = `-- name: UpsertVehicle :exec
-INSERT INTO vehicles (provider_id, brand, model, year, color, plate, seats)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO vehicles (provider_id, kind, brand, model, year, color, plate, seats, capacity_kg)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (provider_id) DO UPDATE
-SET brand = EXCLUDED.brand, model = EXCLUDED.model, year = EXCLUDED.year, color = EXCLUDED.color, plate = EXCLUDED.plate, seats = EXCLUDED.seats, updated_at = now()
+SET kind = EXCLUDED.kind, brand = EXCLUDED.brand, model = EXCLUDED.model, year = EXCLUDED.year, color = EXCLUDED.color, plate = EXCLUDED.plate,
+    seats = EXCLUDED.seats, capacity_kg = EXCLUDED.capacity_kg, updated_at = now()
 `
 
 type UpsertVehicleParams struct {
-	ProviderID uuid.UUID `json:"provider_id"`
-	Brand      string    `json:"brand"`
-	Model      string    `json:"model"`
-	Year       *int32    `json:"year"`
-	Color      string    `json:"color"`
-	Plate      string    `json:"plate"`
-	Seats      *int32    `json:"seats"`
+	ProviderID *uuid.UUID `json:"provider_id"`
+	Kind       string     `json:"kind"`
+	Brand      string     `json:"brand"`
+	Model      string     `json:"model"`
+	Year       *int32     `json:"year"`
+	Color      string     `json:"color"`
+	Plate      string     `json:"plate"`
+	Seats      *int32     `json:"seats"`
+	CapacityKg *int32     `json:"capacity_kg"`
 }
 
 func (q *Queries) UpsertVehicle(ctx context.Context, arg UpsertVehicleParams) error {
 	_, err := q.db.Exec(ctx, upsertVehicle,
 		arg.ProviderID,
+		arg.Kind,
 		arg.Brand,
 		arg.Model,
 		arg.Year,
 		arg.Color,
 		arg.Plate,
 		arg.Seats,
+		arg.CapacityKg,
 	)
 	return err
 }

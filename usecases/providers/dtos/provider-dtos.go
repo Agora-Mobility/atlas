@@ -54,12 +54,14 @@ type PersonalDataInput struct {
 }
 
 type VehicleInput struct {
-	Brand string `json:"brand" binding:"required,max=120" example:"Toyota"`
-	Model string `json:"model" binding:"required,max=120" example:"Corolla"`
-	Year  int    `json:"year" binding:"required" example:"2020"`
-	Color string `json:"color" binding:"required,max=120" example:"Branco"`
-	Plate string `json:"plate" binding:"required,max=20" example:"LD-45-21-AF"`
-	Seats int    `json:"seats" binding:"required" example:"5"`
+	Kind       string `json:"kind" binding:"omitempty,oneof=car motorcycle van truck tow_truck" example:"car"`
+	CapacityKg *int   `json:"capacity_kg" binding:"omitempty,min=0" example:"1500"`
+	Brand      string `json:"brand" binding:"required,max=120" example:"Toyota"`
+	Model      string `json:"model" binding:"required,max=120" example:"Corolla"`
+	Year       int    `json:"year" binding:"required" example:"2020"`
+	Color      string `json:"color" binding:"required,max=120" example:"Branco"`
+	Plate      string `json:"plate" binding:"required,max=20" example:"LD-45-21-AF"`
+	Seats      int    `json:"seats" binding:"required" example:"5"`
 }
 
 type UploadURLInput struct {
@@ -81,16 +83,17 @@ type RegisterDocumentInput struct {
 }
 
 type DocumentView struct {
-	Type            string     `json:"type"`
-	Name            string     `json:"name"`
-	Status          string     `json:"status"`
-	RejectionReason string     `json:"rejection_reason,omitempty"`
-	ContentType     string     `json:"content_type"`
-	SizeBytes       int64      `json:"size_bytes"`
-	ReviewedAt      *time.Time `json:"reviewed_at,omitempty"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	URL             string     `json:"url,omitempty"`
-	URLExpiresAt    *time.Time `json:"url_expires_at,omitempty"`
+	Type             string                `json:"type"`
+	Name             string                `json:"name"`
+	Status           string                `json:"status"`
+	RejectionReason  string                `json:"rejection_reason,omitempty"`
+	RejectionReasons []RejectionReasonView `json:"rejection_reasons,omitempty"`
+	ContentType      string                `json:"content_type"`
+	SizeBytes        int64                 `json:"size_bytes"`
+	ReviewedAt       *time.Time            `json:"reviewed_at,omitempty"`
+	UpdatedAt        time.Time             `json:"updated_at"`
+	URL              string                `json:"url,omitempty"`
+	URLExpiresAt     *time.Time            `json:"url_expires_at,omitempty"`
 }
 
 type DocumentURLOutput struct {
@@ -99,12 +102,14 @@ type DocumentURLOutput struct {
 }
 
 type VehicleView struct {
-	Brand string `json:"brand"`
-	Model string `json:"model"`
-	Year  int    `json:"year"`
-	Color string `json:"color"`
-	Plate string `json:"plate"`
-	Seats int    `json:"seats"`
+	Kind       string `json:"kind"`
+	CapacityKg *int   `json:"capacity_kg,omitempty"`
+	Brand      string `json:"brand"`
+	Model      string `json:"model"`
+	Year       int    `json:"year"`
+	Color      string `json:"color"`
+	Plate      string `json:"plate"`
+	Seats      int    `json:"seats"`
 }
 
 type RequiredDocumentView struct {
@@ -122,6 +127,8 @@ type ProviderView struct {
 	Email              string                   `json:"email,omitempty"`
 	Status             string                   `json:"status"`
 	StatusReason       string                   `json:"status_reason,omitempty"`
+	StatusReasons      []RejectionReasonView    `json:"status_reasons,omitempty"`
+	OrganizationID     *uuid.UUID               `json:"organization_id,omitempty"`
 	RequestedServiceID *uuid.UUID               `json:"requested_service_id,omitempty"`
 	ServiceID          *uuid.UUID               `json:"service_id,omitempty"`
 	BirthDate          string                   `json:"birth_date,omitempty"`
@@ -136,14 +143,53 @@ type ProviderView struct {
 }
 
 type ReviewDocumentInput struct {
-	Status string `json:"status" binding:"required,oneof=approved rejected"`
-	Reason string `json:"reason" binding:"max=500"`
+	Status    string      `json:"status" binding:"required,oneof=approved rejected"`
+	ReasonIDs []uuid.UUID `json:"reason_ids" binding:"omitempty,max=10"`
+	Note      string      `json:"note" binding:"max=400"`
 }
 
 type ReviewProviderInput struct {
-	Status    string     `json:"status" binding:"required,oneof=approved rejected suspended"`
-	ServiceID *uuid.UUID `json:"service_id"`
-	Reason    string     `json:"reason" binding:"max=500"`
+	Status    string      `json:"status" binding:"required,oneof=approved rejected suspended"`
+	ServiceID *uuid.UUID  `json:"service_id"`
+	ReasonIDs []uuid.UUID `json:"reason_ids" binding:"omitempty,max=10"`
+	Note      string      `json:"note" binding:"max=400"`
+}
+
+type RejectionReasonView struct {
+	ID           uuid.UUID `json:"id"`
+	Scope        string    `json:"scope" example:"document"`
+	Code         string    `json:"code" example:"illegible"`
+	Label        string    `json:"label" example:"Documento ilegível"`
+	RequiresNote bool      `json:"requires_note"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int       `json:"display_order"`
+}
+
+type RejectionReasonList struct {
+	Items []RejectionReasonView `json:"items"`
+}
+
+type CreateRejectionReasonInput struct {
+	Scope        string `json:"scope" binding:"required,oneof=document provider suspension"`
+	Code         string `json:"code" binding:"required,max=40" example:"blurry_photo"`
+	Label        string `json:"label" binding:"required,max=120" example:"Fotografia desfocada"`
+	RequiresNote bool   `json:"requires_note"`
+	DisplayOrder int    `json:"display_order"`
+}
+
+type UpdateRejectionReasonInput struct {
+	Label        string `json:"label" binding:"required,max=120"`
+	RequiresNote bool   `json:"requires_note"`
+	IsActive     bool   `json:"is_active"`
+	DisplayOrder int    `json:"display_order"`
+}
+
+type ApplicationFilter struct {
+	Status         string
+	OrganizationID *uuid.UUID
+	ServiceID      *uuid.UUID
+	Category       string
+	Search         string
 }
 
 type ApplicationView struct {
@@ -155,6 +201,8 @@ type ApplicationView struct {
 	RequestedServiceName string     `json:"requested_service_name,omitempty"`
 	ServiceID            *uuid.UUID `json:"service_id,omitempty"`
 	VehiclePlate         string     `json:"vehicle_plate,omitempty"`
+	OrganizationID       *uuid.UUID `json:"organization_id,omitempty"`
+	OrganizationName     string     `json:"organization_name,omitempty"`
 	SubmittedAt          *time.Time `json:"submitted_at,omitempty"`
 }
 

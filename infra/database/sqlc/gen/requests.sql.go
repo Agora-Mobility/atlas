@@ -14,7 +14,7 @@ import (
 )
 
 const activeRequestOfCustomer = `-- name: ActiveRequestOfCustomer :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
 WHERE customer_id = $1 AND status IN ('created', 'scheduled', 'searching', 'offered', 'awaiting_choice', 'accepted', 'provider_en_route', 'in_progress')
 ORDER BY (status = 'scheduled'), created_at DESC
 LIMIT 1
@@ -48,6 +48,7 @@ func (q *Queries) ActiveRequestOfCustomer(ctx context.Context, customerID uuid.U
 		&i.NextActionAt,
 		&i.ReminderAt,
 		&i.ProviderID,
+		&i.OrganizationID,
 		&i.FareEstimateID,
 		&i.FareCents,
 		&i.CommissionCents,
@@ -69,7 +70,7 @@ func (q *Queries) ActiveRequestOfCustomer(ctx context.Context, customerID uuid.U
 }
 
 const activeRequestOfProvider = `-- name: ActiveRequestOfProvider :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
 WHERE provider_id = $1 AND status IN ('accepted', 'provider_en_route', 'in_progress')
 ORDER BY (status = 'accepted'), created_at DESC
 LIMIT 1
@@ -103,6 +104,7 @@ func (q *Queries) ActiveRequestOfProvider(ctx context.Context, providerID *uuid.
 		&i.NextActionAt,
 		&i.ReminderAt,
 		&i.ProviderID,
+		&i.OrganizationID,
 		&i.FareEstimateID,
 		&i.FareCents,
 		&i.CommissionCents,
@@ -289,7 +291,7 @@ func (q *Queries) DueServiceRequests(ctx context.Context, arg DueServiceRequests
 }
 
 const findServiceRequestByIdempotencyKey = `-- name: FindServiceRequestByIdempotencyKey :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests WHERE customer_id = $1 AND idempotency_key = $2
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests WHERE customer_id = $1 AND idempotency_key = $2
 `
 
 type FindServiceRequestByIdempotencyKeyParams struct {
@@ -325,6 +327,7 @@ func (q *Queries) FindServiceRequestByIdempotencyKey(ctx context.Context, arg Fi
 		&i.NextActionAt,
 		&i.ReminderAt,
 		&i.ProviderID,
+		&i.OrganizationID,
 		&i.FareEstimateID,
 		&i.FareCents,
 		&i.CommissionCents,
@@ -402,7 +405,7 @@ func (q *Queries) GetRequestOfferForUpdate(ctx context.Context, id uuid.UUID) (R
 }
 
 const getServiceRequest = `-- name: GetServiceRequest :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests WHERE id = $1
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests WHERE id = $1
 `
 
 func (q *Queries) GetServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error) {
@@ -433,6 +436,7 @@ func (q *Queries) GetServiceRequest(ctx context.Context, id uuid.UUID) (ServiceR
 		&i.NextActionAt,
 		&i.ReminderAt,
 		&i.ProviderID,
+		&i.OrganizationID,
 		&i.FareEstimateID,
 		&i.FareCents,
 		&i.CommissionCents,
@@ -454,7 +458,7 @@ func (q *Queries) GetServiceRequest(ctx context.Context, id uuid.UUID) (ServiceR
 }
 
 const getServiceRequestForUpdate = `-- name: GetServiceRequestForUpdate :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests WHERE id = $1 FOR UPDATE
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetServiceRequestForUpdate(ctx context.Context, id uuid.UUID) (ServiceRequest, error) {
@@ -485,6 +489,7 @@ func (q *Queries) GetServiceRequestForUpdate(ctx context.Context, id uuid.UUID) 
 		&i.NextActionAt,
 		&i.ReminderAt,
 		&i.ProviderID,
+		&i.OrganizationID,
 		&i.FareEstimateID,
 		&i.FareCents,
 		&i.CommissionCents,
@@ -753,7 +758,7 @@ func (q *Queries) ListOpenOffersOfProvider(ctx context.Context, arg ListOpenOffe
 }
 
 const listOperatorQueue = `-- name: ListOperatorQueue :many
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
 WHERE needs_operator AND status IN ('searching', 'offered', 'awaiting_choice')
 ORDER BY created_at
 LIMIT $2 OFFSET $1
@@ -798,6 +803,7 @@ func (q *Queries) ListOperatorQueue(ctx context.Context, arg ListOperatorQueuePa
 			&i.NextActionAt,
 			&i.ReminderAt,
 			&i.ProviderID,
+			&i.OrganizationID,
 			&i.FareEstimateID,
 			&i.FareCents,
 			&i.CommissionCents,
@@ -963,7 +969,7 @@ func (q *Queries) ListRequestPlaces(ctx context.Context, requestIds []uuid.UUID)
 }
 
 const listRequestsOfCustomer = `-- name: ListRequestsOfCustomer :many
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
 WHERE customer_id = $1
   AND ($2::text[] = '{}' OR status = ANY($2::text[]))
   AND ($3::text = '' OR category_slug = $3)
@@ -1019,6 +1025,7 @@ func (q *Queries) ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOf
 			&i.NextActionAt,
 			&i.ReminderAt,
 			&i.ProviderID,
+			&i.OrganizationID,
 			&i.FareEstimateID,
 			&i.FareCents,
 			&i.CommissionCents,
@@ -1047,7 +1054,7 @@ func (q *Queries) ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOf
 }
 
 const listRequestsWithProviderOnTheWay = `-- name: ListRequestsWithProviderOnTheWay :many
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests
 WHERE status IN ('accepted', 'provider_en_route') AND provider_id IS NOT NULL
   AND (scheduled_for IS NULL OR scheduled_for <= now())
 ORDER BY updated_at
@@ -1088,6 +1095,7 @@ func (q *Queries) ListRequestsWithProviderOnTheWay(ctx context.Context, limit in
 			&i.NextActionAt,
 			&i.ReminderAt,
 			&i.ProviderID,
+			&i.OrganizationID,
 			&i.FareEstimateID,
 			&i.FareCents,
 			&i.CommissionCents,
@@ -1128,7 +1136,7 @@ func (q *Queries) PurgeLocationSamples(ctx context.Context, recordedAt time.Time
 }
 
 const tryLockServiceRequest = `-- name: TryLockServiceRequest :one
-SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests WHERE id = $1 FOR UPDATE SKIP LOCKED
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at FROM service_requests WHERE id = $1 FOR UPDATE SKIP LOCKED
 `
 
 func (q *Queries) TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error) {
@@ -1159,6 +1167,7 @@ func (q *Queries) TryLockServiceRequest(ctx context.Context, id uuid.UUID) (Serv
 		&i.NextActionAt,
 		&i.ReminderAt,
 		&i.ProviderID,
+		&i.OrganizationID,
 		&i.FareEstimateID,
 		&i.FareCents,
 		&i.CommissionCents,
@@ -1218,7 +1227,8 @@ const updateServiceRequest = `-- name: UpdateServiceRequest :execrows
 UPDATE service_requests
 SET status = $1, version = $2, destination_address_id = $3, destination_h3_r8 = $4,
     search_round = $5, search_extended = $6, search_deadline_at = $7,
-    next_action_at = $8, reminder_at = $9, provider_id = $10, fare_cents = $11,
+    next_action_at = $8, reminder_at = $9, provider_id = $10,
+    organization_id = CASE WHEN provider_id IS NOT DISTINCT FROM $10 THEN organization_id ELSE (SELECT p.organization_id FROM providers p WHERE p.user_id = $10) END, fare_cents = $11,
     commission_cents = $12, boost_bps = $13, needs_operator = $14, operator_reason = $15,
     cancel_reason = $16, cancelled_by = $17, accepted_at = $18, arrived_at = $19,
     started_at = $20, completed_at = $21, updated_at = $22

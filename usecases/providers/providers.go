@@ -39,6 +39,8 @@ var (
 	ErrProviderNotFound       = errors.New("provider not found")
 	ErrProviderBusy           = errors.New("the provider has an active job")
 	ErrReviewNotAllowed       = errors.New("documents are reviewed while the application is pending")
+	ErrManagedByFleet         = errors.New("the fleet manages this for its drivers")
+	ErrRejectionReasonUnknown = errors.New("rejection reason not found")
 )
 
 type IncompleteError struct {
@@ -54,6 +56,7 @@ const (
 	sniffBytes          = 512
 	auditEntityProvider = "provider"
 	auditEntityDocument = "provider_document"
+	auditEntityReason   = "rejection_reason"
 )
 
 var extensions = map[string]string{
@@ -220,10 +223,13 @@ func (u *Usecase) RequestService(ctx context.Context, providerID uuid.UUID, in d
 	if err != nil {
 		return nil, err
 	}
-	if requirements == nil {
+	if requirements == nil || !requirements.SelfSignup {
 		return nil, ErrServiceNotOpen
 	}
 	return u.editProvider(ctx, providerID, func(provider *entities.Provider) error {
+		if provider.IsFleetDriver() {
+			return ErrManagedByFleet
+		}
 		return provider.RequestService(in.ServiceID)
 	})
 }
@@ -240,7 +246,10 @@ func (u *Usecase) SetPersonalData(ctx context.Context, providerID uuid.UUID, in 
 
 func (u *Usecase) SetVehicle(ctx context.Context, providerID uuid.UUID, in dtos.VehicleInput) (*dtos.ProviderView, error) {
 	return u.editProvider(ctx, providerID, func(provider *entities.Provider) error {
-		return provider.SetVehicle(entities.Vehicle{Brand: in.Brand, Model: in.Model, Year: in.Year, Color: in.Color, Plate: in.Plate, Seats: in.Seats}, u.now())
+		if provider.IsFleetDriver() {
+			return ErrManagedByFleet
+		}
+		return provider.SetVehicle(entities.Vehicle{Kind: in.Kind, CapacityKg: in.CapacityKg, Brand: in.Brand, Model: in.Model, Year: in.Year, Color: in.Color, Plate: in.Plate, Seats: in.Seats}, u.now())
 	})
 }
 
@@ -440,7 +449,7 @@ func (u *Usecase) missingFor(ctx context.Context, provider *entities.Provider) (
 
 func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLinks bool) (*dtos.ProviderView, error) {
 	view := &dtos.ProviderView{
-		UserID: provider.UserID, Status: string(provider.Status), StatusReason: provider.StatusReason, RequestedServiceID: provider.RequestedServiceID, ServiceID: provider.ServiceID,
+		UserID: provider.UserID, Status: string(provider.Status), StatusReason: provider.StatusReason, OrganizationID: provider.OrganizationID, RequestedServiceID: provider.RequestedServiceID, ServiceID: provider.ServiceID,
 		IDNumber: provider.IDNumber, SubmittedAt: provider.SubmittedAt, ReviewedAt: provider.ReviewedAt,
 		RequiredDocuments: []dtos.RequiredDocumentView{}, Documents: []dtos.DocumentView{}, Missing: map[string]string{},
 	}
@@ -453,7 +462,7 @@ func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLin
 	}
 	if provider.Vehicle.Plate != "" {
 		v := provider.Vehicle
-		view.Vehicle = &dtos.VehicleView{Brand: v.Brand, Model: v.Model, Year: v.Year, Color: v.Color, Plate: v.Plate, Seats: v.Seats}
+		view.Vehicle = &dtos.VehicleView{Kind: v.Kind, CapacityKg: v.CapacityKg, Brand: v.Brand, Model: v.Model, Year: v.Year, Color: v.Color, Plate: v.Plate, Seats: v.Seats}
 	}
 	user, err := u.Users.FindByID(ctx, provider.UserID)
 	if err != nil {
@@ -480,6 +489,17 @@ func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLin
 			return nil, err
 		}
 	}
+	if provider.Status == entities.ProviderRejected || provider.Status == entities.ProviderSuspended {
+		reasons, err := u.Documents.ProviderReasons(ctx, provider.UserID)
+		if err != nil {
+			return nil, err
+		}
+		view.StatusReasons = toReasonViews(reasons)
+	}
+	documentReasons, err := u.Documents.DocumentReasons(ctx, provider.UserID)
+	if err != nil {
+		return nil, err
+	}
 	documents, err := u.Documents.Documents(ctx, provider.UserID)
 	if err != nil {
 		return nil, err
@@ -488,6 +508,9 @@ func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLin
 		item := dtos.DocumentView{
 			Type: document.Type, Name: document.TypeName, Status: string(document.Status), RejectionReason: document.RejectionReason, ContentType: document.ContentType,
 			SizeBytes: document.SizeBytes, ReviewedAt: document.ReviewedAt, UpdatedAt: document.UpdatedAt,
+		}
+		if document.Status == entities.DocumentRejected {
+			item.RejectionReasons = toReasonViews(documentReasons[document.Type])
 		}
 		if withLinks {
 			signed, err := u.Storage.PresignDownload(ctx, document.ObjectKey)
@@ -501,9 +524,12 @@ func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLin
 	return view, nil
 }
 
-func (u *Usecase) ListApplications(ctx context.Context, status string, page pagination.Params) (*dtos.ApplicationList, error) {
+func (u *Usecase) ListApplications(ctx context.Context, filter dtos.ApplicationFilter, page pagination.Params) (*dtos.ApplicationList, error) {
 	page = page.Normalize()
-	applications, total, err := u.Providers.Applications(ctx, status, int(page.Limit()), int(page.Offset()))
+	applications, total, err := u.Providers.Applications(ctx, repository.ProviderApplicationFilter{
+		Status: filter.Status, OrganizationID: filter.OrganizationID, ServiceID: filter.ServiceID, Category: filter.Category, Search: filter.Search,
+		Limit: int(page.Limit()), Offset: int(page.Offset()),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +538,8 @@ func (u *Usecase) ListApplications(ctx context.Context, status string, page pagi
 		application := &applications[i]
 		list.Items = append(list.Items, dtos.ApplicationView{
 			UserID: application.UserID, Name: application.Name, Phone: application.Phone, Status: string(application.Status), RequestedServiceID: application.RequestedServiceID,
-			RequestedServiceName: application.RequestedServiceName, ServiceID: application.ServiceID, VehiclePlate: application.VehiclePlate, SubmittedAt: application.SubmittedAt,
+			RequestedServiceName: application.RequestedServiceName, ServiceID: application.ServiceID, VehiclePlate: application.VehiclePlate,
+			OrganizationID: application.OrganizationID, OrganizationName: application.OrganizationName, SubmittedAt: application.SubmittedAt,
 		})
 	}
 	return list, nil
@@ -527,6 +554,14 @@ func (u *Usecase) existingProvider(ctx context.Context, providerID uuid.UUID) (*
 		return nil, ErrProviderNotFound
 	}
 	return provider, nil
+}
+
+func (u *Usecase) Profile(ctx context.Context, providerID uuid.UUID) (*dtos.ProviderView, error) {
+	provider, err := u.existingProvider(ctx, providerID)
+	if err != nil {
+		return nil, err
+	}
+	return u.view(ctx, provider, false)
 }
 
 func (u *Usecase) GetApplication(ctx context.Context, providerID uuid.UUID) (*dtos.ProviderView, error) {
@@ -552,11 +587,21 @@ func (u *Usecase) ReviewDocument(ctx context.Context, actor entities.Actor, prov
 	if document == nil {
 		return nil, ErrDocumentNotFound
 	}
-	if err := document.Review(in.Status == string(entities.DocumentApproved), in.Reason, actor.ID, u.now()); err != nil {
+	approved := in.Status == string(entities.DocumentApproved)
+	reasonIDs, reasonText := []uuid.UUID{}, ""
+	if !approved {
+		if reasonIDs, reasonText, err = u.resolveReasons(ctx, entities.RejectionScopeDocument, in.ReasonIDs, in.Note); err != nil {
+			return nil, err
+		}
+	}
+	if err := document.Review(approved, reasonText, actor.ID, u.now()); err != nil {
 		return nil, err
 	}
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		if err := u.Documents.SaveDocument(ctx, document); err != nil {
+			return err
+		}
+		if err := u.Documents.ReplaceDocumentReasons(ctx, providerID, document.Type, reasonIDs); err != nil {
 			return err
 		}
 		return u.audit(ctx, actor, "provider_document.review", auditEntityDocument, document.ID.String(), map[string]string{"type": document.Type, "status": string(document.Status), "reason": document.RejectionReason})
@@ -577,6 +622,12 @@ func (u *Usecase) ReviewProvider(ctx context.Context, actor entities.Actor, prov
 	}
 	now := u.now()
 	eventType, serviceChanged := "", false
+	reasonIDs, reasonText := []uuid.UUID{}, ""
+	if scope, closing := closingScopes[entities.ProviderStatus(in.Status)]; closing {
+		if reasonIDs, reasonText, err = u.resolveReasons(ctx, scope, in.ReasonIDs, in.Note); err != nil {
+			return nil, err
+		}
+	}
 	switch entities.ProviderStatus(in.Status) {
 	case entities.ProviderApproved:
 		serviceChanged = provider.ServiceID != nil && *provider.ServiceID != *in.ServiceID
@@ -585,15 +636,18 @@ func (u *Usecase) ReviewProvider(ctx context.Context, actor entities.Actor, prov
 		}
 		err, eventType = provider.Approve(*in.ServiceID, now), events.ProviderApproved
 	case entities.ProviderRejected:
-		err, eventType = provider.Reject(in.Reason, now), events.ProviderRejected
+		err, eventType = provider.Reject(reasonText, now), events.ProviderRejected
 	default:
-		err, eventType = provider.Suspend(in.Reason, now), events.ProviderSuspended
+		err, eventType = provider.Suspend(reasonText, now), events.ProviderSuspended
 	}
 	if err != nil {
 		return nil, err
 	}
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		if err := u.Providers.Save(ctx, provider); err != nil {
+			return err
+		}
+		if err := u.Documents.ReplaceProviderReasons(ctx, providerID, reasonIDs); err != nil {
 			return err
 		}
 		if serviceChanged {
@@ -642,11 +696,119 @@ func (u *Usecase) checkApproval(ctx context.Context, provider *entities.Provider
 		return err
 	}
 	gaps := requirements.NotApproved(documents)
-	if requirements.RequiresVehicle && provider.Vehicle.Seats < requirements.MinVehicleSeats {
+	for field, message := range requirements.VehicleGaps(provider.Vehicle) {
+		gaps[field] = message
+	}
+	if _, short := gaps["vehicle.seats"]; short {
 		gaps["vehicle.seats"] = fmt.Sprintf("O serviço %s exige pelo menos %d lugares.", requirements.ServiceName, requirements.MinVehicleSeats)
 	}
 	if len(gaps) > 0 {
 		return &IncompleteError{Code: "APPROVAL_REQUIREMENTS_NOT_MET", Fields: gaps}
 	}
 	return nil
+}
+
+var closingScopes = map[entities.ProviderStatus]entities.RejectionScope{
+	entities.ProviderRejected:  entities.RejectionScopeProvider,
+	entities.ProviderSuspended: entities.RejectionScopeSuspension,
+}
+
+func distinctIDs(ids []uuid.UUID) []uuid.UUID {
+	seen := make(map[uuid.UUID]struct{}, len(ids))
+	out := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if _, repeated := seen[id]; !repeated {
+			seen[id] = struct{}{}
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+func (u *Usecase) resolveReasons(ctx context.Context, scope entities.RejectionScope, ids []uuid.UUID, note string) ([]uuid.UUID, string, error) {
+	distinct := distinctIDs(ids)
+	reasons, err := u.Documents.ActiveReasonsByIDs(ctx, scope, distinct)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(reasons) != len(distinct) {
+		return nil, "", entities.ErrUnknownRejectionReason
+	}
+	text, err := entities.ComposeRejection(reasons, note)
+	if err != nil {
+		return nil, "", err
+	}
+	return distinct, text, nil
+}
+
+func toReasonView(reason *entities.RejectionReason) dtos.RejectionReasonView {
+	return dtos.RejectionReasonView{
+		ID: reason.ID, Scope: string(reason.Scope), Code: reason.Code, Label: reason.Label, RequiresNote: reason.RequiresNote, IsActive: reason.IsActive, DisplayOrder: reason.DisplayOrder,
+	}
+}
+
+func toReasonViews(reasons []entities.RejectionReason) []dtos.RejectionReasonView {
+	out := make([]dtos.RejectionReasonView, 0, len(reasons))
+	for i := range reasons {
+		out = append(out, toReasonView(&reasons[i]))
+	}
+	return out
+}
+
+func (u *Usecase) ListRejectionReasons(ctx context.Context, scope string, includeInactive bool) (*dtos.RejectionReasonList, error) {
+	reasons, err := u.Documents.ListReasons(ctx, scope, includeInactive)
+	if err != nil {
+		return nil, err
+	}
+	return &dtos.RejectionReasonList{Items: toReasonViews(reasons)}, nil
+}
+
+func (u *Usecase) CreateRejectionReason(ctx context.Context, actor entities.Actor, in dtos.CreateRejectionReasonInput) (*dtos.RejectionReasonView, error) {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, err
+	}
+	reason, err := entities.RejectionReason{
+		ID: id, Scope: entities.RejectionScope(in.Scope), Code: in.Code, Label: in.Label, RequiresNote: in.RequiresNote, IsActive: true, DisplayOrder: in.DisplayOrder,
+	}.Validated()
+	if err != nil {
+		return nil, err
+	}
+	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := u.Documents.CreateReason(ctx, &reason); err != nil {
+			return err
+		}
+		return u.audit(ctx, actor, "rejection_reason.create", auditEntityReason, reason.ID.String(), reason)
+	})
+	if err != nil {
+		return nil, err
+	}
+	view := toReasonView(&reason)
+	return &view, nil
+}
+
+func (u *Usecase) UpdateRejectionReason(ctx context.Context, actor entities.Actor, id uuid.UUID, in dtos.UpdateRejectionReasonInput) (*dtos.RejectionReasonView, error) {
+	reason, err := u.Documents.FindReason(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if reason == nil {
+		return nil, ErrRejectionReasonUnknown
+	}
+	reason.Label, reason.RequiresNote, reason.IsActive, reason.DisplayOrder = in.Label, in.RequiresNote, in.IsActive, in.DisplayOrder
+	updated, err := reason.Validated()
+	if err != nil {
+		return nil, err
+	}
+	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := u.Documents.UpdateReason(ctx, &updated); err != nil {
+			return err
+		}
+		return u.audit(ctx, actor, "rejection_reason.update", auditEntityReason, updated.ID.String(), updated)
+	})
+	if err != nil {
+		return nil, err
+	}
+	view := toReasonView(&updated)
+	return &view, nil
 }

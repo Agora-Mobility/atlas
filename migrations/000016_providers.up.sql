@@ -1,6 +1,7 @@
 CREATE TABLE providers (
     user_id               UUID        PRIMARY KEY REFERENCES users (id),
     status                TEXT        NOT NULL DEFAULT 'draft',
+    organization_id       UUID        REFERENCES organizations (id),
     requested_service_id  UUID        REFERENCES services (id),
     service_id            UUID        REFERENCES services (id),
     birth_date            DATE,
@@ -19,22 +20,29 @@ CREATE TABLE providers (
 );
 
 CREATE INDEX providers_service_idx ON providers (service_id);
+CREATE INDEX providers_organization_idx ON providers (organization_id);
 CREATE INDEX providers_review_idx ON providers (status, submitted_at);
 
 CREATE TABLE vehicles (
-    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    provider_id UUID        NOT NULL UNIQUE REFERENCES providers (user_id) ON DELETE CASCADE,
-    brand       TEXT        NOT NULL,
-    model       TEXT        NOT NULL,
-    year        INTEGER,
-    color       TEXT        NOT NULL,
-    plate       TEXT        NOT NULL,
-    seats       INTEGER,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider_id     UUID        UNIQUE REFERENCES providers (user_id) ON DELETE SET NULL,
+    organization_id UUID        REFERENCES organizations (id),
+    kind            TEXT        NOT NULL DEFAULT 'car' CHECK (kind IN ('car', 'motorcycle', 'van', 'truck', 'tow_truck')),
+    brand           TEXT        NOT NULL,
+    model           TEXT        NOT NULL,
+    year            INTEGER,
+    color           TEXT        NOT NULL,
+    plate           TEXT        NOT NULL,
+    seats           INTEGER,
+    capacity_kg     INTEGER,
+    is_active       BOOLEAN     NOT NULL DEFAULT true,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX vehicles_plate_idx ON vehicles (plate);
+CREATE INDEX vehicles_organization_idx ON vehicles (organization_id);
+CREATE UNIQUE INDEX vehicles_organization_plate_key ON vehicles (organization_id, plate) WHERE organization_id IS NOT NULL;
 
 CREATE TABLE provider_coverage (
     category_id UUID   NOT NULL REFERENCES service_categories (id),
@@ -84,7 +92,9 @@ FROM (VALUES
 CREATE TABLE service_provider_requirements (
     service_id        UUID    PRIMARY KEY REFERENCES services (id),
     requires_vehicle  BOOLEAN NOT NULL DEFAULT true,
-    min_vehicle_seats INTEGER NOT NULL DEFAULT 0 CHECK (min_vehicle_seats >= 0)
+    min_vehicle_seats INTEGER NOT NULL DEFAULT 0 CHECK (min_vehicle_seats >= 0),
+    vehicle_kinds     TEXT[]  NOT NULL DEFAULT '{}',
+    self_signup       BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE service_required_documents (
@@ -109,9 +119,64 @@ CREATE TABLE provider_documents (
     UNIQUE (provider_id, document_type)
 );
 
-INSERT INTO service_provider_requirements (service_id, requires_vehicle, min_vehicle_seats)
-SELECT s.id, true, CASE s.slug WHEN 'taxi-xl' THEN 7 ELSE 4 END
-FROM services s WHERE s.slug IN ('taxi', 'taxi-comfort', 'taxi-xl');
+CREATE TABLE rejection_reasons (
+    id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    scope         TEXT        NOT NULL CHECK (scope IN ('document', 'provider', 'suspension')),
+    code          TEXT        NOT NULL,
+    label         TEXT        NOT NULL,
+    requires_note BOOLEAN     NOT NULL DEFAULT false,
+    is_active     BOOLEAN     NOT NULL DEFAULT true,
+    display_order INTEGER     NOT NULL DEFAULT 0,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (scope, code)
+);
+
+CREATE TABLE provider_rejection_reasons (
+    provider_id UUID NOT NULL REFERENCES providers (user_id) ON DELETE CASCADE,
+    reason_id   UUID NOT NULL REFERENCES rejection_reasons (id),
+    PRIMARY KEY (provider_id, reason_id)
+);
+
+CREATE TABLE provider_document_rejection_reasons (
+    provider_id   UUID NOT NULL,
+    document_type TEXT NOT NULL,
+    reason_id     UUID NOT NULL REFERENCES rejection_reasons (id),
+    PRIMARY KEY (provider_id, document_type, reason_id),
+    FOREIGN KEY (provider_id, document_type) REFERENCES provider_documents (provider_id, document_type) ON DELETE CASCADE
+);
+
+INSERT INTO rejection_reasons (scope, code, label, requires_note, display_order) VALUES
+    ('document', 'illegible', 'Documento ilegível', false, 1),
+    ('document', 'expired', 'Documento caducado', false, 2),
+    ('document', 'wrong_person', 'O documento não corresponde à pessoa', false, 3),
+    ('document', 'wrong_vehicle', 'O documento não corresponde à viatura', false, 4),
+    ('document', 'incomplete', 'Documento incompleto', false, 5),
+    ('document', 'other', 'Outro motivo', true, 99),
+    ('provider', 'invalid_documents', 'Documentos inválidos', false, 1),
+    ('provider', 'inconsistent_data', 'Dados inconsistentes', false, 2),
+    ('provider', 'vehicle_not_eligible', 'A viatura não cumpre os requisitos', false, 3),
+    ('provider', 'criminal_record', 'Registo criminal impeditivo', false, 4),
+    ('provider', 'other', 'Outro motivo', true, 99),
+    ('suspension', 'customer_complaints', 'Queixas de clientes', false, 1),
+    ('suspension', 'expired_documents', 'Documentos caducados', false, 2),
+    ('suspension', 'misconduct', 'Conduta inadequada', false, 3),
+    ('suspension', 'other', 'Outro motivo', true, 99);
+
+INSERT INTO service_provider_requirements (service_id, requires_vehicle, min_vehicle_seats, vehicle_kinds, self_signup)
+SELECT s.id, r.requires_vehicle, r.seats, r.kinds, r.self_signup
+FROM services s
+JOIN (VALUES
+    ('taxi', true, 4, ARRAY['car'], true),
+    ('taxi-comfort', true, 4, ARRAY['car'], true),
+    ('taxi-xl', true, 7, ARRAY['car', 'van'], true),
+    ('towing', true, 0, ARRAY['tow_truck'], false),
+    ('removals', true, 0, ARRAY['van', 'truck'], false),
+    ('maintenance', false, 0, ARRAY[]::text[], false)
+) AS r (slug, requires_vehicle, seats, kinds, self_signup) ON r.slug = s.slug;
 
 INSERT INTO service_required_documents (service_id, document_type)
-SELECT r.service_id, d.code FROM service_provider_requirements r CROSS JOIN provider_document_types d;
+SELECT r.service_id, d.code
+FROM service_provider_requirements r
+CROSS JOIN provider_document_types d
+WHERE r.requires_vehicle OR d.scope = 'personal';

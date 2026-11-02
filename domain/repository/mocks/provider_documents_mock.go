@@ -43,6 +43,35 @@ func (m *MockIProviderDocumentRepository) EXPECT() *MockIProviderDocumentReposit
 	return m.recorder
 }
 
+// ActiveReasonsByIDs mocks base method.
+func (m *MockIProviderDocumentRepository) ActiveReasonsByIDs(ctx context.Context, scope entities.RejectionScope, ids []uuid.UUID) ([]entities.RejectionReason, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ActiveReasonsByIDs", ctx, scope, ids)
+	ret0, _ := ret[0].([]entities.RejectionReason)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ActiveReasonsByIDs indicates an expected call of ActiveReasonsByIDs.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) ActiveReasonsByIDs(ctx, scope, ids any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActiveReasonsByIDs", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).ActiveReasonsByIDs), ctx, scope, ids)
+}
+
+// CreateReason mocks base method.
+func (m *MockIProviderDocumentRepository) CreateReason(ctx context.Context, reason *entities.RejectionReason) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateReason", ctx, reason)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateReason indicates an expected call of CreateReason.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) CreateReason(ctx, reason any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateReason", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).CreateReason), ctx, reason)
+}
+
 // Document mocks base method.
 func (m *MockIProviderDocumentRepository) Document(ctx context.Context, providerID uuid.UUID, documentType string) (*entities.ProviderDocument, error) {
 	m.ctrl.T.Helper()
@@ -56,6 +85,21 @@ func (m *MockIProviderDocumentRepository) Document(ctx context.Context, provider
 func (mr *MockIProviderDocumentRepositoryMockRecorder) Document(ctx, providerID, documentType any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Document", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).Document), ctx, providerID, documentType)
+}
+
+// DocumentReasons mocks base method.
+func (m *MockIProviderDocumentRepository) DocumentReasons(ctx context.Context, providerID uuid.UUID) (map[string][]entities.RejectionReason, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DocumentReasons", ctx, providerID)
+	ret0, _ := ret[0].(map[string][]entities.RejectionReason)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DocumentReasons indicates an expected call of DocumentReasons.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) DocumentReasons(ctx, providerID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentReasons", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).DocumentReasons), ctx, providerID)
 }
 
 // DocumentType mocks base method.
@@ -88,6 +132,36 @@ func (mr *MockIProviderDocumentRepositoryMockRecorder) Documents(ctx, providerID
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Documents", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).Documents), ctx, providerID)
 }
 
+// FindReason mocks base method.
+func (m *MockIProviderDocumentRepository) FindReason(ctx context.Context, id uuid.UUID) (*entities.RejectionReason, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindReason", ctx, id)
+	ret0, _ := ret[0].(*entities.RejectionReason)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindReason indicates an expected call of FindReason.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) FindReason(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindReason", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).FindReason), ctx, id)
+}
+
+// ListReasons mocks base method.
+func (m *MockIProviderDocumentRepository) ListReasons(ctx context.Context, scope string, includeInactive bool) ([]entities.RejectionReason, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListReasons", ctx, scope, includeInactive)
+	ret0, _ := ret[0].([]entities.RejectionReason)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListReasons indicates an expected call of ListReasons.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) ListReasons(ctx, scope, includeInactive any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListReasons", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).ListReasons), ctx, scope, includeInactive)
+}
+
 // OpenServices mocks base method.
 func (m *MockIProviderDocumentRepository) OpenServices(ctx context.Context) ([]repository.OpenService, error) {
 	m.ctrl.T.Helper()
@@ -101,6 +175,49 @@ func (m *MockIProviderDocumentRepository) OpenServices(ctx context.Context) ([]r
 func (mr *MockIProviderDocumentRepositoryMockRecorder) OpenServices(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenServices", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).OpenServices), ctx)
+}
+
+// ProviderReasons mocks base method.
+func (m *MockIProviderDocumentRepository) ProviderReasons(ctx context.Context, providerID uuid.UUID) ([]entities.RejectionReason, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProviderReasons", ctx, providerID)
+	ret0, _ := ret[0].([]entities.RejectionReason)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProviderReasons indicates an expected call of ProviderReasons.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) ProviderReasons(ctx, providerID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProviderReasons", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).ProviderReasons), ctx, providerID)
+}
+
+// ReplaceDocumentReasons mocks base method.
+func (m *MockIProviderDocumentRepository) ReplaceDocumentReasons(ctx context.Context, providerID uuid.UUID, documentType string, reasonIDs []uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReplaceDocumentReasons", ctx, providerID, documentType, reasonIDs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReplaceDocumentReasons indicates an expected call of ReplaceDocumentReasons.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) ReplaceDocumentReasons(ctx, providerID, documentType, reasonIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceDocumentReasons", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).ReplaceDocumentReasons), ctx, providerID, documentType, reasonIDs)
+}
+
+// ReplaceProviderReasons mocks base method.
+func (m *MockIProviderDocumentRepository) ReplaceProviderReasons(ctx context.Context, providerID uuid.UUID, reasonIDs []uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReplaceProviderReasons", ctx, providerID, reasonIDs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReplaceProviderReasons indicates an expected call of ReplaceProviderReasons.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) ReplaceProviderReasons(ctx, providerID, reasonIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceProviderReasons", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).ReplaceProviderReasons), ctx, providerID, reasonIDs)
 }
 
 // Requirements mocks base method.
@@ -130,4 +247,18 @@ func (m *MockIProviderDocumentRepository) SaveDocument(ctx context.Context, docu
 func (mr *MockIProviderDocumentRepositoryMockRecorder) SaveDocument(ctx, document any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveDocument", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).SaveDocument), ctx, document)
+}
+
+// UpdateReason mocks base method.
+func (m *MockIProviderDocumentRepository) UpdateReason(ctx context.Context, reason *entities.RejectionReason) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateReason", ctx, reason)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateReason indicates an expected call of UpdateReason.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) UpdateReason(ctx, reason any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateReason", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).UpdateReason), ctx, reason)
 }
