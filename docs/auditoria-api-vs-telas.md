@@ -453,3 +453,9 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 **Endpoints novos:** `GET /vouchers`, `POST /vouchers/preview`, `GET,POST /admin/vouchers`, `PUT /admin/vouchers/{id}`.
 
 **Alterados:** `POST /requests` aceita `voucher_code` e recusa os inválidos, em vez de os ignorar (B5). Os pedidos trazem `discount_cents`, `voucher_code` e `amount_due_cents`.
+
+### Fase 7: pedidos
+
+**Novos no pedido:** `code` (TX-48271, com prefixo por categoria), `service_name`, `arrived_at` por paragem, `requests` em `/requests/active`.
+
+**Endpoints novos:** `GET /requests/{id}/receipt` (PDF), `POST /requests/{id}/repeat`, `POST /requests/{id}/stops/{position}/arrive`, `GET /users/me/recent-destinations`, `POST /requests/{id}/tickets`, `GET,POST /support/tickets`, `GET /support/tickets/{id}`, `POST /support/tickets/{id}/messages`, `GET /admin/support/tickets`, `GET /admin/support/tickets/{id}`, `POST /admin/support/tickets/{id}/messages`, `POST /admin/support/tickets/{id}/close`.

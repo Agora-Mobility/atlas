@@ -47,3 +47,5 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Gorjetas do Táxi | 200, 500 e 1 000 Kz; Manutenção 500, 1 000 e 2 000 Kz (**palpite**, as telas só indicam Reboque e Mudanças) | Valores do catálogo, alteráveis |
 | Voucher | `fare_cents` mantém o valor sem desconto; o que o cliente paga está em `amount_due_cents`. O desconto deixa sempre 1 Kz por pagar, porque a AppyPay não aceita cobranças de zero | Comissão e relatórios assentam na tarifa |
 | TAXI10 | Criado no seed de desenvolvimento, não na migração | Em produção é a operação que decide os vouchers |
+| Repetir | `POST /requests/{id}/repeat` devolve a rota e novos preços. O pedido só é criado quando o cliente confirma | O preço pode ter mudado, e uma estimativa só serve um pedido |
+| Recibo PDF | Gerado no servidor com um escritor próprio (`shared/simplepdf`), sem biblioteca nova | Regra de não trazer frameworks; basta uma página de texto |
