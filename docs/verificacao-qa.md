@@ -1,8 +1,65 @@
 # Verificação de QA: API Atlas vs. telas da app
 
 - **Data:** 2026-11-02
-- **Estado verificado:** branch `feat/geo-dispatch-realtime`, em `d3002f5`, mais as alterações por commitar. Nada foi corrigido.
-- **Independência:** esta verificação foi feita pelo mesmo agente que escreveu o código e o relatório anterior, por isso não é uma revisão independente. Cada resultado vem de execução real e pode ser repetido com o script abaixo. Convém que outra pessoa ou sessão repita o trabalho.
+- **Estado verificado:** branch `feat/geo-dispatch-realtime`, em `09b34a4`, com todas as fases do brief.
+- **Independência:** esta secção foi escrita pelo agente que escreveu o código. O resultado do revisor independente está na secção R.
+- **Baseline:** as secções 1 a 8 abaixo do separador são a verificação inicial, em `d3002f5`, e ficam como registo. Os bugs B1 a B7 estão corrigidos.
+
+## R. Resultado atual
+
+| Verificação | Resultado |
+|---|---|
+| `python3 tests/e2e/qa_flows.py` | **42 passaram, 0 falharam, 0 não testáveis**, 390 verificações. Evidência local: `tests/e2e/evidence/run-20261102-221347.json` |
+| `go test -tags integration,e2e -count=1 ./...` | 31 pacotes verdes, 108 testes e2e. Depois disso entrou `test/e2e/prepaid_test.go`, com 6 testes verdes, corridos à parte |
+| Lint, `sqlc diff`, `sqlc vet`, swagger, mocks | Limpos, sem diferenças |
+| `make test-appypay` | Passou, na conta de teste real |
+| B7 | 15 de 15 corridas com stack nova e carga média perto de 20. A falha original era de 1 em 8, por isso 15 corridas limpas ainda têm cerca de 13% de hipótese de sorte. O mecanismo também tem o seu teste |
+
+### Bugs encontrados nesta verificação
+
+| Bug | Efeito | Estado |
+|---|---|---|
+| Dinheiro sem comissão | Corrida a dinheiro com comissão 0 respondia 500 e ficava por pagar, porque o ledger recusava a transação vazia. Vinha da fase 4. O P1 não dava por isso porque ignorava a resposta | Corrigido em `401a0d0`, com teste. O P1 agora confere a resposta |
+| Erro das respostas rápidas | A minha tabela de erros das Mudanças tapava `QUICK_REPLY_NOT_FOUND` | Corrigido em `7b93458` |
+
+### Alterações às verificações do script
+
+Nenhuma verificação foi retirada para passar. Estas foram alteradas por causa de uma decisão do brief ou de uma rota real:
+
+| Cenário | Antes | Agora | Porquê |
+|---|---|---|---|
+| M1 | "Aberta até" lido em `GET /fleet/workshops/{id}` | Lido em `GET /workshops/{id}`, a rota do cliente | O horário estruturado é para o cliente |
+| M2 | `GET /availability?date=`, `POST /bookings` só com a oficina | Rotas reais, com corrida de 5 clientes pelo último lugar | As rotas eram palpites |
+| M4, M6 | Pedido de `maintenance` por `POST /requests` | Marcação real. O pedido direto tem de responder `USE_BOOKINGS` | C2 |
+| M5 | Estados procurados em `service_requests` | Procurados em `bookings` | Modelo próprio de marcações |
+| M6 | Aprovação procurada em rota com `request` | Rota com `booking` | Idem |
+| P1 | Manutenção e Mudanças em "Em curso" | Marcação em "Marcados" até a viatura chegar (M5 prova "Em curso"). As Mudanças aparecem em "Em curso" ou "Marcados", conforme o momento | C2 e C3 |
+| D1 a D3 | `POST /requests` sem estimativa, `helpers` e `extras` soltos | Estimativa com `removal`, janela e tipo. O valor esperado de 110 000 Kz não mudou | C3 |
+| P3 | Só o estado das rotas | Eventos, ligação, lidas, IDOR e BD | Reforço |
+| P4 | `PATCH /users/me` com toggles | `PUT /users/me/preferences`, e prova de que o SMS não sai | A rota era um palpite |
+
+Cenários novos: P5 (convites, ajuda, foto), L1 (chat, chamada, partilha, ETA), L2 (SOS), L3 (ledger, gorjeta, liquidação).
+
+No Go, `TestMaintenanceByCoverage...`, `TestRemovalsQuote...`, `TestExpiredQuote...` e o teste de taxa das Mudanças passam a ligar o modo antigo no próprio teste. `TestPolicyTable...` mudou só a linha das Mudanças.
+
+### Por provar
+
+| Item | Estado |
+|---|---|
+| SMS real para um telefone | **Não testável.** Recetor local |
+| Push FCM real | **Não testável.** Credenciais vazias; o e2e usa simulador |
+| Webhook real da AppyPay | **Não testável.** Precisa de URL público. Forjado recusado (X2) |
+| Referência paga até ao fim | **Não testável** na conta de teste. Provado só com simulador em `test/e2e/prepaid_test.go` |
+| AppyPay em produção | **Não testável** |
+| Fornecedor de chamadas mascaradas | **Não testável.** Sem fornecedor responde 503; o contrato foi testado com simulador |
+| Taxa real da AppyPay | **Não testável.** Registo manual a partir do extrato |
+| Preferências sem efeito | `notify_promotions`, `share_location`, `language` e `currency` são só guardadas. **CO02 está parcial** |
+| Corrida do QA com aprovação de prestadores | Aprovação por SQL no script, coberta noutro teste e2e |
+| Imagens das telas | Nunca foram recebidas nestas sessões. Tudo foi feito a partir do texto do brief |
+
+---
+
+# Baseline inicial, em `d3002f5`
 
 ## 1. Resumo
 

@@ -13,6 +13,8 @@
 
 Os requisitos só de interface, sem regra no servidor, não contam como trabalho em falta e estão assinalados como tal.
 
+> **Atualizado em 2026-11-02.** As secções 1 a 4, 6 e 8 a 15 descrevem o estado inicial em `d3002f5` e ficam como registo. As secções 5 e 7 foram reescritas com o estado final. O estado final de tudo está na secção 18.
+
 ## 1. Resumo
 
 | Fluxo | Requisitos | ✅ | 🟡 | ❌ | Cobertura |
@@ -447,3 +449,41 @@ Um único serviço `towing` com tipos de viatura em `catalog_items` (C1): Ligeir
 **Endpoints novos:** `GET /towing/options`.
 
 **Alterados:** `POST /fare-estimates` na categoria `towing` devolve uma opção por tipo. `POST /requests` aceita `towing`. `POST /requests/{id}/complete` aceita `code`.
+
+### Fase 11: Manutenção
+
+Modelo próprio de marcações (C2), com estados `confirmed`, `vehicle_received`, `in_service`, `ready`, `completed`, `awaiting_payment` e `cancelled`. Cada marcação tem um pedido associado, só para faturação e listas. Migração 000031.
+
+**Endpoints novos:** `GET /workshops`, `GET /workshops/{id}`, `GET /workshops/{id}/reviews`, `GET /workshops/{id}/availability`, `POST,DELETE /workshops/{id}/favorite`, `GET,POST /bookings`, `GET /bookings/{id}`, `GET /bookings/{id}/calendar`, `POST /bookings/{id}/cancel`, `POST /bookings/{id}/approve`, `POST /bookings/{id}/extras/{extraId}/answer`, `GET,POST /bookings/{id}/messages`, `POST /bookings/{id}/call`, `GET,POST /admin/workshops/{id}/...` para ledger e liquidação. Parceiro, em `/fleet` e `/partners/{orgId}/fleet`: `PUT /workshops/{id}/schedule`, `POST /workshops/{id}/closures`, `DELETE /workshops/{id}/closures/{date}`, `GET,POST /workshops/{id}/mechanics`, `DELETE /workshops/{id}/mechanics/{mechanicId}`, `GET /workshops/{id}/bookings`, `GET /bookings/{id}`, `POST /bookings/{id}/status`, `PUT /bookings/{id}/assignment`, `POST /bookings/{id}/extras`, `POST /bookings/{id}/cancel`, `GET,POST /bookings/{id}/messages`.
+
+**Alterados:** `POST /requests` em `maintenance` responde `USE_BOOKINGS`. `POST /admin/vouchers` aceita `workshop_id`, `workshop_service_id` e `auto_apply`. Serviços de oficina aceitam `category_id`.
+
+### Fase 12: Mudanças
+
+Preço fixo por viatura, ajudantes e extras (C3). Migração 000032.
+
+**Endpoints novos:** `GET /removals/options`, `GET /removals/availability`, `PUT /requests/{id}/team`, `PUT /fleet/requests/{id}/team`.
+
+**Alterados:** `POST /fare-estimates` aceita `removal` e devolve uma opção por viatura. `POST /requests` aceita `removal`.
+
+### Fase 13: conta e notificações
+
+Migração 000033.
+
+**Endpoints novos:** `GET,PUT /users/me/preferences`, `GET,PUT /users/me/avatar`, `GET /users/me/referral`, `POST /users/me/referral/redeem`, `GET /notifications`, `POST /notifications/read-all`, `POST /notifications/{id}/read`, `GET /help`.
+
+**Env novas nas fases 11 a 13:** nenhuma. Os valores estão em `platform_settings` e `catalog_items`.
+
+## 18. Estado final
+
+| Área | Estado | Prova | Parcial ou por provar |
+|---|---|---|---|
+| Táxi (TX01 a TX07) | ✅ | T1 a T8, L1, L2 | Chamada só com simulador |
+| Manutenção (MN01 a MN07) | ✅ | M1 a M6, `bookings_test.go`, `prepaid_test.go` | Referência paga só com simulador |
+| Reboque (RB01 a RB06) | ✅ | R1 a R3, `towing_test.go` | |
+| Mudanças (MD01 a MD07) | ✅ | D1 a D3, `removals_test.go`, `prepaid_test.go` | Seguro é informativo, por decisão |
+| Pedidos (PD01, PD02) | ✅ | P1, P2 | |
+| Conta (CO01, CO03) | ✅ | P4, P5, E1, E2 | |
+| Preferências (CO02) | 🟡 | P4, `account_test.go` | `notify_promotions`, `share_location`, `language` e `currency` só ficam guardadas |
+| Notificações (NT01) | ✅ | P3, `account_test.go` | Push real sem credenciais |
+| Transversal | ✅ | T8, L3, X1, X2, E3 | Ver `docs/verificacao-qa.md`, secção "Por provar" |
