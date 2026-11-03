@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.0](https://github.com/Agora-Mobility/atlas/compare/v1.2.0...v2.0.0) (2026-11-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** POST /auth/login takes `phone` instead of `identifier` and ignores `organization_id`. Accounts without a phone, such as an admin made by the previous bootstrap-admin, cannot sign in until they get one.
+
+### Features
+
+* **auth:** add a separate sign-in with an SMS code ([e970c87](https://github.com/Agora-Mobility/atlas/commit/e970c8792e1bc8c0b111943e7ad24bd9047d6f65))
+* **auth:** sign every account in with the phone and password ([82d75a9](https://github.com/Agora-Mobility/atlas/commit/82d75a960b41a46c6827b880154e2e1d8a6ab568))
+
 ## [1.2.0](https://github.com/Agora-Mobility/atlas/compare/v1.1.1...v1.2.0) (2026-11-01)
 
 
