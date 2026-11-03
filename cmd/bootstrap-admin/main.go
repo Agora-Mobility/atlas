@@ -7,6 +7,7 @@
 //
 //	BOOTSTRAP_ADMIN_NAME      (default "Administrador AGORA")
 //	BOOTSTRAP_ADMIN_EMAIL     (required)
+//	BOOTSTRAP_ADMIN_PHONE     (required, the admin signs in with it)
 //	BOOTSTRAP_ADMIN_PASSWORD  (required, at least 12 characters)
 package main
 
@@ -43,9 +44,10 @@ func run() error {
 		name = defaultName
 	}
 	email := strings.TrimSpace(os.Getenv("BOOTSTRAP_ADMIN_EMAIL"))
+	phoneNumber := strings.TrimSpace(os.Getenv("BOOTSTRAP_ADMIN_PHONE"))
 	secret := os.Getenv("BOOTSTRAP_ADMIN_PASSWORD")
-	if email == "" || secret == "" {
-		return errors.New("BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD are required")
+	if email == "" || phoneNumber == "" || secret == "" {
+		return errors.New("BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_PHONE and BOOTSTRAP_ADMIN_PASSWORD are required")
 	}
 	if utf8.RuneCountInString(secret) < minPasswordLength {
 		return errors.New("BOOTSTRAP_ADMIN_PASSWORD must have at least 12 characters")
@@ -72,7 +74,7 @@ func run() error {
 		postgres.NewTxManager(pool),
 		password.NewArgon2Hasher(password.DefaultParams),
 	)
-	created, err := bootstrap.Run(ctx, name, email, secret)
+	created, err := bootstrap.Run(ctx, name, email, phoneNumber, secret)
 	if err != nil {
 		return err
 	}

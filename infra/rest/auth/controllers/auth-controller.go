@@ -92,7 +92,7 @@ func (c *AuthController) handleRegisterError(ctx *gin.Context, err error) {
 // Login godoc
 //
 //	@Summary		Authenticate a user
-//	@Description	The identifier is an e-mail or a phone number in E.164 format. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership); organization_id picks one partner when the person belongs to several. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.
+//	@Description	Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership). The organization is never sent: it comes from the membership and travels in the token. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
@@ -134,7 +134,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 func (c *AuthController) handleLoginError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, usecases.ErrInvalidCredentials):
-		shared.Unauthorized(ctx, "INVALID_CREDENTIALS", "Invalid identifier or password.")
+		shared.Unauthorized(ctx, "INVALID_CREDENTIALS", "Invalid phone or password.")
 	case errors.Is(err, usecases.ErrPhoneNotVerified):
 		shared.Forbidden(ctx, "PHONE_NOT_VERIFIED", "Phone number not verified.")
 	default:
@@ -197,8 +197,8 @@ func (c *AuthController) handleRefreshError(ctx *gin.Context, err error) {
 
 // RequestPhoneVerification godoc
 //
-//	@Summary		Send a phone code to verify or sign in
-//	@Description	Customer and provider apps only. Serves the first verification and every later sign-in without password. Always answers 202 so the response does not reveal whether the phone is registered.
+//	@Summary		Resend the code that verifies a new account
+//	@Description	Customer and provider apps only. Sends nothing to an account already verified: signing in with a code is /auth/login/otp/request. Always answers 202 so the response does not reveal whether the phone is registered.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
@@ -233,8 +233,8 @@ func (c *AuthController) RequestPhoneVerification(ctx *gin.Context) {
 
 // ConfirmPhoneVerification godoc
 //
-//	@Summary		Verify the phone code and start a session
-//	@Description	Customer and provider apps only. Marks the phone verified on the first use.
+//	@Summary		Verify a new account and start its first session
+//	@Description	Customer and provider apps only. Takes the code sent by /auth/register or /auth/phone/verification-code and marks the phone verified.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
@@ -261,6 +261,80 @@ func (c *AuthController) ConfirmPhoneVerification(ctx *gin.Context) {
 	}
 
 	resp, err := c.phoneVerificationUsecase.Confirm(ctx.Request.Context(), req, client, ctx.ClientIP(), ctx.Request.UserAgent())
+	if err != nil {
+		handleSignInError(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, resp)
+}
+
+// RequestLoginCode godoc
+//
+//	@Summary		Send a code to sign in without a password
+//	@Description	Customer and provider apps only. Sends an SMS code to the account of the phone. Always answers 202 so the response does not reveal whether the phone is registered. Continue with /auth/login/otp/verify.
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.LoginCodeRequestInput	true	"Phone payload"
+//	@Success		202		{object}	dtos.MessageOutput
+//	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
+//	@Failure		401		{object}	shared.ErrorResponse	"Unknown client"
+//	@Failure		422		{object}	shared.ErrorResponse	"Invalid fields"
+//	@Failure		429		{object}	shared.ErrorResponse	"Too many requests"
+//	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
+//	@Security		ClientId
+//	@Router			/api/v1/auth/login/otp/request [post]
+func (c *AuthController) RequestLoginCode(ctx *gin.Context) {
+	var req dtos.LoginCodeRequestInput
+	if err := binding.JSON(ctx, &req); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+
+	client, ok := requestClient(ctx)
+	if !ok {
+		return
+	}
+
+	if err := c.phoneVerificationUsecase.RequestLoginCode(ctx.Request.Context(), req, client); err != nil {
+		handleCommonError(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusAccepted, dtos.MessageOutput{Message: genericCodeSentMessage})
+}
+
+// VerifyLoginCode godoc
+//
+//	@Summary		Sign in with the code sent by SMS
+//	@Description	Customer and provider apps only. Validates the code from /auth/login/otp/request and returns an access token and a refresh token.
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.LoginCodeVerifyInput	true	"Phone and code"
+//	@Success		200		{object}	dtos.SessionOutput
+//	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
+//	@Failure		401		{object}	shared.ErrorResponse	"Unknown client"
+//	@Failure		403		{object}	shared.ErrorResponse	"Account blocked or client not allowed"
+//	@Failure		422		{object}	shared.ErrorResponse	"Invalid, expired or exhausted code"
+//	@Failure		429		{object}	shared.ErrorResponse	"Too many requests"
+//	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
+//	@Security		ClientId
+//	@Router			/api/v1/auth/login/otp/verify [post]
+func (c *AuthController) VerifyLoginCode(ctx *gin.Context) {
+	var req dtos.LoginCodeVerifyInput
+	if err := binding.JSON(ctx, &req); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+
+	client, ok := requestClient(ctx)
+	if !ok {
+		return
+	}
+
+	resp, err := c.phoneVerificationUsecase.VerifyLoginCode(ctx.Request.Context(), req, client, ctx.ClientIP(), ctx.Request.UserAgent())
 	if err != nil {
 		handleSignInError(ctx, err)
 		return

@@ -16,6 +16,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/shared/customerrors"
 	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/shared/phone"
@@ -227,6 +228,9 @@ func (uc *MemberUsecase) ResendInvitation(ctx context.Context, actor StaffActor,
 }
 
 func (uc *MemberUsecase) Update(ctx context.Context, actor StaffActor, memberID uuid.UUID, req dtos.UpdateMemberInput) (*dtos.MemberView, error) {
+	if req.Phone != nil && phone.Normalize(*req.Phone) == "" {
+		return nil, customerrors.FieldError("phone", "O telefone é obrigatório para iniciar sessão.")
+	}
 	org, err := uc.organization(ctx, actor.Access.OrganizationID)
 	if err != nil {
 		return nil, err

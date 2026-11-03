@@ -70,13 +70,132 @@ func TestConfirmPhone_WrongClientGetsNoSession(t *testing.T) {
 	require.ErrorIs(t, err, usecases.ErrClientNotAllowed)
 }
 
-func TestRequestPhoneCode_SignsInAVerifiedAccount(t *testing.T) {
+func TestRequestPhoneCode_ResendsToAnUnverifiedAccount(t *testing.T) {
 	f := newFixture(t)
 	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newSignUpUser(t, enums.RoleCustomer), nil)
 	f.otp.EXPECT().Issue(gomock.Any(), enums.OTPPurposeVerifyPhone, phone).Return("123456", nil)
 	f.sms.EXPECT().Send(gomock.Any(), phone, gomock.Any()).Return(nil)
 
 	require.NoError(t, f.phoneVerification.RequestCode(context.Background(), dtos.PhoneVerificationRequestInput{Phone: phone}, customerApp))
+}
+
+func TestRequestPhoneCode_SendsNothingToAVerifiedAccount(t *testing.T) {
+	f := newFixture(t)
+	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, enums.RoleCustomer, true), nil)
+
+	require.NoError(t, f.phoneVerification.RequestCode(context.Background(), dtos.PhoneVerificationRequestInput{Phone: phone}, customerApp))
+}
+
+func TestRequestLoginCode_SendsTheCodeToAnAccountOfTheClient(t *testing.T) {
+	f := newFixture(t)
+	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, enums.RoleCustomer, true), nil)
+	f.otp.EXPECT().Issue(gomock.Any(), enums.OTPPurposeLogin, phone).Return("123456", nil)
+	f.sms.EXPECT().Send(gomock.Any(), phone, "Código de acesso: 123456. Válido por 5 min. Não o partilhe.").Return(nil)
+
+	require.NoError(t, f.phoneVerification.RequestLoginCode(context.Background(), dtos.LoginCodeRequestInput{Phone: "923000000"}, customerApp))
+}
+
+func TestRequestLoginCode_IsSilentWhenTheAccountCannotSignIn(t *testing.T) {
+	blocked := newUser(t, enums.RoleCustomer, true)
+	blocked.Block()
+	cases := map[string]*entities.User{
+		"unknown phone":        nil,
+		"account of other app": newUser(t, enums.RoleProvider, true),
+		"blocked account":      blocked,
+	}
+	for name, user := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t)
+			f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(user, nil)
+
+			require.NoError(t, f.phoneVerification.RequestLoginCode(context.Background(), dtos.LoginCodeRequestInput{Phone: phone}, customerApp))
+		})
+	}
+
+	t.Run("cooldown", func(t *testing.T) {
+		f := newFixture(t)
+		f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, enums.RoleCustomer, true), nil)
+		f.otp.EXPECT().Issue(gomock.Any(), enums.OTPPurposeLogin, phone).Return("", services.ErrOTPCooldown)
+
+		require.NoError(t, f.phoneVerification.RequestLoginCode(context.Background(), dtos.LoginCodeRequestInput{Phone: phone}, customerApp))
+	})
+}
+
+func TestVerifyLoginCode_StartsASessionBoundToTheClient(t *testing.T) {
+	f := newFixture(t)
+	user := newUser(t, enums.RoleProvider, true)
+	f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeLogin, phone, "123456").Return(nil)
+	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(user, nil)
+	f.expectSessionStarted(t, user, providerApp)
+
+	out, err := f.phoneVerification.VerifyLoginCode(context.Background(), dtos.LoginCodeVerifyInput{Phone: "923000000", Code: "123456"}, providerApp, "", "")
+
+	require.NoError(t, err)
+	assert.NotEmpty(t, out.AccessToken)
+	assert.NotEmpty(t, out.RefreshToken)
+	assert.Equal(t, providerApp.ClientID, out.Client)
+}
+
+func TestVerifyLoginCode_VerifiesAPendingAccount(t *testing.T) {
+	f := newFixture(t)
+	user := newSignUpUser(t, enums.RoleCustomer)
+	f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeLogin, phone, "123456").Return(nil)
+	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(user, nil)
+	f.users.EXPECT().Update(gomock.Any(), user).Return(nil)
+	f.expectOutbox(t, events.UserPhoneVerified)
+	f.expectSessionStarted(t, user, customerApp)
+
+	out, err := f.phoneVerification.VerifyLoginCode(context.Background(), dtos.LoginCodeVerifyInput{Phone: phone, Code: "123456"}, customerApp, "", "")
+
+	require.NoError(t, err)
+	assert.True(t, out.User.IsVerified)
+}
+
+func TestVerifyLoginCode_Rejections(t *testing.T) {
+	input := dtos.LoginCodeVerifyInput{Phone: phone, Code: "123456"}
+
+	t.Run("a wrong code stops the flow", func(t *testing.T) {
+		f := newFixture(t)
+		f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeLogin, phone, "123456").Return(services.ErrOTPInvalid)
+
+		_, err := f.phoneVerification.VerifyLoginCode(context.Background(), input, customerApp, "", "")
+
+		require.ErrorIs(t, err, usecases.ErrInvalidOTPCode)
+	})
+
+	t.Run("an account of another app gets no session", func(t *testing.T) {
+		f := newFixture(t)
+		f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeLogin, phone, "123456").Return(nil)
+		f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, enums.RoleProvider, true), nil)
+
+		_, err := f.phoneVerification.VerifyLoginCode(context.Background(), input, customerApp, "", "")
+
+		require.ErrorIs(t, err, usecases.ErrClientNotAllowed)
+	})
+
+	t.Run("a blocked account gets no session", func(t *testing.T) {
+		f := newFixture(t)
+		blocked := newUser(t, enums.RoleCustomer, true)
+		blocked.Block()
+		f.otp.EXPECT().Verify(gomock.Any(), enums.OTPPurposeLogin, phone, "123456").Return(nil)
+		f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(blocked, nil)
+
+		_, err := f.phoneVerification.VerifyLoginCode(context.Background(), input, customerApp, "", "")
+
+		require.ErrorIs(t, err, usecases.ErrAccountBlocked)
+	})
+}
+
+func TestLoginCode_IsClosedToStaffClients(t *testing.T) {
+	for _, client := range []*entities.Client{backoffice, partnerPanel} {
+		t.Run(client.ClientID, func(t *testing.T) {
+			f := newFixture(t)
+
+			require.NoError(t, f.phoneVerification.RequestLoginCode(context.Background(), dtos.LoginCodeRequestInput{Phone: phone}, client))
+			_, err := f.phoneVerification.VerifyLoginCode(context.Background(), dtos.LoginCodeVerifyInput{Phone: phone, Code: "123456"}, client, "", "")
+			require.ErrorIs(t, err, usecases.ErrClientNotAllowed)
+		})
+	}
 }
 
 func TestPhoneSignIn_IsClosedToStaffClients(t *testing.T) {

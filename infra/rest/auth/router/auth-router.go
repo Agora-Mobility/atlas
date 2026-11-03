@@ -74,6 +74,10 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	authGroup.POST("/login", r.limiters.Login, r.controller.Login)
 	authGroup.POST("/refresh", r.controller.Refresh)
 
+	loginCode := authGroup.Group("/login/otp", r.limiters.Phone)
+	loginCode.POST("/request", r.controller.RequestLoginCode)
+	loginCode.POST("/verify", r.controller.VerifyLoginCode)
+
 	phone := authGroup.Group("/phone", r.limiters.Phone)
 	phone.POST("/verification-code", r.controller.RequestPhoneVerification)
 	phone.POST("/verify", r.controller.ConfirmPhoneVerification)
