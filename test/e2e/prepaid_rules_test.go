@@ -182,6 +182,8 @@ func TestRefundOfAFareAfterAnExtraKeepsTheSplit(t *testing.T) {
 	require.Equal(t, http.StatusCreated, extra.status, extra.text)
 	extraID := extra.body["extras"].([]any)[0].(map[string]any)["id"].(string)
 	require.Equal(t, http.StatusOK, customer.post(t, "/api/v1/bookings/"+id+"/extras/"+extraID+"/answer", map[string]bool{"approve": true}).status)
+	require.Equal(t, http.StatusOK, workshop.move(t, id, "ready").status)
+	require.Equal(t, http.StatusOK, customer.post(t, "/api/v1/bookings/"+id+"/approve", nil).status)
 	refund := refundAs(t, admin, "/api/v1/admin/payments/"+pending.str("id")+"/refund", map[string]any{"reason": "Fatura errada"})
 	require.Equal(t, http.StatusOK, refund.status, refund.text)
 	after := balance()

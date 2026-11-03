@@ -217,14 +217,8 @@ func TestNoReferralAfterAFullRefund(t *testing.T) {
 	require.Equal(t, http.StatusCreated, pending.status)
 	settleReference(t, pending.str("code"), pending.num("amount_cents"))
 	waitBooking(t, invited, id, "confirmed")
-	res := refundAs(t, admin, "/api/v1/admin/payments/"+pending.str("id")+"/refund", map[string]any{"reason": "tudo"})
-	require.Equal(t, http.StatusOK, res.status, res.text)
-	for _, to := range []string{"vehicle_received", "in_service", "ready"} {
-		require.Equal(t, http.StatusOK, w.move(t, id, to).status)
-	}
-	approved := invited.post(t, "/api/v1/bookings/"+id+"/approve", nil)
-	require.Equal(t, http.StatusOK, approved.status, approved.text)
-	time.Sleep(time.Second)
+	assert.Equal(t, "REFUND_NEEDS_CANCEL", refundAs(t, admin, "/api/v1/admin/payments/"+pending.str("id")+"/refund", map[string]any{"reason": "tudo"}).code(), "the service cannot go on for free")
+	require.Equal(t, http.StatusOK, invited.post(t, "/api/v1/bookings/"+id+"/cancel", map[string]any{"reason_id": cancelReason(t, invited, "customer", "maintenance", "changed_date")}).status)
 	assert.Zero(t, walletOf(t, friend), "nothing was paid in the end")
 }
 
@@ -324,4 +318,123 @@ func TestAFeeAboveWhatWasPaidOnlyKeepsWhatWasPaid(t *testing.T) {
 	assert.LessOrEqual(t, driverBalance(t, driver), amount, "the driver cannot get more than the customer paid")
 	assert.GreaterOrEqual(t, led["platform"], int64(0), "the platform does not pay it")
 	assert.Zero(t, walletOf(t, customer), "all that was paid stays as the fee")
+}
+
+func twoAttempts(t *testing.T, customer *person, id string) (first, second result) {
+	t.Helper()
+	path := "/api/v1/requests/" + id + "/payments"
+	first = customer.post(t, path, map[string]string{"method": "reference"})
+	require.Equal(t, http.StatusCreated, first.status, first.text)
+	env.appypay.settle(first.str("code"), "Failed", 0)
+	require.Eventually(t, func() bool { return customer.get(t, "/api/v1/requests/"+id).str("payment_status") == "unpaid" }, 15*time.Second, 50*time.Millisecond)
+	second = customer.post(t, path, map[string]string{"method": "reference"})
+	require.Equal(t, http.StatusCreated, second.status, second.text)
+	return first, second
+}
+
+func lateConfirmation(t *testing.T, attempt result) {
+	t.Helper()
+	require.NotEmpty(t, env.appypay.settle(attempt.str("code"), "Success", 0))
+	require.Equal(t, http.StatusNoContent, webhook(t, map[string]any{"merchantTransactionId": attempt.str("code")}))
+}
+
+func openRemovalByReference(t *testing.T, days int) (*person, string) {
+	t.Helper()
+	customer := newCustomer(t)
+	windowID, when := removalWindow(t, "morning")
+	when = when.AddDate(0, 0, days)
+	created := bookRemoval(t, customer, removalEstimate(t, customer, when, "Carrinha", map[string]any{}), windowID, when, "reference")
+	require.Equal(t, http.StatusCreated, created.status, created.text)
+	return customer, created.str("id")
+}
+
+func TestAnExpiredAttemptDoesNotCancelAPaidRemoval(t *testing.T) {
+	customer, id := openRemovalByReference(t, 28)
+	first, second := twoAttempts(t, customer, id)
+	lateConfirmation(t, first)
+	require.Equal(t, "paid", customer.get(t, "/api/v1/requests/"+id).str("payment_status"))
+	_, err := env.owner.Exec(context.Background(), `UPDATE payments SET expires_at = now() - interval '1 second', next_check_at = now() WHERE id = $1`, second.str("id"))
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		var status string
+		require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT status FROM payments WHERE id = $1`, second.str("id")).Scan(&status))
+		return status == "expired"
+	}, 15*time.Second, 50*time.Millisecond)
+	view := customer.get(t, "/api/v1/requests/"+id)
+	assert.Equal(t, "scheduled", view.str("status"))
+	assert.Equal(t, "paid", view.str("payment_status"))
+	assert.Zero(t, walletOf(t, customer))
+}
+
+func TestADuplicateInTheWalletCannotBeRefundedAgainAndIsNotTheMainPayment(t *testing.T) {
+	admin := staffToken(t)
+	customer, id := openRemovalByReference(t, 29)
+	first, second := twoAttempts(t, customer, id)
+	lateConfirmation(t, second)
+	lateConfirmation(t, first)
+	amount := first.num("amount_cents")
+	require.Equal(t, amount, walletOf(t, customer), "the duplicate goes to the wallet")
+	assert.Equal(t, "REFUND_TOO_LARGE", refundAs(t, admin, "/api/v1/admin/payments/"+first.str("id")+"/refund", map[string]any{"reason": "outra vez"}).code())
+	assert.Equal(t, amount, walletOf(t, customer))
+
+	half := amount / 2
+	res := refundAs(t, admin, "/api/v1/admin/payments/"+second.str("id")+"/refund", map[string]any{"amount_cents": half, "reason": "metade"})
+	require.Equal(t, http.StatusOK, res.status, res.text)
+	driver := newApprovedProvider(t, "removals")
+	assignDriver(t, driver, id)
+	for _, step := range []string{"en-route", "arrive", "start", "complete"} {
+		require.Equal(t, http.StatusOK, driver.post(t, "/api/v1/requests/"+id+"/"+step, nil).status, step)
+	}
+	assert.EqualValues(t, (amount-commissionOf(t, id))/2, driverBalance(t, driver), "half of the service stayed paid")
+	assert.GreaterOrEqual(t, requestLedger(t, id)["platform"], int64(0))
+}
+
+func TestARefundDuringAPendingExtraDoesNotForgiveIt(t *testing.T) {
+	admin := staffToken(t)
+	w, customer, id, requestID, amount, pay := paidPrepaidBooking(t)
+	approvedExtra(t, w, customer, id, 1_000_000)
+	pending := customer.post(t, "/api/v1/requests/"+requestID+"/payments", map[string]string{"method": "reference"})
+	require.Equal(t, http.StatusCreated, pending.status, pending.text)
+	res := refundAs(t, admin, "/api/v1/admin/payments/"+pay+"/refund", map[string]any{"amount_cents": amount / 4, "reason": "parte"})
+	require.Equal(t, http.StatusOK, res.status, res.text)
+	env.appypay.settle(pending.str("code"), "Failed", 0)
+	require.Eventually(t, func() bool { return customer.get(t, "/api/v1/requests/"+requestID).str("payment_status") == "unpaid" }, 15*time.Second, 50*time.Millisecond, "the extra is still owed")
+	assert.Equal(t, http.StatusCreated, customer.post(t, "/api/v1/requests/"+requestID+"/payments", map[string]string{"method": "reference"}).status)
+}
+
+func TestAPrepaidServiceCannotGoOnAfterAFullRefund(t *testing.T) {
+	admin := staffToken(t)
+	customer, id, _ := paidRemoval(t, 30)
+	pid, _ := paidPaymentOf(t, id, "fare")
+	assert.Equal(t, "REFUND_NEEDS_CANCEL", refundAs(t, admin, "/api/v1/admin/payments/"+pid+"/refund", map[string]any{"reason": "tudo"}).code())
+	assert.Equal(t, "paid", customer.get(t, "/api/v1/requests/"+id).str("payment_status"))
+}
+
+func TestAFullRefundIsAllowedWhenTheServiceCanNoLongerBeCancelled(t *testing.T) {
+	admin := staffToken(t)
+	w, customer, id, requestID, _, pay := paidPrepaidBooking(t)
+	assert.Equal(t, "REFUND_NEEDS_CANCEL", refundAs(t, admin, "/api/v1/admin/payments/"+pay+"/refund", map[string]any{"reason": "tudo"}).code())
+	require.Equal(t, http.StatusOK, w.move(t, id, "vehicle_received").status)
+	res := refundAs(t, admin, "/api/v1/admin/payments/"+pay+"/refund", map[string]any{"reason": "tudo"})
+	require.Equal(t, http.StatusOK, res.status, res.text)
+	assert.Equal(t, "refunded", customer.get(t, "/api/v1/requests/"+requestID).str("payment_status"))
+	assert.Zero(t, requestLedger(t, requestID)["workshop"])
+}
+
+func TestADuplicateIsMarkedAndLeftOutOfTheTotals(t *testing.T) {
+	customer, id := openRemovalByReference(t, 31)
+	first, second := twoAttempts(t, customer, id)
+	lateConfirmation(t, second)
+	lateConfirmation(t, first)
+	view := customer.get(t, "/api/v1/requests/"+id)
+	breakdown := view.body["breakdown"].(map[string]any)
+	assert.EqualValues(t, second.num("amount_cents"), breakdown["paid_cents"], "the duplicate is not part of what paid the service")
+	found := false
+	for _, item := range customer.get(t, "/api/v1/requests/"+id+"/payments").body["items"].([]any) {
+		payment := item.(map[string]any)
+		if payment["id"] == first.str("id") {
+			found = payment["duplicate"] == true
+		}
+	}
+	assert.True(t, found, "the duplicate says so")
 }

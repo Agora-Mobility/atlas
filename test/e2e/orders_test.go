@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -72,23 +71,31 @@ func TestAReceiptOnlyExistsAfterCompletion(t *testing.T) {
 	assert.Equal(t, "RECEIPT_NOT_READY", customer.get(t, "/api/v1/requests/"+created.str("id")+"/receipt").code())
 }
 
-func TestRepeatPreparesNewPricesWithoutRequesting(t *testing.T) {
+func TestRepeatCreatesNewRequest(t *testing.T) {
 	customer, driver, id, _ := completedTaxi(t, "cash")
 	require.Equal(t, http.StatusOK, driver.post(t, "/api/v1/requests/"+id+"/payments/cash", nil).status)
 	assert.Equal(t, http.StatusNotFound, newCustomer(t).post(t, "/api/v1/requests/"+id+"/repeat", nil).status)
 	assert.Equal(t, http.StatusForbidden, driver.post(t, "/api/v1/requests/"+id+"/repeat", nil).status)
 
-	var before int
-	require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT count(*) FROM service_requests WHERE customer_id = $1`, customer.id).Scan(&before))
+	count := func() int {
+		var total int
+		require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT count(*) FROM service_requests WHERE customer_id = $1`, customer.id).Scan(&total))
+		return total
+	}
+
+	before := count()
+	preview := customer.post(t, "/api/v1/requests/"+id+"/repeat", map[string]any{"preview": true})
+	require.Equal(t, http.StatusCreated, preview.status, preview.text)
+	assert.Equal(t, before, count(), "preview does not create")
+	require.NotEmpty(t, preview.body["estimates"])
+
 	repeat := customer.post(t, "/api/v1/requests/"+id+"/repeat", nil)
 	require.Equal(t, http.StatusCreated, repeat.status, repeat.text)
-	var after int
-	require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT count(*) FROM service_requests WHERE customer_id = $1`, customer.id).Scan(&after))
-	assert.Equal(t, before, after, "nothing is requested yet")
-
-	item := repeat.body["estimates"].([]any)[0].(map[string]any)
-	again := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": repeat.str("service_id"), "fare_estimate_id": item["fare_estimate_id"], "pickup": repeat.body["pickup"], "destination": repeat.body["destination"]}, map[string]string{"Idempotency-Key": uuid.NewString()})
-	assert.Equal(t, http.StatusCreated, again.status, "the prepared data works: %s", again.text)
+	assert.Equal(t, before+1, count(), "repeat creates a new request")
+	request, _ := repeat.body["request"].(map[string]any)
+	require.NotNil(t, request)
+	assert.NotEqual(t, id, request["id"])
+	assert.NotEmpty(t, request["code"])
 }
 
 func TestStopTimesAndRecentDestinations(t *testing.T) {

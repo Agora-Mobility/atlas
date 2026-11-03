@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -113,15 +114,17 @@ func placeInput(place entities.RequestPlace) dtos.PlaceInput {
 	return dtos.PlaceInput{Lat: place.Point.Lat, Lng: place.Point.Lng, Reference: place.Reference, Address: place.Address}
 }
 
-func (u *Usecase) RepeatRequest(ctx context.Context, customerID, requestID uuid.UUID) (*dtos.RepeatView, error) {
+func (u *Usecase) RepeatRequest(ctx context.Context, customerID, requestID uuid.UUID, idempotencyKey string, in dtos.RepeatInput) (*dtos.RepeatView, bool, error) {
 	request, err := u.Requests.Find(ctx, requestID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if request == nil || !request.IsCustomer(customerID) {
-		return nil, ErrRequestNotFound
+		return nil, false, ErrRequestNotFound
 	}
-	view := &dtos.RepeatView{ServiceID: request.ServiceID, Category: request.CategorySlug, Pickup: placeInput(request.Pickup), Stops: make([]dtos.PlaceInput, 0, len(request.Stops))}
+	now := u.now()
+	scheduled := repeatSchedule(request, in.ScheduledFor, now)
+	view := &dtos.RepeatView{ServiceID: request.ServiceID, Category: request.CategorySlug, Pickup: placeInput(request.Pickup), Stops: make([]dtos.PlaceInput, 0, len(request.Stops)), ScheduledFor: scheduled}
 	if request.Destination != nil {
 		destination := placeInput(*request.Destination)
 		view.Destination = &destination
@@ -129,12 +132,165 @@ func (u *Usecase) RepeatRequest(ctx context.Context, customerID, requestID uuid.
 	for i := range request.Stops {
 		view.Stops = append(view.Stops, placeInput(request.Stops[i]))
 	}
-	estimates, err := u.CreateEstimates(ctx, customerID, dtos.FareEstimateInput{Category: request.CategorySlug, Pickup: view.Pickup, Destination: view.Destination, Stops: view.Stops})
+	estimateIn := dtos.FareEstimateInput{Category: request.CategorySlug, Pickup: view.Pickup, Destination: view.Destination, Stops: view.Stops, ScheduledFor: scheduled}
+	removal := request.RemovalWindowID != nil
+	var towing *dtos.TowingInput
+	if request.VehicleTypeID != nil && !removal {
+		if towing, err = u.repeatTowing(ctx, request); err != nil {
+			return nil, false, err
+		}
+	}
+	var booking *dtos.RemovalBookingInput
+	if removal {
+		if estimateIn.Removal, booking, err = u.repeatRemoval(ctx, request); err != nil {
+			return nil, false, err
+		}
+	}
+	estimates, err := u.CreateEstimates(ctx, customerID, estimateIn)
+	if err != nil {
+		return nil, false, err
+	}
+	view.Estimates = estimates.Items
+	if in.Preview {
+		return view, false, nil
+	}
+	chosen := repeatEstimate(estimates.Items, request)
+	if chosen == nil {
+		return nil, false, ErrServiceNotOffered
+	}
+	if idempotencyKey == "" {
+		key, err := newUUID()
+		if err != nil {
+			return nil, false, err
+		}
+		idempotencyKey = "repeat-" + key.String()
+	}
+	payment := string(request.PaymentMethod)
+	if in.PaymentMethod != "" {
+		payment = in.PaymentMethod
+	}
+	created, isNew, err := u.CreateRequest(ctx, customerID, idempotencyKey, dtos.CreateRequestInput{
+		ServiceID: request.ServiceID, Pickup: view.Pickup, Destination: view.Destination, Stops: view.Stops,
+		ContactPhone: request.ContactPhone, Passenger: repeatPassenger(request), Details: request.Details,
+		ScheduledFor: scheduled, FareEstimateID: &chosen.FareEstimateID, PaymentMethod: payment, Towing: towing, Removal: booking,
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	view.Request = created
+	return view, isNew, nil
+}
+
+func repeatSchedule(request *entities.ServiceRequest, wanted *time.Time, now time.Time) *time.Time {
+	if wanted != nil {
+		return wanted
+	}
+	if request.ScheduledFor != nil && request.ScheduledFor.After(now) {
+		return request.ScheduledFor
+	}
+	return nil
+}
+
+func repeatPassenger(request *entities.ServiceRequest) *dtos.PassengerInput {
+	if request.PassengerName == "" || request.PassengerPhone == "" {
+		return nil
+	}
+	return &dtos.PassengerInput{Name: request.PassengerName, Phone: request.PassengerPhone}
+}
+
+func repeatEstimate(items []dtos.FareEstimateView, request *entities.ServiceRequest) *dtos.FareEstimateView {
+	for i := range items {
+		if items[i].ServiceID != request.ServiceID {
+			continue
+		}
+		if request.VehicleTypeID != nil && items[i].VehicleTypeID != nil && *items[i].VehicleTypeID != *request.VehicleTypeID {
+			continue
+		}
+		return &items[i]
+	}
+	return nil
+}
+
+func (u *Usecase) repeatTowing(ctx context.Context, request *entities.ServiceRequest) (*dtos.TowingInput, error) {
+	var details struct {
+		Towing *struct {
+			IncidentCode string `json:"incident_code"`
+			Drivable     bool   `json:"drivable"`
+		} `json:"towing"`
+	}
+	if err := json.Unmarshal(request.Details, &details); err != nil || details.Towing == nil || details.Towing.IncidentCode == "" {
+		return nil, entities.ErrTowingDetailsMissing
+	}
+	incidents, err := u.Reference.Items(ctx, entities.CatalogTowingIncident, "", false)
 	if err != nil {
 		return nil, err
 	}
-	view.Estimates = estimates.Items
-	return view, nil
+	for i := range incidents {
+		if incidents[i].Code == details.Towing.IncidentCode {
+			drivable := details.Towing.Drivable
+			return &dtos.TowingInput{IncidentID: incidents[i].ID, Drivable: &drivable}, nil
+		}
+	}
+	return nil, entities.ErrUnknownIncident
+}
+
+func (u *Usecase) repeatRemoval(ctx context.Context, request *entities.ServiceRequest) (*dtos.RemovalInput, *dtos.RemovalBookingInput, error) {
+	if request.RemovalWindowID == nil {
+		return nil, nil, entities.ErrRemovalDetails
+	}
+	var details struct {
+		Removal *struct {
+			Property string                 `json:"property"`
+			Places   entities.RemovalPlaces `json:"places"`
+			Items    []entities.RemovalLine `json:"items"`
+			Helpers  int                    `json:"helpers"`
+			Extras   []entities.RemovalLine `json:"extras"`
+		} `json:"removal"`
+	}
+	if err := json.Unmarshal(request.Details, &details); err != nil || details.Removal == nil {
+		return nil, nil, entities.ErrRemovalDetails
+	}
+	catalog, err := u.Reference.Items(ctx, entities.CatalogRemovalItem, removalsSlug, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	byCode := make(map[string]uuid.UUID, len(catalog))
+	for i := range catalog {
+		byCode[catalog[i].Code] = catalog[i].ID
+	}
+	items := make([]dtos.RemovalItemInput, 0, len(details.Removal.Items))
+	for _, line := range details.Removal.Items {
+		id, ok := byCode[line.Code]
+		if !ok {
+			return nil, nil, entities.ErrRemovalItemUnknown
+		}
+		items = append(items, dtos.RemovalItemInput{ItemID: id, Qty: line.Qty})
+	}
+	extras := make([]string, 0, len(details.Removal.Extras))
+	for _, line := range details.Removal.Extras {
+		extras = append(extras, line.Code)
+	}
+	properties, err := u.Reference.Items(ctx, entities.CatalogRemovalProperty, removalsSlug, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	propertyCode := ""
+	for i := range properties {
+		if properties[i].Label == details.Removal.Property {
+			propertyCode = properties[i].Code
+			break
+		}
+	}
+	if propertyCode == "" {
+		return nil, nil, entities.ErrRemovalDetails
+	}
+	places := details.Removal.Places
+	return &dtos.RemovalInput{Items: items, Helpers: details.Removal.Helpers, Extras: extras}, &dtos.RemovalBookingInput{
+		WindowID: *request.RemovalWindowID, PropertyCode: propertyCode,
+		PickupFloor: places.PickupFloor, PickupElevator: places.PickupElevator,
+		DestinationFloor: places.DestinationFloor, DestinationElevator: places.DestinationElevator,
+		ContactName: places.ContactName, Notes: places.Notes,
+	}, nil
 }
 
 func (u *Usecase) ArriveAtStop(ctx context.Context, providerID, requestID uuid.UUID, position int) (*dtos.RequestView, error) {

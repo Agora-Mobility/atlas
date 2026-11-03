@@ -59,6 +59,8 @@ const (
 	maskedPhoneVisible  = 3
 )
 
+var ErrRefundNeedsCancel = errors.New("cancel the request before refunding all of it")
+
 var (
 	ErrPaymentMethodUnavailable = errors.New("this payment method is not available for this service")
 	ErrPaymentOutstanding       = errors.New("the customer has a completed request to pay")
@@ -106,6 +108,7 @@ func MaskPhone(digits string) string {
 }
 
 type Payment struct {
+	Duplicate        bool
 	ID               uuid.UUID
 	RequestID        uuid.UUID
 	CustomerID       uuid.UUID

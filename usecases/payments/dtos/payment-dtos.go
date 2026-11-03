@@ -39,6 +39,7 @@ type ReferenceView struct {
 }
 
 type PaymentView struct {
+	Duplicate      bool           `json:"duplicate,omitempty"`
 	ID             uuid.UUID      `json:"id"`
 	RequestID      uuid.UUID      `json:"request_id"`
 	Kind           string         `json:"kind"`

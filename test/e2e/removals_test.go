@@ -64,6 +64,24 @@ func TestRemovalPriceAddsVehicleHelpersAndExtrasAndIsClosed(t *testing.T) {
 	assert.Equal(t, "FARE_ESTIMATE_USED", again.code(), "an estimate serves one request")
 }
 
+func TestRemovalRepeatCreatesNewRequest(t *testing.T) {
+	customer := newCustomer(t)
+	windowID, when := removalWindow(t, "morning")
+	estimate := removalEstimate(t, customer, when, "Camião 3,5 t", map[string]any{"helpers": 2, "extras": []string{"packing"}})
+	created := bookRemoval(t, customer, estimate, windowID, when, "gpo")
+	require.Equal(t, http.StatusCreated, created.status, created.text)
+	require.Equal(t, http.StatusOK, cancelAs(t, customer, "customer", created.str("id")).status, "cancel the scheduled request first")
+
+	repeat := customer.post(t, "/api/v1/requests/"+created.str("id")+"/repeat", map[string]any{"scheduled_for": when.AddDate(0, 0, 1)})
+	require.Equal(t, http.StatusCreated, repeat.status, repeat.text)
+	request, _ := repeat.body["request"].(map[string]any)
+	require.NotNil(t, request)
+	assert.NotEqual(t, created.str("id"), request["id"])
+	details := request["details"].(map[string]any)["removal"].(map[string]any)
+	assert.Equal(t, "Casa", details["property"])
+	assert.Equal(t, created.num("fare_cents"), int64(request["fare_cents"].(float64)))
+}
+
 func TestRemovalRefusesWhatTheCatalogDoesNotHave(t *testing.T) {
 	customer := newCustomer(t)
 	post := func(removal map[string]any) result {

@@ -601,6 +601,7 @@ type Payment struct {
 	UpdatedAt        time.Time  `json:"updated_at"`
 	Kind             string     `json:"kind"`
 	GatewayFeeCents  *int64     `json:"gateway_fee_cents"`
+	Duplicate        bool       `json:"duplicate"`
 }
 
 type PaymentEvent struct {

@@ -29,7 +29,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $
 -- name: UpdatePayment :exec
 UPDATE payments
 SET status = $2, refunded_cents = $3, provider_charge_id = $4, reference_number = $5, reference_entity = $6, failure_message = $7,
-    expires_at = $8, next_check_at = $9, paid_at = $10, updated_at = $11
+    expires_at = $8, next_check_at = $9, paid_at = $10, updated_at = $11, duplicate = $12
 WHERE id = $1;
 
 -- name: GetPayment :one
@@ -48,7 +48,7 @@ SELECT * FROM payments WHERE merchant_id = $1;
 SELECT * FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'pending';
 
 -- name: GetPaidPaymentOfRequest :one
-SELECT * FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'paid' ORDER BY created_at LIMIT 1;
+SELECT * FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'paid' AND NOT duplicate ORDER BY created_at LIMIT 1;
 
 -- name: ListPaymentsOfRequest :many
 SELECT * FROM payments WHERE request_id = $1 ORDER BY created_at DESC;

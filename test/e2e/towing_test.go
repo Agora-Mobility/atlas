@@ -60,6 +60,25 @@ func TestTowingPricesFollowTheVehicleTypeAndIncludedDistance(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, admin.do(t, http.MethodPut, "/api/v1/admin/catalog/towing_vehicle/"+id, map[string]any{"code": "light", "label": "Ligeiro", "amount_cents": 1, "attrs": map[string]any{"included_km": 99_999_999}}, nil).status, "the attributes are validated")
 }
 
+func TestRepeatTowingCreatesNewRequest(t *testing.T) {
+	clearOnlineProviders(t)
+	customer := newCustomer(t)
+	option := towingOption(t, customer, "light")
+	created := askFor(t, customer, option, map[string]any{"towing": towingDetails(t, customer)})
+	require.Equal(t, http.StatusCreated, created.status, created.text)
+	require.Equal(t, http.StatusOK, cancelAs(t, customer, "customer", created.str("id")).status, "cancel the active request first")
+
+	repeat := customer.post(t, "/api/v1/requests/"+created.str("id")+"/repeat", nil)
+	require.Equal(t, http.StatusCreated, repeat.status, repeat.text)
+	request, _ := repeat.body["request"].(map[string]any)
+	require.NotNil(t, request)
+	assert.NotEqual(t, created.str("id"), request["id"])
+	assert.Equal(t, created.str("service_id"), request["service_id"])
+	details := request["details"].(map[string]any)["towing"].(map[string]any)
+	assert.Equal(t, "breakdown", details["incident_code"])
+	assert.Equal(t, created.num("fare_cents"), int64(request["fare_cents"].(float64)))
+}
+
 func TestTowingNeedsItsDetailsAndAMatchingVehicle(t *testing.T) {
 	clearOnlineProviders(t)
 	customer := newCustomer(t)
@@ -117,7 +136,8 @@ func TestTowingEndsOnlyWithTheCodeOfTheCustomer(t *testing.T) {
 	id, code := created.str("id"), created.str("completion_code")
 	assert.Len(t, code, 4)
 	offer := stream.waitFor(t, "request.offer", nil)
-	assert.NotContains(t, offer.Raw, code, "the driver does not see the code in the offer")
+	assert.NotContains(t, offer.Raw, `"`+code+`"`, "the driver does not see the code in the offer")
+	assert.NotContains(t, offer.Raw, "completion_code")
 	accepted := acceptOffer(t, driver, offer)
 	require.Equal(t, http.StatusOK, accepted.status)
 	assert.NotContains(t, accepted.text, `"completion_code"`, "nor in the request")

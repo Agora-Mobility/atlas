@@ -386,13 +386,21 @@ type RecentDestinationList struct {
 	Items []RecentDestination `json:"items"`
 }
 
+type RepeatInput struct {
+	Preview       bool       `json:"preview"`
+	PaymentMethod string     `json:"payment_method" binding:"omitempty,oneof=cash gpo reference wallet"`
+	ScheduledFor  *time.Time `json:"scheduled_for"`
+}
+
 type RepeatView struct {
-	ServiceID   uuid.UUID          `json:"service_id"`
-	Category    string             `json:"category"`
-	Pickup      PlaceInput         `json:"pickup"`
-	Destination *PlaceInput        `json:"destination,omitempty"`
-	Stops       []PlaceInput       `json:"stops"`
-	Estimates   []FareEstimateView `json:"estimates"`
+	ServiceID    uuid.UUID          `json:"service_id"`
+	Category     string             `json:"category"`
+	Pickup       PlaceInput         `json:"pickup"`
+	Destination  *PlaceInput        `json:"destination,omitempty"`
+	Stops        []PlaceInput       `json:"stops"`
+	ScheduledFor *time.Time         `json:"scheduled_for,omitempty"`
+	Estimates    []FareEstimateView `json:"estimates"`
+	Request      *RequestView       `json:"request,omitempty"`
 }
 
 type RequestList struct {

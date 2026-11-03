@@ -58,6 +58,7 @@ var errorTable = []struct {
 	{entities.ErrCashNotExpected, http.StatusConflict, "CASH_NOT_EXPECTED", "This request is not paid in cash."},
 	{entities.ErrPaymentMethodLocked, http.StatusConflict, "PAYMENT_METHOD_LOCKED", "The method of this request cannot change now."},
 	{entities.ErrRefundNotSupported, http.StatusUnprocessableEntity, "REFUND_NOT_SUPPORTED", "This payment cannot be refunded through the gateway."},
+	{entities.ErrRefundNeedsCancel, http.StatusConflict, "REFUND_NEEDS_CANCEL", "This request was paid ahead and is still open. Cancel it before refunding all of it."},
 	{entities.ErrRefundTooLarge, http.StatusUnprocessableEntity, "REFUND_TOO_LARGE", "The refund is above what is left of the payment."},
 	{services.ErrPaymentsUnavailable, http.StatusServiceUnavailable, "PAYMENTS_UNAVAILABLE", "Payments are not available."},
 }

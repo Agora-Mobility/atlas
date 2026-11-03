@@ -81,7 +81,7 @@ func NewUsecase(deps Deps, settings Settings) *Usecase {
 func toView(p *entities.Payment) dtos.PaymentView {
 	view := dtos.PaymentView{
 		ID: p.ID, RequestID: p.RequestID, Kind: string(p.Kind), Method: string(p.Method), Status: string(p.Status), AmountCents: p.AmountCents, RefundedCents: p.RefundedCents, Currency: p.Currency,
-		Code: p.MerchantID, PayerPhone: p.PayerPhoneMasked, FailureMessage: p.FailureMessage, ExpiresAt: p.ExpiresAt, PaidAt: p.PaidAt, CreatedAt: p.CreatedAt,
+		Duplicate: p.Duplicate, Code: p.MerchantID, PayerPhone: p.PayerPhoneMasked, FailureMessage: p.FailureMessage, ExpiresAt: p.ExpiresAt, PaidAt: p.PaidAt, CreatedAt: p.CreatedAt,
 	}
 	if p.ReferenceNumber != "" {
 		view.Reference = &dtos.ReferenceView{Number: p.ReferenceNumber, Entity: p.ReferenceEntity, DueAt: p.ExpiresAt}
@@ -426,6 +426,9 @@ func (u *Usecase) notifyPrepaid(ctx context.Context, request *entities.ServiceRe
 	case entities.PaymentPaid:
 		return u.Prepaid.OnPrepaid(ctx, request, now)
 	case entities.PaymentExpired:
+		if request.PaymentStatus == entities.RequestPaid {
+			return nil
+		}
 		return u.Prepaid.OnPrepayExpired(ctx, request, now)
 	case entities.PaymentPending, entities.PaymentFailed:
 	}
@@ -515,6 +518,9 @@ func (u *Usecase) applySuccess(ctx context.Context, payment *entities.Payment, c
 	if payment.Status != entities.PaymentPending {
 		logger.FromContext(ctx).Warn("late payment after the deadline", zap.String("payment_id", payment.ID.String()))
 	}
+	if _, err := u.Requests.FindForUpdate(ctx, payment.RequestID); err != nil {
+		return err
+	}
 	other, err := u.Payments.PaidOfRequest(ctx, payment.RequestID, payment.Kind)
 	if err != nil {
 		return err
@@ -522,6 +528,8 @@ func (u *Usecase) applySuccess(ctx context.Context, payment *entities.Payment, c
 	payment.MarkPaid(now)
 	if other != nil {
 		logger.FromContext(ctx).Warn("second paid payment for a request, it goes to the wallet", zap.String("payment_id", payment.ID.String()), zap.String("request_id", payment.RequestID.String()))
+		payment.Duplicate = true
+		payment.AddRefund(payment.AmountCents, now)
 		if err := u.Payments.Save(ctx, payment); err != nil {
 			return err
 		}
@@ -713,6 +721,9 @@ func (u *Usecase) refund(ctx context.Context, actor entities.Actor, paymentID uu
 		if request == nil {
 			return ErrRequestNotFound
 		}
+		if !keepingFee && request.Prepay && !request.Status.IsTerminal() && request.Status != entities.RequestInProgress && payment.Kind == entities.PaymentKindFare && cents == payment.RefundableCents() {
+			return entities.ErrRefundNeedsCancel
+		}
 		providerRefundID := ""
 		if !payment.RefundsToWallet() {
 			var declined *services.PaymentDeclinedError
@@ -743,7 +754,7 @@ func (u *Usecase) refund(ctx context.Context, actor entities.Actor, paymentID uu
 			return err
 		}
 		status := request.PaymentStatus
-		if status != entities.RequestUnpaid && (payment.Kind == entities.PaymentKindFare || payment.Kind == entities.PaymentKindCancellationFee) {
+		if (status == entities.RequestPaid || status == entities.RequestFullyRefunded) && (payment.Kind == entities.PaymentKindFare || payment.Kind == entities.PaymentKindCancellationFee) {
 			status = entities.RequestPaid
 			if payment.RefundableCents() == 0 {
 				status = entities.RequestFullyRefunded

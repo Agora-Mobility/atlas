@@ -77,7 +77,7 @@ func (q *Queries) DuePayments(ctx context.Context, arg DuePaymentsParams) ([]uui
 }
 
 const getPaidPaymentOfRequest = `-- name: GetPaidPaymentOfRequest :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'paid' ORDER BY created_at LIMIT 1
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents, duplicate FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'paid' AND NOT duplicate ORDER BY created_at LIMIT 1
 `
 
 type GetPaidPaymentOfRequestParams struct {
@@ -110,12 +110,13 @@ func (q *Queries) GetPaidPaymentOfRequest(ctx context.Context, arg GetPaidPaymen
 		&i.UpdatedAt,
 		&i.Kind,
 		&i.GatewayFeeCents,
+		&i.Duplicate,
 	)
 	return i, err
 }
 
 const getPayment = `-- name: GetPayment :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE id = $1
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents, duplicate FROM payments WHERE id = $1
 `
 
 func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (Payment, error) {
@@ -143,12 +144,13 @@ func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
 		&i.UpdatedAt,
 		&i.Kind,
 		&i.GatewayFeeCents,
+		&i.Duplicate,
 	)
 	return i, err
 }
 
 const getPaymentByMerchantID = `-- name: GetPaymentByMerchantID :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE merchant_id = $1
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents, duplicate FROM payments WHERE merchant_id = $1
 `
 
 func (q *Queries) GetPaymentByMerchantID(ctx context.Context, merchantID string) (Payment, error) {
@@ -176,12 +178,13 @@ func (q *Queries) GetPaymentByMerchantID(ctx context.Context, merchantID string)
 		&i.UpdatedAt,
 		&i.Kind,
 		&i.GatewayFeeCents,
+		&i.Duplicate,
 	)
 	return i, err
 }
 
 const getPaymentByProviderCharge = `-- name: GetPaymentByProviderCharge :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE provider_charge_id = $1
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents, duplicate FROM payments WHERE provider_charge_id = $1
 `
 
 func (q *Queries) GetPaymentByProviderCharge(ctx context.Context, providerChargeID *string) (Payment, error) {
@@ -209,12 +212,13 @@ func (q *Queries) GetPaymentByProviderCharge(ctx context.Context, providerCharge
 		&i.UpdatedAt,
 		&i.Kind,
 		&i.GatewayFeeCents,
+		&i.Duplicate,
 	)
 	return i, err
 }
 
 const getPaymentForUpdate = `-- name: GetPaymentForUpdate :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE id = $1 FOR UPDATE
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents, duplicate FROM payments WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetPaymentForUpdate(ctx context.Context, id uuid.UUID) (Payment, error) {
@@ -242,12 +246,13 @@ func (q *Queries) GetPaymentForUpdate(ctx context.Context, id uuid.UUID) (Paymen
 		&i.UpdatedAt,
 		&i.Kind,
 		&i.GatewayFeeCents,
+		&i.Duplicate,
 	)
 	return i, err
 }
 
 const getPendingPaymentOfRequest = `-- name: GetPendingPaymentOfRequest :one
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'pending'
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents, duplicate FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'pending'
 `
 
 type GetPendingPaymentOfRequestParams struct {
@@ -280,6 +285,7 @@ func (q *Queries) GetPendingPaymentOfRequest(ctx context.Context, arg GetPending
 		&i.UpdatedAt,
 		&i.Kind,
 		&i.GatewayFeeCents,
+		&i.Duplicate,
 	)
 	return i, err
 }
@@ -421,7 +427,7 @@ func (q *Queries) IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMetho
 }
 
 const listAdminPayments = `-- name: ListAdminPayments :many
-SELECT p.id, p.request_id, p.customer_id, p.method, p.status, p.amount_cents, p.refunded_cents, p.currency, p.merchant_id, p.provider_charge_id, p.payer_phone_masked, p.reference_number, p.reference_entity, p.failure_message, p.expires_at, p.next_check_at, p.paid_at, p.created_at, p.updated_at, p.kind, p.gateway_fee_cents, r.category_slug, u.name AS customer_name
+SELECT p.id, p.request_id, p.customer_id, p.method, p.status, p.amount_cents, p.refunded_cents, p.currency, p.merchant_id, p.provider_charge_id, p.payer_phone_masked, p.reference_number, p.reference_entity, p.failure_message, p.expires_at, p.next_check_at, p.paid_at, p.created_at, p.updated_at, p.kind, p.gateway_fee_cents, p.duplicate, r.category_slug, u.name AS customer_name
 FROM payments p
 JOIN service_requests r ON r.id = p.request_id
 JOIN users u ON u.id = p.customer_id
@@ -468,6 +474,7 @@ type ListAdminPaymentsRow struct {
 	UpdatedAt        time.Time  `json:"updated_at"`
 	Kind             string     `json:"kind"`
 	GatewayFeeCents  *int64     `json:"gateway_fee_cents"`
+	Duplicate        bool       `json:"duplicate"`
 	CategorySlug     string     `json:"category_slug"`
 	CustomerName     string     `json:"customer_name"`
 }
@@ -512,6 +519,7 @@ func (q *Queries) ListAdminPayments(ctx context.Context, arg ListAdminPaymentsPa
 			&i.UpdatedAt,
 			&i.Kind,
 			&i.GatewayFeeCents,
+			&i.Duplicate,
 			&i.CategorySlug,
 			&i.CustomerName,
 		); err != nil {
@@ -643,7 +651,7 @@ func (q *Queries) ListPaymentRefunds(ctx context.Context, paymentID uuid.UUID) (
 }
 
 const listPaymentsOfRequest = `-- name: ListPaymentsOfRequest :many
-SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents FROM payments WHERE request_id = $1 ORDER BY created_at DESC
+SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents, duplicate FROM payments WHERE request_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListPaymentsOfRequest(ctx context.Context, requestID uuid.UUID) ([]Payment, error) {
@@ -677,6 +685,7 @@ func (q *Queries) ListPaymentsOfRequest(ctx context.Context, requestID uuid.UUID
 			&i.UpdatedAt,
 			&i.Kind,
 			&i.GatewayFeeCents,
+			&i.Duplicate,
 		); err != nil {
 			return nil, err
 		}
@@ -757,7 +766,7 @@ func (q *Queries) UnpaidPrepaidRequests(ctx context.Context, arg UnpaidPrepaidRe
 const updatePayment = `-- name: UpdatePayment :exec
 UPDATE payments
 SET status = $2, refunded_cents = $3, provider_charge_id = $4, reference_number = $5, reference_entity = $6, failure_message = $7,
-    expires_at = $8, next_check_at = $9, paid_at = $10, updated_at = $11
+    expires_at = $8, next_check_at = $9, paid_at = $10, updated_at = $11, duplicate = $12
 WHERE id = $1
 `
 
@@ -773,6 +782,7 @@ type UpdatePaymentParams struct {
 	NextCheckAt      *time.Time `json:"next_check_at"`
 	PaidAt           *time.Time `json:"paid_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+	Duplicate        bool       `json:"duplicate"`
 }
 
 func (q *Queries) UpdatePayment(ctx context.Context, arg UpdatePaymentParams) error {
@@ -788,6 +798,7 @@ func (q *Queries) UpdatePayment(ctx context.Context, arg UpdatePaymentParams) er
 		arg.NextCheckAt,
 		arg.PaidAt,
 		arg.UpdatedAt,
+		arg.Duplicate,
 	)
 	return err
 }

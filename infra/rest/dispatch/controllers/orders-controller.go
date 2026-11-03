@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/shared"
 	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/usecases/dispatch/dtos"
 )
 
 const (
@@ -51,13 +54,17 @@ func (c *DispatchController) Receipt(ctx *gin.Context) {
 
 // RepeatRequest godoc
 //
-//	@Summary		Prepare the same request again
-//	@Description	Returns the route and new prices. Nothing is requested until the customer confirms with POST /requests.
+//	@Summary		Repeat a request
+//	@Description	Creates a new request with the same route and the current prices. Send {"preview": true} to only get the route and prices, without creating it.
 //	@Tags			Dispatch
+//	@Accept			json
 //	@Produce		json
-//	@Param			id	path		string	true	"Request id"
-//	@Success		201	{object}	dtos.RepeatView
-//	@Failure		404	{object}	shared.ErrorResponse
+//	@Param			id		path		string				true	"Request id"
+//	@Param			body	body		dtos.RepeatInput	false	"Repeat options"
+//	@Success		201		{object}	dtos.RepeatView
+//	@Failure		404		{object}	shared.ErrorResponse
+//	@Failure		409		{object}	shared.ErrorResponse	"Duplicate or estimate already used"
+//	@Failure		422		{object}	shared.ErrorResponse	"Service or route not available"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/requests/{id}/repeat [post]
@@ -70,7 +77,12 @@ func (c *DispatchController) RepeatRequest(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	view, err := c.dispatch.RepeatRequest(ctx.Request.Context(), customerID, id)
+	var in dtos.RepeatInput
+	if err := ctx.ShouldBindJSON(&in); err != nil && !errors.Is(err, io.EOF) {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, _, err := c.dispatch.RepeatRequest(ctx.Request.Context(), customerID, id, ctx.GetHeader(middleware.HeaderIdempotencyKey), in)
 	respond(ctx, http.StatusCreated, view, err)
 }
 

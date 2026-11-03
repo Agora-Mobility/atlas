@@ -34,7 +34,7 @@ func toPayment(row *gen.Payment) *entities.Payment {
 		ID: row.ID, RequestID: row.RequestID, CustomerID: row.CustomerID, Kind: entities.PaymentKind(row.Kind), GatewayFeeCents: row.GatewayFeeCents, Method: entities.PaymentMethod(row.Method), Status: entities.PaymentStatus(row.Status),
 		AmountCents: row.AmountCents, RefundedCents: row.RefundedCents, Currency: row.Currency, MerchantID: row.MerchantID, ProviderChargeID: row.ProviderChargeID,
 		PayerPhoneMasked: row.PayerPhoneMasked, ReferenceNumber: row.ReferenceNumber, ReferenceEntity: row.ReferenceEntity, FailureMessage: row.FailureMessage,
-		ExpiresAt: row.ExpiresAt, NextCheckAt: row.NextCheckAt, PaidAt: row.PaidAt, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+		ExpiresAt: row.ExpiresAt, NextCheckAt: row.NextCheckAt, PaidAt: row.PaidAt, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, Duplicate: row.Duplicate,
 	}
 }
 
@@ -112,7 +112,7 @@ func (r *PaymentRepository) Create(ctx context.Context, p *entities.Payment) err
 func (r *PaymentRepository) Save(ctx context.Context, p *entities.Payment) error {
 	err := postgres.Queries(ctx, r.pool).UpdatePayment(ctx, gen.UpdatePaymentParams{
 		ID: p.ID, Status: string(p.Status), RefundedCents: p.RefundedCents, ProviderChargeID: p.ProviderChargeID, ReferenceNumber: p.ReferenceNumber, ReferenceEntity: p.ReferenceEntity,
-		FailureMessage: p.FailureMessage, ExpiresAt: p.ExpiresAt, NextCheckAt: p.NextCheckAt, PaidAt: p.PaidAt, UpdatedAt: p.UpdatedAt,
+		FailureMessage: p.FailureMessage, ExpiresAt: p.ExpiresAt, NextCheckAt: p.NextCheckAt, PaidAt: p.PaidAt, UpdatedAt: p.UpdatedAt, Duplicate: p.Duplicate,
 	})
 	if err != nil {
 		return fmt.Errorf("save payment: %w", err)

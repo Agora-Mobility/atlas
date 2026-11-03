@@ -47,7 +47,7 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Gorjetas do Táxi | 200, 500 e 1 000 Kz; Manutenção 500, 1 000 e 2 000 Kz (**palpite**, as telas só indicam Reboque e Mudanças) | Valores do catálogo, alteráveis |
 | Voucher | `fare_cents` mantém o valor sem desconto; o que o cliente paga está em `amount_due_cents`. O desconto deixa sempre 1 Kz por pagar, porque a AppyPay não aceita cobranças de zero | Comissão e relatórios assentam na tarifa |
 | TAXI10 | Criado no seed de desenvolvimento, não na migração | Em produção é a operação que decide os vouchers |
-| Repetir | `POST /requests/{id}/repeat` devolve a rota e novos preços. O pedido só é criado quando o cliente confirma | O preço pode ter mudado, e uma estimativa só serve um pedido |
+| Repetir | `POST /requests/{id}/repeat` cria um pedido novo com o mesmo trajeto e os preços atuais. Com `{"preview": true}` devolve só a rota e os preços, sem criar | O preço pode ter mudado, e uma estimativa só serve um pedido. A pré-visualização permite confirmar antes de pedir |
 | Recibo PDF | Gerado no servidor com um escritor próprio (`shared/simplepdf`), sem biblioteca nova | Regra de não trazer frameworks; basta uma página de texto |
 | Ligação partilhada | Dura `share_ttl_minutes` (inicial 240). Na BD fica só o hash do token. Mostra estado, motorista, matrícula, posição e ETA, nunca telefones | Dados mínimos para seguir uma viagem |
 | Chamadas | Contrato HTTP simples: `POST {CALLS_BASE_URL}/sessions`, que devolve `proxy_number`. Quando houver fornecedor real pode precisar de um adaptador | Não existe fornecedor escolhido |
@@ -84,3 +84,4 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Limites de validação | Quantidades, tamanho da equipa, andares e dias do calendário ficam no código | São limites de entrada, não regras de negócio. **Rever** se preferires no backoffice |
 | Taxa acima do pago | Se o cliente pagou menos do que a taxa, por voucher ou reembolso, fica só o que foi pago e não há dívida adicional | Nunca se cobra uma segunda vez um pedido cancelado. **Rever** |
 | Mudanças: espera e aumento | Não há taxa de espera nem aumento de preço em Mudanças | "Preço fechado na marcação" |
+| Reembolso total antes do fim | Um pedido pago em adiantado e ainda aberto não pode ser reembolsado por inteiro (`REFUND_NEEDS_CANCEL`). Primeiro cancela-se. Com a viatura na oficina ou a mudança em curso já não se cancela, por isso aí o reembolso total é aceite. Um parcial continua sempre possível, mesmo de quase tudo | Senão o serviço seguia de graça. **Decisão tua:** a regra contorna-se com "total menos 1 cêntimo", e um reembolso durante o serviço deixa o prestador sem receber |

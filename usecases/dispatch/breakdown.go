@@ -57,6 +57,9 @@ func (u *Usecase) breakdownOf(ctx context.Context, request *entities.ServiceRequ
 		if payment.Status != entities.PaymentPaid {
 			continue
 		}
+		if payment.Duplicate {
+			continue
+		}
 		if payment.Kind == entities.PaymentKindTip {
 			view.TipCents += payment.AmountCents
 			continue

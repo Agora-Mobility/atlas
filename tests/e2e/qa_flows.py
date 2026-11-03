@@ -19,6 +19,7 @@ PASSWORD = "Agora@2026"
 SIMULATED_OK, SIMULATED_REJECT = "900000000", "900000003"
 
 sms_log, sms_lock = [], threading.Lock()
+used_phones = set()
 results, current = {}, None
 
 
@@ -141,7 +142,14 @@ def not_testable(reason):
 
 
 def random_phone():
-    return "+24492%07d" % random.randint(0, 9_999_999)
+    while True:
+        phone = "+24492%07d" % random.randint(0, 9_999_999)
+        with sms_lock:
+            if phone in used_phones:
+                continue
+            used_phones.add(phone)
+        if sql(f"SELECT count(*) FROM users WHERE phone='{phone}'") == "0":
+            return phone
 
 
 def new_user(role, name, approved_service=None, seats=5, kind="car", plate=None):
@@ -862,7 +870,7 @@ def towing():
         chk(re.fullmatch(r"\d{4}", real), "o cliente recebe um código de 4 dígitos")
         chk(sql(f"SELECT completion_code FROM service_requests WHERE id='{rid}'") == real, "código na BD")
         offer = wait_offer(driver, rid)
-        chk(real not in json.dumps(offer), "o motorista não vê o código na oferta")
+        chk(f'"{real}"' not in json.dumps(offer) and "completion_code" not in json.dumps(offer), "o motorista não vê o código na oferta")
         accept(driver, offer)
         advance(driver, rid, ("en-route", "arrive", "start"))
         wrong = "0000" if real != "0000" else "1111"
@@ -1096,8 +1104,10 @@ def orders_and_account():
         chk(amount.encode() in raw[1] and view["code"].encode() in raw[1], f"o PDF tem os valores do pedido: {amount}, {view['code']}")
         chk(call("GET", f"/requests/{rid}/receipt", None, new_user("customer", "Intruso P2")["tok"])[0] == 404, "outro cliente não vê o recibo")
         before = sql(f"SELECT count(*) FROM service_requests WHERE customer_id='{customer['id']}'")
+        status, preview = call("POST", f"/requests/{rid}/repeat", {"preview": True}, customer["tok"])
+        chk(status == 201 and preview.get("estimates") and not preview.get("request") and sql(f"SELECT count(*) FROM service_requests WHERE customer_id='{customer['id']}'") == before, f"Repetir em pré-visualização não pede: {status}")
         status, repeated = call("POST", f"/requests/{rid}/repeat", {}, customer["tok"])
-        chk(status == 201 and repeated.get("estimates") and sql(f"SELECT count(*) FROM service_requests WHERE customer_id='{customer['id']}'") == before, f"Repetir prepara novo preço, sem pedir: {status}")
+        chk(status == 201 and repeated.get("request", {}).get("id") and int(sql(f"SELECT count(*) FROM service_requests WHERE customer_id='{customer['id']}'")) == int(before) + 1, f"Repetir cria pedido novo: {status}")
         status, ticket = call("POST", f"/requests/{rid}/tickets", {"subject": "Problema", "message": "Cobraram a mais"}, customer["tok"])
         chk(status == 201 and ticket.get("request_id") == rid, f"problema ligado ao pedido: {status} {ticket.get('code')}")
         chk(call("POST", f"/requests/{rid}/tickets", {"subject": "x", "message": "y"}, new_user("customer", "Intruso P2b")["tok"])[0] == 404, "ticket no pedido de outro")

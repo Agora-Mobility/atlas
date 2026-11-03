@@ -11813,14 +11813,17 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Returns the route and new prices. Nothing is requested until the customer confirms with POST /requests.",
+                "description": "Creates a new request with the same route and the current prices. Send {\"preview\": true} to only get the route and prices, without creating it.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Dispatch"
                 ],
-                "summary": "Prepare the same request again",
+                "summary": "Repeat a request",
                 "parameters": [
                     {
                         "type": "string",
@@ -11828,6 +11831,14 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Repeat options",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RepeatInput"
+                        }
                     }
                 ],
                 "responses": {
@@ -11839,6 +11850,18 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Duplicate or estimate already used",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Service or route not available",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -15093,6 +15116,9 @@ const docTemplate = `{
                 "customer_name": {
                     "type": "string"
                 },
+                "duplicate": {
+                    "type": "boolean"
+                },
                 "expires_at": {
                     "type": "string"
                 },
@@ -17926,6 +17952,9 @@ const docTemplate = `{
                 "currency": {
                     "type": "string"
                 },
+                "duplicate": {
+                    "type": "boolean"
+                },
                 "expires_at": {
                     "type": "string"
                 },
@@ -19592,6 +19621,26 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RepeatInput": {
+            "type": "object",
+            "properties": {
+                "payment_method": {
+                    "type": "string",
+                    "enum": [
+                        "cash",
+                        "gpo",
+                        "reference",
+                        "wallet"
+                    ]
+                },
+                "preview": {
+                    "type": "boolean"
+                },
+                "scheduled_for": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.RepeatView": {
             "type": "object",
             "properties": {
@@ -19609,6 +19658,12 @@ const docTemplate = `{
                 },
                 "pickup": {
                     "$ref": "#/definitions/dtos.PlaceInput"
+                },
+                "request": {
+                    "$ref": "#/definitions/dtos.RequestView"
+                },
+                "scheduled_for": {
+                    "type": "string"
                 },
                 "service_id": {
                     "type": "string"
