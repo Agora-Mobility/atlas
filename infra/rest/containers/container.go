@@ -49,6 +49,13 @@ type Container struct {
 	Auth          *AuthModule
 	Catalog       *CatalogModule
 	Notifications *NotificationsModule
+	Dispatch      *DispatchModule
+	Providers     *ProvidersModule
+	Fleet         *FleetModule
+	Payments      *PaymentsModule
+	Experience    *ExperienceModule
+	Bookings      *BookingsModule
+	Addresses     *AddressesModule
 }
 
 type Connections struct {
@@ -96,7 +103,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 		Deduplicator:       queue.NewDeduplicator(conn.Redis, cfg.RabbitMQ.DedupTTL),
 		JWT:                jwt,
 		SessionRevocations: sessionRevocations,
-		SSE:                sse.NewHub(32),
+		SSE:                sse.NewHub(cfg.Realtime.ReconnectSpread),
 		Authenticator:      middleware.NewAuthenticator(jwt, sessionRevocations),
 		ClientAuthorizer:   middleware.NewClientAuthorizer(repository.NewClientRepository(conn.Pool)),
 		SMS:                newSMSSender(cfg.SMS),
@@ -110,6 +117,17 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 	c.Auth = auth
 	c.Catalog = newCatalogModule(c)
 	c.Notifications = newNotificationsModule(c)
+	pushSender, err := newPushSender(context.Background(), cfg.FCM)
+	if err != nil {
+		return nil, err
+	}
+	c.Dispatch = newDispatchModule(c, pushSender, newRoutingProvider(cfg.Mapbox))
+	c.Providers = newProvidersModule(c, newObjectStorage(cfg.R2))
+	c.Fleet = newFleetModule(c)
+	c.Payments = newPaymentsModule(c)
+	c.Experience = newExperienceModule(c)
+	c.Bookings = newBookingsModule(c)
+	c.Addresses = newAddressesModule(c)
 	return c, nil
 }
 
@@ -117,10 +135,12 @@ func (c *Container) OutboxRelay() *outbox.Relay {
 	return outbox.NewRelay(c.Pool, c.Publisher, c.Config.Outbox.PollInterval, c.Config.Outbox.BatchSize)
 }
 
+const prefetchPerWorker = 4
+
 func (c *Container) Consumers() []*queue.Consumer {
 	consumers := make([]*queue.Consumer, 0)
 	for _, cc := range c.consumerConfigs() {
-		cc.Prefetch = c.Config.RabbitMQ.Prefetch
+		cc.Prefetch = max(c.Config.RabbitMQ.Prefetch, cc.Workers*prefetchPerWorker)
 		cc.MaxRetries = c.Config.RabbitMQ.MaxRetries
 		cc.RetryDelay = c.Config.RabbitMQ.RetryDelay
 		consumers = append(consumers, queue.NewConsumer(c.Queue, c.Deduplicator, cc))
@@ -129,7 +149,7 @@ func (c *Container) Consumers() []*queue.Consumer {
 }
 
 func (c *Container) consumerConfigs() []queue.ConsumerConfig {
-	return c.Notifications.Consumers()
+	return append(c.Notifications.Consumers(), c.Dispatch.Consumers()...)
 }
 
 func newSMSSender(cfg config.SMSConfig) services.ISMSSender {

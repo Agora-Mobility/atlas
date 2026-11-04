@@ -17,10 +17,10 @@ ORDER BY created_at
 LIMIT @batch_size
 FOR UPDATE SKIP LOCKED;
 
--- name: MarkOutboxEventPublished :exec
+-- name: MarkOutboxEventsPublished :exec
 UPDATE outbox
 SET published_at = now(), attempts = attempts + 1, last_error = NULL
-WHERE id = @id;
+WHERE id = ANY(@ids::uuid[]);
 
 -- name: MarkOutboxEventFailed :exec
 UPDATE outbox

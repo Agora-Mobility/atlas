@@ -6,6 +6,7 @@ package gen
 
 import (
 	"context"
+	"time"
 
 	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/google/uuid"
@@ -13,91 +14,376 @@ import (
 
 type Querier interface {
 	AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) error
+	ActiveRequestOfCustomer(ctx context.Context, customerID uuid.UUID) (ServiceRequest, error)
+	ActiveRequestOfProvider(ctx context.Context, providerID *uuid.UUID) (ServiceRequest, error)
+	ActiveWorkshopVouchers(ctx context.Context, arg ActiveWorkshopVouchersParams) ([]Voucher, error)
+	AddDocumentRejectionReasons(ctx context.Context, arg AddDocumentRejectionReasonsParams) error
 	AddMembershipRoles(ctx context.Context, arg AddMembershipRolesParams) error
+	AddProviderRating(ctx context.Context, arg AddProviderRatingParams) error
+	AddProviderRejectionReasons(ctx context.Context, arg AddProviderRejectionReasonsParams) error
 	AddRolePermissions(ctx context.Context, arg AddRolePermissionsParams) error
+	AddWorkshopFavorite(ctx context.Context, arg AddWorkshopFavoriteParams) error
+	AddWorkshopRating(ctx context.Context, arg AddWorkshopRatingParams) error
+	AssignVehicleToProvider(ctx context.Context, arg AssignVehicleToProviderParams) (int64, error)
+	AttachMediaToRequest(ctx context.Context, arg AttachMediaToRequestParams) (int64, error)
 	BumpMembershipsWithRole(ctx context.Context, arg BumpMembershipsWithRoleParams) ([]uuid.UUID, error)
+	CancellationReport(ctx context.Context, arg CancellationReportParams) ([]CancellationReportRow, error)
+	ClaimReferralReward(ctx context.Context, arg ClaimReferralRewardParams) (ClaimReferralRewardRow, error)
+	ClearDocumentRejectionReasons(ctx context.Context, arg ClearDocumentRejectionReasonsParams) error
+	ClearProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) error
+	CloseServiceTariff(ctx context.Context, arg CloseServiceTariffParams) error
+	CountAdminPayments(ctx context.Context, arg CountAdminPaymentsParams) (int64, error)
+	CountAdminRequests(ctx context.Context, arg CountAdminRequestsParams) (int64, error)
+	CountCustomerBookings(ctx context.Context, customerID uuid.UUID) (int64, error)
+	CountCustomerVoucherRedemptions(ctx context.Context, arg CountCustomerVoucherRedemptionsParams) (int64, error)
+	CountFleetDrivers(ctx context.Context, arg CountFleetDriversParams) (int64, error)
+	CountInboxItems(ctx context.Context, userID uuid.UUID) (CountInboxItemsRow, error)
+	CountLedgerEntries(ctx context.Context, arg CountLedgerEntriesParams) (int64, error)
 	CountMembers(ctx context.Context, arg CountMembersParams) (int64, error)
 	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
 	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
 	CountPendingOutboxEvents(ctx context.Context) (int64, error)
+	CountProviderApplications(ctx context.Context, arg CountProviderApplicationsParams) (int64, error)
+	CountProviderRatings(ctx context.Context, providerID *uuid.UUID) (int64, error)
+	CountReferrals(ctx context.Context, referrerID uuid.UUID) (CountReferralsRow, error)
+	CountRemovalsOfDay(ctx context.Context, arg CountRemovalsOfDayParams) (int64, error)
+	CountRequestsOfCustomer(ctx context.Context, arg CountRequestsOfCustomerParams) (int64, error)
+	CountSOSAlerts(ctx context.Context, status string) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
+	CountTickets(ctx context.Context, status string) (int64, error)
+	CountTicketsOfUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
+	CountVehicles(ctx context.Context, arg CountVehiclesParams) (int64, error)
+	CountVoucherRedemptions(ctx context.Context, voucherID uuid.UUID) (int64, error)
+	CountVouchers(ctx context.Context) (int64, error)
+	CountWorkshopBookings(ctx context.Context, arg CountWorkshopBookingsParams) (int64, error)
+	CountWorkshopRatings(ctx context.Context, workshopID *uuid.UUID) (int64, error)
+	CountWorkshops(ctx context.Context, organizationID *uuid.UUID) (int64, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
+	CreateDispatchPolicy(ctx context.Context, arg CreateDispatchPolicyParams) error
+	CreateFareEstimate(ctx context.Context, arg CreateFareEstimateParams) error
+	CreateFleetVehicle(ctx context.Context, arg CreateFleetVehicleParams) error
 	CreateInvitation(ctx context.Context, arg CreateInvitationParams) error
 	CreateMembership(ctx context.Context, arg CreateMembershipParams) error
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) error
+	CreateProvider(ctx context.Context, userID uuid.UUID) error
 	CreateRecoveryCodes(ctx context.Context, arg CreateRecoveryCodesParams) error
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
+	CreateRejectionReason(ctx context.Context, arg CreateRejectionReasonParams) error
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
 	CreateService(ctx context.Context, arg CreateServiceParams) error
 	CreateServiceCategory(ctx context.Context, arg CreateServiceCategoryParams) error
+	CreateServiceTariff(ctx context.Context, arg CreateServiceTariffParams) error
+	CreateServiceZone(ctx context.Context, arg CreateServiceZoneParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateUserBlock(ctx context.Context, arg CreateUserBlockParams) error
 	CreateUserBlockReasons(ctx context.Context, arg CreateUserBlockReasonsParams) error
+	CurrentServiceTariff(ctx context.Context, arg CurrentServiceTariffParams) (ServiceTariff, error)
+	DeactivateCustomerVehicle(ctx context.Context, arg DeactivateCustomerVehicleParams) (int64, error)
+	DeactivateWorkshopMechanic(ctx context.Context, arg DeactivateWorkshopMechanicParams) (int64, error)
+	DeleteAddress(ctx context.Context, id uuid.UUID) error
+	DeleteDeviceToken(ctx context.Context, token string) error
 	DeleteMembershipRoles(ctx context.Context, membershipID uuid.UUID) error
+	DeleteProviderCoverage(ctx context.Context, providerID uuid.UUID) error
 	DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error
+	DeleteRequestTeam(ctx context.Context, requestID uuid.UUID) error
 	DeleteRole(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteRolePermissions(ctx context.Context, roleID uuid.UUID) error
+	DeleteServiceRequestStops(ctx context.Context, requestID uuid.UUID) error
+	DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDeviceTokenParams) error
 	DeleteUserMFA(ctx context.Context, userID uuid.UUID) error
+	DeleteWorkshopClosure(ctx context.Context, arg DeleteWorkshopClosureParams) error
+	DeleteWorkshopHours(ctx context.Context, workshopID uuid.UUID) error
+	DemandByCell(ctx context.Context, arg DemandByCellParams) ([]DemandByCellRow, error)
+	DuePayments(ctx context.Context, arg DuePaymentsParams) ([]uuid.UUID, error)
+	DueRequestOffers(ctx context.Context, arg DueRequestOffersParams) ([]uuid.UUID, error)
+	DueServiceRequestReminders(ctx context.Context, arg DueServiceRequestRemindersParams) ([]uuid.UUID, error)
+	DueServiceRequests(ctx context.Context, arg DueServiceRequestsParams) ([]uuid.UUID, error)
 	ExistsActiveMemberWithRole(ctx context.Context, arg ExistsActiveMemberWithRoleParams) (bool, error)
 	// Locks a batch of unpublished events. SKIP LOCKED lets several relays run
 	// concurrently without publishing the same event twice.
 	FetchPendingOutboxEvents(ctx context.Context, batchSize int32) ([]FetchPendingOutboxEventsRow, error)
+	FilterEligibleProviders(ctx context.Context, arg FilterEligibleProvidersParams) ([]FilterEligibleProvidersRow, error)
+	FindServiceRequestByIdempotencyKey(ctx context.Context, arg FindServiceRequestByIdempotencyKeyParams) (ServiceRequest, error)
+	FindUserByReferralCode(ctx context.Context, referralCode *string) (uuid.UUID, error)
+	FindZoneCoveringPoint(ctx context.Context, arg FindZoneCoveringPointParams) (uuid.UUID, error)
 	GetActiveClientByClientID(ctx context.Context, clientID string) (Client, error)
+	GetActiveReason(ctx context.Context, arg GetActiveReasonParams) (RejectionReason, error)
+	GetAddress(ctx context.Context, id uuid.UUID) (GetAddressRow, error)
+	GetBookingDetail(ctx context.Context, id uuid.UUID) (GetBookingDetailRow, error)
+	GetBookingIDOfRequest(ctx context.Context, requestID uuid.UUID) (uuid.UUID, error)
+	GetCancellationRule(ctx context.Context, serviceID uuid.UUID) (CancellationRule, error)
+	GetCatalogItem(ctx context.Context, id uuid.UUID) (GetCatalogItemRow, error)
+	GetCatalogItems(ctx context.Context, ids []uuid.UUID) ([]GetCatalogItemsRow, error)
+	GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error)
+	GetCustomerVehicle(ctx context.Context, arg GetCustomerVehicleParams) (CustomerVehicle, error)
+	GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error)
+	GetDocumentType(ctx context.Context, code string) (GetDocumentTypeRow, error)
+	GetETAObservation(ctx context.Context, arg GetETAObservationParams) (GetETAObservationRow, error)
+	GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstimate, error)
 	GetInvitationByHash(ctx context.Context, tokenHash string) (Invitation, error)
 	GetInvitationByHashForUpdate(ctx context.Context, tokenHash string) (Invitation, error)
 	GetInvitationScope(ctx context.Context, tokenHash string) (GetInvitationScopeRow, error)
+	GetMediaUpload(ctx context.Context, id uuid.UUID) (MediaUpload, error)
+	GetMediaUploads(ctx context.Context, ids []uuid.UUID) ([]MediaUpload, error)
 	GetMembershipAccess(ctx context.Context, id uuid.UUID) (GetMembershipAccessRow, error)
 	GetMembershipByID(ctx context.Context, id uuid.UUID) (Membership, error)
 	GetMembershipByIDForUpdate(ctx context.Context, id uuid.UUID) (Membership, error)
 	GetMembershipByUserAndOrganization(ctx context.Context, arg GetMembershipByUserAndOrganizationParams) (Membership, error)
 	GetMembershipInOrganization(ctx context.Context, arg GetMembershipInOrganizationParams) (Membership, error)
 	GetMembershipInOrganizationForUpdate(ctx context.Context, arg GetMembershipInOrganizationForUpdateParams) (Membership, error)
+	GetOpenSOSAlert(ctx context.Context, arg GetOpenSOSAlertParams) (SosAlert, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
+	GetPaidPaymentOfRequest(ctx context.Context, arg GetPaidPaymentOfRequestParams) (Payment, error)
+	GetPassengerNotice(ctx context.Context, id uuid.UUID) (GetPassengerNoticeRow, error)
+	GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
+	GetPaymentByMerchantID(ctx context.Context, merchantID string) (Payment, error)
+	GetPaymentByProviderCharge(ctx context.Context, providerChargeID *string) (Payment, error)
+	GetPaymentForUpdate(ctx context.Context, id uuid.UUID) (Payment, error)
+	GetPendingPaymentOfRequest(ctx context.Context, arg GetPendingPaymentOfRequestParams) (Payment, error)
 	GetPlatformOrganization(ctx context.Context) (Organization, error)
+	GetPlatformSetting(ctx context.Context, key string) (string, error)
+	GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error)
+	GetProviderCategory(ctx context.Context, userID uuid.UUID) (GetProviderCategoryRow, error)
+	GetProviderDocument(ctx context.Context, arg GetProviderDocumentParams) (GetProviderDocumentRow, error)
+	GetProviderRequirements(ctx context.Context, serviceID uuid.UUID) (GetProviderRequirementsRow, error)
+	GetRatingOfRequest(ctx context.Context, requestID *uuid.UUID) (Rating, error)
+	GetReferralCode(ctx context.Context, id uuid.UUID) (*string, error)
 	GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash string) (RefreshToken, error)
+	GetRejectionReason(ctx context.Context, id uuid.UUID) (RejectionReason, error)
+	GetRequestOffer(ctx context.Context, id uuid.UUID) (RequestOffer, error)
+	GetRequestOfferForUpdate(ctx context.Context, id uuid.UUID) (RequestOffer, error)
+	GetRequestOrganization(ctx context.Context, id uuid.UUID) (*uuid.UUID, error)
+	GetRequestShareByHash(ctx context.Context, tokenHash string) (RequestShare, error)
 	GetRolesByIDs(ctx context.Context, ids []uuid.UUID) ([]Role, error)
 	GetService(ctx context.Context, id uuid.UUID) (Service, error)
 	GetServiceCategory(ctx context.Context, id uuid.UUID) (ServiceCategory, error)
+	GetServiceForDispatch(ctx context.Context, id uuid.UUID) (GetServiceForDispatchRow, error)
+	GetServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
+	GetServiceRequestForUpdate(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
+	GetServiceTariff(ctx context.Context, id uuid.UUID) (ServiceTariff, error)
+	GetServiceZone(ctx context.Context, id uuid.UUID) (GetServiceZoneRow, error)
 	GetSystemRoleByCode(ctx context.Context, arg GetSystemRoleByCodeParams) (Role, error)
+	GetTicket(ctx context.Context, id uuid.UUID) (SupportTicket, error)
+	GetUserAddress(ctx context.Context, arg GetUserAddressParams) (GetUserAddressRow, error)
+	GetUserAvatar(ctx context.Context, id uuid.UUID) (GetUserAvatarRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByPhone(ctx context.Context, phone *string) (User, error)
+	GetUserContact(ctx context.Context, id uuid.UUID) (GetUserContactRow, error)
 	GetUserMFA(ctx context.Context, userID uuid.UUID) (UserMfa, error)
+	GetUserPreferences(ctx context.Context, id uuid.UUID) (GetUserPreferencesRow, error)
+	GetVehicle(ctx context.Context, id uuid.UUID) (GetVehicleRow, error)
+	GetVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) (Vehicle, error)
+	GetVoucher(ctx context.Context, id uuid.UUID) (Voucher, error)
+	GetVoucherByCode(ctx context.Context, code string) (Voucher, error)
+	GetVoucherByCodeForUpdate(ctx context.Context, code string) (Voucher, error)
+	GetWorkshop(ctx context.Context, id uuid.UUID) (Workshop, error)
+	GetWorkshopMechanic(ctx context.Context, id uuid.UUID) (WorkshopMechanic, error)
+	GetWorkshopProfile(ctx context.Context, id uuid.UUID) (GetWorkshopProfileRow, error)
+	GetWorkshopService(ctx context.Context, id uuid.UUID) (WorkshopService, error)
+	HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error)
+	HasPaidRequest(ctx context.Context, customerID uuid.UUID) (bool, error)
+	IncrementProviderCancellations(ctx context.Context, userID uuid.UUID) error
+	InsertBooking(ctx context.Context, arg InsertBookingParams) error
+	InsertBookingEvent(ctx context.Context, arg InsertBookingEventParams) error
+	InsertBookingExtra(ctx context.Context, arg InsertBookingExtraParams) error
+	InsertBookingItem(ctx context.Context, arg InsertBookingItemParams) error
+	InsertCatalogItem(ctx context.Context, arg InsertCatalogItemParams) error
+	InsertCustomerVehicle(ctx context.Context, arg InsertCustomerVehicleParams) error
+	InsertFareAdjustment(ctx context.Context, arg InsertFareAdjustmentParams) error
+	InsertInboxItem(ctx context.Context, arg InsertInboxItemParams) error
+	InsertLedgerEntry(ctx context.Context, arg InsertLedgerEntryParams) error
+	InsertLedgerTransaction(ctx context.Context, arg InsertLedgerTransactionParams) (int64, error)
+	InsertLocationSample(ctx context.Context, arg InsertLocationSampleParams) error
+	InsertMediaUpload(ctx context.Context, arg InsertMediaUploadParams) error
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
+	InsertPayment(ctx context.Context, arg InsertPaymentParams) error
+	InsertPaymentEvent(ctx context.Context, arg InsertPaymentEventParams) error
+	InsertPaymentRefund(ctx context.Context, arg InsertPaymentRefundParams) error
+	InsertProviderCoverage(ctx context.Context, arg InsertProviderCoverageParams) error
+	InsertRating(ctx context.Context, arg InsertRatingParams) (int64, error)
+	InsertReferral(ctx context.Context, arg InsertReferralParams) (int64, error)
+	InsertRequestMessage(ctx context.Context, arg InsertRequestMessageParams) error
+	InsertRequestShare(ctx context.Context, arg InsertRequestShareParams) error
+	InsertRequestTeamMember(ctx context.Context, arg InsertRequestTeamMemberParams) error
+	InsertSOSAlert(ctx context.Context, arg InsertSOSAlertParams) (int64, error)
+	InsertServiceRequest(ctx context.Context, arg InsertServiceRequestParams) error
+	InsertServiceRequestEvent(ctx context.Context, arg InsertServiceRequestEventParams) error
+	InsertServiceRequestStop(ctx context.Context, arg InsertServiceRequestStopParams) error
+	InsertTicket(ctx context.Context, arg InsertTicketParams) error
+	InsertTicketMessage(ctx context.Context, arg InsertTicketMessageParams) error
+	InsertVoucher(ctx context.Context, arg InsertVoucherParams) error
+	InsertVoucherRedemption(ctx context.Context, arg InsertVoucherRedemptionParams) error
+	InsertWorkshopHours(ctx context.Context, arg InsertWorkshopHoursParams) error
+	InsertWorkshopMechanic(ctx context.Context, arg InsertWorkshopMechanicParams) error
+	IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMethodEnabledParams) (bool, error)
+	IsValidZoneGeometry(ctx context.Context, geojson string) (bool, error)
+	LedgerBalance(ctx context.Context, arg LedgerBalanceParams) (int64, error)
+	LedgerProviderBalances(ctx context.Context, arg LedgerProviderBalancesParams) ([]LedgerProviderBalancesRow, error)
+	LedgerTotals(ctx context.Context) ([]LedgerTotalsRow, error)
 	ListActiveBlockReasons(ctx context.Context) ([]BlockReason, error)
 	ListActiveBlockReasonsByIDs(ctx context.Context, ids []uuid.UUID) ([]BlockReason, error)
 	ListActiveMembershipsForSignIn(ctx context.Context, arg ListActiveMembershipsForSignInParams) ([]Membership, error)
+	ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListActiveRejectionReasonsByIDsParams) ([]RejectionReason, error)
+	ListActiveRequestsOfCustomerService(ctx context.Context, arg ListActiveRequestsOfCustomerServiceParams) ([]ServiceRequest, error)
 	ListActiveServicesOfActiveCategories(ctx context.Context) ([]Service, error)
+	ListActiveServicesOfCategory(ctx context.Context, slug string) ([]ListActiveServicesOfCategoryRow, error)
+	ListAdminPayments(ctx context.Context, arg ListAdminPaymentsParams) ([]ListAdminPaymentsRow, error)
+	ListAdminRequests(ctx context.Context, arg ListAdminRequestsParams) ([]ListAdminRequestsRow, error)
+	ListBookedSlots(ctx context.Context, arg ListBookedSlotsParams) ([]ListBookedSlotsRow, error)
+	ListBookingExtras(ctx context.Context, bookingID uuid.UUID) ([]BookingExtra, error)
+	ListBookingItems(ctx context.Context, bookingID uuid.UUID) ([]BookingItem, error)
+	ListCancellationRules(ctx context.Context) ([]ListCancellationRulesRow, error)
+	ListCatalogItems(ctx context.Context, arg ListCatalogItemsParams) ([]ListCatalogItemsRow, error)
+	ListCategoryPaymentMethods(ctx context.Context, arg ListCategoryPaymentMethodsParams) ([]ListCategoryPaymentMethodsRow, error)
+	ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error)
+	ListCustomerBookings(ctx context.Context, arg ListCustomerBookingsParams) ([]uuid.UUID, error)
+	ListCustomerVehicles(ctx context.Context, customerID uuid.UUID) ([]CustomerVehicle, error)
+	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
+	ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error)
+	ListDocumentRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]ListDocumentRejectionReasonsRow, error)
+	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]ListFareAdjustmentsRow, error)
+	ListFleetDrivers(ctx context.Context, arg ListFleetDriversParams) ([]ListFleetDriversRow, error)
+	ListInboxItems(ctx context.Context, arg ListInboxItemsParams) ([]InboxItem, error)
+	ListLedgerEntries(ctx context.Context, arg ListLedgerEntriesParams) ([]ListLedgerEntriesRow, error)
+	ListLiveIndexes(ctx context.Context) ([]ListLiveIndexesRow, error)
+	ListMediaOfRequest(ctx context.Context, requestID *uuid.UUID) ([]MediaUpload, error)
 	ListMembers(ctx context.Context, arg ListMembersParams) ([]ListMembersRow, error)
 	ListMembershipPermissions(ctx context.Context, membershipID uuid.UUID) ([]string, error)
 	ListMembershipRoles(ctx context.Context, membershipIds []uuid.UUID) ([]MembershipRole, error)
+	ListOpenOffersOfProvider(ctx context.Context, arg ListOpenOffersOfProviderParams) ([]RequestOffer, error)
+	ListOperatorQueue(ctx context.Context, arg ListOperatorQueueParams) ([]ServiceRequest, error)
 	ListPartnerOrganizations(ctx context.Context, arg ListPartnerOrganizationsParams) ([]Organization, error)
+	ListPaymentEvents(ctx context.Context, paymentID uuid.UUID) ([]ListPaymentEventsRow, error)
+	ListPaymentRefunds(ctx context.Context, paymentID uuid.UUID) ([]PaymentRefund, error)
+	ListPaymentsOfRequest(ctx context.Context, requestID uuid.UUID) ([]Payment, error)
 	ListPermissionsByScope(ctx context.Context, scope enums.OrganizationType) ([]ListPermissionsByScopeRow, error)
+	ListPlatformSettings(ctx context.Context) ([]ListPlatformSettingsRow, error)
+	ListProviderApplications(ctx context.Context, arg ListProviderApplicationsParams) ([]ListProviderApplicationsRow, error)
+	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error)
+	ListProviderRatings(ctx context.Context, arg ListProviderRatingsParams) ([]ListProviderRatingsRow, error)
+	ListProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]RejectionReason, error)
+	ListPublicVouchers(ctx context.Context, arg ListPublicVouchersParams) ([]Voucher, error)
+	ListReasonsForCategory(ctx context.Context, arg ListReasonsForCategoryParams) ([]RejectionReason, error)
+	ListRecentDestinations(ctx context.Context, arg ListRecentDestinationsParams) ([]ListRecentDestinationsRow, error)
+	ListRejectionReasons(ctx context.Context, arg ListRejectionReasonsParams) ([]RejectionReason, error)
+	ListRequestMessages(ctx context.Context, arg ListRequestMessagesParams) ([]RequestMessage, error)
+	ListRequestOffers(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
+	ListRequestOffersForUpdate(ctx context.Context, requestID uuid.UUID) ([]RequestOffer, error)
+	ListRequestPlaces(ctx context.Context, requestIds []uuid.UUID) ([]ListRequestPlacesRow, error)
+	ListRequestTeam(ctx context.Context, requestID uuid.UUID) ([]RequestTeamMember, error)
+	ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOfCustomerParams) ([]ServiceRequest, error)
+	ListRequestsWithProviderOnTheWay(ctx context.Context, limit int32) ([]ServiceRequest, error)
+	ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]ListRequiredDocumentsRow, error)
 	ListRolePermissions(ctx context.Context, roleIds []uuid.UUID) ([]RolePermission, error)
 	ListRolesForOrganization(ctx context.Context, arg ListRolesForOrganizationParams) ([]Role, error)
+	ListSOSAlerts(ctx context.Context, arg ListSOSAlertsParams) ([]SosAlert, error)
 	ListServiceCategories(ctx context.Context, onlyActive bool) ([]ServiceCategory, error)
+	ListServiceRequestEvents(ctx context.Context, requestID uuid.UUID) ([]ListServiceRequestEventsRow, error)
+	ListServiceZones(ctx context.Context, onlyActive bool) ([]ListServiceZonesRow, error)
 	ListServices(ctx context.Context, arg ListServicesParams) ([]Service, error)
+	ListServicesOpenToProviders(ctx context.Context) ([]ListServicesOpenToProvidersRow, error)
+	ListTicketMessages(ctx context.Context, ticketID uuid.UUID) ([]SupportMessage, error)
+	ListTickets(ctx context.Context, arg ListTicketsParams) ([]SupportTicket, error)
+	ListTicketsOfUser(ctx context.Context, arg ListTicketsOfUserParams) ([]SupportTicket, error)
+	ListUserAddresses(ctx context.Context, userID uuid.UUID) ([]ListUserAddressesRow, error)
 	ListUserSessionsIssuedSince(ctx context.Context, arg ListUserSessionsIssuedSinceParams) ([]uuid.UUID, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	ListVehicles(ctx context.Context, arg ListVehiclesParams) ([]ListVehiclesRow, error)
+	ListVouchers(ctx context.Context, arg ListVouchersParams) ([]Voucher, error)
+	ListWorkshopBookings(ctx context.Context, arg ListWorkshopBookingsParams) ([]uuid.UUID, error)
+	ListWorkshopClosures(ctx context.Context, arg ListWorkshopClosuresParams) ([]ListWorkshopClosuresRow, error)
+	ListWorkshopHours(ctx context.Context, workshopID uuid.UUID) ([]WorkshopHour, error)
+	ListWorkshopMechanics(ctx context.Context, workshopID uuid.UUID) ([]WorkshopMechanic, error)
+	ListWorkshopRatings(ctx context.Context, arg ListWorkshopRatingsParams) ([]ListWorkshopRatingsRow, error)
+	ListWorkshopServices(ctx context.Context, workshopID uuid.UUID) ([]WorkshopService, error)
+	ListWorkshops(ctx context.Context, arg ListWorkshopsParams) ([]Workshop, error)
+	LockBooking(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	LockCatalogItem(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	LockCustomerRequests(ctx context.Context, customerID uuid.UUID) error
+	LockLedgerAccount(ctx context.Context, account string) error
 	LockOrganization(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	LockVoucher(ctx context.Context, id uuid.UUID) (Voucher, error)
+	LockWorkshop(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	MarkAllInboxRead(ctx context.Context, arg MarkAllInboxReadParams) (int64, error)
+	MarkInboxItemRead(ctx context.Context, arg MarkInboxItemReadParams) (int64, error)
 	MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error
-	MarkOutboxEventPublished(ctx context.Context, id uuid.UUID) error
+	MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error
+	MarkRequestMessagesRead(ctx context.Context, arg MarkRequestMessagesReadParams) error
+	MarkStopArrived(ctx context.Context, arg MarkStopArrivedParams) (int64, error)
+	NearestWorkshop(ctx context.Context, arg NearestWorkshopParams) (NearestWorkshopRow, error)
+	NextRequestCode(ctx context.Context, id uuid.UUID) (string, error)
+	NextTicketCode(ctx context.Context) (string, error)
+	OfferRejectionReport(ctx context.Context, arg OfferRejectionReportParams) ([]OfferRejectionReportRow, error)
+	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)
+	ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithActiveJobParams) ([]uuid.UUID, error)
+	PurgeLocationSamples(ctx context.Context, recordedAt time.Time) (int64, error)
+	RecentRequestOfUser(ctx context.Context, customerID uuid.UUID) (RecentRequestOfUserRow, error)
+	RecordETAObservation(ctx context.Context, arg RecordETAObservationParams) error
+	RecordNotification(ctx context.Context, arg RecordNotificationParams) error
+	ReleaseVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) error
+	ReleaseVoucherRedemption(ctx context.Context, requestID *uuid.UUID) error
+	RemoveWorkshopFavorite(ctx context.Context, arg RemoveWorkshopFavoriteParams) error
+	ResolveDispatchPolicy(ctx context.Context, arg ResolveDispatchPolicyParams) (DispatchPolicy, error)
+	ResolveSOSAlert(ctx context.Context, arg ResolveSOSAlertParams) (int64, error)
 	RevokePendingInvitations(ctx context.Context, arg RevokePendingInvitationsParams) error
 	RevokeRefreshToken(ctx context.Context, arg RevokeRefreshTokenParams) error
 	RevokeRefreshTokenFamily(ctx context.Context, arg RevokeRefreshTokenFamilyParams) error
+	RevokeRequestShares(ctx context.Context, arg RevokeRequestSharesParams) error
 	RevokeUserRefreshTokens(ctx context.Context, arg RevokeUserRefreshTokensParams) error
 	RoleIsAssigned(ctx context.Context, roleID uuid.UUID) (bool, error)
+	SaveAddress(ctx context.Context, arg SaveAddressParams) error
 	SavePendingUserMFA(ctx context.Context, arg SavePendingUserMFAParams) error
+	SaveProviderDocument(ctx context.Context, arg SaveProviderDocumentParams) error
+	SaveUserAddress(ctx context.Context, arg SaveUserAddressParams) error
+	SaveWorkshop(ctx context.Context, arg SaveWorkshopParams) error
+	SaveWorkshopService(ctx context.Context, arg SaveWorkshopServiceParams) error
+	SearchHelpTopics(ctx context.Context, search string) ([]CatalogItem, error)
+	SearchWorkshops(ctx context.Context, arg SearchWorkshopsParams) ([]SearchWorkshopsRow, error)
+	SetCategoryPaymentMethod(ctx context.Context, arg SetCategoryPaymentMethodParams) (int64, error)
+	SetPaymentGatewayFee(ctx context.Context, arg SetPaymentGatewayFeeParams) (int64, error)
+	SetReferralCode(ctx context.Context, arg SetReferralCodeParams) error
+	SetRequestPayment(ctx context.Context, arg SetRequestPaymentParams) error
+	SetTicketStatus(ctx context.Context, arg SetTicketStatusParams) (int64, error)
+	SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
+	SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error)
+	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
+	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
+	UnbalancedLedgerTransactions(ctx context.Context) (int64, error)
+	UnpaidPrepaidRequests(ctx context.Context, arg UnpaidPrepaidRequestsParams) ([]uuid.UUID, error)
+	UpdateBooking(ctx context.Context, arg UpdateBookingParams) error
+	UpdateBookingExtra(ctx context.Context, arg UpdateBookingExtraParams) error
+	UpdateCatalogItem(ctx context.Context, arg UpdateCatalogItemParams) error
+	UpdateCustomerVehicle(ctx context.Context, arg UpdateCustomerVehicleParams) (int64, error)
+	UpdateDispatchPolicy(ctx context.Context, arg UpdateDispatchPolicyParams) (int64, error)
+	UpdateFleetVehicle(ctx context.Context, arg UpdateFleetVehicleParams) error
 	UpdateMembership(ctx context.Context, arg UpdateMembershipParams) error
 	UpdatePartnerOrganization(ctx context.Context, arg UpdatePartnerOrganizationParams) (int64, error)
+	UpdatePayment(ctx context.Context, arg UpdatePaymentParams) error
+	UpdateProviderBase(ctx context.Context, arg UpdateProviderBaseParams) (int64, error)
+	UpdateRejectionReason(ctx context.Context, arg UpdateRejectionReasonParams) error
+	UpdateRequestOffer(ctx context.Context, arg UpdateRequestOfferParams) error
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (int64, error)
 	UpdateService(ctx context.Context, arg UpdateServiceParams) error
 	UpdateServiceCategory(ctx context.Context, arg UpdateServiceCategoryParams) error
+	UpdateServiceRequest(ctx context.Context, arg UpdateServiceRequestParams) (int64, error)
+	UpdateServiceZone(ctx context.Context, arg UpdateServiceZoneParams) (int64, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserLastLogin(ctx context.Context, arg UpdateUserLastLoginParams) error
+	UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) (int64, error)
+	UpdateVoucher(ctx context.Context, arg UpdateVoucherParams) error
+	UpdateWorkshopSchedule(ctx context.Context, arg UpdateWorkshopScheduleParams) (int64, error)
+	UpsertCancellationRule(ctx context.Context, arg UpsertCancellationRuleParams) error
+	UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) error
+	UpsertPlatformSetting(ctx context.Context, arg UpsertPlatformSettingParams) error
+	UpsertProvider(ctx context.Context, arg UpsertProviderParams) error
+	UpsertRequestOffer(ctx context.Context, arg UpsertRequestOfferParams) (int64, error)
+	UpsertVehicle(ctx context.Context, arg UpsertVehicleParams) error
+	UpsertWorkshopClosure(ctx context.Context, arg UpsertWorkshopClosureParams) error
+	UseFareEstimate(ctx context.Context, arg UseFareEstimateParams) (int64, error)
 	UseRecoveryCode(ctx context.Context, arg UseRecoveryCodeParams) (int64, error)
 	UseUserMFAStep(ctx context.Context, arg UseUserMFAStepParams) (int64, error)
 	UserHasMembershipOutside(ctx context.Context, arg UserHasMembershipOutsideParams) (bool, error)

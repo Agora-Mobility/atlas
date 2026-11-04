@@ -54,3 +54,43 @@ the end of C2.
 - Which documents are mandatory per category (Taxi, Towing, Removals,
   Maintenance)?
 - Do documents expire, for example a driving licence, and force a re-review?
+
+## Update 2026-11-01
+
+Providers create their own accounts, like Yango and Uber. The backoffice reviews
+them and never creates one.
+
+- **Sign-up:** `POST /api/v1/providers/register`, only through the provider app. The
+  account type comes from the client. The plain `POST /auth/register` no longer creates
+  providers. The phone code is confirmed with `POST /auth/phone/verify`.
+- **Statuses** replace the ones above: `draft → pending → approved | rejected`, with
+  `approved ⇄ suspended`. A rejection and a suspension need a reason. After a rejection
+  the provider corrects and submits again. The profile can only change in `draft` and
+  `rejected`.
+- **One service:** the provider chooses a requested service. The approval sets
+  `service_id`, which must be sent explicitly: the backoffice proposes the requested one
+  and can change it.
+- **A provider is a user:** `providers.user_id` is both the primary key and the foreign
+  key to `users`, with the data of the service provider. The car lives in `vehicles`,
+  one per provider.
+- **Requirements are data:** `service_provider_requirements` (minimum seats, for example 7 for XL)
+  and `service_required_documents`. A service with no row there does not accept
+  providers yet, so Towing, Maintenance and Removals stay closed for now. Partial
+  approval per category no longer exists.
+- **Documents:** the API validates type and size, returns a pre-signed PUT, and on
+  registration checks that the object exists, belongs to that provider and really has an
+  accepted content. Keys are `providers/{provider_id}/{document_type}/{uuid}.{ext}`, with
+  no client file names. Each document is approved or rejected on its own, and a new file
+  replaces the old one, which is deleted.
+- **Approval** is refused unless every document required by the chosen service is
+  approved and the vehicle meets the minimum.
+- **The backend enforces it:** a provider who is not approved gets 403 when going online
+  or answering an offer.
+- Documents live in Cloudflare R2, and production refuses to start without it. The
+  end-to-end tests use an in-memory S3 server, so they never write to a real bucket;
+  `make test-r2` checks the real one.
+
+## Still open
+
+- Documents do not expire yet, for example a driving licence or the insurance.
+- The plate is not unique across providers.

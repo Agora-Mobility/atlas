@@ -1,0 +1,435 @@
+package payments
+
+import (
+	"context"
+	"errors"
+	"strconv"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/Agora-Mobility/atlas/config/logger"
+	"github.com/Agora-Mobility/atlas/domain/entities"
+	"github.com/Agora-Mobility/atlas/domain/repository"
+	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/shared/pagination"
+	"github.com/Agora-Mobility/atlas/usecases/payments/dtos"
+)
+
+var ErrProviderNotFound = errors.New("provider not found")
+
+func (u *Usecase) post(ctx context.Context, key string, kind entities.LedgerKind, legs []entities.LedgerLeg, currency string, requestID, paymentID, actorID *uuid.UUID, note string, now time.Time) (bool, error) {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return false, err
+	}
+	return u.Ledger.Post(ctx, &entities.LedgerTransaction{
+		ID: id, IdempotencyKey: key, Kind: kind, RequestID: requestID, PaymentID: paymentID, ActorID: actorID, Currency: currency, Note: note, Legs: legs, CreatedAt: now,
+	})
+}
+
+func payeeOf(request *entities.ServiceRequest) (*uuid.UUID, entities.LedgerAccountType) {
+	if request.WorkshopID != nil {
+		return request.WorkshopID, entities.AccountWorkshop
+	}
+	if request.Prepay && request.Status != entities.RequestCompleted {
+		return nil, entities.AccountProvider
+	}
+	return request.ProviderID, entities.AccountProvider
+}
+
+func settlementOf(request *entities.ServiceRequest, payment *entities.Payment) entities.Settlement {
+	settlement := entities.Settlement{PaidCents: payment.AmountCents, Method: payment.Method, CustomerID: request.CustomerID}
+	payee, payeeType := payeeOf(request)
+	if payee == nil {
+		return settlement
+	}
+	settlement.ProviderID, settlement.PayeeType = payee, payeeType
+	fare, commission := int64(0), int64(0)
+	if request.Fare.Cents != nil {
+		fare = *request.Fare.Cents
+	}
+	if request.Fare.CommissionCents != nil {
+		commission = *request.Fare.CommissionCents
+	}
+	if payment.Kind == entities.PaymentKindCancellationFee || payment.Kind == entities.PaymentKindExtra {
+		if fare > 0 {
+			settlement.CommissionCents = payment.AmountCents * commission / fare
+		}
+		settlement.FareCents = payment.AmountCents
+		return settlement
+	}
+	if base := payment.AmountCents + request.DiscountCents; request.Prepay && fare > base {
+		commission = base * commission / fare
+		fare = base
+	}
+	settlement.FareCents, settlement.CommissionCents, settlement.DiscountCents = fare, commission, request.DiscountCents
+	return settlement
+}
+
+func (u *Usecase) postPayment(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, now time.Time) error {
+	kind := entities.LedgerFarePayment
+	var legs []entities.LedgerLeg
+	switch payment.Kind {
+	case entities.PaymentKindTip:
+		payee, payeeType := payeeOf(request)
+		if payee == nil {
+			return entities.ErrPaymentNotPayable
+		}
+		kind, legs = entities.LedgerTip, entities.TipLegsTo(payeeType, payment.Method, request.CustomerID, *payee, payment.AmountCents)
+	case entities.PaymentKindCancellationFee:
+		kind, legs = entities.LedgerCancellationFee, settlementOf(request, payment).Legs()
+	case entities.PaymentKindExtra:
+		legs = settlementOf(request, payment).Legs()
+	case entities.PaymentKindFare:
+		if payment.Method == entities.PaymentCash {
+			kind = entities.LedgerCashPayment
+		}
+		legs = settlementOf(request, payment).Legs()
+	}
+	if len(legs) > 0 {
+		if _, err := u.post(ctx, "payment:"+payment.ID.String(), kind, legs, payment.Currency, &request.ID, &payment.ID, nil, "", now); err != nil {
+			return err
+		}
+	}
+	if u.Rewards != nil && payment.Kind == entities.PaymentKindFare {
+		return u.Rewards.OnFirstPaidRequest(ctx, request, now)
+	}
+	return nil
+}
+
+func (u *Usecase) creditDuplicate(ctx context.Context, payment *entities.Payment, now time.Time) error {
+	customer := payment.CustomerID
+	legs := []entities.LedgerLeg{{AccountType: entities.AccountExternal, AmountCents: -payment.AmountCents}, {AccountType: entities.AccountWallet, AccountID: &customer, AmountCents: payment.AmountCents}}
+	_, err := u.post(ctx, "payment:"+payment.ID.String(), entities.LedgerWalletCredit, legs, payment.Currency, &payment.RequestID, &payment.ID, nil, "Pagamento em duplicado", now)
+	return err
+}
+
+func (u *Usecase) payFromWallet(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, now time.Time) error {
+	if err := u.Ledger.LockAccount(ctx, entities.AccountWallet, request.CustomerID); err != nil {
+		return err
+	}
+	balance, err := u.Ledger.Balance(ctx, entities.AccountWallet, request.CustomerID)
+	if err != nil {
+		return err
+	}
+	if balance < payment.AmountCents {
+		return entities.ErrWalletInsufficient
+	}
+	payment.MarkPaid(now)
+	if err := u.Payments.Create(ctx, payment); err != nil {
+		return err
+	}
+	return u.persistChange(ctx, payment, sourceAPI, "paid from the wallet", now)
+}
+
+func keptFeeWasCredited(request *entities.ServiceRequest, payment *entities.Payment) bool {
+	return request.Status == entities.RequestCancelled && request.Prepay && request.WorkshopID == nil && request.ProviderID != nil && request.CancelFeeCents > 0 && payment.Kind == entities.PaymentKindFare && request.Fare.Cents != nil && *request.Fare.Cents > 0
+}
+
+func (u *Usecase) postRefund(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, refundID uuid.UUID, cents int64, keepingFee bool, now time.Time) error {
+	commission := int64(0)
+	if payment.Kind != entities.PaymentKindTip {
+		settlement := settlementOf(request, payment)
+		commission = settlement.CommissionCents - settlement.DiscountCents
+	}
+	payee, payeeType := payeeOf(request)
+	legs := entities.RefundLegsOf(payeeType, payment.RefundsToWallet(), request.CustomerID, payee, cents, payment.AmountCents, commission)
+	if !keepingFee && keptFeeWasCredited(request, payment) {
+		rate := int64(0)
+		if request.Fare.CommissionCents != nil {
+			rate = *request.Fare.CommissionCents
+		}
+		legs = entities.RefundLegsOf(entities.AccountProvider, payment.RefundsToWallet(), request.CustomerID, request.ProviderID, cents, *request.Fare.Cents, rate)
+	}
+	_, err := u.post(ctx, "refund:"+refundID.String(), entities.LedgerRefund, legs, payment.Currency, &request.ID, &payment.ID, nil, "", now)
+	return err
+}
+
+func (u *Usecase) statement(ctx context.Context, accountType entities.LedgerAccountType, id uuid.UUID, page pagination.Params) (*dtos.AccountStatement, error) {
+	page = page.Normalize()
+	balance, err := u.Ledger.Balance(ctx, accountType, id)
+	if err != nil {
+		return nil, err
+	}
+	lines, total, err := u.Ledger.Lines(ctx, accountType, id, int(page.Limit()), int(page.Offset()))
+	if err != nil {
+		return nil, err
+	}
+	view := &dtos.AccountStatement{BalanceCents: balance, Currency: u.settings.Currency, Items: make([]dtos.LedgerLine, 0, len(lines)), Total: total, Page: page.Page, Size: page.Size}
+	for i := range lines {
+		line := &lines[i]
+		view.Items = append(view.Items, dtos.LedgerLine{ID: line.ID, TransactionID: line.TransactionID, Kind: string(line.Kind), AmountCents: line.AmountCents, Currency: line.Currency, RequestID: line.RequestID, Note: line.Note, CreatedAt: line.CreatedAt})
+	}
+	return view, nil
+}
+
+func (u *Usecase) Wallet(ctx context.Context, customerID uuid.UUID, page pagination.Params) (*dtos.AccountStatement, error) {
+	return u.statement(ctx, entities.AccountWallet, customerID, page)
+}
+
+func (u *Usecase) ProviderLedger(ctx context.Context, providerID uuid.UUID, page pagination.Params) (*dtos.AccountStatement, error) {
+	return u.statement(ctx, entities.AccountProvider, providerID, page)
+}
+
+func (u *Usecase) WorkshopLedger(ctx context.Context, workshopID uuid.UUID, page pagination.Params) (*dtos.AccountStatement, error) {
+	return u.statement(ctx, entities.AccountWorkshop, workshopID, page)
+}
+
+func (u *Usecase) SettleWorkshop(ctx context.Context, actor entities.Actor, workshopID uuid.UUID, in dtos.SettlementInput) (*dtos.SettlementResult, error) {
+	return u.settleAccount(ctx, actor, entities.AccountWorkshop, workshopID, in)
+}
+
+func (u *Usecase) Settle(ctx context.Context, actor entities.Actor, providerID uuid.UUID, in dtos.SettlementInput) (*dtos.SettlementResult, error) {
+	user, err := u.Users.FindByID(ctx, providerID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, ErrProviderNotFound
+	}
+	return u.settleAccount(ctx, actor, entities.AccountProvider, providerID, in)
+}
+
+func (u *Usecase) settleAccount(ctx context.Context, actor entities.Actor, account entities.LedgerAccountType, providerID uuid.UUID, in dtos.SettlementInput) (*dtos.SettlementResult, error) {
+	result := &dtos.SettlementResult{Currency: u.settings.Currency}
+	err := u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := u.Ledger.LockAccount(ctx, account, providerID); err != nil {
+			return err
+		}
+		balance, err := u.Ledger.Balance(ctx, account, providerID)
+		if err != nil {
+			return err
+		}
+		legs, err := entities.SettlementLegsOf(account, in.Direction, providerID, balance, in.AmountCents)
+		if err != nil {
+			result.BalanceCents = balance
+			return err
+		}
+		applied, err := u.post(ctx, "settlement:"+providerID.String()+":"+in.Reference, entities.LedgerSettlement, legs, u.settings.Currency, nil, nil, actor.ID, in.Note, u.now())
+		if err != nil {
+			return err
+		}
+		result.Applied = applied
+		if result.BalanceCents, err = u.Ledger.Balance(ctx, account, providerID); err != nil {
+			return err
+		}
+		entry, err := entities.NewAuditEntry(actor, "ledger.settlement", string(account), providerID.String(), nil, in, in.Note, logger.CorrelationID(ctx))
+		if err != nil {
+			return err
+		}
+		return u.Audit.Record(ctx, entry)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (u *Usecase) SetGatewayFee(ctx context.Context, actor entities.Actor, paymentID uuid.UUID, in dtos.GatewayFeeInput) (*dtos.PaymentView, error) {
+	var payment *entities.Payment
+	err := u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		var err error
+		if payment, err = u.Payments.FindForUpdate(ctx, paymentID); err != nil {
+			return err
+		}
+		if payment == nil {
+			return ErrPaymentNotFound
+		}
+		if payment.Status != entities.PaymentPaid || !payment.Method.UsesGateway() {
+			return entities.ErrGatewayFeeNotPaid
+		}
+		changed, err := u.Ledger.SetGatewayFee(ctx, paymentID, in.FeeCents)
+		if err != nil {
+			return err
+		}
+		if !changed {
+			return entities.ErrGatewayFeeRecorded
+		}
+		if in.FeeCents > 0 {
+			legs := []entities.LedgerLeg{{AccountType: entities.AccountPlatform, AmountCents: -in.FeeCents}, {AccountType: entities.AccountExternal, AmountCents: in.FeeCents}}
+			if _, err := u.post(ctx, "gateway-fee:"+paymentID.String(), entities.LedgerGatewayFee, legs, payment.Currency, &payment.RequestID, &paymentID, actor.ID, "", u.now()); err != nil {
+				return err
+			}
+		}
+		entry, err := entities.NewAuditEntry(actor, "payment.gateway_fee", auditEntityPayment, paymentID.String(), nil, in, "", logger.CorrelationID(ctx))
+		if err != nil {
+			return err
+		}
+		return u.Audit.Record(ctx, entry)
+	})
+	if err != nil {
+		return nil, err
+	}
+	view := toView(payment)
+	return &view, nil
+}
+
+func (u *Usecase) LedgerSummary(ctx context.Context, page pagination.Params) (*dtos.LedgerSummary, error) {
+	page = page.Normalize()
+	totals, err := u.Ledger.Totals(ctx)
+	if err != nil {
+		return nil, err
+	}
+	unbalanced, err := u.Ledger.UnbalancedCount(ctx)
+	if err != nil {
+		return nil, err
+	}
+	balances, err := u.Ledger.ProviderBalances(ctx, int(page.Limit()), int(page.Offset()))
+	if err != nil {
+		return nil, err
+	}
+	view := &dtos.LedgerSummary{Totals: make([]dtos.LedgerTotal, 0, len(totals)), Unbalanced: unbalanced, Providers: toBalanceViews(balances)}
+	for i := range totals {
+		view.Totals = append(view.Totals, dtos.LedgerTotal{Account: string(totals[i].AccountType), TotalCents: totals[i].TotalCents})
+	}
+	return view, nil
+}
+
+func toBalanceViews(rows []repository.ProviderBalance) []dtos.ProviderBalanceView {
+	out := make([]dtos.ProviderBalanceView, 0, len(rows))
+	for i := range rows {
+		out = append(out, dtos.ProviderBalanceView{ProviderID: rows[i].ProviderID, Name: rows[i].Name, BalanceCents: rows[i].BalanceCents})
+	}
+	return out
+}
+
+func (u *Usecase) Tip(ctx context.Context, customerID, requestID uuid.UUID, in dtos.TipInput) (*dtos.PaymentView, bool, error) {
+	var payment *entities.Payment
+	created := false
+	err := u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		request, err := u.Requests.FindForUpdate(ctx, requestID)
+		if err != nil {
+			return err
+		}
+		if request == nil || !request.IsCustomer(customerID) {
+			return ErrRequestNotFound
+		}
+		if payee, _ := payeeOf(request); request.Status != entities.RequestCompleted || payee == nil {
+			return entities.ErrTipNotAllowed
+		}
+		paid, err := u.Payments.PaidOfRequest(ctx, requestID, entities.PaymentKindTip)
+		if err != nil {
+			return err
+		}
+		if paid != nil {
+			return entities.ErrTipAlreadyGiven
+		}
+		if payment, err = u.Payments.PendingOfRequest(ctx, requestID, entities.PaymentKindTip); err != nil || payment != nil {
+			return err
+		}
+		method := entities.PaymentMethod(in.Method)
+		if method == "" {
+			method = request.PaymentMethod
+			if method == entities.PaymentCash || method == entities.PaymentReference {
+				method = entities.PaymentGPO
+			}
+		}
+		maxTip, err := u.maxTipCents(ctx)
+		if err != nil {
+			return err
+		}
+		if in.AmountCents > maxTip || (method.UsesGateway() && in.AmountCents < entities.MinGatewayCents) {
+			return entities.ErrTipOutOfRange
+		}
+		if method.UsesGateway() && !u.Gateway.Enabled() {
+			return services.ErrPaymentsUnavailable
+		}
+		now := u.now()
+		phone := ""
+		if method == entities.PaymentGPO {
+			if phone, err = u.payerPhone(ctx, customerID, in.PhoneNumber); err != nil {
+				return err
+			}
+		}
+		if payment, err = entities.NewPayment(entities.NewPaymentInput{Request: request, Method: method, Phone: phone, Now: now, TipCents: in.AmountCents}); err != nil {
+			return err
+		}
+		created = true
+		in.PhoneNumber = phone
+		if method == entities.PaymentWallet {
+			return u.payFromWallet(ctx, request, payment, now)
+		}
+		expires := now.Add(u.windowOf(method))
+		payment.ExpiresAt = &expires
+		payment.CheckAgainAt(now.Add(u.checkEveryOf(method)), now)
+		if err := u.Payments.Create(ctx, payment); err != nil {
+			return err
+		}
+		if err := u.record(ctx, payment, sourceAPI, "tip created", now); err != nil {
+			return err
+		}
+		return u.publish(ctx, request, payment, method, string(payment.Status), now)
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	if created && payment.Method.UsesGateway() {
+		if err := u.charge(ctx, payment, in.PhoneNumber); err != nil {
+			return nil, false, err
+		}
+		if payment, err = u.Payments.Find(ctx, payment.ID); err != nil {
+			return nil, false, err
+		}
+	}
+	view := toView(payment)
+	return &view, created, nil
+}
+
+func (u *Usecase) maxTipCents(ctx context.Context) (int64, error) {
+	raw, err := u.Settings.Setting(ctx, entities.SettingMaxTipCents)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(raw, 10, 64)
+}
+
+// OnPrepaidCompleted settles what was paid ahead. The platform held the money of a
+// removal because nobody was assigned yet, and only now does the provider earn it.
+func (u *Usecase) OnPrepaidCompleted(ctx context.Context, request *entities.ServiceRequest, now time.Time) error {
+	if !request.Prepay {
+		return nil
+	}
+	paid, err := u.Payments.PaidOfRequest(ctx, request.ID, entities.PaymentKindFare)
+	if err != nil || paid == nil {
+		return err
+	}
+	if paid.RefundableCents() == 0 {
+		return nil
+	}
+	if request.WorkshopID == nil && request.ProviderID != nil && request.Fare.Cents != nil {
+		settled := entities.Payment{AmountCents: paid.AmountCents, Kind: paid.Kind, Method: paid.Method}
+		settlement := settlementOf(request, &settled)
+		earned := (settlement.FareCents - settlement.CommissionCents) * paid.RefundableCents() / paid.AmountCents
+		if err := u.movePlatformToProvider(ctx, "prepaid-release:"+paid.ID.String(), entities.LedgerFarePayment, request, paid, earned, now); err != nil {
+			return err
+		}
+	}
+	if u.Rewards != nil {
+		return u.Rewards.OnFirstPaidRequest(ctx, request, now)
+	}
+	return nil
+}
+
+func (u *Usecase) movePlatformToProvider(ctx context.Context, key string, kind entities.LedgerKind, request *entities.ServiceRequest, payment *entities.Payment, cents int64, now time.Time) error {
+	if cents <= 0 {
+		return nil
+	}
+	legs := []entities.LedgerLeg{{AccountType: entities.AccountPlatform, AmountCents: -cents}, {AccountType: entities.AccountProvider, AccountID: request.ProviderID, AmountCents: cents}}
+	_, err := u.post(ctx, key, kind, legs, payment.Currency, &request.ID, &payment.ID, nil, "", now)
+	return err
+}
+
+// creditKeptFee gives the assigned provider what was really kept of the fee, minus
+// the same commission of the ride. A big voucher or an earlier refund can leave less
+// than the fee, and nobody earns money that was never paid.
+func (u *Usecase) creditKeptFee(ctx context.Context, request *entities.ServiceRequest, payment *entities.Payment, kept int64, now time.Time) error {
+	if kept <= 0 || !keptFeeWasCredited(request, payment) {
+		return nil
+	}
+	commission := int64(0)
+	if request.Fare.CommissionCents != nil {
+		commission = kept * *request.Fare.CommissionCents / *request.Fare.Cents
+	}
+	return u.movePlatformToProvider(ctx, "prepaid-fee:"+request.ID.String(), entities.LedgerCancellationFee, request, payment, kept-commission, now)
+}

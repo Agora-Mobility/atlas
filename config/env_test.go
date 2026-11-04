@@ -61,6 +61,28 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, 10*time.Second, cfg.Email.Timeout)
 }
 
+func TestLoadProductionRequiresTheDocumentStorage(t *testing.T) {
+	setRequired(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.agora.ao")
+	t.Setenv("CASTBRICK_API_KEY", "key")
+	t.Setenv("RESEND_API_KEY", "key")
+	t.Setenv("EMAIL_FROM", "AGORA <no-reply@agora.ao>")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "R2_ACCOUNT_ID")
+
+	setAppyPay(t)
+	t.Setenv("R2_ACCOUNT_ID", "account")
+	t.Setenv("R2_ACCESS_KEY_ID", "id")
+	t.Setenv("R2_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("R2_BUCKET_NAME", "documents")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.Equal(t, "https://account.r2.cloudflarestorage.com", cfg.R2.ResolvedEndpoint())
+}
+
 func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 	isolateEnv(t)
 	setRequired(t)
@@ -77,6 +99,11 @@ func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 
 	t.Setenv("RESEND_API_KEY", "re_live_key")
 	t.Setenv("EMAIL_FROM", "Agora <no-reply@agora.ao>")
+	setAppyPay(t)
+	t.Setenv("R2_ACCOUNT_ID", "account")
+	t.Setenv("R2_ACCESS_KEY_ID", "id")
+	t.Setenv("R2_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("R2_BUCKET_NAME", "documents")
 	cfg, err := config.Load()
 	require.NoError(t, err)
 	assert.True(t, cfg.SMS.Enabled())
@@ -122,4 +149,21 @@ func TestLoadMissingRequired(t *testing.T) {
 	for _, key := range []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET", "MFA_ENCRYPTION_KEY"} {
 		assert.ErrorContains(t, err, key)
 	}
+}
+
+func setAppyPay(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{"APPYPAY_CLIENT_ID", "APPYPAY_CLIENT_SECRET", "APPYPAY_BASE_URL", "APPYPAY_TOKEN_URL", "APPYPAY_RESOURCE", "APPYPAY_GPO_METHOD", "APPYPAY_REF_METHOD"} {
+		t.Setenv(key, "value")
+	}
+}
+
+func TestLoadProductionRequiresTheAppyPayCredentials(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://agora.ao")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "APPYPAY_")
 }

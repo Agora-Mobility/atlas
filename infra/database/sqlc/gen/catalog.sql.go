@@ -139,7 +139,7 @@ func (q *Queries) GetService(ctx context.Context, id uuid.UUID) (Service, error)
 }
 
 const getServiceCategory = `-- name: GetServiceCategory :one
-SELECT id, slug, name, description, icon, display_order, is_active, created_at, updated_at FROM service_categories
+SELECT id, slug, name, description, icon, display_order, is_active, created_at, updated_at, passenger_sms, code_prefix FROM service_categories
 WHERE id = $1
 `
 
@@ -156,6 +156,8 @@ func (q *Queries) GetServiceCategory(ctx context.Context, id uuid.UUID) (Service
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PassengerSms,
+		&i.CodePrefix,
 	)
 	return i, err
 }
@@ -203,7 +205,7 @@ func (q *Queries) ListActiveServicesOfActiveCategories(ctx context.Context) ([]S
 }
 
 const listServiceCategories = `-- name: ListServiceCategories :many
-SELECT id, slug, name, description, icon, display_order, is_active, created_at, updated_at FROM service_categories
+SELECT id, slug, name, description, icon, display_order, is_active, created_at, updated_at, passenger_sms, code_prefix FROM service_categories
 WHERE (NOT $1::boolean OR is_active)
 ORDER BY display_order, name
 `
@@ -227,6 +229,8 @@ func (q *Queries) ListServiceCategories(ctx context.Context, onlyActive bool) ([
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PassengerSms,
+			&i.CodePrefix,
 		); err != nil {
 			return nil, err
 		}

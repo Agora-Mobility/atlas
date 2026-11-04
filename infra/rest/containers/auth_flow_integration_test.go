@@ -32,6 +32,7 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/cache"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
+	"github.com/Agora-Mobility/atlas/infra/notification/push"
 	"github.com/Agora-Mobility/atlas/infra/outbox"
 	"github.com/Agora-Mobility/atlas/infra/repository"
 	"github.com/Agora-Mobility/atlas/infra/rest/binding"
@@ -39,6 +40,8 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/security/password"
 	"github.com/Agora-Mobility/atlas/infra/security/revocation"
 	"github.com/Agora-Mobility/atlas/infra/security/totp"
+	"github.com/Agora-Mobility/atlas/infra/sse"
+	"github.com/Agora-Mobility/atlas/infra/storage/r2"
 	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
 )
 
@@ -725,10 +728,13 @@ func TestAuthFlow(t *testing.T) {
 func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *smsInbox, mail *emailOutbox) *gin.Engine {
 	t.Helper()
 	cfg := &config.Config{
-		App:  config.AppConfig{Name: "atlas-test"},
-		HTTP: config.HTTPConfig{AuthRateLimit: 1000, AuthRateWindow: time.Minute},
-		JWT:  config.JWTConfig{Secret: "test-secret-that-is-at-least-32-characters", Issuer: "atlas", AccessTTL: 15 * time.Minute, RefreshTTL: time.Hour},
-		OTP:  config.OTPConfig{TTL: 5 * time.Minute, MaxAttempts: 5},
+		App:      config.AppConfig{Name: "atlas-test"},
+		HTTP:     config.HTTPConfig{AuthRateLimit: 1000, AuthRateWindow: time.Minute},
+		JWT:      config.JWTConfig{Secret: "test-secret-that-is-at-least-32-characters", Issuer: "atlas", AccessTTL: 15 * time.Minute, RefreshTTL: time.Hour},
+		OTP:      config.OTPConfig{TTL: 5 * time.Minute, MaxAttempts: 5},
+		Dispatch: config.DispatchConfig{WatcherInterval: time.Hour, WatcherBatch: 10, ChannelTimeout: time.Second, FareEstimateTTL: time.Minute, NearbyMinCount: 1, MaxAccuracyM: 100, MaxSpeedKmh: 200, OfferDeepLink: "agora://app", IdempotencyTTL: time.Hour, NotificationWorkers: 1},
+		Realtime: config.RealtimeConfig{Heartbeat: time.Second, PollInterval: time.Second, DeadAfter: 3 * time.Second, MailboxEntries: 200, MailboxTTL: time.Hour, ProjectorWorkers: 1},
+		Mapbox:   config.MapboxConfig{Timeout: time.Second, BreakerFailures: 1, BreakerCooldown: time.Second, RoadFactor: 1.4, AverageSpeedKmh: 25},
 		Access: config.AccessConfig{
 			MFAEncryptionKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)), MFAChallengeTTL: 5 * time.Minute, MFAMaxAttempts: 5,
 			PermissionCacheTTL: time.Minute, InvitationBackoffice: "https://argus.test/convite", InvitationPartner: "https://athena.test/convite",
@@ -749,17 +755,30 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 		ClientAuthorizer:   middleware.NewClientAuthorizer(repository.NewClientRepository(pool)),
 		SMS:                sms,
 		Email:              mail,
+		SSE:                sse.NewHub(0),
 	}
 	auth, err := newAuthModule(c)
 	require.NoError(t, err)
 	c.Auth = auth
 	c.Catalog = newCatalogModule(c)
+	c.Dispatch = newDispatchModule(c, push.LogSender{}, newRoutingProvider(cfg.Mapbox))
+	c.Providers = newProvidersModule(c, r2.Unavailable{})
+	c.Fleet = newFleetModule(c)
+	c.Payments = newPaymentsModule(c)
+	c.Experience = newExperienceModule(c)
+	c.Addresses = newAddressesModule(c)
 
 	gin.SetMode(gin.TestMode)
 	binding.Setup()
 	r := gin.New()
 	c.Auth.Router.Register(r.Group("/api/v1"))
 	c.Catalog.Router.Register(r.Group("/api/v1"))
+	c.Dispatch.Router.Register(r.Group("/api/v1"))
+	c.Providers.Router.Register(r.Group("/api/v1"))
+	c.Addresses.Router.Register(r.Group("/api/v1"))
+	c.Fleet.Router.Register(r.Group("/api/v1"))
+	c.Payments.Router.Register(r.Group("/api/v1"))
+	c.Experience.Router.Register(r.Group("/api/v1"))
 	return r
 }
 

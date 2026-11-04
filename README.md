@@ -191,3 +191,38 @@ before.
 - Branches: work on `develop`, release from `main`, tags `vX.Y.Z` (created by release-please, never by hand).
 - Configuration comes only from environment variables, validated at startup.
 - Never commit `.env` or confidential documents (`*.pdf` is ignored).
+
+## Dispatch and real time
+
+Proposal: `docs/proposals/0001-despacho-geoespacial-e-tempo-real.md`. Decisions:
+ADR 0008 to 0012 and 0016 to 0018.
+
+- `infra/geo/h3index`: the only package that imports H3. The API needs a C compiler
+  (`CGO_ENABLED=1`). After pulling this change, rebuild the dev image: `make docker-up`.
+- `usecases/dispatch`: policies, candidates, offers, quotes, watcher and fares.
+- `usecases/realtime` and `infra/sse`: projector, mailbox, signal and stream.
+- Policies, zones and tariffs are data managed under `/api/v1/admin`. `make seed`
+  creates a rough Luanda zone and illustrative tariffs, for development only.
+
+### Tests
+
+```bash
+make test              # unit
+make test-integration  # repositories, Redis and backoffice flows (Docker)
+make test-e2e          # full stack and acceptance criteria of the proposal (Docker)
+make test-load         # k6 against a disposable stack (Docker and k6)
+```
+
+## Provider sign-up
+
+Providers apply in the app and the backoffice reviews them (ADR 0007).
+
+1. `POST /api/v1/providers/register`, then `POST /api/v1/auth/phone/verify`.
+2. `GET /api/v1/providers/services`, then `PUT /api/v1/providers/me/service`.
+3. `PUT /api/v1/providers/me/personal` and `PUT /api/v1/providers/me/vehicle`.
+4. For each document: `POST /api/v1/providers/me/documents/upload-url`, PUT the file to
+   the returned URL with the returned headers, then `POST /api/v1/providers/me/documents`.
+5. `POST /api/v1/providers/me/submit`. `GET /api/v1/providers/me/profile` shows what is missing.
+
+Documents go to Cloudflare R2 (`R2_*` in `.env`). `make test-r2` checks the credentials
+against the real bucket. The other test suites never touch R2.

@@ -98,6 +98,9 @@ jobs:
         # Integration tests start their own PostGIS through testcontainers.
         run: go test -race -tags=integration -covermode=atomic -coverprofile=coverage.out ./...
 
+      - name: End-to-end flows
+        run: go test -race -tags=e2e -count=1 -timeout=15m ./test/e2e/...
+
       - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1 >> "$GITHUB_STEP_SUMMARY"
 
@@ -130,4 +133,4 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Build binary
-        run: CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${GITHUB_SHA::7}" -o atlas .
+        run: CGO_ENABLED=1 go build -trimpath -tags netgo,osusergo -ldflags="-s -w -X main.version=${GITHUB_SHA::7} -linkmode external -extldflags -static" -o atlas .

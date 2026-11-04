@@ -1,3 +1,13 @@
--- Extensions stay in public; the application objects live in the atlas
--- schema (see 000007 and ADR 0014).
-CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
+DO $$
+BEGIN
+    DROP EXTENSION IF EXISTS postgis_tiger_geocoder CASCADE;
+    DROP EXTENSION IF EXISTS fuzzystrmatch CASCADE;
+    DROP EXTENSION IF EXISTS postgis_topology CASCADE;
+    DROP EXTENSION IF EXISTS postgis CASCADE;
+    DROP SCHEMA IF EXISTS tiger CASCADE;
+    DROP SCHEMA IF EXISTS tiger_data CASCADE;
+    DROP SCHEMA IF EXISTS topology CASCADE;
+    CREATE EXTENSION postgis WITH SCHEMA atlas;
+    DROP SCHEMA IF EXISTS public CASCADE;
+    EXECUTE format('ALTER DATABASE %I SET search_path = atlas', current_database());
+END $$;

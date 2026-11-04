@@ -1,0 +1,1 @@
+ALTER TABLE payments ADD COLUMN duplicate BOOLEAN NOT NULL DEFAULT false;

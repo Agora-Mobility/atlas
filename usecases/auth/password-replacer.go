@@ -54,6 +54,10 @@ func (r passwordReplacer) replace(ctx context.Context, user *entities.User, newP
 	return nil
 }
 
+func ValidatePassword(password string) error {
+	return validatePassword(password)
+}
+
 func validatePassword(password string) error {
 	length := utf8.RuneCountInString(password)
 	if length < minPasswordLength {

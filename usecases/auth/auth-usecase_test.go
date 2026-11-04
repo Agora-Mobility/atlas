@@ -47,7 +47,7 @@ func newSignUpUser(t *testing.T, role enums.Role) *entities.User {
 }
 
 func TestRegister_CreatesAnUnverifiedAccountWithOnlyThePhone(t *testing.T) {
-	for client, role := range map[*entities.Client]enums.Role{customerApp: enums.RoleCustomer, providerApp: enums.RoleProvider} {
+	for client, role := range map[*entities.Client]enums.Role{customerApp: enums.RoleCustomer} {
 		t.Run(client.ClientID, func(t *testing.T) {
 			f := newFixture(t)
 			created := f.expectRegistration(t)
@@ -64,6 +64,14 @@ func TestRegister_CreatesAnUnverifiedAccountWithOnlyThePhone(t *testing.T) {
 			assert.False(t, created.HasPassword())
 		})
 	}
+}
+
+func TestRegister_ProvidersUseTheirOwnSignUp(t *testing.T) {
+	f := newFixture(t)
+
+	_, err := f.auth.Register(context.Background(), registerInput(), providerApp)
+
+	assert.ErrorIs(t, err, usecases.ErrRegistrationNotAllowed)
 }
 
 func TestRegister_StoresPhoneInInternationalFormat(t *testing.T) {
