@@ -220,7 +220,7 @@ query: a organização é a do actor, tirada do token.
 | RN09 | MFA obrigatório para memberships com Super Admin, Financeiro (PLATFORM) ou Proprietário (PARTNER). O login sem MFA activo leva ao fluxo de activação de MFA e não emite sessão completa. |
 | RN10 | Uma membership em estado diferente de `ACTIVE` não autentica. |
 | RN11 | Cada acção deste módulo gera um registo em `audit_logs`, com estado antes e depois, na mesma transacção da alteração. |
-| RN12 | As mensagens de erro e as respostas de login e de convite não revelam se um e-mail existe. |
+| RN12 | As mensagens de erro e as respostas de login e de convite não revelam se um telefone ou e-mail existe. |
 | RN13 | Um papel só contém permissões permitidas no seu âmbito. É validado no serviço e por constraint/trigger na base de dados. |
 | RN14 | **Isolamento de tenant.** Um recurso de outra organização responde 404, nunca 403. Só um actor PLATFORM com permissão explícita (`partners:*`) atravessa organizações. |
 | RN15 | Os endpoints verificam permissões, nunca nomes de papéis. |
@@ -313,7 +313,7 @@ fica para confirmar (Q10).
 - **CA11.2** Dada uma falha ao gravar a auditoria, quando a acção é executada, então a alteração é desfeita (mesma transacção).
 
 ### RN12 – Não revelar contas
-- **CA12.1** Dado um e-mail inexistente e outro existente com palavra-passe errada, quando se faz login com cada um, então as respostas têm o mesmo código e corpo.
+- **CA12.1** Dado um telefone inexistente e outro existente com palavra-passe errada, quando se faz login com cada um, então as respostas têm o mesmo código e corpo.
 - **CA12.2** Dado um e-mail que já é membro de outra organização, quando um parceiro o convida, então a resposta é igual à de um e-mail novo.
 
 ### RN13 – Papel só com permissões do seu âmbito

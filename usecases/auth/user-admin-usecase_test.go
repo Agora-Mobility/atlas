@@ -245,6 +245,7 @@ func TestAdminBootstrap(t *testing.T) {
 		f.roles.EXPECT().FindSystemRole(gomock.Any(), enums.OrganizationTypePlatform, entities.RoleCodeSuperAdmin).Return(superAdmin, nil)
 		f.memberships.EXPECT().ExistsActiveWithRole(gomock.Any(), platform.ID, superAdmin.ID).Return(false, nil)
 		f.users.EXPECT().FindByEmail(gomock.Any(), "admin@agora.ao").Return(nil, nil)
+		f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(nil, nil)
 		f.hasher.EXPECT().Hash("uma-frase-longa").Return(storedHash, nil)
 		var created *entities.User
 		f.users.EXPECT().Create(gomock.Any(), gomock.Any()).
@@ -266,12 +267,13 @@ func TestAdminBootstrap(t *testing.T) {
 				return nil
 			})
 
-		ok, err := f.bootstrap.Run(context.Background(), "Admin", "admin@agora.ao", "uma-frase-longa")
+		ok, err := f.bootstrap.Run(context.Background(), "Admin", "admin@agora.ao", phone, "uma-frase-longa")
 
 		require.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, enums.RoleStaff, created.Role)
 		assert.True(t, created.IsVerified)
+		assert.Equal(t, phone, created.Phone, "the admin signs in with the phone")
 	})
 
 	t.Run("does nothing when an active super admin exists", func(t *testing.T) {
@@ -280,7 +282,7 @@ func TestAdminBootstrap(t *testing.T) {
 		f.roles.EXPECT().FindSystemRole(gomock.Any(), enums.OrganizationTypePlatform, entities.RoleCodeSuperAdmin).Return(superAdmin, nil)
 		f.memberships.EXPECT().ExistsActiveWithRole(gomock.Any(), platform.ID, superAdmin.ID).Return(true, nil)
 
-		ok, err := f.bootstrap.Run(context.Background(), "Admin", "admin@agora.ao", "uma-frase-longa")
+		ok, err := f.bootstrap.Run(context.Background(), "Admin", "admin@agora.ao", phone, "uma-frase-longa")
 
 		require.NoError(t, err)
 		assert.False(t, ok)

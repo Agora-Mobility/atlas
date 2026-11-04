@@ -158,7 +158,7 @@ func TestLogin_AcceptsNationalPhoneFormat(t *testing.T) {
 	f.hasher.EXPECT().Verify(strongPass, storedHash).Return(true, false, nil)
 	f.expectSessionStarted(t, user, customerApp)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: "923000000", Password: strongPass}, customerApp, "", "")
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: "923000000", Password: strongPass}, customerApp, "", "")
 
 	require.NoError(t, err)
 }
@@ -170,7 +170,7 @@ func TestLogin_WithPhoneStartsSessionBoundToClient(t *testing.T) {
 	f.hasher.EXPECT().Verify(strongPass, storedHash).Return(true, false, nil)
 	f.expectSessionStarted(t, user, customerApp)
 
-	login, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: phone, Password: strongPass}, customerApp, "10.0.0.1", "app")
+	login, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: strongPass}, customerApp, "10.0.0.1", "app")
 
 	require.NoError(t, err)
 	require.Nil(t, login.MFA)
@@ -194,7 +194,7 @@ func staffAccess(user *entities.User, scope enums.OrganizationType, requiresMFA 
 }
 
 func (f fixture) expectStaffPassword(user *entities.User) {
-	f.users.EXPECT().FindByEmail(gomock.Any(), "ana@agora.ao").Return(user, nil)
+	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(user, nil)
 	f.hasher.EXPECT().Verify(gomock.Any(), storedHash).Return(true, false, nil)
 }
 
@@ -208,7 +208,7 @@ func TestLogin_StaffSessionCarriesTheMembership(t *testing.T) {
 	f.mfa.EXPECT().Find(gomock.Any(), staff.ID).Return(nil, nil)
 	f.expectStaffSessionStarted(t, staff, backoffice, access)
 
-	out, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: " ANA@agora.ao ", Password: "x"}, backoffice, "", "")
+	out, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, backoffice, "", "")
 
 	require.NoError(t, err)
 	require.NotNil(t, out.Session)
@@ -222,25 +222,37 @@ func TestLogin_StaffWithoutActiveMembershipGetsTheGenericAnswer(t *testing.T) {
 	f.expectStaffPassword(staff)
 	f.memberships.EXPECT().ListActiveForSignIn(gomock.Any(), staff.ID, enums.OrganizationTypePartner).Return(nil, nil)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: "ana@agora.ao", Password: "x"}, partnerPanel, "", "")
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, partnerPanel, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrInvalidCredentials)
 }
 
-func TestLogin_StaffPicksTheRequestedPartner(t *testing.T) {
+func TestLogin_StaffInSeveralOrganizationsEntersTheOldest(t *testing.T) {
 	f := newFixture(t)
 	staff := newUser(t, enums.RoleStaff, true)
-	first, _ := staffAccess(staff, enums.OrganizationTypePartner, false)
-	second, access := staffAccess(staff, enums.OrganizationTypePartner, false)
+	oldest, access := staffAccess(staff, enums.OrganizationTypePartner, false)
+	newer, _ := staffAccess(staff, enums.OrganizationTypePartner, false)
 	f.expectStaffPassword(staff)
-	f.memberships.EXPECT().ListActiveForSignIn(gomock.Any(), staff.ID, enums.OrganizationTypePartner).Return([]*entities.Membership{first, second}, nil)
-	f.memberships.EXPECT().Access(gomock.Any(), second.ID).Return(access, nil)
+	f.memberships.EXPECT().ListActiveForSignIn(gomock.Any(), staff.ID, enums.OrganizationTypePartner).Return([]*entities.Membership{oldest, newer}, nil)
+	f.memberships.EXPECT().Access(gomock.Any(), oldest.ID).Return(access, nil)
 	f.mfa.EXPECT().Find(gomock.Any(), staff.ID).Return(nil, nil)
 	f.expectStaffSessionStarted(t, staff, partnerPanel, access)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: "ana@agora.ao", Password: "x", OrganizationID: &second.OrganizationID}, partnerPanel, "", "")
+	out, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, partnerPanel, "", "")
 
 	require.NoError(t, err)
+	assert.Equal(t, oldest.OrganizationID, out.Session.Access.OrganizationID)
+}
+
+func TestLogin_EmailIsNotAnIdentifier(t *testing.T) {
+	f := newFixture(t)
+	f.users.EXPECT().FindByPhone(gomock.Any(), "ana@agora.ao").Return(nil, nil)
+	f.hasher.EXPECT().Hash(gomock.Any()).Return("$argon2id$dummy", nil)
+	f.hasher.EXPECT().Verify("x", "$argon2id$dummy").Return(false, false, nil)
+
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: "ana@agora.ao", Password: "x"}, backoffice, "", "")
+
+	require.ErrorIs(t, err, usecases.ErrInvalidCredentials)
 }
 
 func TestLogin_MFAIsRequiredBeforeAnySession(t *testing.T) {
@@ -271,7 +283,7 @@ func TestLogin_MFAIsRequiredBeforeAnySession(t *testing.T) {
 					return "mfa-token", nil
 				})
 
-			out, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: "ana@agora.ao", Password: "x"}, backoffice, "", "")
+			out, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, backoffice, "", "")
 
 			require.NoError(t, err)
 			assert.Nil(t, out.Session, "no session before the second factor")
@@ -285,11 +297,11 @@ func TestLogin_InvitedStaffWithoutPasswordCannotSignIn(t *testing.T) {
 	f := newFixture(t)
 	invited, err := entities.NewInvitedStaffUser("Ana", "ana@agora.ao", phone)
 	require.NoError(t, err)
-	f.users.EXPECT().FindByEmail(gomock.Any(), "ana@agora.ao").Return(invited, nil)
+	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(invited, nil)
 	f.hasher.EXPECT().Hash(gomock.Any()).Return("$argon2id$dummy", nil)
 	f.hasher.EXPECT().Verify("x", "$argon2id$dummy").Return(false, false, nil)
 
-	_, err = f.auth.Login(context.Background(), dtos.LoginInput{Identifier: "ana@agora.ao", Password: "x"}, backoffice, "", "")
+	_, err = f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, backoffice, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrInvalidCredentials)
 }
@@ -312,7 +324,7 @@ func TestLogin_RoleMustMatchTheClient(t *testing.T) {
 			f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, tc.role, true), nil)
 			f.hasher.EXPECT().Verify(gomock.Any(), storedHash).Return(true, false, nil)
 
-			_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: phone, Password: "x"}, tc.client, "", "")
+			_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, tc.client, "", "")
 
 			require.ErrorIs(t, err, usecases.ErrClientNotAllowed)
 		})
@@ -325,7 +337,7 @@ func TestLogin_UnknownUserSpendsHashTimeAndFails(t *testing.T) {
 	f.hasher.EXPECT().Hash(gomock.Any()).Return("$argon2id$dummy", nil)
 	f.hasher.EXPECT().Verify("x", "$argon2id$dummy").Return(false, false, nil)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: phone, Password: "x"}, customerApp, "", "")
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, customerApp, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrInvalidCredentials)
 }
@@ -335,7 +347,7 @@ func TestLogin_WrongPasswordFails(t *testing.T) {
 	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, enums.RoleCustomer, true), nil)
 	f.hasher.EXPECT().Verify("errada", storedHash).Return(false, false, nil)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: phone, Password: "errada"}, customerApp, "", "")
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "errada"}, customerApp, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrInvalidCredentials)
 }
@@ -345,7 +357,7 @@ func TestLogin_UnverifiedPhoneIsReported(t *testing.T) {
 	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, enums.RoleCustomer, false), nil)
 	f.hasher.EXPECT().Verify(gomock.Any(), storedHash).Return(true, false, nil)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: phone, Password: "x"}, customerApp, "", "")
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, customerApp, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrPhoneNotVerified)
 }
@@ -357,7 +369,7 @@ func TestLogin_BlockedUserIsRejected(t *testing.T) {
 	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(user, nil)
 	f.hasher.EXPECT().Verify(gomock.Any(), storedHash).Return(true, false, nil)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: phone, Password: "x"}, providerApp, "", "")
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, providerApp, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrAccountBlocked)
 }
@@ -371,7 +383,7 @@ func TestLogin_UpgradesOutdatedHash(t *testing.T) {
 	f.users.EXPECT().Update(gomock.Any(), user).Return(nil)
 	f.expectSessionStarted(t, user, customerApp)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Identifier: phone, Password: "x"}, customerApp, "", "")
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, customerApp, "", "")
 
 	require.NoError(t, err)
 	assert.Equal(t, "$argon2id$upgraded", user.Password)

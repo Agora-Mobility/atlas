@@ -4,6 +4,7 @@ type OTPPurpose string
 
 const (
 	OTPPurposeVerifyPhone     OTPPurpose = "verify_phone"
+	OTPPurposeLogin           OTPPurpose = "login"
 	OTPPurposeResetPassword   OTPPurpose = "reset_password"
 	OTPPurposeChangePhone     OTPPurpose = "change_phone"
 	OTPPurposeInvitation      OTPPurpose = "invitation"

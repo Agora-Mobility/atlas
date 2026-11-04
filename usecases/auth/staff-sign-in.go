@@ -80,7 +80,7 @@ func NewStaffSignIn(
 	}
 }
 
-func (s *StaffSignIn) Begin(ctx context.Context, user *entities.User, client *entities.Client, organizationID *uuid.UUID, ip, userAgent string) (*dtos.LoginOutput, error) {
+func (s *StaffSignIn) Begin(ctx context.Context, user *entities.User, client *entities.Client, ip, userAgent string) (*dtos.LoginOutput, error) {
 	scope, ok := client.StaffScope()
 	if !ok {
 		return nil, ErrClientNotAllowed
@@ -90,10 +90,12 @@ func (s *StaffSignIn) Begin(ctx context.Context, user *entities.User, client *en
 	if err != nil {
 		return nil, err
 	}
-	membership := pickMembership(memberships, organizationID)
-	if membership == nil {
+	if len(memberships) == 0 {
 		return nil, ErrInvalidCredentials
 	}
+	// The list is ordered by age, so a person in several organizations of this
+	// scope always enters the oldest one. The token then carries the choice.
+	membership := memberships[0]
 	ctx = tenant.WithOrganization(ctx, membership.OrganizationID)
 	access, err := s.membershipRepo.Access(ctx, membership.ID)
 	if err != nil {
@@ -364,13 +366,4 @@ func newRecoveryCodes() ([]string, error) {
 
 func normalizeRecoveryCode(code string) string {
 	return strings.ToUpper(strings.NewReplacer("-", "", " ", "").Replace(code))
-}
-
-func pickMembership(memberships []*entities.Membership, organizationID *uuid.UUID) *entities.Membership {
-	for _, m := range memberships {
-		if organizationID == nil || m.OrganizationID == *organizationID {
-			return m
-		}
-	}
-	return nil
 }

@@ -141,7 +141,7 @@ seed: ## Insert development seed data
 	go run ./cmd/seed
 
 .PHONY: bootstrap-admin
-bootstrap-admin: ## Create the first admin if none exists (BOOTSTRAP_ADMIN_EMAIL/PASSWORD)
+bootstrap-admin: ## Create the first admin if none exists (BOOTSTRAP_ADMIN_EMAIL/PHONE/PASSWORD)
 	go run ./cmd/bootstrap-admin
 
 ##@ API docs
