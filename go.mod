@@ -5,7 +5,7 @@ go 1.27
 toolchain go1.27.3
 
 require (
-	github.com/IldySilva/castbrick-go v0.2.0
+	github.com/IldySilva/castbrick-go v0.3.0
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/aws/aws-sdk-go-v2 v1.47.5
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.13
