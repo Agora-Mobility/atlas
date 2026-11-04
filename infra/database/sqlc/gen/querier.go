@@ -52,7 +52,6 @@ type Querier interface {
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
 	CountTickets(ctx context.Context, status string) (int64, error)
 	CountTicketsOfUser(ctx context.Context, userID uuid.UUID) (int64, error)
-	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CountVehicles(ctx context.Context, arg CountVehiclesParams) (int64, error)
 	CountVoucherRedemptions(ctx context.Context, voucherID uuid.UUID) (int64, error)
@@ -68,7 +67,6 @@ type Querier interface {
 	CreateMembership(ctx context.Context, arg CreateMembershipParams) error
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) error
 	CreateProvider(ctx context.Context, userID uuid.UUID) error
-	CreateRecoveryCodes(ctx context.Context, arg CreateRecoveryCodesParams) error
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateRejectionReason(ctx context.Context, arg CreateRejectionReasonParams) error
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
@@ -86,13 +84,11 @@ type Querier interface {
 	DeleteDeviceToken(ctx context.Context, token string) error
 	DeleteMembershipRoles(ctx context.Context, membershipID uuid.UUID) error
 	DeleteProviderCoverage(ctx context.Context, providerID uuid.UUID) error
-	DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error
 	DeleteRequestTeam(ctx context.Context, requestID uuid.UUID) error
 	DeleteRole(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteRolePermissions(ctx context.Context, roleID uuid.UUID) error
 	DeleteServiceRequestStops(ctx context.Context, requestID uuid.UUID) error
 	DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDeviceTokenParams) error
-	DeleteUserMFA(ctx context.Context, userID uuid.UUID) error
 	DeleteWorkshopClosure(ctx context.Context, arg DeleteWorkshopClosureParams) error
 	DeleteWorkshopHours(ctx context.Context, workshopID uuid.UUID) error
 	DemandByCell(ctx context.Context, arg DemandByCellParams) ([]DemandByCellRow, error)
@@ -172,7 +168,6 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByPhone(ctx context.Context, phone *string) (User, error)
 	GetUserContact(ctx context.Context, id uuid.UUID) (GetUserContactRow, error)
-	GetUserMFA(ctx context.Context, userID uuid.UUID) (UserMfa, error)
 	GetUserPreferences(ctx context.Context, id uuid.UUID) (GetUserPreferencesRow, error)
 	GetVehicle(ctx context.Context, id uuid.UUID) (GetVehicleRow, error)
 	GetVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) (Vehicle, error)
@@ -335,7 +330,6 @@ type Querier interface {
 	RevokeUserRefreshTokens(ctx context.Context, arg RevokeUserRefreshTokensParams) error
 	RoleIsAssigned(ctx context.Context, roleID uuid.UUID) (bool, error)
 	SaveAddress(ctx context.Context, arg SaveAddressParams) error
-	SavePendingUserMFA(ctx context.Context, arg SavePendingUserMFAParams) error
 	SaveProviderDocument(ctx context.Context, arg SaveProviderDocumentParams) error
 	SaveUserAddress(ctx context.Context, arg SaveUserAddressParams) error
 	SaveWorkshop(ctx context.Context, arg SaveWorkshopParams) error
@@ -384,8 +378,6 @@ type Querier interface {
 	UpsertVehicle(ctx context.Context, arg UpsertVehicleParams) error
 	UpsertWorkshopClosure(ctx context.Context, arg UpsertWorkshopClosureParams) error
 	UseFareEstimate(ctx context.Context, arg UseFareEstimateParams) (int64, error)
-	UseRecoveryCode(ctx context.Context, arg UseRecoveryCodeParams) (int64, error)
-	UseUserMFAStep(ctx context.Context, arg UseUserMFAStepParams) (int64, error)
 	UserHasMembershipOutside(ctx context.Context, arg UserHasMembershipOutsideParams) (bool, error)
 }
 

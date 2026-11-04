@@ -13,7 +13,7 @@ import (
 )
 
 const getRolesByIDs = `-- name: GetRolesByIDs :many
-SELECT id, organization_id, scope, code, name, requires_mfa, is_system, created_at, updated_at FROM roles
+SELECT id, organization_id, scope, code, name, is_system, created_at, updated_at FROM roles
 WHERE id = ANY ($1::uuid[])
 `
 
@@ -32,7 +32,6 @@ func (q *Queries) GetRolesByIDs(ctx context.Context, ids []uuid.UUID) ([]Role, e
 			&i.Scope,
 			&i.Code,
 			&i.Name,
-			&i.RequiresMfa,
 			&i.IsSystem,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -48,7 +47,7 @@ func (q *Queries) GetRolesByIDs(ctx context.Context, ids []uuid.UUID) ([]Role, e
 }
 
 const getSystemRoleByCode = `-- name: GetSystemRoleByCode :one
-SELECT id, organization_id, scope, code, name, requires_mfa, is_system, created_at, updated_at FROM roles
+SELECT id, organization_id, scope, code, name, is_system, created_at, updated_at FROM roles
 WHERE organization_id IS NULL AND scope = $1 AND code = $2
 `
 
@@ -66,7 +65,6 @@ func (q *Queries) GetSystemRoleByCode(ctx context.Context, arg GetSystemRoleByCo
 		&i.Scope,
 		&i.Code,
 		&i.Name,
-		&i.RequiresMfa,
 		&i.IsSystem,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -133,7 +131,7 @@ func (q *Queries) ListRolePermissions(ctx context.Context, roleIds []uuid.UUID) 
 }
 
 const listRolesForOrganization = `-- name: ListRolesForOrganization :many
-SELECT id, organization_id, scope, code, name, requires_mfa, is_system, created_at, updated_at FROM roles
+SELECT id, organization_id, scope, code, name, is_system, created_at, updated_at FROM roles
 WHERE scope = $1 AND (organization_id IS NULL OR organization_id = $2::uuid)
 ORDER BY is_system DESC, name
 `
@@ -158,7 +156,6 @@ func (q *Queries) ListRolesForOrganization(ctx context.Context, arg ListRolesFor
 			&i.Scope,
 			&i.Code,
 			&i.Name,
-			&i.RequiresMfa,
 			&i.IsSystem,
 			&i.CreatedAt,
 			&i.UpdatedAt,

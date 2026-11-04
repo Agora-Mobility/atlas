@@ -84,7 +84,6 @@ type SessionOutput struct {
 	Client           string      `json:"client" example:"agora-customer-app"`
 	User             UserView    `json:"user"`
 	Access           *AccessView `json:"access,omitempty"`
-	MFARecoveryCodes []string    `json:"mfa_recovery_codes,omitempty" example:"7KQM-2XRT-PL9D"`
 }
 
 func ToUserView(u *entities.User) UserView {

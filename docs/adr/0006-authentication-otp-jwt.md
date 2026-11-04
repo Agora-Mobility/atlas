@@ -27,7 +27,7 @@ runs as several stateless instances behind a load balancer.
 - Customers and providers can also sign in with an **SMS code**, on its own
   endpoints and with its own OTP purpose, so a sign-up or recovery code never
   signs anyone in here. Staff clients are closed: an SMS code alone must not
-  replace the password and the MFA of a staff account.
+  replace the password of a staff account.
 - Sessions use a **short-lived JWT access token** (15 min, HS256, claims:
   `sub`, `role`, `sid` = session/token family, `cid` = client id) and a
   **rotating refresh token** (opaque, stored hashed in PostgreSQL, 30 days,

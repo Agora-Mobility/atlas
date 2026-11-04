@@ -64,7 +64,7 @@ func (uc *PhoneVerificationUsecase) RequestCode(ctx context.Context, req dtos.Ph
 
 // RequestLoginCode answers the same for every phone, so it does not reveal
 // which accounts exist. Staff clients are closed: an SMS code alone must not
-// replace the password and the MFA of a staff account.
+// replace the password of a staff account.
 func (uc *PhoneVerificationUsecase) RequestLoginCode(ctx context.Context, req dtos.LoginCodeRequestInput, client *entities.Client) error {
 	if _, ok := client.SignUpRole(); !ok {
 		return nil

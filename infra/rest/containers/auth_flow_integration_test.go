@@ -5,12 +5,10 @@ package containers
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -39,7 +37,6 @@ import (
 	authjwt "github.com/Agora-Mobility/atlas/infra/security/auth-jwt"
 	"github.com/Agora-Mobility/atlas/infra/security/password"
 	"github.com/Agora-Mobility/atlas/infra/security/revocation"
-	"github.com/Agora-Mobility/atlas/infra/security/totp"
 	"github.com/Agora-Mobility/atlas/infra/sse"
 	"github.com/Agora-Mobility/atlas/infra/storage/r2"
 	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
@@ -161,43 +158,6 @@ func (a api) login(clientID, phoneNumber, secret string) (access, refresh string
 	return res.body["access_token"].(string), res.body["refresh_token"].(string)
 }
 
-func (a api) loginToken(clientID, phoneNumber, secret string) string {
-	token, _ := a.login(clientID, phoneNumber, secret)
-	return token
-}
-
-func (a api) setupMFA(mfaToken string) string {
-	return a.setupMFAOn(backofficeApp, mfaToken)
-}
-
-func (a api) setupMFAOn(clientID, mfaToken string) string {
-	a.t.Helper()
-	res := a.call(http.MethodPost, "/api/v1/auth/mfa/setup", clientID, "", map[string]string{"mfa_token": mfaToken})
-	require.Equal(a.t, http.StatusOK, res.status, res.body)
-	assert.Contains(a.t, res.body["otpauth_uri"], "otpauth://totp/")
-	return res.body["secret"].(string)
-}
-
-func (a api) verifyMFA(clientID, mfaToken, secret string, at time.Time) string {
-	token, _ := a.verifyMFAWithCodes(clientID, mfaToken, secret, at)
-	return token
-}
-
-func (a api) verifyMFAWithCodes(clientID, mfaToken, secret string, at time.Time) (string, []string) {
-	a.t.Helper()
-	code, err := totp.CodeAt(secret, at)
-	require.NoError(a.t, err)
-	res := a.call(http.MethodPost, "/api/v1/auth/mfa/verify", clientID, "", map[string]string{"mfa_token": mfaToken, "code": code})
-	require.Equal(a.t, http.StatusOK, res.status, res.body)
-	var codes []string
-	if raw, ok := res.body["mfa_recovery_codes"].([]any); ok {
-		for _, c := range raw {
-			codes = append(codes, c.(string))
-		}
-	}
-	return res.body["access_token"].(string), codes
-}
-
 func (a api) roleIDs(path, token string) map[string]string {
 	a.t.Helper()
 	res := a.call(http.MethodGet, path, backofficeApp, token, nil)
@@ -213,7 +173,7 @@ func (a api) roleIDs(path, token string) map[string]string {
 func permissionCatalog() []string {
 	all := []entities.Permission{
 		entities.PermMembersRead, entities.PermMembersInvite, entities.PermMembersUpdate, entities.PermMembersSuspend,
-		entities.PermMembersDeactivate, entities.PermMembersMFAReset, entities.PermRolesRead, entities.PermRolesAssign, entities.PermRolesManage,
+		entities.PermMembersDeactivate, entities.PermRolesRead, entities.PermRolesAssign, entities.PermRolesManage,
 		entities.PermPartnersRead, entities.PermPartnersManage, entities.PermUsersRead, entities.PermUsersBlock,
 		entities.PermUsersResetPassword, entities.PermProvidersRead, entities.PermProvidersApprove, entities.PermProvidersSuspend,
 		entities.PermCategoriesManage, entities.PermServicesManage, entities.PermRequestsRead, entities.PermRequestsManage,
@@ -235,8 +195,7 @@ func TestAuthFlow(t *testing.T) {
 	a := api{t: t, engine: newTestEngine(t, pool, rdb, sms, mail)}
 	ctx := context.Background()
 
-	var access, refresh, adminSecret string
-	var recoveryCodes []string
+	var access, refresh string
 
 	t.Run("sign up with the phone, verify it, then name the account and set a password", func(t *testing.T) {
 		res := a.call(http.MethodPost, "/api/v1/auth/register", customerApp, "", map[string]string{"phone": "923 000 000"})
@@ -366,7 +325,7 @@ func TestAuthFlow(t *testing.T) {
 		assert.Equal(t, "CODE_EXPIRED", verify(customerApp, code).code(), "a code works once")
 	})
 
-	t.Run("the first super admin is bootstrapped and must set up MFA", func(t *testing.T) {
+	t.Run("the first super admin is bootstrapped and signs in with the password alone", func(t *testing.T) {
 		bootstrap := usecases.NewAdminBootstrap(repository.NewUserRepository(pool), repository.NewOrganizationRepository(pool),
 			repository.NewRoleRepository(pool), repository.NewMembershipRepository(pool), outbox.NewRepository(pool),
 			repository.NewAuditLogRepository(pool), postgres.NewTxManager(pool), password.NewArgon2Hasher(password.DefaultParams))
@@ -378,28 +337,12 @@ func TestAuthFlow(t *testing.T) {
 		assert.False(t, created, "a second run does nothing")
 
 		res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": adminPhone, "password": adminPassword})
-		require.Equal(t, http.StatusAccepted, res.status, res.body)
-		assert.Equal(t, "setup_required", res.body["status"])
-		assert.NotContains(t, res.body, "access_token", "CA09.1 no session before MFA")
-
-		adminSecret = a.setupMFA(res.body["mfa_token"].(string))
-		adminToken, recoveryCodes = a.verifyMFAWithCodes(backofficeApp, res.body["mfa_token"].(string), adminSecret, time.Now())
-		require.Len(t, recoveryCodes, 10, "recovery codes are handed out once, when MFA is confirmed")
-		var storedCode string
-		require.NoError(t, owner.QueryRow(ctx, "SELECT code_hash FROM mfa_recovery_codes LIMIT 1").Scan(&storedCode))
-		assert.NotContains(t, recoveryCodes, storedCode, "only hashes are stored")
+		require.Equal(t, http.StatusOK, res.status, res.body)
+		adminToken = res.body["access_token"].(string)
 
 		res = a.call(http.MethodGet, "/api/v1/users/me/permissions", backofficeApp, adminToken, nil)
 		require.Equal(t, http.StatusOK, res.status, res.body)
 		assert.Contains(t, res.body["permissions"], "roles:manage")
-
-		res = a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": adminPhone, "password": adminPassword})
-		require.Equal(t, http.StatusAccepted, res.status, res.body)
-		assert.Equal(t, "code_required", res.body["status"])
-		replayed, err := totp.CodeAt(adminSecret, time.Now().Add(-30*time.Second))
-		require.NoError(t, err)
-		res = a.call(http.MethodPost, "/api/v1/auth/mfa/verify", backofficeApp, "", map[string]string{"mfa_token": res.body["mfa_token"].(string), "code": replayed})
-		assert.Equal(t, "INVALID_MFA_CODE", res.code(), "a used code cannot be replayed")
 	})
 
 	t.Run("blocking a user ends the session at once and is audited", func(t *testing.T) {
@@ -576,8 +519,8 @@ func TestAuthFlow(t *testing.T) {
 		require.Equal(t, http.StatusNoContent, res.status, res.body)
 
 		res = a.call(http.MethodPost, "/api/v1/auth/login", partnerApp, "", map[string]string{"phone": ownerPhone, "password": "S3gredo!forte"})
-		require.Equal(t, http.StatusAccepted, res.status, res.body)
-		ownerToken := a.verifyMFA(partnerApp, res.body["mfa_token"].(string), a.setupMFAOn(partnerApp, res.body["mfa_token"].(string)), time.Now())
+		require.Equal(t, http.StatusOK, res.status, res.body)
+		ownerToken := res.body["access_token"].(string)
 
 		res = a.call(http.MethodGet, "/api/v1/members", partnerApp, ownerToken, nil)
 		require.Equal(t, http.StatusOK, res.status, res.body)
@@ -592,28 +535,6 @@ func TestAuthFlow(t *testing.T) {
 		require.Equal(t, http.StatusOK, res.status, res.body)
 		assert.EqualValues(t, 1, res.body["total"], "CA14.2")
 		assert.Equal(t, "PERMISSION_DENIED", a.call(http.MethodGet, "/api/v1/partners/"+partnerID+"/members", backofficeApp, operatorToken, nil).code(), "CA14.3")
-	})
-
-	t.Run("a lost authenticator is recovered with a single-use code", func(t *testing.T) {
-		login := func() string {
-			res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": adminPhone, "password": adminPassword})
-			require.Equal(t, http.StatusAccepted, res.status, res.body)
-			return res.body["mfa_token"].(string)
-		}
-		res := a.call(http.MethodPost, "/api/v1/auth/mfa/recover", backofficeApp, "", map[string]string{"mfa_token": login(), "recovery_code": strings.ToLower(recoveryCodes[0])})
-		require.Equal(t, http.StatusOK, res.status, res.body)
-		recovered := res.body["access_token"].(string)
-
-		res = a.call(http.MethodPost, "/api/v1/auth/mfa/recover", backofficeApp, "", map[string]string{"mfa_token": login(), "recovery_code": recoveryCodes[0]})
-		assert.Equal(t, "INVALID_MFA_CODE", res.code(), "each recovery code works once")
-
-		code, err := totp.CodeAt(adminSecret, time.Now().Add(30*time.Second))
-		require.NoError(t, err)
-		res = a.call(http.MethodPost, "/api/v1/users/me/mfa/recovery-codes", backofficeApp, recovered, map[string]string{"code": code})
-		require.Equal(t, http.StatusOK, res.status, res.body)
-		assert.Len(t, res.body["recovery_codes"], 10)
-		res = a.call(http.MethodPost, "/api/v1/auth/mfa/recover", backofficeApp, "", map[string]string{"mfa_token": login(), "recovery_code": recoveryCodes[1]})
-		assert.Equal(t, "INVALID_MFA_CODE", res.code(), "regenerating invalidates the previous codes")
 	})
 
 	t.Run("custom roles reach their members on the next request", func(t *testing.T) {
@@ -656,20 +577,13 @@ func TestAuthFlow(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, a.call(http.MethodGet, "/api/v1/roles/"+roleID, backofficeApp, adminToken, nil).status)
 	})
 
-	t.Run("an authenticator reset ends the sessions of the member", func(t *testing.T) {
-		res := a.call(http.MethodPost, "/api/v1/members/"+operatorMemberID+"/mfa/reset", backofficeApp, adminToken, nil)
-		require.Equal(t, http.StatusNoContent, res.status, res.body)
-		assert.Equal(t, "SESSION_REVOKED", a.call(http.MethodGet, "/api/v1/users/me", backofficeApp, operatorToken, nil).code())
-		assert.Equal(t, "PERMISSION_DENIED", a.call(http.MethodPost, "/api/v1/members/"+operatorMemberID+"/mfa/reset", backofficeApp, a.loginToken(backofficeApp, operatorPhone, "S3gredo!forte"), nil).code())
-	})
-
 	t.Run("every membership change reaches the outbox", func(t *testing.T) {
 		rows, err := owner.Query(ctx, "SELECT DISTINCT event_type FROM outbox WHERE event_type LIKE 'access.%' ORDER BY 1")
 		require.NoError(t, err)
 		types, err := pgx.CollectRows(rows, pgx.RowTo[string])
 		require.NoError(t, err)
 		assert.Subset(t, types, []string{
-			"access.member-activated", "access.member-invited", "access.member-mfa-reset", "access.member-reactivated",
+			"access.member-activated", "access.member-invited", "access.member-reactivated",
 			"access.member-roles-changed", "access.member-suspended", "access.partner-created",
 			"access.role-created", "access.role-deleted", "access.role-updated",
 		})
@@ -736,7 +650,6 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 		Realtime: config.RealtimeConfig{Heartbeat: time.Second, PollInterval: time.Second, DeadAfter: 3 * time.Second, MailboxEntries: 200, MailboxTTL: time.Hour, ProjectorWorkers: 1},
 		Mapbox:   config.MapboxConfig{Timeout: time.Second, BreakerFailures: 1, BreakerCooldown: time.Second, RoadFactor: 1.4, AverageSpeedKmh: 25},
 		Access: config.AccessConfig{
-			MFAEncryptionKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)), MFAChallengeTTL: 5 * time.Minute, MFAMaxAttempts: 5,
 			PermissionCacheTTL: time.Minute, InvitationBackoffice: "https://argus.test/convite", InvitationPartner: "https://athena.test/convite",
 		},
 	}

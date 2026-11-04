@@ -20,7 +20,6 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/outbox"
 	"github.com/Agora-Mobility/atlas/infra/repository"
 	"github.com/Agora-Mobility/atlas/infra/security/password"
-	"github.com/Agora-Mobility/atlas/infra/security/totp"
 	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
 )
 
@@ -63,23 +62,17 @@ func staffToken(t *testing.T) *person {
 		return cachedStaff
 	}
 	ctx := context.Background()
-	const email, secret = "admin-e2e@agora.ao", "uma-frase-longa-segura"
+	const email, phone, secret = "admin-e2e@agora.ao", "+244923000199", "uma-frase-longa-segura"
 	pool := env.api.container.Pool
 	bootstrap := usecases.NewAdminBootstrap(repository.NewUserRepository(pool), repository.NewOrganizationRepository(pool), repository.NewRoleRepository(pool),
 		repository.NewMembershipRepository(pool), outbox.NewRepository(pool), repository.NewAuditLogRepository(pool), postgres.NewTxManager(pool), password.NewArgon2Hasher(password.DefaultParams))
-	_, err := bootstrap.Run(ctx, "Admin", email, secret)
+	_, err := bootstrap.Run(ctx, "Admin", email, phone, secret)
 	require.NoError(t, err)
 
 	staff := &person{client: backofficeClient, api: env.api.baseURL}
-	login := staff.post(t, "/api/v1/auth/login", map[string]string{"identifier": email, "password": secret})
-	require.Equal(t, http.StatusAccepted, login.status, login.text)
-	setup := staff.post(t, "/api/v1/auth/mfa/setup", map[string]string{"mfa_token": login.str("mfa_token")})
-	require.Equal(t, http.StatusOK, setup.status, setup.text)
-	code, err := totp.CodeAt(setup.str("secret"), time.Now())
-	require.NoError(t, err)
-	verified := staff.post(t, "/api/v1/auth/mfa/verify", map[string]string{"mfa_token": login.str("mfa_token"), "code": code})
-	require.Equal(t, http.StatusOK, verified.status, verified.text)
-	staff.token = verified.str("access_token")
+	login := staff.post(t, "/api/v1/auth/login", map[string]string{"phone": phone, "password": secret})
+	require.Equal(t, http.StatusOK, login.status, login.text)
+	staff.token = login.str("access_token")
 	cachedStaff = staff
 	return staff
 }

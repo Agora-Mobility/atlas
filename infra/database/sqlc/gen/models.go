@@ -535,14 +535,6 @@ type MembershipRole struct {
 	RoleID       uuid.UUID `json:"role_id"`
 }
 
-type MfaRecoveryCode struct {
-	ID        uuid.UUID  `json:"id"`
-	UserID    uuid.UUID  `json:"user_id"`
-	CodeHash  string     `json:"code_hash"`
-	UsedAt    *time.Time `json:"used_at"`
-	CreatedAt time.Time  `json:"created_at"`
-}
-
 type Notification struct {
 	ID                int64      `json:"id"`
 	UserID            *uuid.UUID `json:"user_id"`
@@ -814,7 +806,6 @@ type Role struct {
 	Scope          enums.OrganizationType `json:"scope"`
 	Code           string                 `json:"code"`
 	Name           string                 `json:"name"`
-	RequiresMfa    bool                   `json:"requires_mfa"`
 	IsSystem       bool                   `json:"is_system"`
 	CreatedAt      time.Time              `json:"created_at"`
 	UpdatedAt      time.Time              `json:"updated_at"`
@@ -1057,15 +1048,6 @@ type UserBlock struct {
 type UserBlockReason struct {
 	UserBlockID   uuid.UUID `json:"user_block_id"`
 	BlockReasonID uuid.UUID `json:"block_reason_id"`
-}
-
-type UserMfa struct {
-	UserID       uuid.UUID  `json:"user_id"`
-	Secret       string     `json:"secret"`
-	ConfirmedAt  *time.Time `json:"confirmed_at"`
-	LastUsedStep int64      `json:"last_used_step"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 type Vehicle struct {

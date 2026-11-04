@@ -92,13 +92,12 @@ func (c *AuthController) handleRegisterError(ctx *gin.Context, err error) {
 // Login godoc
 //
 //	@Summary		Authenticate a user
-//	@Description	Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership). The organization is never sent: it comes from the membership and travels in the token. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.
+//	@Description	Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership) and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.LoginInput	true	"Login payload"
 //	@Success		200		{object}	dtos.SessionOutput
-//	@Success		202		{object}	dtos.MFAChallengeOutput	"MFA step required"
 //	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
 //	@Failure		401		{object}	shared.ErrorResponse	"Invalid credentials or unknown client"
 //	@Failure		403		{object}	shared.ErrorResponse	"Account blocked, phone not verified or client not allowed"
@@ -123,12 +122,8 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		c.handleLoginError(ctx, err)
 		return
 	}
-	if resp.MFA != nil {
-		ctx.JSON(http.StatusAccepted, resp.MFA)
-		return
-	}
 
-	ctx.JSON(http.StatusOK, resp.Session)
+	ctx.JSON(http.StatusOK, resp)
 }
 
 func (c *AuthController) handleLoginError(ctx *gin.Context, err error) {

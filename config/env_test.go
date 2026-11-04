@@ -1,8 +1,6 @@
 package config_test
 
 import (
-	"bytes"
-	"encoding/base64"
 	"os"
 	"strings"
 	"testing"
@@ -17,8 +15,6 @@ import (
 
 const secret = "test-secret-with-at-least-32-characters"
 
-var testMFAKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32))
-
 func isolateEnv(t *testing.T) {
 	t.Helper()
 	t.Chdir(t.TempDir())
@@ -30,11 +26,11 @@ func isolateEnv(t *testing.T) {
 }
 
 func setRequired(t *testing.T) {
+	t.Helper()
 	t.Setenv("DATABASE_URL", "postgres://localhost/atlas")
 	t.Setenv("REDIS_ADDR", "localhost:6379")
 	t.Setenv("RABBITMQ_URL", "amqp://localhost/")
 	t.Setenv("JWT_SECRET", secret)
-	t.Setenv("MFA_ENCRYPTION_KEY", testMFAKey)
 }
 
 func TestLoadDefaults(t *testing.T) {
@@ -146,7 +142,7 @@ func TestLoadMissingRequired(t *testing.T) {
 	_, err := config.Load()
 
 	require.Error(t, err)
-	for _, key := range []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET", "MFA_ENCRYPTION_KEY"} {
+	for _, key := range []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"} {
 		assert.ErrorContains(t, err, key)
 	}
 }

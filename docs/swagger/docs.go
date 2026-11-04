@@ -3672,7 +3672,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "The identifier is an e-mail or a phone number in E.164 format. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership); organization_id picks one partner when the person belongs to several. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.",
+                "description": "Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership) and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3701,12 +3701,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.SessionOutput"
                         }
                     },
-                    "202": {
-                        "description": "MFA step required",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.MFAChallengeOutput"
-                        }
-                    },
                     "400": {
                         "description": "Invalid request or missing client",
                         "schema": {
@@ -3721,6 +3715,150 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Account blocked, phone not verified or client not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login/otp/request": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer and provider apps only. Sends an SMS code to the account of the phone. Always answers 202 so the response does not reveal whether the phone is registered. Continue with /auth/login/otp/verify.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Send a code to sign in without a password",
+                "parameters": [
+                    {
+                        "description": "Phone payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.LoginCodeRequestInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.MessageOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unknown client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login/otp/verify": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Customer and provider apps only. Validates the code from /auth/login/otp/request and returns an access token and a refresh token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Sign in with the code sent by SMS",
+                "parameters": [
+                    {
+                        "description": "Phone and code",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.LoginCodeVerifyInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SessionOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unknown client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Account blocked or client not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid, expired or exhausted code",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -3826,171 +3964,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/auth/mfa/recover": {
-            "post": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "description": "For a member who lost the authenticator app. Each recovery code works once; regenerate them afterwards at POST /api/v1/users/me/mfa/recovery-codes.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Finish the sign-in with a recovery code",
-                "parameters": [
-                    {
-                        "description": "MFA token and recovery code",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.MFARecoverInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.SessionOutput"
-                        }
-                    },
-                    "401": {
-                        "description": "MFA step expired or too many attempts",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Setup required",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Wrong or used code",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/auth/mfa/setup": {
-            "post": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "description": "With the mfa_token of a login answered with setup_required. Returns the secret to scan; confirm it at /auth/mfa/verify.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Start the authenticator app setup",
-                "parameters": [
-                    {
-                        "description": "MFA token",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.MFATokenInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.MFASetupOutput"
-                        }
-                    },
-                    "401": {
-                        "description": "MFA step expired",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Already set up",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/auth/mfa/verify": {
-            "post": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "description": "With the mfa_token of the login and the 6-digit code of the app. Confirms a pending setup and starts the session.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Finish the sign-in with an authenticator code",
-                "parameters": [
-                    {
-                        "description": "MFA token and code",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.MFAVerifyInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.SessionOutput"
-                        }
-                    },
-                    "401": {
-                        "description": "MFA step expired or too many attempts",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Setup required",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Wrong code",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/auth/phone/verification-code": {
             "post": {
                 "security": [
@@ -3998,7 +3971,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Customer and provider apps only. Serves the first verification and every later sign-in without password. Always answers 202 so the response does not reveal whether the phone is registered.",
+                "description": "Customer and provider apps only. Sends nothing to an account already verified: signing in with a code is /auth/login/otp/request. Always answers 202 so the response does not reveal whether the phone is registered.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4008,7 +3981,7 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Send a phone code to verify or sign in",
+                "summary": "Resend the code that verifies a new account",
                 "parameters": [
                     {
                         "description": "Phone payload",
@@ -4067,7 +4040,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Customer and provider apps only. Marks the phone verified on the first use.",
+                "description": "Customer and provider apps only. Takes the code sent by /auth/register or /auth/phone/verification-code and marks the phone verified.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4077,7 +4050,7 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Verify the phone code and start a session",
+                "summary": "Verify a new account and start its first session",
                 "parameters": [
                     {
                         "description": "Phone and code",
@@ -7038,7 +7011,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Sets the password (or confirms the current one when the person already has an account) and activates the membership. Sign in afterwards; roles that require MFA ask to set it up at the first sign-in.",
+                "description": "Sets the password (or confirms the current one when the person already has an account) and activates the membership. Sign in afterwards.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7560,61 +7533,6 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "The member is not invited",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/members/{id}/mfa/reset": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "description": "Requires members:mfa-reset, for a member who lost the authenticator app and the recovery codes. Ends every session; the next sign-in asks to set up MFA again. A partner cannot reset someone who also belongs to other organizations.",
-                "tags": [
-                    "Members"
-                ],
-                "summary": "Reset the authenticator of a member",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Member (membership) id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "401": {
-                        "description": "Unauthorized or session ended",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Missing permission, privilege escalation, own account or member of other organizations",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Member not found",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Member deactivated",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -13393,66 +13311,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/me/mfa/recovery-codes": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "description": "Confirm with a code of the authenticator app. The previous recovery codes stop working.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Generate new MFA recovery codes",
-                "parameters": [
-                    {
-                        "description": "Authenticator code",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.MFACodeInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.RecoveryCodesOutput"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized or session ended",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "MFA not set up",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Wrong code",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/users/me/permissions": {
             "get": {
                 "security": [
@@ -16395,9 +16253,6 @@ const docTemplate = `{
                         "members:read",
                         "providers:read"
                     ]
-                },
-                "requires_mfa": {
-                    "type": "boolean"
                 }
             }
         },
@@ -17341,117 +17196,53 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.LoginCodeRequestInput": {
+            "type": "object",
+            "required": [
+                "phone"
+            ],
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000000"
+                }
+            }
+        },
+        "dtos.LoginCodeVerifyInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "phone"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "+244923000000"
+                }
+            }
+        },
         "dtos.LoginInput": {
             "type": "object",
             "required": [
-                "identifier",
-                "password"
+                "password",
+                "phone"
             ],
             "properties": {
-                "identifier": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "example": "+244923000000"
-                },
-                "organization_id": {
-                    "type": "string"
-                },
                 "password": {
                     "type": "string",
                     "maxLength": 128,
                     "example": "S3gredo!forte"
-                }
-            }
-        },
-        "dtos.MFAChallengeOutput": {
-            "type": "object",
-            "properties": {
-                "expires_in": {
-                    "type": "integer",
-                    "example": 300
                 },
-                "mfa_token": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "setup_required",
-                        "code_required"
-                    ],
-                    "example": "code_required"
-                }
-            }
-        },
-        "dtos.MFACodeInput": {
-            "type": "object",
-            "required": [
-                "code"
-            ],
-            "properties": {
-                "code": {
-                    "type": "string",
-                    "example": "123456"
-                }
-            }
-        },
-        "dtos.MFARecoverInput": {
-            "type": "object",
-            "required": [
-                "mfa_token",
-                "recovery_code"
-            ],
-            "properties": {
-                "mfa_token": {
-                    "type": "string",
-                    "maxLength": 128
-                },
-                "recovery_code": {
+                "phone": {
                     "type": "string",
                     "maxLength": 32,
-                    "example": "7KQM-2XRT-PL9D"
-                }
-            }
-        },
-        "dtos.MFASetupOutput": {
-            "type": "object",
-            "properties": {
-                "otpauth_uri": {
-                    "type": "string",
-                    "example": "otpauth://totp/AGORA:ana@agora.ao?secret=JBSWY3DPEHPK3PXP\u0026issuer=AGORA"
-                },
-                "secret": {
-                    "type": "string",
-                    "example": "JBSWY3DPEHPK3PXP"
-                }
-            }
-        },
-        "dtos.MFATokenInput": {
-            "type": "object",
-            "required": [
-                "mfa_token"
-            ],
-            "properties": {
-                "mfa_token": {
-                    "type": "string",
-                    "maxLength": 128
-                }
-            }
-        },
-        "dtos.MFAVerifyInput": {
-            "type": "object",
-            "required": [
-                "code",
-                "mfa_token"
-            ],
-            "properties": {
-                "code": {
-                    "type": "string",
-                    "example": "123456"
-                },
-                "mfa_token": {
-                    "type": "string",
-                    "maxLength": 128
+                    "example": "+244923000000"
                 }
             }
         },
@@ -19100,20 +18891,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.RecoveryCodesOutput": {
-            "type": "object",
-            "properties": {
-                "recovery_codes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "7KQM-2XRT-PL9D"
-                    ]
-                }
-            }
-        },
         "dtos.RecoveryConfirmInput": {
             "type": "object",
             "required": [
@@ -20134,9 +19911,6 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "requires_mfa": {
-                    "type": "boolean"
-                },
                 "scope": {
                     "allOf": [
                         {
@@ -20381,15 +20155,6 @@ const docTemplate = `{
                 "expires_in": {
                     "type": "integer",
                     "example": 900
-                },
-                "mfa_recovery_codes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "7KQM-2XRT-PL9D"
-                    ]
                 },
                 "refresh_expires_at": {
                     "type": "string"
@@ -21058,9 +20823,6 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
-                },
-                "requires_mfa": {
-                    "type": "boolean"
                 }
             }
         },

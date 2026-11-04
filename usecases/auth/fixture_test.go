@@ -53,11 +53,7 @@ type fixture struct {
 	roles         *repomocks.MockIRoleRepository
 	memberships   *repomocks.MockIMembershipRepository
 	invitations   *repomocks.MockIInvitationRepository
-	mfa           *repomocks.MockIUserMFARepository
 	accessCache   *servicemocks.MockIAccessCache
-	challenges    *servicemocks.MockIMFAChallengeStore
-	totp          *servicemocks.MockITOTP
-	sealer        *servicemocks.MockISecretSealer
 
 	auth              *usecases.AuthUsecase
 	refresh           *usecases.RefreshUsecase
@@ -74,8 +70,6 @@ type fixture struct {
 }
 
 var invitationLinks = usecases.InvitationLinks{Platform: "https://argus.agora.ao/convite", Partner: "https://athena.agora.ao/convite"}
-
-const mfaChallengeTTL = 5 * time.Minute
 
 func newFixture(t *testing.T) fixture {
 	t.Helper()
@@ -98,11 +92,7 @@ func newFixture(t *testing.T) fixture {
 		roles:         repomocks.NewMockIRoleRepository(ctrl),
 		memberships:   repomocks.NewMockIMembershipRepository(ctrl),
 		invitations:   repomocks.NewMockIInvitationRepository(ctrl),
-		mfa:           repomocks.NewMockIUserMFARepository(ctrl),
 		accessCache:   servicemocks.NewMockIAccessCache(ctrl),
-		challenges:    servicemocks.NewMockIMFAChallengeStore(ctrl),
-		totp:          servicemocks.NewMockITOTP(ctrl),
-		sealer:        servicemocks.NewMockISecretSealer(ctrl),
 	}
 	f.tx.EXPECT().WithinTransaction(gomock.Any(), gomock.Any()).AnyTimes().
 		DoAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) })
@@ -111,7 +101,7 @@ func newFixture(t *testing.T) fixture {
 	sessions := usecases.NewSessionIssuer(f.users, f.refreshTokens, f.tx, f.accessTokens, f.opaqueTokens, refreshTTL)
 	revoker := usecases.NewSessionRevoker(f.refreshTokens, f.revocations, accessTTL)
 	access := usecases.NewAccessResolver(f.memberships, f.accessCache)
-	f.staff = usecases.NewStaffSignIn(f.users, f.memberships, f.mfa, f.challenges, f.totp, f.sealer, f.opaqueTokens, f.audit, sessions, mfaChallengeTTL)
+	f.staff = usecases.NewStaffSignIn(f.users, f.memberships, sessions)
 	f.auth = usecases.NewAuthUsecase(f.users, f.outbox, f.tx, f.hasher, codeSender, sessions, f.staff, revoker)
 	f.refresh = usecases.NewRefreshUsecase(f.refreshTokens, f.users, access, f.tx, f.opaqueTokens, sessions, revoker, refreshTTL)
 	f.phoneVerification = usecases.NewPhoneVerificationUsecase(f.users, f.outbox, f.tx, f.otp, codeSender, sessions)
@@ -121,7 +111,7 @@ func newFixture(t *testing.T) fixture {
 	f.bootstrap = usecases.NewAdminBootstrap(f.users, f.orgs, f.roles, f.memberships, f.outbox, f.audit, f.tx, f.hasher)
 	f.members = usecases.NewMemberUsecase(usecases.MemberStores{
 		Users: f.users, Orgs: f.orgs, Roles: f.roles, Memberships: f.memberships, Invitations: f.invitations,
-		MFA: f.mfa, Audit: f.audit, Outbox: f.outbox, Tx: f.tx,
+		Audit: f.audit, Outbox: f.outbox, Tx: f.tx,
 	}, f.opaqueTokens, f.sms, f.email, revoker, access, invitationLinks)
 	f.invitationFlow = usecases.NewInvitationUsecase(f.users, f.orgs, f.memberships, f.invitations, f.audit, f.outbox, f.tx,
 		f.hasher, f.opaqueTokens, f.otp, codeSender, access)

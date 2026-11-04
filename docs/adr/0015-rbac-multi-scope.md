@@ -5,6 +5,8 @@
 - Requirements: RF21 (user management), RF26 (operational audit), RF02 (authentication)
 - Supersedes: the `operator`/`admin`/`partner` roles and `RequireRole` of ADR 0013
 - Spec: `specs/RF21-gestao-de-utilizadores/spec.md`
+- Note: the MFA sections of this ADR were superseded by ADR 0019
+  (authentication without MFA, migration `000036`).
 
 ## Context
 

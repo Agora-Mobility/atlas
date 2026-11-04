@@ -3,7 +3,6 @@ package usecases_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -173,22 +172,20 @@ func TestLogin_WithPhoneStartsSessionBoundToClient(t *testing.T) {
 	login, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: strongPass}, customerApp, "10.0.0.1", "app")
 
 	require.NoError(t, err)
-	require.Nil(t, login.MFA)
-	out := login.Session
-	assert.Nil(t, out.Access)
-	assert.Equal(t, "access", out.AccessToken)
-	assert.Equal(t, rawRefresh, out.RefreshToken)
-	assert.Equal(t, "Bearer", out.TokenType)
-	assert.Equal(t, "agora-customer-app", out.Client)
-	assert.InDelta(t, 900, out.ExpiresIn, 1)
-	assert.NotNil(t, out.User.LastLoginAt)
+	assert.Nil(t, login.Access)
+	assert.Equal(t, "access", login.AccessToken)
+	assert.Equal(t, rawRefresh, login.RefreshToken)
+	assert.Equal(t, "Bearer", login.TokenType)
+	assert.Equal(t, "agora-customer-app", login.Client)
+	assert.InDelta(t, 900, login.ExpiresIn, 1)
+	assert.NotNil(t, login.User.LastLoginAt)
 }
 
-func staffAccess(user *entities.User, scope enums.OrganizationType, requiresMFA bool) (*entities.Membership, *entities.Access) {
+func staffAccess(user *entities.User, scope enums.OrganizationType) (*entities.Membership, *entities.Access) {
 	membership := &entities.Membership{ID: uuid.New(), UserID: user.ID, OrganizationID: uuid.New(), Status: enums.MembershipStatusActive, PermVersion: 4}
 	return membership, &entities.Access{
 		MembershipID: membership.ID, UserID: user.ID, OrganizationID: membership.OrganizationID, Scope: scope,
-		Status: enums.MembershipStatusActive, PermVersion: 4, RequiresMFA: requiresMFA,
+		Status: enums.MembershipStatusActive, PermVersion: 4,
 		Permissions: []entities.Permission{entities.PermMembersRead},
 	}
 }
@@ -201,19 +198,17 @@ func (f fixture) expectStaffPassword(user *entities.User) {
 func TestLogin_StaffSessionCarriesTheMembership(t *testing.T) {
 	f := newFixture(t)
 	staff := newUser(t, enums.RoleStaff, true)
-	membership, access := staffAccess(staff, enums.OrganizationTypePlatform, false)
+	membership, access := staffAccess(staff, enums.OrganizationTypePlatform)
 	f.expectStaffPassword(staff)
 	f.memberships.EXPECT().ListActiveForSignIn(gomock.Any(), staff.ID, enums.OrganizationTypePlatform).Return([]*entities.Membership{membership}, nil)
 	f.memberships.EXPECT().Access(gomock.Any(), membership.ID).Return(access, nil)
-	f.mfa.EXPECT().Find(gomock.Any(), staff.ID).Return(nil, nil)
 	f.expectStaffSessionStarted(t, staff, backoffice, access)
 
 	out, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, backoffice, "", "")
 
 	require.NoError(t, err)
-	require.NotNil(t, out.Session)
-	assert.Equal(t, enums.RoleStaff, out.Session.User.Role)
-	assert.Equal(t, access.Permissions, out.Session.Access.Permissions)
+	assert.Equal(t, enums.RoleStaff, out.User.Role)
+	assert.Equal(t, access.Permissions, out.Access.Permissions)
 }
 
 func TestLogin_StaffWithoutActiveMembershipGetsTheGenericAnswer(t *testing.T) {
@@ -230,18 +225,17 @@ func TestLogin_StaffWithoutActiveMembershipGetsTheGenericAnswer(t *testing.T) {
 func TestLogin_StaffInSeveralOrganizationsEntersTheOldest(t *testing.T) {
 	f := newFixture(t)
 	staff := newUser(t, enums.RoleStaff, true)
-	oldest, access := staffAccess(staff, enums.OrganizationTypePartner, false)
-	newer, _ := staffAccess(staff, enums.OrganizationTypePartner, false)
+	oldest, access := staffAccess(staff, enums.OrganizationTypePartner)
+	newer, _ := staffAccess(staff, enums.OrganizationTypePartner)
 	f.expectStaffPassword(staff)
 	f.memberships.EXPECT().ListActiveForSignIn(gomock.Any(), staff.ID, enums.OrganizationTypePartner).Return([]*entities.Membership{oldest, newer}, nil)
 	f.memberships.EXPECT().Access(gomock.Any(), oldest.ID).Return(access, nil)
-	f.mfa.EXPECT().Find(gomock.Any(), staff.ID).Return(nil, nil)
 	f.expectStaffSessionStarted(t, staff, partnerPanel, access)
 
 	out, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, partnerPanel, "", "")
 
 	require.NoError(t, err)
-	assert.Equal(t, oldest.OrganizationID, out.Session.Access.OrganizationID)
+	assert.Equal(t, oldest.OrganizationID, out.Access.OrganizationID)
 }
 
 func TestLogin_EmailIsNotAnIdentifier(t *testing.T) {
@@ -253,44 +247,6 @@ func TestLogin_EmailIsNotAnIdentifier(t *testing.T) {
 	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: "ana@agora.ao", Password: "x"}, backoffice, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrInvalidCredentials)
-}
-
-func TestLogin_MFAIsRequiredBeforeAnySession(t *testing.T) {
-	cases := []struct {
-		name        string
-		requiresMFA bool
-		mfa         *entities.UserMFA
-		status      string
-	}{
-		{"role requires mfa and it is not set up", true, nil, usecases.MFAStatusSetupRequired},
-		{"pending setup is not enough", true, &entities.UserMFA{}, usecases.MFAStatusSetupRequired},
-		{"person set mfa up although the role does not require it", false, &entities.UserMFA{ConfirmedAt: &time.Time{}}, usecases.MFAStatusCodeRequired},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newFixture(t)
-			staff := newUser(t, enums.RoleStaff, true)
-			membership, access := staffAccess(staff, enums.OrganizationTypePlatform, tc.requiresMFA)
-			f.expectStaffPassword(staff)
-			f.memberships.EXPECT().ListActiveForSignIn(gomock.Any(), staff.ID, enums.OrganizationTypePlatform).Return([]*entities.Membership{membership}, nil)
-			f.memberships.EXPECT().Access(gomock.Any(), membership.ID).Return(access, nil)
-			f.mfa.EXPECT().Find(gomock.Any(), staff.ID).Return(tc.mfa, nil)
-			f.challenges.EXPECT().Create(gomock.Any(), gomock.Any()).
-				DoAndReturn(func(_ context.Context, c services.MFAChallenge) (string, error) {
-					assert.Equal(t, staff.ID, c.UserID)
-					assert.Equal(t, membership.ID, c.MembershipID)
-					assert.Equal(t, backoffice.ID, c.ClientID)
-					return "mfa-token", nil
-				})
-
-			out, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, backoffice, "", "")
-
-			require.NoError(t, err)
-			assert.Nil(t, out.Session, "no session before the second factor")
-			assert.Equal(t, tc.status, out.MFA.Status)
-			assert.Equal(t, "mfa-token", out.MFA.MFAToken)
-		})
-	}
 }
 
 func TestLogin_InvitedStaffWithoutPasswordCannotSignIn(t *testing.T) {

@@ -9,7 +9,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -162,7 +161,7 @@ func startStack() (func(), error) {
 	settings := map[string]string{
 		"APP_ENV": "test", "LOG_LEVEL": "error", "DATABASE_URL": dbURL, "DB_MAX_CONNS": "40", "DB_MIGRATE_ON_START": "false",
 		"REDIS_ADDR": redisProxy.addr(), "RABBITMQ_URL": "amqp://atlas:atlas@" + rabbitProxy.addr() + "/", "RABBITMQ_RETRY_DELAY": "1s",
-		"JWT_SECRET": uuid.NewString() + uuid.NewString(), "MFA_ENCRYPTION_KEY": base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{9}, 32)),
+		"JWT_SECRET":          uuid.NewString() + uuid.NewString(),
 		"RATE_LIMIT_REQUESTS": "1000000", "OUTBOX_POLL_INTERVAL": "50ms", "DISPATCH_WATCHER_INTERVAL": "100ms", "SSE_POLL_INTERVAL": "1s", "SSE_HEARTBEAT_INTERVAL": "1s",
 		"SSE_DEAD_AFTER": "3s", "SSE_RECONNECT_SPREAD": "1s", "NEARBY_MIN_CELL_COUNT": "2", "MAPBOX_ACCESS_TOKEN": "sk.e2e", "MAPBOX_BASE_URL": mapbox.server.URL,
 		"MAPBOX_TIMEOUT": "300ms", "MAPBOX_BREAKER_FAILURES": "3", "MAPBOX_BREAKER_COOLDOWN": "200ms", "FCM_PROJECT_ID": "agora-e2e", "FCM_BASE_URL": fcm.server.URL,

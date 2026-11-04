@@ -6,7 +6,6 @@ import (
 	"context"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -20,8 +19,7 @@ import (
 	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
 )
 
-// signInSuperAdmin bootstraps the first super admin and returns a session
-// after the MFA setup.
+// signInSuperAdmin bootstraps the first super admin and returns a session.
 func signInSuperAdmin(t *testing.T, a api, pool *pgxpool.Pool) string {
 	t.Helper()
 	bootstrap := usecases.NewAdminBootstrap(repository.NewUserRepository(pool), repository.NewOrganizationRepository(pool),
@@ -31,9 +29,8 @@ func signInSuperAdmin(t *testing.T, a api, pool *pgxpool.Pool) string {
 	require.NoError(t, err)
 
 	res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": adminPhone, "password": adminPassword})
-	require.Equal(t, http.StatusAccepted, res.status, res.body)
-	mfaToken := res.body["mfa_token"].(string)
-	return a.verifyMFA(backofficeApp, mfaToken, a.setupMFA(mfaToken), time.Now())
+	require.Equal(t, http.StatusOK, res.status, res.body)
+	return res.body["access_token"].(string)
 }
 
 // catalogSlugs returns the category slugs of the public catalog and the

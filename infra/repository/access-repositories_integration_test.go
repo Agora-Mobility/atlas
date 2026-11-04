@@ -95,7 +95,6 @@ func TestMembershipRepository(t *testing.T) {
 
 	superAdmin, err := roles.FindSystemRole(ctx, enums.OrganizationTypePlatform, entities.RoleCodeSuperAdmin)
 	require.NoError(t, err)
-	assert.True(t, superAdmin.RequiresMFA)
 	assert.Contains(t, superAdmin.Permissions, entities.PermRolesManage)
 	operations, err := roles.FindSystemRole(ctx, enums.OrganizationTypePlatform, "operations")
 	require.NoError(t, err)
@@ -139,7 +138,6 @@ func TestMembershipRepository(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, platform.ID, access.OrganizationID)
 		assert.Equal(t, enums.OrganizationTypePlatform, access.Scope)
-		assert.True(t, access.RequiresMFA)
 		assert.ElementsMatch(t, superAdmin.Permissions, access.Permissions)
 	})
 
@@ -222,13 +220,12 @@ func TestMembershipRepository(t *testing.T) {
 	})
 }
 
-func TestInvitationAndMFARepositories(t *testing.T) {
+func TestInvitationRepository(t *testing.T) {
 	pool := setupDB(t)
 	ctx := context.Background()
 	users := repository.NewUserRepository(pool)
 	orgs := repository.NewOrganizationRepository(pool)
 	invitations := repository.NewInvitationRepository(pool)
-	mfa := repository.NewUserMFARepository(pool)
 	platform, err := orgs.Platform(ctx)
 	require.NoError(t, err)
 	ana := newStaff(ctx, t, users, "ana@agora.ao", "+244923000001")
@@ -268,28 +265,5 @@ func TestInvitationAndMFARepositories(t *testing.T) {
 		used, err := invitations.FindByTokenHash(scoped, "hash-2")
 		require.NoError(t, err)
 		assert.False(t, used.IsUsable(time.Now()))
-	})
-
-	t.Run("an authenticator step is used once", func(t *testing.T) {
-		require.NoError(t, mfa.SavePending(ctx, ana.ID, "sealed-1", time.Now().UTC()))
-		pending, err := mfa.Find(ctx, ana.ID)
-		require.NoError(t, err)
-		assert.False(t, pending.IsConfirmed())
-
-		used, err := mfa.UseStep(ctx, ana.ID, 100, time.Now().UTC())
-		require.NoError(t, err)
-		assert.True(t, used)
-		used, err = mfa.UseStep(ctx, ana.ID, 100, time.Now().UTC())
-		require.NoError(t, err)
-		assert.False(t, used, "replay")
-		used, err = mfa.UseStep(ctx, ana.ID, 99, time.Now().UTC())
-		require.NoError(t, err)
-		assert.False(t, used, "older step")
-
-		require.NoError(t, mfa.SavePending(ctx, ana.ID, "sealed-2", time.Now().UTC()))
-		confirmed, err := mfa.Find(ctx, ana.ID)
-		require.NoError(t, err)
-		assert.True(t, confirmed.IsConfirmed())
-		assert.Equal(t, "sealed-1", confirmed.Secret, "a confirmed secret is never replaced by a new setup")
 	})
 }

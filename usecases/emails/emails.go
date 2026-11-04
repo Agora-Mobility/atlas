@@ -116,15 +116,6 @@ func MemberDeactivated(name, organization string) Message {
 	}
 }
 
-func MemberMFAReset(name, organization string) Message {
-	return Message{
-		Subject:  "A verificação em dois passos da sua conta foi reposta",
-		Greeting: Greeting(name),
-		Lines:    []string{"Um administrador de " + organization + " repôs a verificação em dois passos da sua conta.", "No próximo login vai ter de configurar de novo a aplicação de autenticação."},
-		Notes:    []string{"Se não pediu esta reposição, contacte de imediato o administrador da sua organização."},
-	}
-}
-
 func AccountBlocked(name string) Message {
 	return Message{
 		Subject:  "A sua conta AGORA foi bloqueada",

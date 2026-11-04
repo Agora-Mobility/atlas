@@ -18,7 +18,6 @@ const (
 	PermMembersUpdate          Permission = "members:update"
 	PermMembersSuspend         Permission = "members:suspend"
 	PermMembersDeactivate      Permission = "members:deactivate"
-	PermMembersMFAReset        Permission = "members:mfa-reset"
 	PermRolesRead              Permission = "roles:read"
 	PermRolesAssign            Permission = "roles:assign"
 	PermRolesManage            Permission = "roles:manage"
@@ -70,7 +69,6 @@ type Role struct {
 	Scope          enums.OrganizationType
 	Code           string
 	Name           string
-	RequiresMFA    bool
 	IsSystem       bool
 	Permissions    []Permission
 }
@@ -90,7 +88,6 @@ type Access struct {
 	Scope          enums.OrganizationType
 	Status         enums.MembershipStatus
 	PermVersion    int64
-	RequiresMFA    bool
 	Permissions    []Permission
 }
 
@@ -132,7 +129,7 @@ func PermissionsOf(roles []*Role) []Permission {
 
 var roleCodePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,39}$`)
 
-func NewCustomRole(org *Organization, code, name string, requiresMFA bool, permissions []Permission) (*Role, error) {
+func NewCustomRole(org *Organization, code, name string, permissions []Permission) (*Role, error) {
 	id, err := uuid.NewV7()
 	if err != nil {
 		return nil, err
@@ -141,13 +138,13 @@ func NewCustomRole(org *Organization, code, name string, requiresMFA bool, permi
 	if !roleCodePattern.MatchString(role.Code) {
 		return nil, validationError("code", "O código deve ter 2 a 40 letras minúsculas, números ou _, e começar por uma letra.")
 	}
-	if err := role.Change(name, requiresMFA, permissions); err != nil {
+	if err := role.Change(name, permissions); err != nil {
 		return nil, err
 	}
 	return role, nil
 }
 
-func (r *Role) Change(name string, requiresMFA bool, permissions []Permission) error {
+func (r *Role) Change(name string, permissions []Permission) error {
 	name = strings.TrimSpace(name)
 	if name == "" || len([]rune(name)) > 80 {
 		return validationError("name", "O nome é obrigatório e tem no máximo 80 caracteres.")
@@ -163,7 +160,6 @@ func (r *Role) Change(name string, requiresMFA bool, permissions []Permission) e
 	}
 	slices.Sort(distinct)
 	r.Name = name
-	r.RequiresMFA = requiresMFA
 	r.Permissions = distinct
 	return nil
 }

@@ -4,7 +4,6 @@
 package config
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -235,9 +234,6 @@ func (c EmailConfig) Enabled() bool {
 }
 
 type AccessConfig struct {
-	MFAEncryptionKey     string        `mapstructure:"MFA_ENCRYPTION_KEY"`
-	MFAChallengeTTL      time.Duration `mapstructure:"MFA_CHALLENGE_TTL"`
-	MFAMaxAttempts       int           `mapstructure:"MFA_MAX_ATTEMPTS"`
 	PermissionCacheTTL   time.Duration `mapstructure:"PERMISSION_CACHE_TTL"`
 	InvitationBackoffice string        `mapstructure:"INVITATION_URL_BACKOFFICE"`
 	InvitationPartner    string        `mapstructure:"INVITATION_URL_PARTNER_PANEL"`
@@ -292,8 +288,6 @@ var defaults = map[string]any{
 	"RESEND_TIMEOUT":                   "10s",
 	"EMAIL_FROM":                       "",
 	"EMAIL_REPLY_TO":                   "",
-	"MFA_CHALLENGE_TTL":                "5m",
-	"MFA_MAX_ATTEMPTS":                 5,
 	"PERMISSION_CACHE_TTL":             "5m",
 	"INVITATION_URL_BACKOFFICE":        "http://localhost:3001/convite",
 	"INVITATION_URL_PARTNER_PANEL":     "http://localhost:3002/convite",
@@ -356,7 +350,7 @@ var defaults = map[string]any{
 
 const cloudflareIdleLimit = 100 * time.Second
 
-var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET", "MFA_ENCRYPTION_KEY"}
+var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"}
 
 func Load() (*Config, error) {
 	v := viper.New()
@@ -434,11 +428,8 @@ func (c *Config) validate() error {
 	if len(c.JWT.Secret) < 32 {
 		errs = append(errs, errors.New("JWT_SECRET must be at least 32 characters"))
 	}
-	if key, err := base64.StdEncoding.DecodeString(c.Access.MFAEncryptionKey); err != nil || len(key) != 32 {
-		errs = append(errs, errors.New("MFA_ENCRYPTION_KEY must be 32 random bytes encoded in base64 (openssl rand -base64 32)"))
-	}
-	if c.Access.MFAChallengeTTL <= 0 || c.Access.MFAMaxAttempts <= 0 || c.Access.PermissionCacheTTL <= 0 {
-		errs = append(errs, errors.New("MFA_CHALLENGE_TTL, MFA_MAX_ATTEMPTS and PERMISSION_CACHE_TTL must be positive"))
+	if c.Access.PermissionCacheTTL <= 0 {
+		errs = append(errs, errors.New("PERMISSION_CACHE_TTL must be positive"))
 	}
 	if strings.TrimSpace(c.Access.InvitationBackoffice) == "" || strings.TrimSpace(c.Access.InvitationPartner) == "" {
 		errs = append(errs, errors.New("INVITATION_URL_BACKOFFICE and INVITATION_URL_PARTNER_PANEL cannot be empty"))
