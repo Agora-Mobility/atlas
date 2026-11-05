@@ -333,9 +333,11 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 			require.NoError(t, env.owner.QueryRow(ctx, `SELECT count(*) FROM notifications WHERE user_id = $1 AND channel = 'sms' AND template = 'provider_review'`, pedro.id).Scan(&sent))
 			return sent == 2
 		}, 5*time.Second, 50*time.Millisecond, "one SMS for the rejection, one for the approval")
-		var audited int
-		require.NoError(t, env.owner.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE entity_type = 'provider' AND entity_id = $1`, pedro.id.String()).Scan(&audited))
+		var audited, viewed int
+		require.NoError(t, env.owner.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE entity_type = 'provider' AND entity_id = $1 AND action = 'provider.review'`, pedro.id.String()).Scan(&audited))
 		assert.Equal(t, 2, audited)
+		require.NoError(t, env.owner.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE entity_type = 'provider' AND entity_id = $1 AND action = 'provider_document.view'`, pedro.id.String()).Scan(&viewed))
+		assert.Positive(t, viewed, "opening the documents in the backoffice is recorded")
 	})
 
 	t.Run("a suspended driver cannot go online or accept", func(t *testing.T) {

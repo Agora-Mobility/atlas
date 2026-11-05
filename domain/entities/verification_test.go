@@ -192,3 +192,11 @@ func TestVerificationStatusFollowsTheProvider(t *testing.T) {
 	assert.Equal(t, entities.VerificationNeedsChanges, entities.VerificationStatusOf(&entities.Provider{Status: entities.ProviderRejected}, nil))
 	assert.Equal(t, entities.VerificationApproved, entities.VerificationStatusOf(&entities.Provider{Status: entities.ProviderApproved}, nil))
 }
+
+func TestEachKindSendsOnlyItsOwnDocuments(t *testing.T) {
+	assert.True(t, entities.AcceptsDocument(enums.VerificationKindDriver, enums.DocumentTypeIDCard, enums.DocumentSubjectVehicleOwner))
+	assert.False(t, entities.AcceptsDocument(enums.VerificationKindDriver, enums.DocumentTypeWorkshopPhoto, enums.DocumentSubjectProvider))
+	assert.False(t, entities.AcceptsDocument(enums.VerificationKindWorkshop, enums.DocumentTypeIDCard, enums.DocumentSubjectProvider), "a workshop sends the card of its representative")
+	assert.True(t, entities.AcceptsDocument(enums.VerificationKindWorkshop, enums.DocumentTypeSelfie, enums.DocumentSubjectLegalRepresentative))
+	assert.Equal(t, enums.DocumentSubjectLegalRepresentative, entities.PersonSubject(enums.VerificationKindWorkshop))
+}

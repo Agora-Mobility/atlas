@@ -18,6 +18,7 @@ import (
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/usecases/providers"
 	"github.com/Agora-Mobility/atlas/usecases/providers/dtos"
+	"github.com/Agora-Mobility/atlas/usecases/verification"
 )
 
 type ProviderController struct {
@@ -55,6 +56,8 @@ var errorTable = []struct {
 	{entities.ErrInvalidProviderTransition, http.StatusConflict, "INVALID_PROVIDER_TRANSITION", "This change of status is not possible."},
 	{entities.ErrReviewReasonRequired, http.StatusUnprocessableEntity, "REASON_REQUIRED", "A reason is required."},
 	{services.ErrStorageUnavailable, http.StatusServiceUnavailable, "STORAGE_UNAVAILABLE", "File storage is not available."},
+	{repository.ErrNIFTaken, http.StatusConflict, "NIF_ALREADY_REGISTERED", "An organization already has this NIF."},
+	{verification.ErrWorkshopIncomplete, http.StatusUnprocessableEntity, "WORKSHOP_INCOMPLETE", "The workshop data is incomplete."},
 }
 
 func respond(ctx *gin.Context, status int, body any, err error) {
@@ -387,11 +390,15 @@ func (c *ProviderController) ListApplications(ctx *gin.Context) {
 //	@Security		ClientId
 //	@Router			/api/v1/admin/providers/{id} [get]
 func (c *ProviderController) GetApplication(ctx *gin.Context) {
+	actor, ok := staffActor(ctx)
+	if !ok {
+		return
+	}
 	id, ok := providerParam(ctx)
 	if !ok {
 		return
 	}
-	view, err := c.providers.GetApplication(ctx.Request.Context(), id)
+	view, err := c.providers.GetApplication(ctx.Request.Context(), actor, id)
 	respond(ctx, http.StatusOK, view, err)
 }
 

@@ -37,6 +37,7 @@ func newProvidersModule(c *Container, storage services.IObjectStorage) *Provider
 		Tx:        c.TxManager,
 		Codes:     c.Auth.CodeSender,
 		Storage:   storage,
+		Approvals: c.Verification.Usecase,
 		Settings:  providers.Settings{MaxFileBytes: c.Config.Verify.MaxFileBytes},
 	})
 	return &ProvidersModule{

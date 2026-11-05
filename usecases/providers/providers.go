@@ -73,11 +73,16 @@ type Deps struct {
 	Tx        repository.ITransactionManager
 	Codes     CodeSender
 	Storage   services.IObjectStorage
+	Approvals ApprovalHook
 	Settings  Settings
 }
 
 type Settings struct {
 	MaxFileBytes int64
+}
+
+type ApprovalHook interface {
+	OnApproved(ctx context.Context, providerID uuid.UUID) error
 }
 
 type Usecase struct {
@@ -654,12 +659,19 @@ func (u *Usecase) Profile(ctx context.Context, providerID uuid.UUID) (*dtos.Prov
 	return u.view(ctx, provider, false)
 }
 
-func (u *Usecase) GetApplication(ctx context.Context, providerID uuid.UUID) (*dtos.ProviderView, error) {
+func (u *Usecase) GetApplication(ctx context.Context, actor entities.Actor, providerID uuid.UUID) (*dtos.ProviderView, error) {
 	provider, err := u.existingProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
-	return u.view(ctx, provider, true)
+	view, err := u.view(ctx, provider, true)
+	if err != nil {
+		return nil, err
+	}
+	if err := u.audit(ctx, actor, "provider_document.view", auditEntityProvider, providerID.String(), map[string]int{"documents": len(view.Documents)}); err != nil {
+		return nil, err
+	}
+	return view, nil
 }
 
 func (u *Usecase) ReviewDocument(ctx context.Context, actor entities.Actor, providerID uuid.UUID, documentType string, in dtos.ReviewDocumentInput) (*dtos.ProviderView, error) {
@@ -752,6 +764,11 @@ func (u *Usecase) ReviewProvider(ctx context.Context, actor entities.Actor, prov
 				return err
 			}
 		}
+		if provider.Status == entities.ProviderApproved && u.Approvals != nil {
+			if err := u.Approvals.OnApproved(ctx, providerID); err != nil {
+				return err
+			}
+		}
 		if err := u.publish(ctx, events.ProviderReviewV1{Type: eventType, ProviderID: providerID, ServiceID: provider.ServiceID, Reason: provider.StatusReason, OccurredAt: now}); err != nil {
 			return err
 		}
@@ -793,6 +810,11 @@ func (u *Usecase) checkApproval(ctx context.Context, provider *entities.Provider
 		return err
 	}
 	gaps := requirements.NotApproved(documents)
+	for _, document := range documents {
+		if document.Subject != enums.DocumentSubjectProvider && document.AnyFile() && document.Status != entities.DocumentApproved {
+			gaps["documents."+document.Type.String()+"."+document.Subject.String()] = "Ainda não aprovado: " + document.Name() + "."
+		}
+	}
 	for field, message := range requirements.VehicleGaps(provider.Vehicle) {
 		gaps[field] = message
 	}

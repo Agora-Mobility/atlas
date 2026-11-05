@@ -471,3 +471,44 @@ func (e *RuleError) With(key string, value any) *RuleError {
 	e.Data[key] = value
 	return e
 }
+
+var planDocuments = map[enums.VerificationKind]map[enums.DocumentType][]enums.DocumentSubject{
+	enums.VerificationKindDriver: {
+		enums.DocumentTypeProfilePhoto:            {enums.DocumentSubjectProvider},
+		enums.DocumentTypeIDCard:                  {enums.DocumentSubjectProvider, enums.DocumentSubjectVehicleOwner},
+		enums.DocumentTypeSelfie:                  {enums.DocumentSubjectProvider},
+		enums.DocumentTypeDrivingLicense:          {enums.DocumentSubjectProvider},
+		enums.DocumentTypeCriminalRecord:          {enums.DocumentSubjectProvider},
+		enums.DocumentTypeVehiclePhoto:            {enums.DocumentSubjectProvider},
+		enums.DocumentTypeVehicleRegistration:     {enums.DocumentSubjectProvider},
+		enums.DocumentTypeVehicleOwnerDeclaration: {enums.DocumentSubjectProvider},
+		enums.DocumentTypeVehicleInsurance:        {enums.DocumentSubjectProvider},
+		enums.DocumentTypeVehicleInspection:       {enums.DocumentSubjectProvider},
+		enums.DocumentTypeBankAccount:             {enums.DocumentSubjectProvider},
+	},
+	enums.VerificationKindWorkshop: {
+		enums.DocumentTypeProfilePhoto:          {enums.DocumentSubjectProvider},
+		enums.DocumentTypeIDCard:                {enums.DocumentSubjectLegalRepresentative},
+		enums.DocumentTypeSelfie:                {enums.DocumentSubjectLegalRepresentative},
+		enums.DocumentTypeBusinessLicense:       {enums.DocumentSubjectProvider},
+		enums.DocumentTypeCommercialCertificate: {enums.DocumentSubjectProvider},
+		enums.DocumentTypeWorkshopPhoto:         {enums.DocumentSubjectProvider},
+		enums.DocumentTypeBankAccount:           {enums.DocumentSubjectProvider},
+	},
+}
+
+func AcceptsDocument(kind enums.VerificationKind, documentType enums.DocumentType, subject enums.DocumentSubject) bool {
+	for _, accepted := range planDocuments[kind][documentType] {
+		if accepted == subject {
+			return true
+		}
+	}
+	return false
+}
+
+func PersonSubject(kind enums.VerificationKind) enums.DocumentSubject {
+	if kind == enums.VerificationKindWorkshop {
+		return enums.DocumentSubjectLegalRepresentative
+	}
+	return enums.DocumentSubjectProvider
+}
