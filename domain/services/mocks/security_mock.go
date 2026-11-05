@@ -223,6 +223,75 @@ func (mr *MockIOTPServiceMockRecorder) Verify(ctx, purpose, subject, code any) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockIOTPService)(nil).Verify), ctx, purpose, subject, code)
 }
 
+// MockIRecoveryTicketService is a mock of IRecoveryTicketService interface.
+type MockIRecoveryTicketService struct {
+	ctrl     *gomock.Controller
+	recorder *MockIRecoveryTicketServiceMockRecorder
+	isgomock struct{}
+}
+
+// MockIRecoveryTicketServiceMockRecorder is the mock recorder for MockIRecoveryTicketService.
+type MockIRecoveryTicketServiceMockRecorder struct {
+	mock *MockIRecoveryTicketService
+}
+
+// NewMockIRecoveryTicketService creates a new mock instance.
+func NewMockIRecoveryTicketService(ctrl *gomock.Controller) *MockIRecoveryTicketService {
+	mock := &MockIRecoveryTicketService{ctrl: ctrl}
+	mock.recorder = &MockIRecoveryTicketServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIRecoveryTicketService) EXPECT() *MockIRecoveryTicketServiceMockRecorder {
+	return m.recorder
+}
+
+// Consume mocks base method.
+func (m *MockIRecoveryTicketService) Consume(ctx context.Context, ticket string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Consume", ctx, ticket)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Consume indicates an expected call of Consume.
+func (mr *MockIRecoveryTicketServiceMockRecorder) Consume(ctx, ticket any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Consume", reflect.TypeOf((*MockIRecoveryTicketService)(nil).Consume), ctx, ticket)
+}
+
+// Issue mocks base method.
+func (m *MockIRecoveryTicketService) Issue(ctx context.Context, subject string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Issue", ctx, subject)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Issue indicates an expected call of Issue.
+func (mr *MockIRecoveryTicketServiceMockRecorder) Issue(ctx, subject any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIRecoveryTicketService)(nil).Issue), ctx, subject)
+}
+
+// Peek mocks base method.
+func (m *MockIRecoveryTicketService) Peek(ctx context.Context, ticket string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Peek", ctx, ticket)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Peek indicates an expected call of Peek.
+func (mr *MockIRecoveryTicketServiceMockRecorder) Peek(ctx, ticket any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peek", reflect.TypeOf((*MockIRecoveryTicketService)(nil).Peek), ctx, ticket)
+}
+
 // MockISessionRevocationStore is a mock of ISessionRevocationStore interface.
 type MockISessionRevocationStore struct {
 	ctrl     *gomock.Controller

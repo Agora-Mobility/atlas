@@ -16,6 +16,8 @@ var (
 	ErrOTPExpired     = errors.New("otp code expired or was not requested")
 	ErrOTPMaxAttempts = errors.New("otp max attempts exceeded")
 	ErrOTPCooldown    = errors.New("otp requested too recently")
+
+	ErrRecoveryTicketInvalid = errors.New("recovery ticket is invalid or expired")
 )
 
 type AccessTokenClaims struct {
@@ -49,6 +51,17 @@ type IOpaqueTokenGenerator interface {
 type IOTPService interface {
 	Issue(ctx context.Context, purpose enums.OTPPurpose, subject string) (code string, err error)
 	Verify(ctx context.Context, purpose enums.OTPPurpose, subject, code string) error
+}
+
+// IRecoveryTicketService trades a verified recovery code for a short-lived,
+// single-use ticket. The ticket carries the phone or e-mail that received the
+// code, so the second step of the recovery needs no code and no identifier.
+// Peek reads the ticket without spending it, so a rejected password can be
+// corrected on the same ticket.
+type IRecoveryTicketService interface {
+	Issue(ctx context.Context, subject string) (ticket string, err error)
+	Peek(ctx context.Context, ticket string) (subject string, err error)
+	Consume(ctx context.Context, ticket string) (subject string, err error)
 }
 
 // ISessionRevocationStore denies the access tokens of revoked sessions until
