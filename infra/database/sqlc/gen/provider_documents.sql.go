@@ -234,7 +234,7 @@ func (q *Queries) GetProviderDocumentFile(ctx context.Context, arg GetProviderDo
 }
 
 const getProviderRequirements = `-- name: GetProviderRequirements :one
-SELECT o.service_id, o.requires_vehicle, o.min_vehicle_seats, o.vehicle_kinds, o.self_signup, s.name AS service_name
+SELECT o.service_id, o.requires_vehicle, o.min_vehicle_seats, o.vehicle_kinds, o.self_signup, o.verification_kind, o.driving_categories, o.max_vehicle_age_years, s.name AS service_name
 FROM service_provider_requirements o
 JOIN services s ON s.id = o.service_id
 JOIN service_categories c ON c.id = s.category_id
@@ -242,12 +242,15 @@ WHERE o.service_id = $1 AND s.is_active AND c.is_active
 `
 
 type GetProviderRequirementsRow struct {
-	ServiceID       uuid.UUID `json:"service_id"`
-	RequiresVehicle bool      `json:"requires_vehicle"`
-	MinVehicleSeats int32     `json:"min_vehicle_seats"`
-	VehicleKinds    []string  `json:"vehicle_kinds"`
-	SelfSignup      bool      `json:"self_signup"`
-	ServiceName     string    `json:"service_name"`
+	ServiceID          uuid.UUID              `json:"service_id"`
+	RequiresVehicle    bool                   `json:"requires_vehicle"`
+	MinVehicleSeats    int32                  `json:"min_vehicle_seats"`
+	VehicleKinds       []string               `json:"vehicle_kinds"`
+	SelfSignup         bool                   `json:"self_signup"`
+	VerificationKind   enums.VerificationKind `json:"verification_kind"`
+	DrivingCategories  []string               `json:"driving_categories"`
+	MaxVehicleAgeYears *int32                 `json:"max_vehicle_age_years"`
+	ServiceName        string                 `json:"service_name"`
 }
 
 func (q *Queries) GetProviderRequirements(ctx context.Context, serviceID uuid.UUID) (GetProviderRequirementsRow, error) {
@@ -259,6 +262,9 @@ func (q *Queries) GetProviderRequirements(ctx context.Context, serviceID uuid.UU
 		&i.MinVehicleSeats,
 		&i.VehicleKinds,
 		&i.SelfSignup,
+		&i.VerificationKind,
+		&i.DrivingCategories,
+		&i.MaxVehicleAgeYears,
 		&i.ServiceName,
 	)
 	return i, err

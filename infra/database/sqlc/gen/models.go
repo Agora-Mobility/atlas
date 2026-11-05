@@ -461,6 +461,17 @@ type AuditLog struct {
 	OrganizationID *uuid.UUID      `json:"organization_id"`
 }
 
+type Bank struct {
+	ID           uuid.UUID `json:"id"`
+	Code         string    `json:"code"`
+	ShortName    string    `json:"short_name"`
+	Name         string    `json:"name"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type BlockReason struct {
 	ID        uuid.UUID `json:"id"`
 	Code      string    `json:"code"`
@@ -670,6 +681,15 @@ type InboxItem struct {
 	EventID   string     `json:"event_id"`
 	ReadAt    *time.Time `json:"read_at"`
 	CreatedAt time.Time  `json:"created_at"`
+}
+
+type Insurer struct {
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Invitation struct {
@@ -1071,11 +1091,14 @@ type ServiceCategory struct {
 }
 
 type ServiceProviderRequirement struct {
-	ServiceID       uuid.UUID `json:"service_id"`
-	RequiresVehicle bool      `json:"requires_vehicle"`
-	MinVehicleSeats int32     `json:"min_vehicle_seats"`
-	VehicleKinds    []string  `json:"vehicle_kinds"`
-	SelfSignup      bool      `json:"self_signup"`
+	ServiceID          uuid.UUID              `json:"service_id"`
+	RequiresVehicle    bool                   `json:"requires_vehicle"`
+	MinVehicleSeats    int32                  `json:"min_vehicle_seats"`
+	VehicleKinds       []string               `json:"vehicle_kinds"`
+	SelfSignup         bool                   `json:"self_signup"`
+	VerificationKind   enums.VerificationKind `json:"verification_kind"`
+	DrivingCategories  []string               `json:"driving_categories"`
+	MaxVehicleAgeYears *int32                 `json:"max_vehicle_age_years"`
 }
 
 type ServiceRequest struct {
@@ -1293,6 +1316,17 @@ type Vehicle struct {
 type VehiclePhotoKeeper struct {
 	ProviderID uuid.UUID `json:"provider_id"`
 	KeeperID   uuid.UUID `json:"keeper_id"`
+}
+
+type VerificationReminder struct {
+	ID         uuid.UUID  `json:"id"`
+	ProviderID uuid.UUID  `json:"provider_id"`
+	Kind       string     `json:"kind"`
+	DocumentID *uuid.UUID `json:"document_id"`
+	ExpiresOn  *time.Time `json:"expires_on"`
+	DueAt      time.Time  `json:"due_at"`
+	SentAt     *time.Time `json:"sent_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 type Voucher struct {

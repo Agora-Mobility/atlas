@@ -7,7 +7,7 @@ WHERE s.is_active AND c.is_active AND o.self_signup
 ORDER BY c.display_order, s.display_order;
 
 -- name: GetProviderRequirements :one
-SELECT o.service_id, o.requires_vehicle, o.min_vehicle_seats, o.vehicle_kinds, o.self_signup, s.name AS service_name
+SELECT o.service_id, o.requires_vehicle, o.min_vehicle_seats, o.vehicle_kinds, o.self_signup, o.verification_kind, o.driving_categories, o.max_vehicle_age_years, s.name AS service_name
 FROM service_provider_requirements o
 JOIN services s ON s.id = o.service_id
 JOIN service_categories c ON c.id = s.category_id

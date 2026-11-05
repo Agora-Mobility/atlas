@@ -40,6 +40,7 @@ type Querier interface {
 	CountInboxItems(ctx context.Context, userID uuid.UUID) (CountInboxItemsRow, error)
 	CountLedgerEntries(ctx context.Context, arg CountLedgerEntriesParams) (int64, error)
 	CountMembers(ctx context.Context, arg CountMembersParams) (int64, error)
+	CountOrganizationsWithNIF(ctx context.Context, nif *string) (int64, error)
 	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
 	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
 	CountPendingOutboxEvents(ctx context.Context) (int64, error)
@@ -108,6 +109,8 @@ type Querier interface {
 	GetActiveClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetActiveReason(ctx context.Context, arg GetActiveReasonParams) (RejectionReason, error)
 	GetAddress(ctx context.Context, id uuid.UUID) (GetAddressRow, error)
+	GetBank(ctx context.Context, id uuid.UUID) (Bank, error)
+	GetBankByCode(ctx context.Context, code string) (Bank, error)
 	GetBookingDetail(ctx context.Context, id uuid.UUID) (GetBookingDetailRow, error)
 	GetBookingIDOfRequest(ctx context.Context, requestID uuid.UUID) (uuid.UUID, error)
 	GetCancellationRule(ctx context.Context, serviceID uuid.UUID) (CancellationRule, error)
@@ -119,6 +122,7 @@ type Querier interface {
 	GetDocumentFile(ctx context.Context, id uuid.UUID) (ProviderDocumentFile, error)
 	GetETAObservation(ctx context.Context, arg GetETAObservationParams) (GetETAObservationRow, error)
 	GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstimate, error)
+	GetInsurer(ctx context.Context, id uuid.UUID) (Insurer, error)
 	GetInvitationByHash(ctx context.Context, tokenHash string) (Invitation, error)
 	GetInvitationByHashForUpdate(ctx context.Context, tokenHash string) (Invitation, error)
 	GetInvitationScope(ctx context.Context, tokenHash string) (GetInvitationScopeRow, error)
@@ -147,6 +151,7 @@ type Querier interface {
 	GetProviderDocumentByID(ctx context.Context, id uuid.UUID) (ProviderDocument, error)
 	GetProviderDocumentFile(ctx context.Context, arg GetProviderDocumentFileParams) (ProviderDocumentFile, error)
 	GetProviderRequirements(ctx context.Context, serviceID uuid.UUID) (GetProviderRequirementsRow, error)
+	GetProviderVerification(ctx context.Context, providerID uuid.UUID) (ProviderVerification, error)
 	GetRatingOfRequest(ctx context.Context, requestID *uuid.UUID) (Rating, error)
 	GetReferralCode(ctx context.Context, id uuid.UUID) (*string, error)
 	GetRefreshTokenByHashForUpdate(ctx context.Context, tokenHash string) (RefreshToken, error)
@@ -230,6 +235,7 @@ type Querier interface {
 	ListActiveServicesOfCategory(ctx context.Context, slug string) ([]ListActiveServicesOfCategoryRow, error)
 	ListAdminPayments(ctx context.Context, arg ListAdminPaymentsParams) ([]ListAdminPaymentsRow, error)
 	ListAdminRequests(ctx context.Context, arg ListAdminRequestsParams) ([]ListAdminRequestsRow, error)
+	ListBanks(ctx context.Context, search string) ([]Bank, error)
 	ListBookedSlots(ctx context.Context, arg ListBookedSlotsParams) ([]ListBookedSlotsRow, error)
 	ListBookingExtras(ctx context.Context, bookingID uuid.UUID) ([]BookingExtra, error)
 	ListBookingItems(ctx context.Context, bookingID uuid.UUID) ([]BookingItem, error)
@@ -243,9 +249,12 @@ type Querier interface {
 	ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error)
 	ListDocumentFiles(ctx context.Context, documentID uuid.UUID) ([]ProviderDocumentFile, error)
 	ListDocumentRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]ListDocumentRejectionReasonsRow, error)
+	ListDueVerificationReminders(ctx context.Context, arg ListDueVerificationRemindersParams) ([]ListDueVerificationRemindersRow, error)
+	ListExpiringDocuments(ctx context.Context, arg ListExpiringDocumentsParams) ([]ListExpiringDocumentsRow, error)
 	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]ListFareAdjustmentsRow, error)
 	ListFleetDrivers(ctx context.Context, arg ListFleetDriversParams) ([]ListFleetDriversRow, error)
 	ListInboxItems(ctx context.Context, arg ListInboxItemsParams) ([]InboxItem, error)
+	ListInsurers(ctx context.Context, search string) ([]Insurer, error)
 	ListLedgerEntries(ctx context.Context, arg ListLedgerEntriesParams) ([]ListLedgerEntriesRow, error)
 	ListLiveIndexes(ctx context.Context) ([]ListLiveIndexesRow, error)
 	ListMediaOfRequest(ctx context.Context, requestID *uuid.UUID) ([]MediaUpload, error)
@@ -295,6 +304,7 @@ type Querier interface {
 	ListVehicles(ctx context.Context, arg ListVehiclesParams) ([]ListVehiclesRow, error)
 	ListVouchers(ctx context.Context, arg ListVouchersParams) ([]Voucher, error)
 	ListWorkshopBookings(ctx context.Context, arg ListWorkshopBookingsParams) ([]uuid.UUID, error)
+	ListWorkshopCategories(ctx context.Context) ([]ListWorkshopCategoriesRow, error)
 	ListWorkshopClosures(ctx context.Context, arg ListWorkshopClosuresParams) ([]ListWorkshopClosuresRow, error)
 	ListWorkshopHours(ctx context.Context, workshopID uuid.UUID) ([]WorkshopHour, error)
 	ListWorkshopMechanics(ctx context.Context, workshopID uuid.UUID) ([]WorkshopMechanic, error)
@@ -314,6 +324,7 @@ type Querier interface {
 	MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error
 	MarkRequestMessagesRead(ctx context.Context, arg MarkRequestMessagesReadParams) error
 	MarkStopArrived(ctx context.Context, arg MarkStopArrivedParams) (int64, error)
+	MarkVerificationReminderSent(ctx context.Context, arg MarkVerificationReminderSentParams) error
 	NearestWorkshop(ctx context.Context, arg NearestWorkshopParams) (NearestWorkshopRow, error)
 	NextDocumentFileVersion(ctx context.Context, arg NextDocumentFileVersionParams) (int32, error)
 	NextRequestCode(ctx context.Context, id uuid.UUID) (string, error)
@@ -339,9 +350,11 @@ type Querier interface {
 	SaveAddress(ctx context.Context, arg SaveAddressParams) error
 	SaveDocumentFile(ctx context.Context, arg SaveDocumentFileParams) error
 	SaveProviderDocument(ctx context.Context, arg SaveProviderDocumentParams) error
+	SaveProviderVerification(ctx context.Context, arg SaveProviderVerificationParams) error
 	SaveUserAddress(ctx context.Context, arg SaveUserAddressParams) error
 	SaveWorkshop(ctx context.Context, arg SaveWorkshopParams) error
 	SaveWorkshopService(ctx context.Context, arg SaveWorkshopServiceParams) error
+	ScheduleVerificationReminder(ctx context.Context, arg ScheduleVerificationReminderParams) error
 	SearchHelpTopics(ctx context.Context, search string) ([]CatalogItem, error)
 	SearchWorkshops(ctx context.Context, arg SearchWorkshopsParams) ([]SearchWorkshopsRow, error)
 	SetCategoryPaymentMethod(ctx context.Context, arg SetCategoryPaymentMethodParams) (int64, error)

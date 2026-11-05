@@ -11,6 +11,7 @@ package repository
 //go:generate go tool mockgen -source=catalog.go -destination=mocks/catalog_mock.go -package=mocks
 //go:generate go tool mockgen -source=dispatch.go -destination=mocks/dispatch_mock.go -package=mocks
 //go:generate go tool mockgen -source=provider_documents.go -destination=mocks/provider_documents_mock.go -package=mocks
+//go:generate go tool mockgen -source=verification.go -destination=mocks/verification_mock.go -package=mocks
 //go:generate go tool mockgen -source=address.go -destination=mocks/address_mock.go -package=mocks
 //go:generate go tool mockgen -source=fleet.go -destination=mocks/fleet_mock.go -package=mocks
 //go:generate go tool mockgen -source=payments.go -destination=mocks/payments_mock.go -package=mocks

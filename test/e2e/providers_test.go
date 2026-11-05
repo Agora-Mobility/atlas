@@ -27,8 +27,8 @@ import (
 const backofficeClient = "agora-backoffice"
 
 var allDocuments = []string{
-	"profile_photo", "id_card", "driving_license", "criminal_record", "vehicle_registration", "vehicle_ownership",
-	"vehicle_insurance", "vehicle_inspection", "vehicle_photo",
+	"id_card", "selfie", "driving_license", "criminal_record", "vehicle_photo", "vehicle_registration",
+	"vehicle_insurance", "vehicle_inspection", "bank_account",
 }
 
 var jpegBytes = append([]byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F'}, bytes.Repeat([]byte{1}, 2048)...)
@@ -156,7 +156,8 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 		open := (&person{client: providerClient, api: env.api.baseURL}).get(t, "/api/v1/providers/services")
 		require.Equal(t, http.StatusOK, open.status, open.text)
 		categories := open.body["categories"].([]any)
-		require.Len(t, categories, 1, "only services with configured requirements are open")
+		require.Len(t, categories, 2, "only services with configured requirements are open: taxi and the partner workshops")
+		assert.Equal(t, "maintenance", categories[1].(map[string]any)["slug"])
 		taxi := categories[0].(map[string]any)
 		assert.Equal(t, "taxi", taxi["slug"])
 		names := []string{}

@@ -60,6 +60,7 @@ func (r *ProviderDocumentRepository) Requirements(ctx context.Context, serviceID
 	}
 	requirements := &entities.ProviderRequirements{
 		ServiceID: row.ServiceID, ServiceName: row.ServiceName, RequiresVehicle: row.RequiresVehicle, MinVehicleSeats: int(row.MinVehicleSeats), VehicleKinds: row.VehicleKinds, SelfSignup: row.SelfSignup,
+		VerificationKind: row.VerificationKind, DrivingCategories: row.DrivingCategories, MaxVehicleAgeYears: intPointer(row.MaxVehicleAgeYears),
 		Documents: make([]entities.DocumentSpec, 0, len(documents)),
 	}
 	for _, documentType := range documents {

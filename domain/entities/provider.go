@@ -229,13 +229,16 @@ func normalizedReason(reason string) (string, error) {
 }
 
 type ProviderRequirements struct {
-	ServiceID       uuid.UUID
-	ServiceName     string
-	RequiresVehicle bool
-	MinVehicleSeats int
-	VehicleKinds    []string
-	SelfSignup      bool
-	Documents       []DocumentSpec
+	ServiceID          uuid.UUID
+	ServiceName        string
+	RequiresVehicle    bool
+	MinVehicleSeats    int
+	VehicleKinds       []string
+	SelfSignup         bool
+	VerificationKind   enums.VerificationKind
+	DrivingCategories  []string
+	MaxVehicleAgeYears *int
+	Documents          []DocumentSpec
 }
 
 func (r *ProviderRequirements) MissingFor(profile *Provider, name string, documents []*ProviderDocument) map[string]string {

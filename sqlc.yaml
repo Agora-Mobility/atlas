@@ -69,6 +69,12 @@ sql:
             go_type: github.com/Agora-Mobility/atlas/shared/enums.ClientType
           - db_type: provider_document_type
             go_type: github.com/Agora-Mobility/atlas/shared/enums.DocumentType
+          - db_type: provider_document_type
+            nullable: true
+            go_type:
+              import: github.com/Agora-Mobility/atlas/shared/enums
+              type: DocumentType
+              pointer: true
           - db_type: provider_document_slot
             go_type: github.com/Agora-Mobility/atlas/shared/enums.DocumentSlot
           - db_type: provider_document_subject
