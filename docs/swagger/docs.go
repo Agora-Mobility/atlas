@@ -4115,7 +4115,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Ends every session of the user. Accounts without a password get 409 PASSWORD_NOT_SET and use POST /users/password instead.",
+                "description": "Takes the recovery token from /auth/recovery/verify and the new password. Ends every session of the user. A password equal to the current one answers 422 PASSWORD_REUSED and keeps the token valid, so the user can try another.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4151,7 +4151,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unknown client",
+                        "description": "Unknown client or invalid, expired or already used token",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -4163,7 +4163,7 @@ const docTemplate = `{
                         }
                     },
                     "422": {
-                        "description": "Invalid code or password",
+                        "description": "Invalid password or equal to the current one",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -4190,7 +4190,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Sends a recovery code by SMS. Always answers 202 so the response does not reveal whether the account exists.",
+                "description": "Sends a recovery code by SMS when the body has phone, or by e-mail when it has email. Send one of them, never both. Always answers 202 so the response does not reveal whether the account exists. resend_after_seconds is how long the app waits before offering a resend; a request sent earlier sends nothing.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4216,7 +4216,7 @@ const docTemplate = `{
                     "202": {
                         "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/dtos.MessageOutput"
+                            "$ref": "#/definitions/dtos.RecoveryRequestOutput"
                         }
                     },
                     "400": {
@@ -4233,6 +4233,81 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/recovery/verify": {
+            "post": {
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Validates the code sent by /auth/recovery/request, with the same phone or email used there, and answers with a short-lived, single-use recovery token. Send that token with the new password to /auth/recovery/confirm. A wrong code answers INVALID_CODE, an expired one CODE_EXPIRED and too many attempts CODE_ATTEMPTS_EXCEEDED.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Validate the code of a password recovery",
+                "parameters": [
+                    {
+                        "description": "Recovery verify payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RecoveryVerifyInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RecoveryVerifyOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unknown client",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Client not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid, expired or exhausted code",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -5555,7 +5630,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.",
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver validates it with /auth/recovery/verify, sets the password with /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8425,7 +8500,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.",
+                "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver validates it with /auth/recovery/verify, sets the password with /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18894,18 +18969,28 @@ const docTemplate = `{
         "dtos.RecoveryConfirmInput": {
             "type": "object",
             "required": [
-                "code",
                 "new_password",
-                "phone"
+                "recovery_token"
             ],
             "properties": {
-                "code": {
-                    "type": "string",
-                    "example": "123456"
-                },
                 "new_password": {
                     "type": "string",
                     "example": "N0vo!segredo"
+                },
+                "recovery_token": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "example": "6f1c2a9d8e7b4c05a3f2d1e0b9c8a7f6"
+                }
+            }
+        },
+        "dtos.RecoveryRequestInput": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "ana@exemplo.ao"
                 },
                 "phone": {
                     "type": "string",
@@ -18914,16 +18999,47 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.RecoveryRequestInput": {
+        "dtos.RecoveryRequestOutput": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "If the account exists, a code was sent."
+                },
+                "resend_after_seconds": {
+                    "type": "integer",
+                    "example": 60
+                }
+            }
+        },
+        "dtos.RecoveryVerifyInput": {
             "type": "object",
             "required": [
-                "phone"
+                "code"
             ],
             "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "ana@exemplo.ao"
+                },
                 "phone": {
                     "type": "string",
                     "maxLength": 32,
                     "example": "+244923000000"
+                }
+            }
+        },
+        "dtos.RecoveryVerifyOutput": {
+            "type": "object",
+            "properties": {
+                "recovery_token": {
+                    "type": "string",
+                    "example": "6f1c2a9d8e7b4c05a3f2d1e0b9c8a7f6"
                 }
             }
         },
@@ -21102,6 +21218,10 @@ const docTemplate = `{
                 },
                 "email": {
                     "type": "string"
+                },
+                "has_password": {
+                    "type": "boolean",
+                    "example": false
                 },
                 "id": {
                     "type": "string"

@@ -2907,11 +2907,45 @@ definitions:
     type: object
   dtos.RecoveryConfirmInput:
     properties:
+      new_password:
+        example: N0vo!segredo
+        type: string
+      recovery_token:
+        example: 6f1c2a9d8e7b4c05a3f2d1e0b9c8a7f6
+        maxLength: 128
+        type: string
+    required:
+    - new_password
+    - recovery_token
+    type: object
+  dtos.RecoveryRequestInput:
+    properties:
+      email:
+        example: ana@exemplo.ao
+        maxLength: 254
+        type: string
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
+    type: object
+  dtos.RecoveryRequestOutput:
+    properties:
+      message:
+        example: If the account exists, a code was sent.
+        type: string
+      resend_after_seconds:
+        example: 60
+        type: integer
+    type: object
+  dtos.RecoveryVerifyInput:
+    properties:
       code:
         example: "123456"
         type: string
-      new_password:
-        example: N0vo!segredo
+      email:
+        example: ana@exemplo.ao
+        maxLength: 254
         type: string
       phone:
         example: "+244923000000"
@@ -2919,17 +2953,12 @@ definitions:
         type: string
     required:
     - code
-    - new_password
-    - phone
     type: object
-  dtos.RecoveryRequestInput:
+  dtos.RecoveryVerifyOutput:
     properties:
-      phone:
-        example: "+244923000000"
-        maxLength: 32
+      recovery_token:
+        example: 6f1c2a9d8e7b4c05a3f2d1e0b9c8a7f6
         type: string
-    required:
-    - phone
     type: object
   dtos.RedeemReferralInput:
     properties:
@@ -4437,6 +4466,9 @@ definitions:
         type: string
       email:
         type: string
+      has_password:
+        example: false
+        type: boolean
       id:
         type: string
       is_verified:
@@ -7709,8 +7741,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Ends every session of the user. Accounts without a password get
-        409 PASSWORD_NOT_SET and use POST /users/password instead.
+      description: Takes the recovery token from /auth/recovery/verify and the new
+        password. Ends every session of the user. A password equal to the current
+        one answers 422 PASSWORD_REUSED and keeps the token valid, so the user can
+        try another.
       parameters:
       - description: Recovery confirm payload
         in: body
@@ -7730,7 +7764,7 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "401":
-          description: Unknown client
+          description: Unknown client or invalid, expired or already used token
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "403":
@@ -7738,7 +7772,7 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "422":
-          description: Invalid code or password
+          description: Invalid password or equal to the current one
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "429":
@@ -7758,8 +7792,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: Sends a recovery code by SMS. Always answers 202 so the response
-        does not reveal whether the account exists.
+      description: Sends a recovery code by SMS when the body has phone, or by e-mail
+        when it has email. Send one of them, never both. Always answers 202 so the
+        response does not reveal whether the account exists. resend_after_seconds
+        is how long the app waits before offering a resend; a request sent earlier
+        sends nothing.
       parameters:
       - description: Recovery request payload
         in: body
@@ -7773,7 +7810,7 @@ paths:
         "202":
           description: Accepted
           schema:
-            $ref: '#/definitions/dtos.MessageOutput'
+            $ref: '#/definitions/dtos.RecoveryRequestOutput'
         "400":
           description: Invalid request or missing client
           schema:
@@ -7797,6 +7834,58 @@ paths:
       security:
       - ClientId: []
       summary: Request password recovery
+      tags:
+      - Auth
+  /api/v1/auth/recovery/verify:
+    post:
+      consumes:
+      - application/json
+      description: Validates the code sent by /auth/recovery/request, with the same
+        phone or email used there, and answers with a short-lived, single-use recovery
+        token. Send that token with the new password to /auth/recovery/confirm. A
+        wrong code answers INVALID_CODE, an expired one CODE_EXPIRED and too many
+        attempts CODE_ATTEMPTS_EXCEEDED.
+      parameters:
+      - description: Recovery verify payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RecoveryVerifyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RecoveryVerifyOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Client not allowed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid, expired or exhausted code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Validate the code of a password recovery
       tags:
       - Auth
   /api/v1/auth/refresh:
@@ -8621,9 +8710,10 @@ paths:
       - application/json
       description: Requires partner.providers:manage on /fleet, for the partner of
         the token, or partners:manage on /partners/{orgId}/fleet. Creates the account
-        as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm
-        and sends the documents in the app. AGORA still reviews and approves. vehicle_id
-        is optional and can be associated later.
+        as a draft and sends an SMS code; the driver validates it with /auth/recovery/verify,
+        sets the password with /auth/recovery/confirm and sends the documents in the
+        app. AGORA still reviews and approves. vehicle_id is optional and can be associated
+        later.
       parameters:
       - description: Driver
         in: body
@@ -10438,9 +10528,10 @@ paths:
       - application/json
       description: Requires partner.providers:manage on /fleet, for the partner of
         the token, or partners:manage on /partners/{orgId}/fleet. Creates the account
-        as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm
-        and sends the documents in the app. AGORA still reviews and approves. vehicle_id
-        is optional and can be associated later.
+        as a draft and sends an SMS code; the driver validates it with /auth/recovery/verify,
+        sets the password with /auth/recovery/confirm and sends the documents in the
+        app. AGORA still reviews and approves. vehicle_id is optional and can be associated
+        later.
       parameters:
       - description: Partner id, only on /partners/{orgId}/fleet
         in: path

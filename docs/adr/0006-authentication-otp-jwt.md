@@ -75,8 +75,9 @@ runs as several stateless instances behind a load balancer.
   | POST | `/api/v1/auth/refresh` | client | Rotate refresh token |
   | POST | `/api/v1/auth/phone/verification-code` | client | Resend the OTP of an unverified account (always 202) |
   | POST | `/api/v1/auth/phone/verify` | client | Verify phone, returns a session |
-  | POST | `/api/v1/auth/recovery/request` | client | Send reset OTP (always 202) |
-  | POST | `/api/v1/auth/recovery/confirm` | client | Reset with OTP, revokes all sessions |
+  | POST | `/api/v1/auth/recovery/request` | client | Send reset OTP by SMS or e-mail (always 202) |
+  | POST | `/api/v1/auth/recovery/verify` | client | Trade the OTP for a single-use recovery token |
+  | POST | `/api/v1/auth/recovery/confirm` | client | Set the new password with the token, revokes all sessions |
   | POST | `/api/v1/auth/logout` | client + bearer | Revoke the current session |
   | POST | `/api/v1/auth/logout-all` | client + bearer | Revoke every session |
   | GET | `/api/v1/users/me` | client + bearer | Authenticated user |
