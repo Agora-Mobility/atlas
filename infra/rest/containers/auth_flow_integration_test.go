@@ -282,15 +282,70 @@ func TestAuthFlow(t *testing.T) {
 		assert.Equal(t, http.StatusOK, a.call(http.MethodGet, "/api/v1/users/me", customerApp, other, nil).status)
 	})
 
+	t.Run("recovery by e-mail follows the screens of the app", func(t *testing.T) {
+		res := a.call(http.MethodPost, "/api/v1/auth/recovery/request", customerApp, "", map[string]string{
+			"phone": customerPhone, "email": "ana@agora.ao",
+		})
+		assert.Equal(t, http.StatusUnprocessableEntity, res.status, "one channel at a time")
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/request", customerApp, "", map[string]string{})
+		assert.Equal(t, http.StatusUnprocessableEntity, res.status, "a channel is required")
+
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/request", customerApp, "", map[string]string{"email": "Ana@Agora.ao"})
+		require.Equal(t, http.StatusAccepted, res.status, res.body)
+		assert.Contains(t, res.body, "resend_after_seconds")
+		code := codePattern.FindString(mail.to(t, "ana@agora.ao").Text)
+		require.NotEmpty(t, code)
+
+		wrong := "000000"
+		if code == wrong {
+			wrong = "000001"
+		}
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/verify", customerApp, "", map[string]string{"email": "ana@agora.ao", "code": wrong})
+		assert.Equal(t, "INVALID_CODE", res.code())
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/verify", customerApp, "", map[string]string{"phone": customerPhone, "code": code})
+		assert.Equal(t, "CODE_EXPIRED", res.code(), "a code sent by e-mail does not unlock the phone channel")
+
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/verify", customerApp, "", map[string]string{"email": "ana@agora.ao", "code": code})
+		require.Equal(t, http.StatusOK, res.status, res.body)
+		recoveryToken, ok := res.body["recovery_token"].(string)
+		require.True(t, ok, res.body)
+
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/verify", customerApp, "", map[string]string{"email": "ana@agora.ao", "code": code})
+		assert.Equal(t, "CODE_EXPIRED", res.code(), "the code is single-use")
+
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/confirm", customerApp, "", map[string]string{
+			"recovery_token": recoveryToken, "new_password": "S3gredo!forte",
+		})
+		assert.Equal(t, "PASSWORD_REUSED", res.code())
+
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/confirm", customerApp, "", map[string]string{
+			"recovery_token": recoveryToken, "new_password": "P0r!email-novo",
+		})
+		require.Equal(t, http.StatusOK, res.status, res.body)
+		a.login(customerApp, customerPhone, "P0r!email-novo")
+	})
+
 	t.Run("recovery sets a new password and ends every session", func(t *testing.T) {
-		token, _ := a.login(customerApp, customerPhone, "S3gredo!forte")
+		token, _ := a.login(customerApp, customerPhone, "P0r!email-novo")
 
 		res := a.call(http.MethodPost, "/api/v1/auth/recovery/request", customerApp, "", map[string]string{"phone": customerPhone})
 		require.Equal(t, http.StatusAccepted, res.status)
-		res = a.call(http.MethodPost, "/api/v1/auth/recovery/confirm", customerApp, "", map[string]string{
-			"phone": customerPhone, "code": sms.code(t, customerPhone), "new_password": "N0vo!segredo",
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/verify", customerApp, "", map[string]string{
+			"phone": customerPhone, "code": sms.code(t, customerPhone),
 		})
 		require.Equal(t, http.StatusOK, res.status, res.body)
+		recoveryToken, ok := res.body["recovery_token"].(string)
+		require.True(t, ok, res.body)
+
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/confirm", customerApp, "", map[string]string{
+			"recovery_token": recoveryToken, "new_password": "N0vo!segredo",
+		})
+		require.Equal(t, http.StatusOK, res.status, res.body)
+
+		res = a.call(http.MethodPost, "/api/v1/auth/recovery/confirm", customerApp, "", map[string]string{
+			"recovery_token": recoveryToken, "new_password": "Outro!segredo",
+		})
+		assert.Equal(t, "RECOVERY_TOKEN_INVALID", res.code(), "the token is single-use")
 
 		assert.Equal(t, "SESSION_REVOKED", a.call(http.MethodGet, "/api/v1/users/me", customerApp, token, nil).code())
 		a.login(customerApp, customerPhone, "N0vo!segredo")

@@ -11,6 +11,7 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/security/opaque"
 	"github.com/Agora-Mobility/atlas/infra/security/otp"
 	"github.com/Agora-Mobility/atlas/infra/security/password"
+	"github.com/Agora-Mobility/atlas/infra/security/recoveryticket"
 	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
 )
 
@@ -52,7 +53,8 @@ func newAuthModule(c *Container) (*AuthModule, error) {
 		usecases.NewAuthUsecase(userRepo, c.Outbox, c.TxManager, hasher, codeSender, sessions, staffSignIn, revoker),
 		usecases.NewRefreshUsecase(refreshTokenRepo, userRepo, accessResolver, c.TxManager, opaqueTokens, sessions, revoker, cfg.JWT.RefreshTTL),
 		usecases.NewPhoneVerificationUsecase(userRepo, c.Outbox, c.TxManager, otpService, codeSender, sessions),
-		usecases.NewRecoveryUsecase(userRepo, c.Outbox, c.TxManager, hasher, otpService, codeSender, revoker),
+		usecases.NewRecoveryUsecase(userRepo, c.Outbox, c.TxManager, hasher, otpService, codeSender, revoker,
+			recoveryticket.NewRedisRecoveryTicketService(c.Redis, namespace, cfg.OTP.TTL), c.Email, cfg.OTP.ResendCooldown),
 	)
 	members := usecases.NewMemberUsecase(usecases.MemberStores{
 		Users: userRepo, Orgs: orgRepo, Roles: roleRepo, Memberships: membershipRepo, Invitations: invitationRepo,

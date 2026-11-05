@@ -81,6 +81,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 
 	recovery := authGroup.Group("/recovery", r.limiters.Recovery)
 	recovery.POST("/request", r.controller.RequestRecovery)
+	recovery.POST("/verify", r.controller.RecoveryVerify)
 	recovery.POST("/confirm", r.controller.ConfirmRecovery)
 
 	authGroup.POST("/logout", authenticated, r.controller.Logout)

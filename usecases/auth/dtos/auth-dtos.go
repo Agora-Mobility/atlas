@@ -41,13 +41,28 @@ type LoginCodeVerifyInput struct {
 }
 
 type RecoveryRequestInput struct {
-	Phone string `json:"phone" binding:"required,max=32" example:"+244923000000"`
+	Phone string `json:"phone,omitempty" binding:"required_without=Email,excluded_with=Email,max=32" example:"+244923000000"`
+	Email string `json:"email,omitempty" binding:"required_without=Phone,excluded_with=Phone,omitempty,email,max=254" example:"ana@exemplo.ao"`
+}
+
+type RecoveryRequestOutput struct {
+	Message            string `json:"message" example:"If the account exists, a code was sent."`
+	ResendAfterSeconds int    `json:"resend_after_seconds" example:"60"`
+}
+
+type RecoveryVerifyInput struct {
+	Phone string `json:"phone,omitempty" binding:"required_without=Email,excluded_with=Email,max=32" example:"+244923000000"`
+	Email string `json:"email,omitempty" binding:"required_without=Phone,excluded_with=Phone,omitempty,email,max=254" example:"ana@exemplo.ao"`
+	Code  string `json:"code" binding:"required,len=6,numeric" example:"123456"`
+}
+
+type RecoveryVerifyOutput struct {
+	RecoveryToken string `json:"recovery_token" example:"6f1c2a9d8e7b4c05a3f2d1e0b9c8a7f6"`
 }
 
 type RecoveryConfirmInput struct {
-	Phone       string `json:"phone" binding:"required,max=32" example:"+244923000000"`
-	Code        string `json:"code" binding:"required,len=6,numeric" example:"123456"`
-	NewPassword string `json:"new_password" binding:"required" example:"N0vo!segredo"`
+	RecoveryToken string `json:"recovery_token" binding:"required,max=128" example:"6f1c2a9d8e7b4c05a3f2d1e0b9c8a7f6"`
+	NewPassword   string `json:"new_password" binding:"required" example:"N0vo!segredo"`
 }
 
 type ChangePasswordInput struct {
@@ -71,6 +86,7 @@ type UserView struct {
 	Role        enums.Role       `json:"role"`
 	Status      enums.UserStatus `json:"status"`
 	IsVerified  bool             `json:"is_verified"`
+	HasPassword bool             `json:"has_password" example:"false"`
 	LastLoginAt *time.Time       `json:"last_login_at,omitempty"`
 	CreatedAt   time.Time        `json:"created_at"`
 }
@@ -95,6 +111,7 @@ func ToUserView(u *entities.User) UserView {
 		Role:        u.Role,
 		Status:      u.Status,
 		IsVerified:  u.IsVerified,
+		HasPassword: u.HasPassword(),
 		LastLoginAt: u.LastLoginAt,
 		CreatedAt:   u.CreatedAt,
 	}

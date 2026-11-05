@@ -19,6 +19,7 @@ const (
 var (
 	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
 	ErrPasswordTooLong  = errors.New("password must be at most 128 characters")
+	ErrPasswordReused   = errors.New("new password is the current one")
 )
 
 type passwordReplacer struct {
