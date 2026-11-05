@@ -102,7 +102,48 @@ them and never creates one.
   end-to-end tests use an in-memory S3 server, so they never write to a real bucket;
   `make test-r2` checks the real one.
 
+## Update 2026-11-06: verification in AGORA Pro
+
+- **One documents table.** Document types, slots and subjects are enums (Go and
+  Postgres): `provider_document_type`, `provider_document_slot` and
+  `provider_document_subject` (provider, legal representative, vehicle owner).
+  `provider_documents` holds one row per type and subject with the number, the dates,
+  typed `details` (OCR, liveness, categories, owner, insurer, bank, company) and
+  `review_flags`. The files live in `provider_document_files`, one per slot and version:
+  a new accepted file supersedes the old one, which is kept for the audit.
+  `provider_document_types` is gone; the vehicle photos became one `vehicle_photo`
+  document with slots.
+- **Plan.** A driver has eight steps in three groups, a workshop eight in four. The
+  service says which plan applies (`service_provider_requirements.verification_kind`),
+  which licence categories it accepts and the oldest vehicle it takes. Maintenance opens
+  to partner workshops; approving one creates its organization, workshop, hours and
+  services, so it shows up in the customer search.
+- **Files.** Keys are `documents/{provider}/{verification}/{type}/{slot}/{uuid}.{ext}`.
+  The upload is a pre-signed PUT, confirmed with HeadObject and the magic bytes (HEIC
+  included), then processed in `providers.document-processing`: sha256, size, width and
+  height, EXIF and GPS removed without re-encoding, and the quality check. Reading URLs
+  last five minutes. Orphan uploads are dropped after a day.
+- **Checks are ports.** `IImageQualityChecker`, `IDocumentOCRProvider` and
+  `ILivenessProvider` have a `fake` adapter (dev and tests) and a `manual` one that leaves
+  everything to the team; production refuses `fake`. No vendor is chosen yet. The selfie
+  is liveness only, with no face match. The card is read in `providers.identity-reading`
+  with at most three attempts before manual entry.
+- **Review flags** mark what the team must look at: manual or edited card data, an
+  expired card with a SIAC receipt, a liveness that failed three times, a vehicle of
+  someone else, another insurer, a company name that differs, the repair activity of the
+  licence and the representative in the certificate.
+- **IBAN** is not encrypted: it is not a secret, and the risk is an account takeover that
+  changes it, which the audit and the review cover. It is masked in every answer and
+  never logged, like the BI number.
+- **Expiry.** A periodic job warns 30 days before the insurance, the inspection, the
+  driving licence and the business licence expire.
+
 ## Still open
 
-- Documents do not expire yet, for example a driving licence or the insurance.
+- The bank codes and the insurers are seeded from public lists: confirm them with the
+  official lists of BNA and ARSEG.
+- Choose and integrate the OCR, quality and liveness vendors.
+- A workshop owner has no partner panel access yet: the organization is created on
+  approval, but no membership.
+- The maximum vehicle age per service is not set (`max_vehicle_age_years` is empty).
 - The plate is not unique across providers.
