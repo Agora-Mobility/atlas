@@ -641,8 +641,8 @@ func (c *Controller) SetLocation(ctx *gin.Context) {
 //	@Tags			Provider verification
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		dtos.ServicesInput	true	"Services"
-//	@Success		200		{array}		dtos.PricedServiceView
+//	@Param			body	body	dtos.ServicesInput	true	"Services"
+//	@Success		200		{array}	dtos.PricedServiceView
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/providers/me/verification/workshop/services [put]
@@ -694,14 +694,14 @@ func (c *Controller) Submit(ctx *gin.Context) {
 
 // Insurers godoc
 //
-//	@Summary		Insurers
-//	@Tags			Provider verification
-//	@Produce		json
-//	@Param			search	query		string	false	"Part of the name"
-//	@Success		200		{object}	dtos.CatalogList[dtos.InsurerView]
-//	@Security		BearerAuth
-//	@Security		ClientId
-//	@Router			/api/v1/providers/catalogs/insurers [get]
+//	@Summary	Insurers
+//	@Tags		Provider verification
+//	@Produce	json
+//	@Param		search	query		string	false	"Part of the name"
+//	@Success	200		{object}	dtos.CatalogList[dtos.InsurerView]
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/providers/catalogs/insurers [get]
 func (c *Controller) Insurers(ctx *gin.Context) {
 	view, err := c.verification.Insurers(ctx.Request.Context(), ctx.Query("search"))
 	respond(ctx, http.StatusOK, view, err)
@@ -725,13 +725,13 @@ func (c *Controller) Banks(ctx *gin.Context) {
 
 // WorkshopServices godoc
 //
-//	@Summary		Workshop services
-//	@Tags			Provider verification
-//	@Produce		json
-//	@Success		200	{object}	dtos.CatalogList[dtos.WorkshopServiceView]
-//	@Security		BearerAuth
-//	@Security		ClientId
-//	@Router			/api/v1/providers/catalogs/workshop-services [get]
+//	@Summary	Workshop services
+//	@Tags		Provider verification
+//	@Produce	json
+//	@Success	200	{object}	dtos.CatalogList[dtos.WorkshopServiceView]
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/providers/catalogs/workshop-services [get]
 func (c *Controller) WorkshopServices(ctx *gin.Context) {
 	view, err := c.verification.WorkshopServices(ctx.Request.Context())
 	respond(ctx, http.StatusOK, view, err)
@@ -739,26 +739,26 @@ func (c *Controller) WorkshopServices(ctx *gin.Context) {
 
 // DrivingCategories godoc
 //
-//	@Summary		Driving license categories
-//	@Tags			Provider verification
-//	@Produce		json
-//	@Success		200	{object}	dtos.CatalogList[dtos.OptionView]
-//	@Security		BearerAuth
-//	@Security		ClientId
-//	@Router			/api/v1/providers/catalogs/driving-categories [get]
+//	@Summary	Driving license categories
+//	@Tags		Provider verification
+//	@Produce	json
+//	@Success	200	{object}	dtos.CatalogList[dtos.OptionView]
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/providers/catalogs/driving-categories [get]
 func (c *Controller) DrivingCategories(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, c.verification.DrivingCategories())
 }
 
 // CompanyTypes godoc
 //
-//	@Summary		Company types
-//	@Tags			Provider verification
-//	@Produce		json
-//	@Success		200	{object}	dtos.CatalogList[dtos.OptionView]
-//	@Security		BearerAuth
-//	@Security		ClientId
-//	@Router			/api/v1/providers/catalogs/company-types [get]
+//	@Summary	Company types
+//	@Tags		Provider verification
+//	@Produce	json
+//	@Success	200	{object}	dtos.CatalogList[dtos.OptionView]
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/providers/catalogs/company-types [get]
 func (c *Controller) CompanyTypes(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, c.verification.CompanyTypes())
 }
