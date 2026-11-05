@@ -1,6 +1,7 @@
 package r2
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -70,8 +71,12 @@ func (s *Storage) PresignUpload(ctx context.Context, key, contentType string, si
 }
 
 func (s *Storage) PresignDownload(ctx context.Context, key string) (*services.PresignedURL, error) {
-	expiresAt := s.now().Add(s.ttl)
-	request, err := s.presign.PresignGetObject(ctx, &s3.GetObjectInput{Bucket: &s.bucket, Key: &key}, s3.WithPresignExpires(s.ttl))
+	return s.PresignDownloadFor(ctx, key, s.ttl)
+}
+
+func (s *Storage) PresignDownloadFor(ctx context.Context, key string, ttl time.Duration) (*services.PresignedURL, error) {
+	expiresAt := s.now().Add(ttl)
+	request, err := s.presign.PresignGetObject(ctx, &s3.GetObjectInput{Bucket: &s.bucket, Key: &key}, s3.WithPresignExpires(ttl))
 	if err != nil {
 		return nil, fmt.Errorf("presign download: %w", err)
 	}
@@ -101,6 +106,31 @@ func (s *Storage) FirstBytes(ctx context.Context, key string, count int64) ([]by
 		return nil, fmt.Errorf("read object body: %w", err)
 	}
 	return data, nil
+}
+
+func (s *Storage) Read(ctx context.Context, key string, maxBytes int64) ([]byte, error) {
+	object, err := s.client.GetObject(ctx, &s3.GetObjectInput{Bucket: &s.bucket, Key: &key})
+	if err != nil {
+		return nil, fmt.Errorf("read object: %w", err)
+	}
+	defer func() { _ = object.Body.Close() }()
+	data, err := io.ReadAll(io.LimitReader(object.Body, maxBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read object body: %w", err)
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, services.ErrObjectTooLarge
+	}
+	return data, nil
+}
+
+func (s *Storage) Write(ctx context.Context, key, contentType string, content []byte) error {
+	size := int64(len(content))
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{Bucket: &s.bucket, Key: &key, ContentType: &contentType, ContentLength: &size, Body: bytes.NewReader(content)})
+	if err != nil {
+		return fmt.Errorf("write object: %w", err)
+	}
+	return nil
 }
 
 func (s *Storage) Delete(ctx context.Context, key string) error {
@@ -133,6 +163,18 @@ func (Unavailable) Stat(context.Context, string) (*services.StoredObject, error)
 
 func (Unavailable) FirstBytes(context.Context, string, int64) ([]byte, error) {
 	return nil, services.ErrStorageUnavailable
+}
+
+func (Unavailable) PresignDownloadFor(context.Context, string, time.Duration) (*services.PresignedURL, error) {
+	return nil, services.ErrStorageUnavailable
+}
+
+func (Unavailable) Read(context.Context, string, int64) ([]byte, error) {
+	return nil, services.ErrStorageUnavailable
+}
+
+func (Unavailable) Write(context.Context, string, string, []byte) error {
+	return services.ErrStorageUnavailable
 }
 
 func (Unavailable) Delete(context.Context, string) error {
