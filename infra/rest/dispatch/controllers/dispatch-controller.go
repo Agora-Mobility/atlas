@@ -248,7 +248,7 @@ func (c *DispatchController) PreviewVoucher(ctx *gin.Context) {
 // CreateFareEstimates godoc
 //
 //	@Summary		Fixed price before confirming
-//	@Description	Customers only. One priced option per active service of the category. route_source tells whether the distance came from Mapbox or from the fallback estimate.
+//	@Description	Customers only. One priced option per active service of the category. route_source tells whether the distance came from Google Maps or from the fallback estimate.
 //	@Tags			Dispatch
 //	@Accept			json
 //	@Produce		json

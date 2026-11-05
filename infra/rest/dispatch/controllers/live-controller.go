@@ -175,7 +175,7 @@ func (c *DispatchController) PublicTrip(ctx *gin.Context) {
 // ETA godoc
 //
 //	@Summary		Time until the provider arrives
-//	@Description	From the last position of the provider, by route. source tells whether it came from Mapbox or from the fallback.
+//	@Description	From the last position of the provider, by route. source tells whether it came from Google Maps or from the fallback.
 //	@Tags			Live request
 //	@Produce		json
 //	@Param			id	path		string	true	"Request id"

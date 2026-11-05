@@ -5543,8 +5543,8 @@ paths:
       - Backoffice dispatch
   /api/v1/admin/dispatch/heatmap:
     get:
-      description: Resolution 8 hexagons for the Mapbox map of the backoffice. Demand
-        covers the last 24 hours.
+      description: Resolution 8 hexagons for the Google Maps map of the backoffice.
+        Demand covers the last 24 hours.
       parameters:
       - description: Zone id
         in: query
@@ -8322,8 +8322,8 @@ paths:
       consumes:
       - application/json
       description: Customers only. One priced option per active service of the category.
-        route_source tells whether the distance came from Mapbox or from the fallback
-        estimate.
+        route_source tells whether the distance came from Google Maps or from the
+        fallback estimate.
       parameters:
       - description: Route
         in: body
@@ -12124,7 +12124,7 @@ paths:
   /api/v1/requests/{id}/eta:
     get:
       description: From the last position of the provider, by route. source tells
-        whether it came from Mapbox or from the fallback.
+        whether it came from Google Maps or from the fallback.
       parameters:
       - description: Request id
         in: path

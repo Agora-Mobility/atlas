@@ -684,7 +684,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Resolution 8 hexagons for the Mapbox map of the backoffice. Demand covers the last 24 hours.",
+                "description": "Resolution 8 hexagons for the Google Maps map of the backoffice. Demand covers the last 24 hours.",
                 "produces": [
                     "application/json"
                 ],
@@ -5077,7 +5077,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Customers only. One priced option per active service of the category. route_source tells whether the distance came from Mapbox or from the fallback estimate.",
+                "description": "Customers only. One priced option per active service of the category. route_source tells whether the distance came from Google Maps or from the fallback estimate.",
                 "consumes": [
                     "application/json"
                 ],
@@ -11108,7 +11108,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "From the last position of the provider, by route. source tells whether it came from Mapbox or from the fallback.",
+                "description": "From the last position of the provider, by route. source tells whether it came from Google Maps or from the fallback.",
                 "produces": [
                     "application/json"
                 ],
