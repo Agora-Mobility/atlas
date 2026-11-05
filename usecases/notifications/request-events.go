@@ -17,6 +17,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/usecases/dispatch"
 )
 
@@ -29,6 +30,7 @@ const (
 	templateReminder       = "request_reminder"
 	templateOperator       = "operator_alert"
 	templateProviderReview = "provider_review"
+	templateVerification   = "verification_reminder"
 	templatePayment        = "payment_status"
 	templateBooking        = "booking_status"
 	templateBookingExtra   = "booking_extra"
@@ -82,7 +84,8 @@ func RequestBindingKeys() []string {
 	}
 	slices.Sort(types)
 	types = append(types, events.PaymentChanged, events.OfferCreated, events.OfferCancelled, events.QuoteSubmitted, events.ReminderDue, events.OperatorAlerted,
-		events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended, events.BookingChanged, events.BookingExtra)
+		events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended, events.BookingChanged, events.BookingExtra,
+		events.ProviderApplicationSubmitted, events.ProviderVerificationReminder)
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
 		keys = append(keys, events.RoutingKey(eventType, 1))
@@ -105,8 +108,10 @@ func (n *RequestNotifier) OnEvent(ctx context.Context, env events.Envelope) erro
 		return n.onReminder(ctx, env)
 	case events.OperatorAlerted:
 		return n.onOperatorAlert(ctx, env)
-	case events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended:
+	case events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended, events.ProviderApplicationSubmitted:
 		return n.onProviderReview(ctx, env)
+	case events.ProviderVerificationReminder:
+		return n.onVerificationReminder(ctx, env)
 	case events.PaymentChanged:
 		return n.onPayment(ctx, env)
 	case events.BookingChanged:
@@ -273,9 +278,27 @@ func (n *RequestNotifier) onOperatorAlert(ctx context.Context, env events.Envelo
 }
 
 var providerReviewMessages = map[string]struct{ title, body string }{
-	events.ProviderApproved:  {"Conta aprovada", "A tua conta foi aprovada. Já podes ficar online."},
-	events.ProviderRejected:  {"Corrige o teu perfil", "O teu perfil precisa de correções. Abre a aplicação para veres o motivo."},
-	events.ProviderSuspended: {"Conta suspensa", "A tua conta foi suspensa. Abre a aplicação para veres o motivo."},
+	events.ProviderApproved:             {"Conta aprovada", "A tua conta foi aprovada. Já podes ficar online."},
+	events.ProviderRejected:             {"Corrige o teu perfil", "O teu perfil precisa de correções. Abre a aplicação para veres o motivo."},
+	events.ProviderSuspended:            {"Conta suspensa", "A tua conta foi suspensa. Abre a aplicação para veres o motivo."},
+	events.ProviderApplicationSubmitted: {"Verificação enviada", "Recebemos os teus dados e documentos. Vamos analisá-los e avisamos-te."},
+}
+
+func (n *RequestNotifier) onVerificationReminder(ctx context.Context, env events.Envelope) error {
+	var event events.ProviderVerificationReminderV1
+	if err := env.DecodePayload(&event); err != nil {
+		return err
+	}
+	title, body := "Registo criminal", "Falta enviar o registo criminal para concluíres a verificação."
+	if event.Kind == entities.ReminderDocumentExpiry {
+		title, body = "Documento a expirar", "Um dos teus documentos ("+entities.DocumentName(enums.DocumentType(event.DocumentType))+") está quase a expirar. Envia o novo na aplicação."
+		if event.ExpiresOn != nil {
+			body = "O documento " + entities.DocumentName(enums.DocumentType(event.DocumentType)) + " expira a " + event.ExpiresOn.Format("02/01/2006") + ". Envia o novo na aplicação."
+		}
+	}
+	return n.pushTo(ctx, event.ProviderID, templateVerification, services.PushMessage{
+		Title: title, Body: body, Data: map[string]string{"type": "provider.verification", "kind": event.Kind, "document_type": event.DocumentType, "event_id": env.EventID.String()},
+	})
 }
 
 func (n *RequestNotifier) onProviderReview(ctx context.Context, env events.Envelope) error {
@@ -284,12 +307,13 @@ func (n *RequestNotifier) onProviderReview(ctx context.Context, env events.Envel
 		return err
 	}
 	message := providerReviewMessages[env.EventType]
-	return errors.Join(
-		n.pushTo(ctx, event.ProviderID, templateProviderReview, services.PushMessage{
-			Title: message.title, Body: message.body, Data: map[string]string{"type": "provider.review", "event_id": env.EventID.String()},
-		}),
-		n.smsToUser(ctx, event.ProviderID, templateProviderReview, "AGORA: "+message.body),
-	)
+	push := n.pushTo(ctx, event.ProviderID, templateProviderReview, services.PushMessage{
+		Title: message.title, Body: message.body, Data: map[string]string{"type": "provider.review", "event_id": env.EventID.String()},
+	})
+	if env.EventType == events.ProviderApplicationSubmitted {
+		return push
+	}
+	return errors.Join(push, n.smsToUser(ctx, event.ProviderID, templateProviderReview, "AGORA: "+message.body))
 }
 
 func (n *RequestNotifier) pushTo(ctx context.Context, userID uuid.UUID, template string, message services.PushMessage) error {
