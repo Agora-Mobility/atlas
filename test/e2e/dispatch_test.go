@@ -57,7 +57,7 @@ func clearOnlineProviders(t *testing.T) {
 
 func TestTaxiFullFlowWithFixedPriceTrackingAndHonoredFare(t *testing.T) {
 	clearOnlineProviders(t)
-	env.mapbox.down.Store(false)
+	env.googleMaps.down.Store(false)
 	driver := newProvider(t, "taxi", point{-8.8400, 13.2350})
 	driverStream := driver.listen(t, "")
 	customer := newCustomer(t)
@@ -67,7 +67,7 @@ func TestTaxiFullFlowWithFixedPriceTrackingAndHonoredFare(t *testing.T) {
 	require.Equal(t, http.StatusCreated, estimate.status, estimate.text)
 	option := estimate.body["items"].([]any)[0].(map[string]any)
 	assert.EqualValues(t, 171_500, option["total_cents"], "the 8 km and 25 min example of the proposal")
-	assert.Equal(t, "mapbox", option["route_source"])
+	assert.Equal(t, "google", option["route_source"])
 
 	key := uuid.NewString()
 	payload := map[string]any{"service_id": option["service_id"], "fare_estimate_id": option["fare_estimate_id"], "pickup": pickup, "destination": target}
@@ -91,7 +91,7 @@ func TestTaxiFullFlowWithFixedPriceTrackingAndHonoredFare(t *testing.T) {
 	ack(t, driver, offer)
 	accepted := acceptOffer(t, driver, offer)
 	require.Equal(t, http.StatusOK, accepted.status, accepted.text)
-	assert.Equal(t, "mapbox", accepted.body["route"].(map[string]any)["source"])
+	assert.Equal(t, "google", accepted.body["route"].(map[string]any)["source"])
 
 	customerStream.waitForStatus(t, "accepted")
 	view := customer.get(t, "/api/v1/requests/"+requestID)
@@ -348,10 +348,10 @@ func TestCriterion7ProviderAtTheEdgeOfTheRadiusIsFound(t *testing.T) {
 	stream.waitFor(t, "request.offer", nil)
 }
 
-func TestCriterion8TaxiCompletesWithMapboxDown(t *testing.T) {
+func TestCriterion8TaxiCompletesWithGoogleMapsDown(t *testing.T) {
 	clearOnlineProviders(t)
-	env.mapbox.down.Store(true)
-	t.Cleanup(func() { env.mapbox.down.Store(false) })
+	env.googleMaps.down.Store(true)
+	t.Cleanup(func() { env.googleMaps.down.Store(false) })
 	driver := newProvider(t, "taxi", point{-8.8400, 13.2350})
 	stream := driver.listen(t, "")
 	customer := newCustomer(t)
@@ -913,8 +913,8 @@ func TestRouteChangeRepricesAndIsRecorded(t *testing.T) {
 	offer := stream.waitFor(t, "request.offer", nil)
 	require.Equal(t, http.StatusOK, acceptOffer(t, driver, offer).status)
 
-	env.mapbox.down.Store(true)
-	t.Cleanup(func() { env.mapbox.down.Store(false) })
+	env.googleMaps.down.Store(true)
+	t.Cleanup(func() { env.googleMaps.down.Store(false) })
 	changed := customer.post(t, "/api/v1/requests/"+id+"/route", map[string]any{"destination": point{-9.10, 13.40}})
 	require.Equal(t, http.StatusOK, changed.status, changed.text)
 	assert.NotEqual(t, int64(171_500), changed.num("fare_cents"))

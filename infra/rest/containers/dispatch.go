@@ -9,8 +9,8 @@ import (
 	domainrepository "github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/calls"
+	"github.com/Agora-Mobility/atlas/infra/geo/googlemaps"
 	"github.com/Agora-Mobility/atlas/infra/geo/h3index"
-	"github.com/Agora-Mobility/atlas/infra/geo/mapbox"
 	"github.com/Agora-Mobility/atlas/infra/geo/routing"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/notification/push"
@@ -79,7 +79,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		WatcherInterval: cfg.Dispatch.WatcherInterval, WatcherBatch: cfg.Dispatch.WatcherBatch, FareEstimateTTL: cfg.Dispatch.FareEstimateTTL,
 		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout, ShareBaseURL: cfg.Dispatch.ShareBaseURL, Currency: cfg.AppyPay.LedgerCurrency,
 		Limits:     entities.PlausibilityLimits{MaxAccuracyM: cfg.Dispatch.MaxAccuracyM, MaxSpeedMps: cfg.Dispatch.MaxSpeedKmh * kmhToMps},
-		RoadFactor: cfg.Mapbox.RoadFactor, AverageSpeedKmh: cfg.Mapbox.AverageSpeedKmh,
+		RoadFactor: cfg.GoogleMaps.RoadFactor, AverageSpeedKmh: cfg.GoogleMaps.AverageSpeedKmh,
 	})
 	notifier.UseSharer(uc)
 	notifier.UseAccount(repository.NewAccountRepository(c.Pool))
@@ -105,7 +105,7 @@ func (m *DispatchModule) Consumers() []queue.ConsumerConfig {
 	}
 }
 
-func newRoutingProvider(cfg config.MapboxConfig) services.IRoutingProvider {
+func newRoutingProvider(cfg config.GoogleMapsConfig) services.IRoutingProvider {
 	settings := routing.Settings{
 		Timeout: cfg.Timeout, FailureThreshold: cfg.BreakerFailures, Cooldown: cfg.BreakerCooldown,
 		RoadFactor: cfg.RoadFactor, AverageSpeedKmh: cfg.AverageSpeedKmh,
@@ -113,7 +113,7 @@ func newRoutingProvider(cfg config.MapboxConfig) services.IRoutingProvider {
 	if !cfg.Enabled() {
 		return routing.NewResilient(nil, settings)
 	}
-	return routing.NewResilient(mapbox.NewClient(cfg.AccessToken, cfg.BaseURL, cfg.Timeout), settings)
+	return routing.NewResilient(googlemaps.NewClient(cfg.APIKey, cfg.BaseURL, cfg.Timeout), settings)
 }
 
 func newPushSender(ctx context.Context, cfg config.FCMConfig) (services.IPushSender, error) {

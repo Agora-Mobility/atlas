@@ -66,7 +66,7 @@ type stack struct {
 	redisDirect *goredis.Client
 	redisProxy  *tcpProxy
 	rabbitProxy *tcpProxy
-	mapbox      *mapboxStub
+	googleMaps  *googleMapsStub
 	sms         *smsStub
 	appypay     *appypayStub
 	calls       *callStub
@@ -139,8 +139,8 @@ func startStack() (func(), error) {
 	}
 	closers = append(closers, rabbitProxy.close)
 
-	mapbox := newMapboxStub()
-	closers = append(closers, mapbox.server.Close)
+	googleMaps := newGoogleMapsStub()
+	closers = append(closers, googleMaps.server.Close)
 	sms := newSMSStub()
 	closers = append(closers, sms.server.Close)
 	calls := newCallStub()
@@ -163,8 +163,8 @@ func startStack() (func(), error) {
 		"REDIS_ADDR": redisProxy.addr(), "RABBITMQ_URL": "amqp://atlas:atlas@" + rabbitProxy.addr() + "/", "RABBITMQ_RETRY_DELAY": "1s",
 		"JWT_SECRET":          uuid.NewString() + uuid.NewString(),
 		"RATE_LIMIT_REQUESTS": "1000000", "OUTBOX_POLL_INTERVAL": "50ms", "DISPATCH_WATCHER_INTERVAL": "100ms", "SSE_POLL_INTERVAL": "1s", "SSE_HEARTBEAT_INTERVAL": "1s",
-		"SSE_DEAD_AFTER": "3s", "SSE_RECONNECT_SPREAD": "1s", "NEARBY_MIN_CELL_COUNT": "2", "MAPBOX_ACCESS_TOKEN": "sk.e2e", "MAPBOX_BASE_URL": mapbox.server.URL,
-		"MAPBOX_TIMEOUT": "300ms", "MAPBOX_BREAKER_FAILURES": "3", "MAPBOX_BREAKER_COOLDOWN": "200ms", "FCM_PROJECT_ID": "agora-e2e", "FCM_BASE_URL": fcm.server.URL,
+		"SSE_DEAD_AFTER": "3s", "SSE_RECONNECT_SPREAD": "1s", "NEARBY_MIN_CELL_COUNT": "2", "GOOGLE_MAPS_API_KEY": "key.e2e", "GOOGLE_MAPS_BASE_URL": googleMaps.server.URL,
+		"GOOGLE_MAPS_TIMEOUT": "300ms", "GOOGLE_MAPS_BREAKER_FAILURES": "3", "GOOGLE_MAPS_BREAKER_COOLDOWN": "200ms", "FCM_PROJECT_ID": "agora-e2e", "FCM_BASE_URL": fcm.server.URL,
 		"FCM_CREDENTIALS_JSON": fcm.credentials, "HTTP_SHUTDOWN_TIMEOUT": "5s", "CASTBRICK_API_KEY": "e2e", "CASTBRICK_BASE_URL": sms.server.URL,
 		"CALLS_BASE_URL": calls.server.URL, "CALLS_API_KEY": "e2e", "SHARE_BASE_URL": "https://agora.test/v", "APPYPAY_CLIENT_ID": "e2e", "APPYPAY_CLIENT_SECRET": "e2e", "APPYPAY_BASE_URL": appypay.server.URL, "APPYPAY_TOKEN_URL": appypay.server.URL + "/token", "APPYPAY_RESOURCE": "e2e", "APPYPAY_GPO_METHOD": "GPO_e2e", "APPYPAY_REF_METHOD": "REF_e2e", "PAYMENT_RECONCILE_INTERVAL": "100ms", "PAYMENT_GPO_CHECK_INTERVAL": "100ms", "PAYMENT_REFERENCE_CHECK_INTERVAL": "100ms", "OTP_RESEND_COOLDOWN": "0s", "AUTH_RATE_LIMIT_REQUESTS": "100000", "R2_ENDPOINT": storage.server.URL, "R2_ACCESS_KEY_ID": "e2e", "R2_SECRET_ACCESS_KEY": "e2e", "R2_BUCKET_NAME": storageBucket,
 	}
@@ -182,7 +182,7 @@ func startStack() (func(), error) {
 	direct := goredis.NewClient(&goredis.Options{Addr: redisEndpoint})
 	closers = append(closers, func() { _ = direct.Close() })
 
-	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, mapbox: mapbox, appypay: appypay, calls: calls, sms: sms, fcm: fcm}
+	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, googleMaps: googleMaps, appypay: appypay, calls: calls, sms: sms, fcm: fcm}
 	if err := seedPlatform(ctx, owner); err != nil {
 		return cleanup, err
 	}
@@ -462,21 +462,33 @@ func pipe(a, b net.Conn) {
 	_ = b.Close()
 }
 
-type mapboxStub struct {
+type googleMapsStub struct {
 	server *httptest.Server
 	down   atomic.Bool
 	calls  atomic.Int64
 }
 
-func newMapboxStub() *mapboxStub {
-	stub := &mapboxStub{}
-	stub.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+func newGoogleMapsStub() *googleMapsStub {
+	stub := &googleMapsStub{}
+	stub.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		stub.calls.Add(1)
 		if stub.down.Load() {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"code": "Ok", "routes": []map[string]any{{"distance": 8000.0, "duration": 1500.0, "geometry": "polyline"}}})
+		if r.URL.Path == "/distanceMatrix/v2:computeRouteMatrix" {
+			var body struct {
+				Origins []json.RawMessage `json:"origins"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			elements := make([]map[string]any, 0, len(body.Origins))
+			for i := range body.Origins {
+				elements = append(elements, map[string]any{"originIndex": i, "status": map[string]any{}, "condition": "ROUTE_EXISTS", "duration": "1500s"})
+			}
+			_ = json.NewEncoder(w).Encode(elements)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"routes": []map[string]any{{"distanceMeters": 8000, "duration": "1500s", "polyline": map[string]any{"encodedPolyline": "polyline"}}}})
 	}))
 	return stub
 }

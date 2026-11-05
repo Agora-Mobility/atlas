@@ -121,7 +121,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 	if err != nil {
 		return nil, err
 	}
-	c.Dispatch = newDispatchModule(c, pushSender, newRoutingProvider(cfg.Mapbox))
+	c.Dispatch = newDispatchModule(c, pushSender, newRoutingProvider(cfg.GoogleMaps))
 	c.Providers = newProvidersModule(c, newObjectStorage(cfg.R2))
 	c.Fleet = newFleetModule(c)
 	c.Payments = newPaymentsModule(c)
