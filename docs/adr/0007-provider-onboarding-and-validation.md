@@ -63,6 +63,18 @@ them and never creates one.
 - **Sign-up:** `POST /api/v1/providers/register`, only through the provider app. The
   account type comes from the client. The plain `POST /auth/register` no longer creates
   providers. The phone code is confirmed with `POST /auth/phone/verify`.
+  Since 2026-11-05 the sign-up takes only the phone, with no name or password: the
+  name comes later with the personal data, and the provider signs in with an SMS
+  code (`/auth/login/otp/*`). An unverified number gets a new code on the same
+  account; a registered number answers `PHONE_ALREADY_EXISTS`.
+- **Profile in one step (2026-11-05):** `PUT /api/v1/providers/me/profile` takes the
+  service and the personal data together: `service_id`, name, birth date, BI number,
+  province, municipality and an optional e-mail. It replaces `PUT /me/service` and
+  `PUT /me/personal`. The BI is checked for format only (9 digits, 2 letters, 3
+  digits). The home address with coordinates is no longer asked; `home_address_id`
+  stays in the table but is not written. Province and municipality are free text
+  until a catalog exists. The e-mail is set without an extra code while the profile
+  is editable, because the phone was just proved by SMS.
 - **Statuses** replace the ones above: `draft → pending → approved | rejected`, with
   `approved ⇄ suspended`. A rejection and a suspension need a reason. After a rejection
   the provider corrects and submits again. The profile can only change in `draft` and

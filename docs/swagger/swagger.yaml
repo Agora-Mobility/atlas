@@ -2150,22 +2150,6 @@ definitions:
           $ref: '#/definitions/enums.OrganizationType'
         type: array
     type: object
-  dtos.PersonalDataInput:
-    properties:
-      address:
-        $ref: '#/definitions/dtos.AddressInput'
-      birth_date:
-        example: "1990-05-20"
-        type: string
-      id_number:
-        example: 000000000LA000
-        maxLength: 120
-        type: string
-    required:
-    - address
-    - birth_date
-    - id_number
-    type: object
   dtos.PhoneChangeConfirmInput:
     properties:
       code:
@@ -2614,6 +2598,41 @@ definitions:
         example: 0
         type: integer
     type: object
+  dtos.ProfileInput:
+    properties:
+      birth_date:
+        example: "1988-03-14"
+        type: string
+      email:
+        example: domingos@exemplo.ao
+        maxLength: 254
+        type: string
+      id_number:
+        example: 005487123LA041
+        maxLength: 32
+        type: string
+      municipality:
+        example: Talatona
+        maxLength: 120
+        type: string
+      name:
+        example: Domingos Mateus Kiala
+        maxLength: 120
+        type: string
+      province:
+        example: Luanda
+        maxLength: 120
+        type: string
+      service_id:
+        type: string
+    required:
+    - birth_date
+    - id_number
+    - municipality
+    - name
+    - province
+    - service_id
+    type: object
   dtos.PromotionView:
     properties:
       description:
@@ -2657,8 +2676,6 @@ definitions:
     type: object
   dtos.ProviderView:
     properties:
-      address:
-        $ref: '#/definitions/dtos.AddressView'
       birth_date:
         type: string
       documents:
@@ -2673,11 +2690,15 @@ definitions:
         additionalProperties:
           type: string
         type: object
+      municipality:
+        type: string
       name:
         type: string
       organization_id:
         type: string
       phone:
+        type: string
+      province:
         type: string
       requested_service_id:
         type: string
@@ -3077,25 +3098,11 @@ definitions:
     type: object
   dtos.RegisterProviderInput:
     properties:
-      email:
-        example: pedro@exemplo.ao
-        maxLength: 254
-        type: string
-      name:
-        example: Pedro Cunga
-        maxLength: 120
-        type: string
-      password:
-        example: S3gredo!forte
-        maxLength: 128
-        type: string
       phone:
         example: "+244923000000"
         maxLength: 32
         type: string
     required:
-    - name
-    - password
     - phone
     type: object
   dtos.RegisteredProvider:
@@ -3104,8 +3111,6 @@ definitions:
         type: string
       is_verified:
         type: boolean
-      name:
-        type: string
       phone:
         type: string
       status:
@@ -3364,13 +3369,6 @@ definitions:
         type: integer
       total:
         type: integer
-    type: object
-  dtos.RequestServiceInput:
-    properties:
-      service_id:
-        type: string
-    required:
-    - service_id
     type: object
   dtos.RequestSummary:
     properties:
@@ -11554,38 +11552,6 @@ paths:
       summary: Enter the live index
       tags:
       - Provider work
-  /api/v1/providers/me/personal:
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Personal data
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.PersonalDataInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.ProviderView'
-        "409":
-          description: PROFILE_LOCKED
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "422":
-          description: Invalid fields
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-      security:
-      - BearerAuth: []
-      - ClientId: []
-      summary: Save the personal data
-      tags:
-      - Provider account
   /api/v1/providers/me/profile:
     get:
       description: Status, data, documents, what the requested service requires and
@@ -11601,6 +11567,43 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: My provider profile
+      tags:
+      - Provider account
+    put:
+      consumes:
+      - application/json
+      description: 'One step for the service and the personal data. A provider offers
+        a single service: choosing again replaces the requested one. service_id comes
+        from GET /api/v1/providers/services; the service a provider really takes comes
+        from the approval. A fleet driver keeps the service the fleet chose. id_number
+        is the BI: 9 digits, 2 letters and 3 digits. email is optional and must not
+        belong to another account; sending it empty removes it. Only in draft or rejected.'
+      parameters:
+      - description: Service and personal data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ProfileInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderView'
+        "409":
+          description: PROFILE_LOCKED, MANAGED_BY_FLEET or EMAIL_ALREADY_EXISTS
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: SERVICE_NOT_OPEN or invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Choose the service and save the personal data
       tags:
       - Provider account
   /api/v1/providers/me/ratings:
@@ -11627,40 +11630,6 @@ paths:
       summary: Ratings the provider received
       tags:
       - Provider work
-  /api/v1/providers/me/service:
-    put:
-      consumes:
-      - application/json
-      description: Stored as the requested service. The service a provider really
-        takes comes from the approval.
-      parameters:
-      - description: Service
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.RequestServiceInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.ProviderView'
-        "409":
-          description: PROFILE_LOCKED
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "422":
-          description: SERVICE_NOT_OPEN
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-      security:
-      - BearerAuth: []
-      - ClientId: []
-      summary: Choose the service to provide
-      tags:
-      - Provider account
   /api/v1/providers/me/submit:
     post:
       description: Answers 422 PROFILE_INCOMPLETE with the list of what is missing
@@ -11723,9 +11692,12 @@ paths:
       consumes:
       - application/json
       description: 'Only through agora-provider-app: the account type comes from the
-        client, never from the payload. Creates the account and a draft profile, and
-        sends an SMS code. Confirm it with POST /api/v1/auth/phone/verify to get a
-        session.'
+        client, never from the payload. Takes only the phone, creates the account
+        and a draft profile, and sends an SMS code. Calling it again for an unverified
+        number sends a new code. Confirm it with POST /api/v1/auth/phone/verify to
+        get a session. A registered number answers PHONE_ALREADY_EXISTS: the app moves
+        to the sign-in by SMS code. The name and the other data are filled in later
+        in the profile.'
       parameters:
       - description: Account
         in: body
@@ -11754,7 +11726,7 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Create a provider account
+      summary: Create a provider account with the phone
       tags:
       - Provider account
   /api/v1/providers/services:

@@ -2,6 +2,7 @@ package entities
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -34,6 +35,8 @@ const (
 	maxProfileTextLen   = 120
 	maxReasonTextLen    = 2000
 )
+
+var idCardNumber = regexp.MustCompile(`^\d{9}[A-Z]{2}\d{3}$`)
 
 var (
 	ErrProfileLocked             = errors.New("the profile cannot change in this state")
@@ -91,7 +94,8 @@ type Provider struct {
 	RequestedServiceID *uuid.UUID
 	BirthDate          *time.Time
 	IDNumber           string
-	HomeAddress        *Address
+	Province           string
+	Municipality       string
 	Vehicle            Vehicle
 	StatusReason       string
 	SubmittedAt        *time.Time
@@ -122,28 +126,42 @@ func (p *Provider) RequestService(serviceID uuid.UUID) error {
 	return nil
 }
 
-func (p *Provider) SetPersonalData(birthDate time.Time, idNumber string, address Address, now time.Time) error {
+type PersonalData struct {
+	BirthDate    time.Time
+	IDNumber     string
+	Province     string
+	Municipality string
+}
+
+func (d PersonalData) normalized(now time.Time) (PersonalData, error) {
+	d.IDNumber = strings.ToUpper(strings.Join(strings.Fields(d.IDNumber), ""))
+	d.Province, d.Municipality = strings.TrimSpace(d.Province), strings.TrimSpace(d.Municipality)
+	if d.BirthDate.Year() < minBirthYear || d.BirthDate.AddDate(minProviderAgeYears, 0, 0).After(now) {
+		return d, validationError("birth_date", "É preciso ter pelo menos 18 anos.")
+	}
+	if !idCardNumber.MatchString(d.IDNumber) {
+		return d, validationError("id_number", "O número do BI tem 9 algarismos, 2 letras e 3 algarismos, como 005487123LA041.")
+	}
+	if d.Province == "" || len([]rune(d.Province)) > maxProfileTextLen {
+		return d, validationError("province", "Indica a província.")
+	}
+	if d.Municipality == "" || len([]rune(d.Municipality)) > maxProfileTextLen {
+		return d, validationError("municipality", "Indica o município.")
+	}
+	return d, nil
+}
+
+func (p *Provider) SetProfile(serviceID uuid.UUID, data PersonalData, now time.Time) error {
 	if !p.IsEditable() {
 		return ErrProfileLocked
 	}
-	idNumber = strings.TrimSpace(idNumber)
-	if birthDate.Year() < minBirthYear || birthDate.AddDate(minProviderAgeYears, 0, 0).After(now) {
-		return validationError("birth_date", "É preciso ter pelo menos 18 anos.")
-	}
-	if idNumber == "" || len([]rune(idNumber)) > maxProfileTextLen {
-		return validationError("id_number", "Indica o número do documento de identificação.")
-	}
-	if p.HomeAddress != nil {
-		address.ID = p.HomeAddress.ID
-	}
-	normalized, err := address.Normalized("address")
+	normalized, err := data.normalized(now)
 	if err != nil {
 		return err
 	}
-	if normalized.Line == "" {
-		return validationError("address.line", "Indica a morada.")
-	}
-	p.BirthDate, p.IDNumber, p.HomeAddress = &birthDate, idNumber, &normalized
+	p.RequestedServiceID = &serviceID
+	p.BirthDate, p.IDNumber = &normalized.BirthDate, normalized.IDNumber
+	p.Province, p.Municipality = normalized.Province, normalized.Municipality
 	return nil
 }
 
@@ -288,8 +306,11 @@ func (r *ProviderRequirements) MissingFor(profile *Provider, name string, docume
 	if profile.IDNumber == "" {
 		missing["personal.id_number"] = "Falta o número do documento de identificação."
 	}
-	if profile.HomeAddress == nil {
-		missing["personal.address"] = "Falta a morada."
+	if profile.Province == "" {
+		missing["personal.province"] = "Falta a província."
+	}
+	if profile.Municipality == "" {
+		missing["personal.municipality"] = "Falta o município."
 	}
 	if r.RequiresVehicle {
 		r.addVehicleGaps(profile.Vehicle, missing)

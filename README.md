@@ -215,9 +215,10 @@ make test-load         # k6 against a disposable stack (Docker and k6)
 
 Providers apply in the app and the backoffice reviews them (ADR 0007).
 
-1. `POST /api/v1/providers/register`, then `POST /api/v1/auth/phone/verify`.
-2. `GET /api/v1/providers/services`, then `PUT /api/v1/providers/me/service`.
-3. `PUT /api/v1/providers/me/personal` and `PUT /api/v1/providers/me/vehicle`.
+1. `POST /api/v1/providers/register` with the phone only, then `POST /api/v1/auth/phone/verify`.
+2. `GET /api/v1/providers/services`, then `PUT /api/v1/providers/me/profile` with the
+   chosen `service_id`, the name, birth date, BI, province, municipality and optional e-mail.
+3. `PUT /api/v1/providers/me/vehicle`.
 4. For each document: `POST /api/v1/providers/me/documents/upload-url`, PUT the file to
    the returned URL with the returned headers, then `POST /api/v1/providers/me/documents`.
 5. `POST /api/v1/providers/me/submit`. `GET /api/v1/providers/me/profile` shows what is missing.

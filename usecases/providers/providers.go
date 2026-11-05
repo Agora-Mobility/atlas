@@ -21,7 +21,6 @@ import (
 	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/shared/phone"
-	addressdtos "github.com/Agora-Mobility/atlas/usecases/addresses/dtos"
 	"github.com/Agora-Mobility/atlas/usecases/providers/dtos"
 )
 
@@ -70,8 +69,6 @@ type CodeSender interface {
 	SendSilently(ctx context.Context, purpose enums.OTPPurpose, phone string) error
 }
 
-type PasswordRules func(password string) error
-
 type Deps struct {
 	Users     repository.IUserRepository
 	Providers repository.IProviderRepository
@@ -81,10 +78,8 @@ type Deps struct {
 	Outbox    repository.IOutboxRepository
 	Audit     repository.IAuditLogRepository
 	Tx        repository.ITransactionManager
-	Hasher    services.IPasswordHasher
 	Codes     CodeSender
 	Storage   services.IObjectStorage
-	Passwords PasswordRules
 }
 
 type Usecase struct {
@@ -116,53 +111,45 @@ func (u *Usecase) Register(ctx context.Context, client *entities.Client, in dtos
 	if client.Type != enums.ClientTypeProviderApp {
 		return nil, ErrRegistrationNotAllowed
 	}
-	if err := u.Passwords(in.Password); err != nil {
-		return nil, customerrors.FieldError("password", "A password tem de ter entre 8 e 128 caracteres.")
-	}
-	hash, err := u.Hasher.Hash(in.Password)
-	if err != nil {
-		return nil, err
-	}
 	phoneNumber := phone.Normalize(in.Phone)
-	existing, err := u.Users.FindByPhone(ctx, phoneNumber)
+	user, err := u.Users.FindByPhone(ctx, phoneNumber)
 	if err != nil {
 		return nil, err
 	}
-	var user *entities.User
-	if existing != nil {
-		if existing.IsVerified || existing.Role != enums.RoleProvider {
-			return nil, ErrPhoneTaken
-		}
-		user = existing
-		if err := user.UpdateProfile(in.Name, in.Email, phoneNumber); err != nil {
+	if user != nil && (user.IsVerified || user.Role != enums.RoleProvider) {
+		return nil, ErrPhoneTaken
+	}
+	if user == nil {
+		if user, err = u.createProviderAccount(ctx, phoneNumber); err != nil {
 			return nil, err
 		}
-		user.Password = hash
-	} else if user, err = entities.NewUser(in.Name, in.Email, phoneNumber, hash, enums.RoleProvider); err != nil {
+	} else if err := u.Providers.Create(ctx, user.ID); err != nil {
+		return nil, err
+	}
+	if err := u.Codes.SendSilently(ctx, enums.OTPPurposeVerifyPhone, user.Phone); err != nil {
+		logger.FromContext(ctx).Warn("verification code not sent after provider sign-up", zap.Error(err))
+	}
+	return &dtos.RegisteredProvider{ID: user.ID, Phone: user.Phone, Status: string(entities.ProviderDraft), IsVerified: user.IsVerified}, nil
+}
+
+func (u *Usecase) createProviderAccount(ctx context.Context, phoneNumber string) (*entities.User, error) {
+	user, err := entities.NewSignUpUser(phoneNumber, enums.RoleProvider)
+	if err != nil {
 		return nil, err
 	}
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		if existing != nil {
-			if err := u.Users.Update(ctx, user); err != nil {
-				return err
-			}
-		} else {
-			if err := u.Users.Create(ctx, user); err != nil {
-				return err
-			}
-			if err := u.publish(ctx, events.UserRegisteredV1{ID: user.ID, Role: user.Role, CreatedAt: user.CreatedAt}); err != nil {
-				return err
-			}
+		if err := u.Users.Create(ctx, user); err != nil {
+			return err
+		}
+		if err := u.publish(ctx, events.UserRegisteredV1{ID: user.ID, Role: user.Role, CreatedAt: user.CreatedAt}); err != nil {
+			return err
 		}
 		return u.Providers.Create(ctx, user.ID)
 	})
 	if err != nil {
 		return nil, err
 	}
-	if err := u.Codes.SendSilently(ctx, enums.OTPPurposeVerifyPhone, user.Phone); err != nil {
-		logger.FromContext(ctx).Warn("verification code not sent after provider sign-up", zap.Error(err))
-	}
-	return &dtos.RegisteredProvider{ID: user.ID, Name: user.Name, Phone: user.Phone, Status: string(entities.ProviderDraft), IsVerified: user.IsVerified}, nil
+	return user, nil
 }
 
 func (u *Usecase) OpenServices(ctx context.Context) (*dtos.OpenServices, error) {
@@ -218,30 +205,59 @@ func (u *Usecase) editProvider(ctx context.Context, providerID uuid.UUID, change
 	return u.view(ctx, provider, false)
 }
 
-func (u *Usecase) RequestService(ctx context.Context, providerID uuid.UUID, in dtos.RequestServiceInput) (*dtos.ProviderView, error) {
-	requirements, err := u.Documents.Requirements(ctx, in.ServiceID)
-	if err != nil {
-		return nil, err
-	}
-	if requirements == nil || !requirements.SelfSignup {
-		return nil, ErrServiceNotOpen
-	}
-	return u.editProvider(ctx, providerID, func(provider *entities.Provider) error {
-		if provider.IsFleetDriver() {
-			return ErrManagedByFleet
-		}
-		return provider.RequestService(in.ServiceID)
-	})
-}
-
-func (u *Usecase) SetPersonalData(ctx context.Context, providerID uuid.UUID, in dtos.PersonalDataInput) (*dtos.ProviderView, error) {
+func (u *Usecase) SetProfile(ctx context.Context, providerID uuid.UUID, in dtos.ProfileInput) (*dtos.ProviderView, error) {
 	birthDate, err := time.Parse(time.DateOnly, in.BirthDate)
 	if err != nil {
 		return nil, customerrors.FieldError("birth_date", "A data tem de estar no formato AAAA-MM-DD.")
 	}
-	return u.editProvider(ctx, providerID, func(provider *entities.Provider) error {
-		return provider.SetPersonalData(birthDate, in.IDNumber, in.Address.ToAddress(), u.now())
+	provider, err := u.providerOf(ctx, providerID)
+	if err != nil {
+		return nil, err
+	}
+	if err := u.ensureServiceCanBeChosen(ctx, provider, in.ServiceID); err != nil {
+		return nil, err
+	}
+	user, err := u.Users.FindByID(ctx, providerID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, ErrProviderNotFound
+	}
+	personal := entities.PersonalData{BirthDate: birthDate, IDNumber: in.IDNumber, Province: in.Province, Municipality: in.Municipality}
+	if err := provider.SetProfile(in.ServiceID, personal, u.now()); err != nil {
+		return nil, err
+	}
+	if err := user.UpdateProfile(in.Name, in.Email, user.Phone); err != nil {
+		return nil, err
+	}
+	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := u.Users.Update(ctx, user); err != nil {
+			return err
+		}
+		return u.Providers.Save(ctx, provider)
 	})
+	if err != nil {
+		return nil, err
+	}
+	return u.view(ctx, provider, false)
+}
+
+func (u *Usecase) ensureServiceCanBeChosen(ctx context.Context, provider *entities.Provider, serviceID uuid.UUID) error {
+	if provider.IsFleetDriver() {
+		if provider.RequestedServiceID == nil || *provider.RequestedServiceID != serviceID {
+			return ErrManagedByFleet
+		}
+		return nil
+	}
+	requirements, err := u.Documents.Requirements(ctx, serviceID)
+	if err != nil {
+		return err
+	}
+	if requirements == nil || !requirements.SelfSignup {
+		return ErrServiceNotOpen
+	}
+	return nil
 }
 
 func (u *Usecase) SetVehicle(ctx context.Context, providerID uuid.UUID, in dtos.VehicleInput) (*dtos.ProviderView, error) {
@@ -450,12 +466,8 @@ func (u *Usecase) missingFor(ctx context.Context, provider *entities.Provider) (
 func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLinks bool) (*dtos.ProviderView, error) {
 	view := &dtos.ProviderView{
 		UserID: provider.UserID, Status: string(provider.Status), StatusReason: provider.StatusReason, OrganizationID: provider.OrganizationID, RequestedServiceID: provider.RequestedServiceID, ServiceID: provider.ServiceID,
-		IDNumber: provider.IDNumber, SubmittedAt: provider.SubmittedAt, ReviewedAt: provider.ReviewedAt,
+		IDNumber: provider.IDNumber, Province: provider.Province, Municipality: provider.Municipality, SubmittedAt: provider.SubmittedAt, ReviewedAt: provider.ReviewedAt,
 		RequiredDocuments: []dtos.RequiredDocumentView{}, Documents: []dtos.DocumentView{}, Missing: map[string]string{},
-	}
-	if provider.HomeAddress != nil {
-		address := addressdtos.ToAddressView(provider.HomeAddress)
-		view.Address = &address
 	}
 	if provider.BirthDate != nil {
 		view.BirthDate = provider.BirthDate.Format(time.DateOnly)

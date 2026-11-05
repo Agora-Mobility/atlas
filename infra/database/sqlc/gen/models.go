@@ -648,6 +648,8 @@ type Provider struct {
 	RatingSum          int64      `json:"rating_sum"`
 	RatingCount        int32      `json:"rating_count"`
 	CompletedRequests  int32      `json:"completed_requests"`
+	Province           string     `json:"province"`
+	Municipality       string     `json:"municipality"`
 }
 
 type ProviderCoverage struct {

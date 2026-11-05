@@ -10097,59 +10097,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/providers/me/personal": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Provider account"
-                ],
-                "summary": "Save the personal data",
-                "parameters": [
-                    {
-                        "description": "Personal data",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.PersonalDataInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.ProviderView"
-                        }
-                    },
-                    "409": {
-                        "description": "PROFILE_LOCKED",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Invalid fields",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/providers/me/profile": {
             "get": {
                 "security": [
@@ -10173,6 +10120,58 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "One step for the service and the personal data. A provider offers a single service: choosing again replaces the requested one. service_id comes from GET /api/v1/providers/services; the service a provider really takes comes from the approval. A fleet driver keeps the service the fleet chose. id_number is the BI: 9 digits, 2 letters and 3 digits. email is optional and must not belong to another account; sending it empty removes it. Only in draft or rejected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider account"
+                ],
+                "summary": "Choose the service and save the personal data",
+                "parameters": [
+                    {
+                        "description": "Service and personal data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    },
+                    "409": {
+                        "description": "PROFILE_LOCKED, MANAGED_BY_FLEET or EMAIL_ALREADY_EXISTS",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "SERVICE_NOT_OPEN or invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -10214,60 +10213,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.RatingList"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/providers/me/service": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "description": "Stored as the requested service. The service a provider really takes comes from the approval.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Provider account"
-                ],
-                "summary": "Choose the service to provide",
-                "parameters": [
-                    {
-                        "description": "Service",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.RequestServiceInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.ProviderView"
-                        }
-                    },
-                    "409": {
-                        "description": "PROFILE_LOCKED",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "SERVICE_NOT_OPEN",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -10373,7 +10318,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Only through agora-provider-app: the account type comes from the client, never from the payload. Creates the account and a draft profile, and sends an SMS code. Confirm it with POST /api/v1/auth/phone/verify to get a session.",
+                "description": "Only through agora-provider-app: the account type comes from the client, never from the payload. Takes only the phone, creates the account and a draft profile, and sends an SMS code. Calling it again for an unverified number sends a new code. Confirm it with POST /api/v1/auth/phone/verify to get a session. A registered number answers PHONE_ALREADY_EXISTS: the app moves to the sign-in by SMS code. The name and the other data are filled in later in the profile.",
                 "consumes": [
                     "application/json"
                 ],
@@ -10383,7 +10328,7 @@ const docTemplate = `{
                 "tags": [
                     "Provider account"
                 ],
-                "summary": "Create a provider account",
+                "summary": "Create a provider account with the phone",
                 "parameters": [
                     {
                         "description": "Account",
@@ -17885,28 +17830,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.PersonalDataInput": {
-            "type": "object",
-            "required": [
-                "address",
-                "birth_date",
-                "id_number"
-            ],
-            "properties": {
-                "address": {
-                    "$ref": "#/definitions/dtos.AddressInput"
-                },
-                "birth_date": {
-                    "type": "string",
-                    "example": "1990-05-20"
-                },
-                "id_number": {
-                    "type": "string",
-                    "maxLength": 120,
-                    "example": "000000000LA000"
-                }
-            }
-        },
         "dtos.PhoneChangeConfirmInput": {
             "type": "object",
             "required": [
@@ -18523,6 +18446,51 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ProfileInput": {
+            "type": "object",
+            "required": [
+                "birth_date",
+                "id_number",
+                "municipality",
+                "name",
+                "province",
+                "service_id"
+            ],
+            "properties": {
+                "birth_date": {
+                    "type": "string",
+                    "example": "1988-03-14"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "domingos@exemplo.ao"
+                },
+                "id_number": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "005487123LA041"
+                },
+                "municipality": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Talatona"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Domingos Mateus Kiala"
+                },
+                "province": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Luanda"
+                },
+                "service_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.PromotionView": {
             "type": "object",
             "properties": {
@@ -18589,9 +18557,6 @@ const docTemplate = `{
         "dtos.ProviderView": {
             "type": "object",
             "properties": {
-                "address": {
-                    "$ref": "#/definitions/dtos.AddressView"
-                },
                 "birth_date": {
                     "type": "string"
                 },
@@ -18613,6 +18578,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "municipality": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -18620,6 +18588,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone": {
+                    "type": "string"
+                },
+                "province": {
                     "type": "string"
                 },
                 "requested_service_id": {
@@ -19210,26 +19181,9 @@ const docTemplate = `{
         "dtos.RegisterProviderInput": {
             "type": "object",
             "required": [
-                "name",
-                "password",
                 "phone"
             ],
             "properties": {
-                "email": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "example": "pedro@exemplo.ao"
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 120,
-                    "example": "Pedro Cunga"
-                },
-                "password": {
-                    "type": "string",
-                    "maxLength": 128,
-                    "example": "S3gredo!forte"
-                },
                 "phone": {
                     "type": "string",
                     "maxLength": 32,
@@ -19245,9 +19199,6 @@ const docTemplate = `{
                 },
                 "is_verified": {
                     "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
                 },
                 "phone": {
                     "type": "string"
@@ -19628,17 +19579,6 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
-                }
-            }
-        },
-        "dtos.RequestServiceInput": {
-            "type": "object",
-            "required": [
-                "service_id"
-            ],
-            "properties": {
-                "service_id": {
-                    "type": "string"
                 }
             }
         },

@@ -1132,12 +1132,4 @@ func TestProviderAddressesLiveInTheAddressTable(t *testing.T) {
 	require.NoError(t, env.owner.QueryRow(ctx, `SELECT a.lat FROM providers p JOIN addresses a ON a.id = p.base_address_id WHERE p.user_id = $1`, provider.id).Scan(&lat))
 	assert.InDelta(t, -8.86, lat, 1e-9, "the base is updated in place")
 
-	draft := signUpProvider(t, "Com Morada")
-	personal := draft.do(t, http.MethodPut, "/api/v1/providers/me/personal", map[string]any{"birth_date": "1990-05-20", "id_number": "1", "address": map[string]any{"line": "Sem pin"}}, nil)
-	assert.Equal(t, http.StatusUnprocessableEntity, personal.status, "latitude and longitude are mandatory")
-	saved := draft.do(t, http.MethodPut, "/api/v1/providers/me/personal", map[string]any{"birth_date": "1990-05-20", "id_number": "1", "address": map[string]any{"lat": -8.83, "lng": 13.24, "line": "Rua Rainha Ginga, 29"}}, nil)
-	require.Equal(t, http.StatusOK, saved.status, saved.text)
-	assert.Equal(t, "Rua Rainha Ginga, 29", saved.body["address"].(map[string]any)["line"])
-	require.NoError(t, env.owner.QueryRow(ctx, `SELECT a.lat FROM providers p JOIN addresses a ON a.id = p.home_address_id WHERE p.user_id = $1`, draft.id).Scan(&lat))
-	assert.InDelta(t, -8.83, lat, 1e-9)
 }

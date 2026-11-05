@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,14 +82,17 @@ func signUpProvider(t *testing.T, name string) *person {
 	t.Helper()
 	phone := fmt.Sprintf("+24492%07d", uuid.New().ID()%10_000_000)
 	anonymous := &person{client: providerClient, api: env.api.baseURL}
-	created := anonymous.post(t, "/api/v1/providers/register", map[string]string{"name": name, "phone": phone, "password": "uma-frase-longa-segura"})
+	created := anonymous.post(t, "/api/v1/providers/register", map[string]string{"phone": phone})
 	require.Equal(t, http.StatusCreated, created.status, created.text)
 	assert.Equal(t, "draft", created.str("status"))
 	assert.Equal(t, false, created.body["is_verified"])
 
 	session := anonymous.post(t, "/api/v1/auth/phone/verify", map[string]string{"phone": phone, "code": env.sms.lastCode(t, phone)})
 	require.Equal(t, http.StatusOK, session.status, session.text)
-	return &person{id: uuid.MustParse(created.str("id")), token: session.str("access_token"), client: providerClient, api: env.api.baseURL}
+	provider := &person{id: uuid.MustParse(created.str("id")), token: session.str("access_token"), client: providerClient, api: env.api.baseURL}
+	named := provider.do(t, http.MethodPatch, "/api/v1/users/me", map[string]string{"name": name}, nil)
+	require.Equal(t, http.StatusOK, named.status, named.text)
+	return provider
 }
 
 func (p *person) upload(t *testing.T, documentType, contentType string, content []byte) string {
@@ -113,11 +117,15 @@ func (p *person) sendDocument(t *testing.T, documentType string) {
 	require.Equal(t, http.StatusCreated, res.status, res.text)
 }
 
+func profileOf(serviceID, name string) map[string]any {
+	return map[string]any{"service_id": serviceID, "name": name, "birth_date": "1990-05-20", "id_number": "000000000LA000", "province": "Luanda", "municipality": "Talatona"}
+}
+
 func fillProfile(t *testing.T, p *person, serviceID string, seats int) {
 	t.Helper()
-	require.Equal(t, http.StatusOK, p.do(t, http.MethodPut, "/api/v1/providers/me/service", map[string]string{"service_id": serviceID}, nil).status)
-	personal := p.do(t, http.MethodPut, "/api/v1/providers/me/personal", map[string]any{"birth_date": "1990-05-20", "id_number": "000000000LA000", "address": map[string]any{"lat": -8.83, "lng": 13.24, "line": "Rua Rainha Ginga, 29", "city": "Luanda", "country_code": "AO"}}, nil)
-	require.Equal(t, http.StatusOK, personal.status, personal.text)
+	name := p.get(t, "/api/v1/providers/me/profile").str("name")
+	profile := p.do(t, http.MethodPut, "/api/v1/providers/me/profile", profileOf(serviceID, name), nil)
+	require.Equal(t, http.StatusOK, profile.status, profile.text)
 	vehicle := p.do(t, http.MethodPut, "/api/v1/providers/me/vehicle", map[string]any{"brand": "Toyota", "model": "Corolla", "year": 2020, "color": "Branco", "plate": "LD-45-21-AF", "seats": seats}, nil)
 	require.Equal(t, http.StatusOK, vehicle.status, vehicle.text)
 }
@@ -130,10 +138,10 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 	var pedro *person
 	t.Run("he creates the account himself and only the provider app can do it", func(t *testing.T) {
 		customerApp := &person{client: customerClient, api: env.api.baseURL}
-		assert.Equal(t, "REGISTRATION_NOT_ALLOWED", customerApp.post(t, "/api/v1/providers/register", map[string]string{"name": "X", "phone": "+244923111222", "password": "uma-frase-longa-segura"}).code())
+		assert.Equal(t, "REGISTRATION_NOT_ALLOWED", customerApp.post(t, "/api/v1/providers/register", map[string]string{"phone": "+244923111222"}).code())
 		providerApp := &person{client: providerClient, api: env.api.baseURL}
 		assert.Equal(t, "REGISTRATION_NOT_ALLOWED", providerApp.post(t, "/api/v1/auth/register", map[string]string{"phone": "+244923111222"}).code(), "the plain sign-up does not create providers")
-		assert.Equal(t, http.StatusUnprocessableEntity, providerApp.post(t, "/api/v1/providers/register", map[string]string{"name": "X", "phone": "+244923111222", "password": "curta"}).status)
+		assert.Equal(t, http.StatusUnprocessableEntity, providerApp.post(t, "/api/v1/providers/register", map[string]string{}).status)
 
 		pedro = signUpProvider(t, "Pedro Cunga")
 		assert.Equal(t, "draft", pedro.get(t, "/api/v1/providers/me/profile").str("status"))
@@ -158,7 +166,7 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 		assert.Equal(t, []string{"Económico", "Conforto", "XL"}, names)
 		xl := taxi["services"].([]any)[2].(map[string]any)
 		assert.EqualValues(t, 7, xl["min_vehicle_seats"])
-		assert.Equal(t, "SERVICE_NOT_OPEN", pedro.do(t, http.MethodPut, "/api/v1/providers/me/service", map[string]string{"service_id": serviceBySlug(t, "towing")}, nil).code())
+		assert.Equal(t, "SERVICE_NOT_OPEN", pedro.do(t, http.MethodPut, "/api/v1/providers/me/profile", profileOf(serviceBySlug(t, "towing"), "Pedro Cunga"), nil).code())
 	})
 
 	t.Run("an incomplete submission lists what is missing", func(t *testing.T) {
@@ -203,7 +211,7 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 		require.Equal(t, http.StatusOK, submitted.status, submitted.text)
 		assert.Equal(t, "pending", submitted.str("status"))
 
-		assert.Equal(t, "PROFILE_LOCKED", pedro.do(t, http.MethodPut, "/api/v1/providers/me/service", map[string]string{"service_id": economyID}, nil).code())
+		assert.Equal(t, "PROFILE_LOCKED", pedro.do(t, http.MethodPut, "/api/v1/providers/me/profile", profileOf(economyID, "Pedro Cunga"), nil).code())
 		assert.Equal(t, "PROFILE_LOCKED", pedro.post(t, "/api/v1/providers/me/documents/upload-url", map[string]any{"document_type": "id_card", "content_type": "image/jpeg", "size": 100}).code())
 		assert.Equal(t, http.StatusForbidden, pedro.post(t, "/api/v1/providers/me/online", nil).status)
 	})
@@ -357,17 +365,87 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 	})
 }
 
+func TestProviderChoosesTheServiceAndFillsThePersonalDataInOneStep(t *testing.T) {
+	economyID, comfortID := serviceBySlug(t, "taxi"), comfortWithTariff(t)
+	domingos := signUpProvider(t, "Sem Nome")
+	put := func(body map[string]any) result {
+		return domingos.do(t, http.MethodPut, "/api/v1/providers/me/profile", body, nil)
+	}
+	with := func(changes map[string]any) map[string]any {
+		body := profileOf(economyID, "Domingos Mateus Kiala")
+		for key, value := range changes {
+			body[key] = value
+		}
+		return body
+	}
+
+	for _, refused := range []map[string]any{
+		{"id_number": "005487123LA04"},
+		{"birth_date": "14/03/1988"},
+		{"birth_date": time.Now().AddDate(-17, 0, 0).Format(time.DateOnly)},
+		{"province": " "},
+		{"municipality": ""},
+		{"email": "nao-e-email"},
+		{"name": ""},
+	} {
+		assert.Equal(t, http.StatusUnprocessableEntity, put(with(refused)).status, refused)
+	}
+	assert.Equal(t, "SERVICE_NOT_OPEN", put(with(map[string]any{"service_id": serviceBySlug(t, "towing")})).code())
+	assert.Equal(t, "SERVICE_NOT_OPEN", put(with(map[string]any{"service_id": uuid.NewString()})).code())
+	taken := signUpProvider(t, "Outro")
+	takenEmail := fmt.Sprintf("ocupado-%s@exemplo.ao", uuid.NewString()[:8])
+	require.Equal(t, http.StatusOK, taken.do(t, http.MethodPut, "/api/v1/providers/me/profile", with(map[string]any{"email": takenEmail}), nil).status)
+	assert.Equal(t, "EMAIL_ALREADY_EXISTS", put(with(map[string]any{"email": takenEmail})).code())
+	unchanged := domingos.get(t, "/api/v1/providers/me/profile")
+	assert.Equal(t, "Sem Nome", unchanged.str("name"), "a refused step saves nothing")
+	assert.Empty(t, unchanged.str("province"))
+
+	email := fmt.Sprintf("domingos-%s@exemplo.ao", uuid.NewString()[:8])
+	saved := put(with(map[string]any{"id_number": " 005487123la041 ", "email": strings.ToUpper(email)}))
+	require.Equal(t, http.StatusOK, saved.status, saved.text)
+	assert.Equal(t, economyID, saved.str("requested_service_id"))
+	assert.Equal(t, "Domingos Mateus Kiala", saved.str("name"))
+	assert.Equal(t, email, saved.str("email"))
+	assert.Equal(t, "1990-05-20", saved.str("birth_date"))
+	assert.Equal(t, "005487123LA041", saved.str("id_number"))
+	assert.Equal(t, "Luanda", saved.str("province"))
+	assert.Equal(t, "Talatona", saved.str("municipality"))
+	missing := saved.body["missing"].(map[string]any)
+	for key := range missing {
+		assert.False(t, strings.HasPrefix(key, "personal.") || key == "service", key)
+	}
+
+	again := put(profileOf(comfortID, "Domingos Mateus Kiala"))
+	require.Equal(t, http.StatusOK, again.status, again.text)
+	assert.Equal(t, comfortID, again.str("requested_service_id"), "a single service: choosing again replaces it")
+	assert.Empty(t, again.str("email"), "an empty e-mail removes it")
+
+	var province, municipality string
+	require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT province, municipality FROM providers WHERE user_id = $1`, domingos.id).Scan(&province, &municipality))
+	assert.Equal(t, []string{"Luanda", "Talatona"}, []string{province, municipality})
+	assert.Equal(t, http.StatusNotFound, domingos.do(t, http.MethodPut, "/api/v1/providers/me/service", map[string]string{"service_id": economyID}, nil).status, "the old split endpoints are gone")
+	assert.Equal(t, http.StatusNotFound, domingos.do(t, http.MethodPut, "/api/v1/providers/me/personal", map[string]any{}, nil).status)
+}
+
 func TestProviderSignUpEdges(t *testing.T) {
 	first := signUpProvider(t, "Ana")
 	phone := first.get(t, "/api/v1/providers/me/profile").str("phone")
 	anonymous := &person{client: providerClient, api: env.api.baseURL}
-	assert.Equal(t, "PHONE_ALREADY_EXISTS", anonymous.post(t, "/api/v1/providers/register", map[string]string{"name": "Outra", "phone": phone, "password": "uma-frase-longa-segura"}).code())
+	assert.Equal(t, "PHONE_ALREADY_EXISTS", anonymous.post(t, "/api/v1/providers/register", map[string]string{"phone": phone}).code())
+	assert.Equal(t, "PHONE_ALREADY_EXISTS", anonymous.post(t, "/api/v1/providers/register", map[string]string{"phone": newCustomer(t).get(t, "/api/v1/users/me").str("phone")}).code(), "a customer number does not become a provider")
 
 	unverified := fmt.Sprintf("+24492%07d", uuid.New().ID()%10_000_000)
-	require.Equal(t, http.StatusCreated, anonymous.post(t, "/api/v1/providers/register", map[string]string{"name": "Primeiro", "phone": unverified, "password": "uma-frase-longa-segura"}).status)
-	resumed := anonymous.post(t, "/api/v1/providers/register", map[string]string{"name": "Segundo", "phone": unverified, "password": "outra-frase-longa-segura"})
+	started := anonymous.post(t, "/api/v1/providers/register", map[string]string{"phone": unverified})
+	require.Equal(t, http.StatusCreated, started.status, started.text)
+	firstCode := env.sms.lastCode(t, unverified)
+	resumed := anonymous.post(t, "/api/v1/providers/register", map[string]string{"phone": unverified})
 	require.Equal(t, http.StatusCreated, resumed.status, resumed.text)
-	assert.Equal(t, "Segundo", resumed.str("name"), "an unverified sign-up can be restarted")
+	assert.Equal(t, started.str("id"), resumed.str("id"), "an unverified sign-up is resumed on the same account")
+	assert.NotEqual(t, firstCode, env.sms.lastCode(t, unverified), "a new code is sent")
+	session := anonymous.post(t, "/api/v1/auth/phone/verify", map[string]string{"phone": unverified, "code": env.sms.lastCode(t, unverified)})
+	require.Equal(t, http.StatusOK, session.status, session.text)
+	resumedProvider := &person{token: session.str("access_token"), client: providerClient, api: env.api.baseURL}
+	assert.Equal(t, "draft", resumedProvider.get(t, "/api/v1/providers/me/profile").str("status"))
 
 	customer := newCustomer(t)
 	assert.Equal(t, http.StatusForbidden, customer.get(t, "/api/v1/providers/me/profile").status)

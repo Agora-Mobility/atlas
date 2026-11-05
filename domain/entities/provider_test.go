@@ -45,15 +45,30 @@ func TestProviderStatusFollowsTheReviewFlow(t *testing.T) {
 func TestPersonalDataAndVehicleAreValidated(t *testing.T) {
 	profile := &entities.Provider{Status: entities.ProviderDraft}
 
-	home := entities.Address{Point: entities.GeoPoint{Lat: -8.84, Lng: 13.23}, Line: "Rua Rainha Ginga, 29"}
-	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-17, 0, 0), "007", home, providerNow), "under 18")
-	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), " ", home, providerNow))
-	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), "007", entities.Address{Line: "Sem pin"}, providerNow), "the address needs latitude and longitude")
-	assert.Error(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), "007", entities.Address{Point: home.Point}, providerNow), "the address needs a line")
-	require.NoError(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), "007", home, providerNow))
-	first := profile.HomeAddress.ID
-	require.NoError(t, profile.SetPersonalData(providerNow.AddDate(-30, 0, 0), "007", entities.Address{Point: home.Point, Line: "Outra rua"}, providerNow))
-	assert.Equal(t, first, profile.HomeAddress.ID, "editing keeps the same address row")
+	service := uuid.New()
+	valid := entities.PersonalData{BirthDate: providerNow.AddDate(-30, 0, 0), IDNumber: " 005487123 la041 ", Province: " Luanda ", Municipality: "Talatona"}
+	with := func(change func(*entities.PersonalData)) entities.PersonalData {
+		data := valid
+		change(&data)
+		return data
+	}
+	assert.Error(t, profile.SetProfile(service, with(func(d *entities.PersonalData) { d.BirthDate = providerNow.AddDate(-17, 0, 0) }), providerNow), "under 18")
+	for _, idNumber := range []string{" ", "007", "005487123LA04", "0054871234LA041", "00548712LAA041"} {
+		assert.Error(t, profile.SetProfile(service, with(func(d *entities.PersonalData) { d.IDNumber = idNumber }), providerNow), idNumber)
+	}
+	assert.Error(t, profile.SetProfile(service, with(func(d *entities.PersonalData) { d.Province = " " }), providerNow))
+	assert.Error(t, profile.SetProfile(service, with(func(d *entities.PersonalData) { d.Municipality = "" }), providerNow))
+	assert.Nil(t, profile.RequestedServiceID, "a refused profile changes nothing")
+
+	require.NoError(t, profile.SetProfile(service, valid, providerNow))
+	assert.Equal(t, service, *profile.RequestedServiceID)
+	assert.Equal(t, "005487123LA041", profile.IDNumber)
+	assert.Equal(t, "Luanda", profile.Province)
+	assert.Equal(t, "Talatona", profile.Municipality)
+
+	other := uuid.New()
+	require.NoError(t, profile.SetProfile(other, valid, providerNow))
+	assert.Equal(t, other, *profile.RequestedServiceID, "a single service: choosing again replaces it")
 
 	require.NoError(t, profile.SetVehicle(validVehicle(), providerNow))
 	assert.Equal(t, "LD-45-21-AF", profile.Vehicle.Plate)
@@ -83,6 +98,8 @@ func TestMissingListsEverythingRequiredByTheService(t *testing.T) {
 
 	assert.Contains(t, missing, "personal.name")
 	assert.Contains(t, missing, "personal.birth_date")
+	assert.Contains(t, missing, "personal.province")
+	assert.Contains(t, missing, "personal.municipality")
 	assert.Contains(t, missing, "vehicle.seats", "the XL rule is data")
 	assert.Contains(t, missing, "documents.inspection")
 	assert.Contains(t, missing["documents.insurance"], "Caducado")
