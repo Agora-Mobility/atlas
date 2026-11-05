@@ -116,6 +116,18 @@ func MemberDeactivated(name, organization string) Message {
 	}
 }
 
+func PasswordRecoveryCode(name, code string, validMinutes int) Message {
+	return Message{
+		Subject:  "Código para recuperar a palavra-passe",
+		Greeting: Greeting(name),
+		Lines:    []string{"Use este código para criar uma nova palavra-passe na AGORA:", code},
+		Notes: []string{
+			fmt.Sprintf("O código é válido durante %d min e só pode ser usado uma vez. Não o partilhe.", validMinutes),
+			"Se não foi você a pedir este código, ignore esta mensagem. A sua palavra-passe não muda.",
+		},
+	}
+}
+
 func AccountBlocked(name string) Message {
 	return Message{
 		Subject:  "A sua conta AGORA foi bloqueada",
