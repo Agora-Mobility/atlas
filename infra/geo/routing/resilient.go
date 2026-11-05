@@ -44,10 +44,10 @@ func (r *Resilient) Route(ctx context.Context, from, to entities.GeoPoint, via .
 		route, err := r.primary.Route(callCtx, from, to, via...)
 		r.record(ctx, err)
 		if err == nil {
-			businessmetrics.MapboxCalls.WithLabelValues("directions", "ok").Inc()
+			businessmetrics.RoutingCalls.WithLabelValues("directions", "ok").Inc()
 			return route, nil
 		}
-		businessmetrics.MapboxCalls.WithLabelValues("directions", "error").Inc()
+		businessmetrics.RoutingCalls.WithLabelValues("directions", "error").Inc()
 	}
 	return r.estimate(from, to, via), nil
 }
@@ -59,10 +59,10 @@ func (r *Resilient) ETAs(ctx context.Context, origins []entities.GeoPoint, to en
 		etas, err := r.primary.ETAs(callCtx, origins, to)
 		r.record(ctx, err)
 		if err == nil {
-			businessmetrics.MapboxCalls.WithLabelValues("matrix", "ok").Inc()
+			businessmetrics.RoutingCalls.WithLabelValues("matrix", "ok").Inc()
 			return etas, nil
 		}
-		businessmetrics.MapboxCalls.WithLabelValues("matrix", "error").Inc()
+		businessmetrics.RoutingCalls.WithLabelValues("matrix", "error").Inc()
 	}
 	etas := make([]time.Duration, 0, len(origins))
 	for _, origin := range origins {

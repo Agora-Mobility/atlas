@@ -62,9 +62,9 @@ var (
 		Help:    "H3 cells read by a candidate search.",
 		Buckets: []float64{1, 7, 19, 37, 61, 91, 127, 217, 271, 400},
 	}, []string{"source"})
-	MapboxCalls = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace, Name: "mapbox_calls_total",
-		Help: "Mapbox calls by API and result.",
+	RoutingCalls = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace, Name: "routing_calls_total",
+		Help: "Routing provider calls by API and result.",
 	}, []string{"api", "result"})
 	FareQuotes = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace, Name: "fare_quotes_total",
