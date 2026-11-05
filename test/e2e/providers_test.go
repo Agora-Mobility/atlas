@@ -28,7 +28,7 @@ const backofficeClient = "agora-backoffice"
 
 var allDocuments = []string{
 	"profile_photo", "id_card", "driving_license", "criminal_record", "vehicle_registration", "vehicle_ownership",
-	"vehicle_insurance", "vehicle_inspection", "vehicle_photo_front", "vehicle_photo_rear", "vehicle_photo_side", "vehicle_photo_interior",
+	"vehicle_insurance", "vehicle_inspection", "vehicle_photo",
 }
 
 var jpegBytes = append([]byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F'}, bytes.Repeat([]byte{1}, 2048)...)

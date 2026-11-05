@@ -67,6 +67,14 @@ sql:
               pointer: true
           - db_type: client_type
             go_type: github.com/Agora-Mobility/atlas/shared/enums.ClientType
+          - db_type: provider_document_type
+            go_type: github.com/Agora-Mobility/atlas/shared/enums.DocumentType
+          - db_type: provider_document_slot
+            go_type: github.com/Agora-Mobility/atlas/shared/enums.DocumentSlot
+          - db_type: provider_document_subject
+            go_type: github.com/Agora-Mobility/atlas/shared/enums.DocumentSubject
+          - db_type: provider_verification_kind
+            go_type: github.com/Agora-Mobility/atlas/shared/enums.VerificationKind
           - db_type: jsonb
             go_type: encoding/json.RawMessage
           - db_type: jsonb

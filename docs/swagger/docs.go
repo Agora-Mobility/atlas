@@ -16415,7 +16415,7 @@ const docTemplate = `{
                 "slots": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dtos.SlotView"
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.SlotView"
                     }
                 },
                 "status": {
@@ -16477,6 +16477,44 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.DocumentFileView": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rejection_codes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "size_bytes": {
+                    "type": "integer"
+                },
+                "slot": {
+                    "type": "string",
+                    "example": "front"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "accepted"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "url_expires_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
         "dtos.DocumentURLOutput": {
             "type": "object",
             "properties": {
@@ -16494,6 +16532,15 @@ const docTemplate = `{
                 "content_type": {
                     "type": "string"
                 },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DocumentFileView"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -16506,6 +16553,12 @@ const docTemplate = `{
                         "$ref": "#/definitions/dtos.RejectionReasonView"
                     }
                 },
+                "review_flags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "reviewed_at": {
                     "type": "string"
                 },
@@ -16514,6 +16567,10 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                },
+                "subject": {
+                    "type": "string",
+                    "example": "provider"
                 },
                 "type": {
                     "type": "string"
@@ -19131,6 +19188,11 @@ const docTemplate = `{
                 "object_key": {
                     "type": "string",
                     "maxLength": 255
+                },
+                "slot": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "front"
                 }
             }
         },
@@ -19804,6 +19866,12 @@ const docTemplate = `{
                 "scope": {
                     "type": "string"
                 },
+                "slots": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_providers_dtos.SlotView"
+                    }
+                },
                 "type": {
                     "type": "string"
                 }
@@ -19844,6 +19912,15 @@ const docTemplate = `{
                         "approved",
                         "rejected"
                     ]
+                },
+                "subject": {
+                    "type": "string",
+                    "enum": [
+                        "provider",
+                        "legal_representative",
+                        "vehicle_owner"
+                    ],
+                    "example": "provider"
                 }
             }
         },
@@ -20341,17 +20418,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "dtos.SlotView": {
-            "type": "object",
-            "properties": {
-                "ends_at": {
-                    "type": "string"
-                },
-                "starts_at": {
                     "type": "string"
                 }
             }
@@ -20998,6 +21064,11 @@ const docTemplate = `{
                     "type": "integer",
                     "minimum": 1,
                     "example": 204800
+                },
+                "slot": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "front"
                 }
             }
         },
@@ -22031,6 +22102,17 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.SlotView": {
+            "type": "object",
+            "properties": {
+                "ends_at": {
+                    "type": "string"
+                },
+                "starts_at": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.WorkshopServiceView": {
             "type": "object",
             "properties": {
@@ -22130,6 +22212,24 @@ const docTemplate = `{
                 },
                 "price_cents": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_providers_dtos.SlotView": {
+            "type": "object",
+            "properties": {
+                "allowed_content_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "slot": {
+                    "type": "string",
+                    "example": "front"
                 }
             }
         },

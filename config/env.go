@@ -33,6 +33,7 @@ type Config struct {
 	GoogleMaps GoogleMapsConfig `mapstructure:",squash"`
 	FCM        FCMConfig        `mapstructure:",squash"`
 	R2         R2Config         `mapstructure:",squash"`
+	Verify     VerifyConfig     `mapstructure:",squash"`
 	AppyPay    AppyPayConfig    `mapstructure:",squash"`
 	Calls      CallsConfig      `mapstructure:",squash"`
 }
@@ -95,6 +96,10 @@ func (c R2Config) ResolvedEndpoint() string {
 		return "https://" + account + ".r2.cloudflarestorage.com"
 	}
 	return ""
+}
+
+type VerifyConfig struct {
+	MaxFileBytes int64 `mapstructure:"VERIFICATION_MAX_FILE_BYTES"`
 }
 
 type DispatchConfig struct {
@@ -346,6 +351,7 @@ var defaults = map[string]any{
 	"R2_BUCKET_NAME":                   "",
 	"R2_ENDPOINT":                      "",
 	"R2_PRESIGN_TTL":                   "15m",
+	"VERIFICATION_MAX_FILE_BYTES":      10485760,
 }
 
 const cloudflareIdleLimit = 100 * time.Second
@@ -504,6 +510,9 @@ func (c *Config) validateDispatch() []error {
 	}
 	if c.R2.PresignTTL <= 0 {
 		errs = append(errs, errors.New("R2_PRESIGN_TTL must be positive"))
+	}
+	if c.Verify.MaxFileBytes <= 0 {
+		errs = append(errs, errors.New("VERIFICATION_MAX_FILE_BYTES must be positive"))
 	}
 	if c.FCM.Timeout <= 0 || strings.TrimSpace(c.FCM.BaseURL) == "" {
 		errs = append(errs, errors.New("FCM_TIMEOUT must be positive and FCM_BASE_URL cannot be empty"))

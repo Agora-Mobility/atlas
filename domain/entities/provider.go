@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/Agora-Mobility/atlas/shared/enums"
 )
 
 type ProviderStatus string
@@ -17,14 +19,6 @@ const (
 	ProviderApproved  ProviderStatus = "approved"
 	ProviderRejected  ProviderStatus = "rejected"
 	ProviderSuspended ProviderStatus = "suspended"
-)
-
-type DocumentStatus string
-
-const (
-	DocumentUploaded DocumentStatus = "uploaded"
-	DocumentApproved DocumentStatus = "approved"
-	DocumentRejected DocumentStatus = "rejected"
 )
 
 const (
@@ -234,57 +228,6 @@ func normalizedReason(reason string) (string, error) {
 	return reason, nil
 }
 
-type DocumentType struct {
-	Code                string
-	Name                string
-	Scope               string
-	AllowedContentTypes []string
-	MaxSizeBytes        int64
-}
-
-func (t DocumentType) Allows(contentType string) bool {
-	for _, allowed := range t.AllowedContentTypes {
-		if allowed == contentType {
-			return true
-		}
-	}
-	return false
-}
-
-type ProviderDocument struct {
-	ID              uuid.UUID
-	ProviderID      uuid.UUID
-	Type            string
-	TypeName        string
-	ObjectKey       string
-	ContentType     string
-	SizeBytes       int64
-	Status          DocumentStatus
-	RejectionReason string
-	ReviewedBy      *uuid.UUID
-	ReviewedAt      *time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-}
-
-func (d *ProviderDocument) Review(approved bool, reason string, reviewer *uuid.UUID, now time.Time) error {
-	if approved {
-		d.Status = DocumentApproved
-		d.RejectionReason = ""
-	} else {
-		normalized, err := normalizedReason(reason)
-		if err != nil {
-			return err
-		}
-		d.Status = DocumentRejected
-		d.RejectionReason = normalized
-	}
-	d.ReviewedBy = reviewer
-	d.ReviewedAt = &now
-	d.UpdatedAt = now
-	return nil
-}
-
 type ProviderRequirements struct {
 	ServiceID       uuid.UUID
 	ServiceName     string
@@ -292,7 +235,7 @@ type ProviderRequirements struct {
 	MinVehicleSeats int
 	VehicleKinds    []string
 	SelfSignup      bool
-	Documents       []DocumentType
+	Documents       []DocumentSpec
 }
 
 func (r *ProviderRequirements) MissingFor(profile *Provider, name string, documents []*ProviderDocument) map[string]string {
@@ -315,17 +258,16 @@ func (r *ProviderRequirements) MissingFor(profile *Provider, name string, docume
 	if r.RequiresVehicle {
 		r.addVehicleGaps(profile.Vehicle, missing)
 	}
-	byType := make(map[string]*ProviderDocument, len(documents))
-	for _, document := range documents {
-		byType[document.Type] = document
-	}
-	for _, required := range r.Documents {
-		document, sent := byType[required.Code]
+	byType := providerDocumentsByType(documents)
+	for i := range r.Documents {
+		required := &r.Documents[i]
+		document, sent := byType[required.Type]
+		key := "documents." + required.Type.String()
 		switch {
-		case !sent:
-			missing["documents."+required.Code] = "Falta: " + required.Name + "."
+		case !sent || (required.HasFiles() && !document.AnyFile()):
+			missing[key] = "Falta: " + required.Name + "."
 		case document.Status == DocumentRejected:
-			missing["documents."+required.Code] = "Rejeitado, envia de novo: " + document.RejectionReason
+			missing[key] = "Rejeitado, envia de novo: " + document.RejectionReason
 		}
 	}
 	return missing
@@ -365,15 +307,23 @@ func (r *ProviderRequirements) VehicleGaps(vehicle Vehicle) map[string]string {
 }
 
 func (r *ProviderRequirements) NotApproved(documents []*ProviderDocument) map[string]string {
-	approved := make(map[string]bool, len(documents))
-	for _, document := range documents {
-		approved[document.Type] = document.Status == DocumentApproved
-	}
+	byType := providerDocumentsByType(documents)
 	pending := map[string]string{}
-	for _, required := range r.Documents {
-		if !approved[required.Code] {
-			pending["documents."+required.Code] = "Ainda não aprovado: " + required.Name + "."
+	for i := range r.Documents {
+		required := &r.Documents[i]
+		if document, sent := byType[required.Type]; !sent || document.Status != DocumentApproved {
+			pending["documents."+required.Type.String()] = "Ainda não aprovado: " + required.Name + "."
 		}
 	}
 	return pending
+}
+
+func providerDocumentsByType(documents []*ProviderDocument) map[enums.DocumentType]*ProviderDocument {
+	byType := make(map[enums.DocumentType]*ProviderDocument, len(documents))
+	for _, document := range documents {
+		if document.Subject == enums.DocumentSubjectProvider {
+			byType[document.Type] = document
+		}
+	}
+	return byType
 }

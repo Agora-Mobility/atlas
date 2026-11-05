@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
+	"github.com/Agora-Mobility/atlas/shared/enums"
 )
 
 var providerNow = time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
@@ -82,17 +83,32 @@ func TestPersonalDataAndVehicleAreValidated(t *testing.T) {
 	assert.Error(t, profile.SetVehicle(empty, providerNow))
 }
 
+func specs(types ...enums.DocumentType) []entities.DocumentSpec {
+	out := make([]entities.DocumentSpec, 0, len(types))
+	for _, documentType := range types {
+		spec, _ := entities.SpecOf(documentType)
+		out = append(out, spec)
+	}
+	return out
+}
+
+func sentDocument(documentType enums.DocumentType, status entities.DocumentStatus) *entities.ProviderDocument {
+	return &entities.ProviderDocument{
+		Type: documentType, Subject: enums.DocumentSubjectProvider, Status: status,
+		Files: []entities.DocumentFile{{Slot: enums.DocumentSlotFront, Status: entities.FileAccepted}},
+	}
+}
+
 func TestMissingListsEverythingRequiredByTheService(t *testing.T) {
 	requirements := &entities.ProviderRequirements{
 		RequiresVehicle: true, MinVehicleSeats: 7,
-		Documents: []entities.DocumentType{{Code: "id_card", Name: "BI"}, {Code: "insurance", Name: "Seguro"}, {Code: "inspection", Name: "Inspeção"}},
+		Documents: specs(enums.DocumentTypeIDCard, enums.DocumentTypeVehicleInsurance, enums.DocumentTypeVehicleInspection),
 	}
 	profile := &entities.Provider{Status: entities.ProviderDraft, Vehicle: validVehicle()}
 	profile.Vehicle.Plate = "LD"
-	documents := []*entities.ProviderDocument{
-		{Type: "id_card", Status: entities.DocumentUploaded},
-		{Type: "insurance", Status: entities.DocumentRejected, RejectionReason: "Caducado"},
-	}
+	rejected := sentDocument(enums.DocumentTypeVehicleInsurance, entities.DocumentRejected)
+	rejected.RejectionReason = "Caducado"
+	documents := []*entities.ProviderDocument{sentDocument(enums.DocumentTypeIDCard, entities.DocumentUploaded), rejected}
 
 	missing := requirements.MissingFor(profile, "", documents)
 
@@ -101,17 +117,36 @@ func TestMissingListsEverythingRequiredByTheService(t *testing.T) {
 	assert.Contains(t, missing, "personal.province")
 	assert.Contains(t, missing, "personal.municipality")
 	assert.Contains(t, missing, "vehicle.seats", "the XL rule is data")
-	assert.Contains(t, missing, "documents.inspection")
-	assert.Contains(t, missing["documents.insurance"], "Caducado")
+	assert.Contains(t, missing, "documents.vehicle_inspection")
+	assert.Contains(t, missing["documents.vehicle_insurance"], "Caducado")
 	assert.NotContains(t, missing, "documents.id_card")
 }
 
+func TestADocumentWithoutAnyFileIsStillMissing(t *testing.T) {
+	requirements := &entities.ProviderRequirements{Documents: specs(enums.DocumentTypeIDCard)}
+	empty := &entities.ProviderDocument{Type: enums.DocumentTypeIDCard, Subject: enums.DocumentSubjectProvider, Status: entities.DocumentUploaded}
+
+	missing := requirements.MissingFor(&entities.Provider{}, "Pedro", []*entities.ProviderDocument{empty})
+
+	assert.Contains(t, missing, "documents.id_card")
+}
+
 func TestApprovalNeedsEveryRequiredDocumentApproved(t *testing.T) {
-	requirements := &entities.ProviderRequirements{Documents: []entities.DocumentType{{Code: "id_card", Name: "BI"}, {Code: "insurance", Name: "Seguro"}}}
-	pending := requirements.NotApproved([]*entities.ProviderDocument{{Type: "id_card", Status: entities.DocumentApproved}, {Type: "insurance", Status: entities.DocumentUploaded}})
+	requirements := &entities.ProviderRequirements{Documents: specs(enums.DocumentTypeIDCard, enums.DocumentTypeVehicleInsurance)}
+	pending := requirements.NotApproved([]*entities.ProviderDocument{
+		sentDocument(enums.DocumentTypeIDCard, entities.DocumentApproved), sentDocument(enums.DocumentTypeVehicleInsurance, entities.DocumentUploaded),
+	})
 
 	assert.Len(t, pending, 1)
-	assert.Contains(t, pending, "documents.insurance")
+	assert.Contains(t, pending, "documents.vehicle_insurance")
+}
+
+func TestApprovalLooksOnlyAtTheDocumentsOfTheProvider(t *testing.T) {
+	requirements := &entities.ProviderRequirements{Documents: specs(enums.DocumentTypeIDCard)}
+	owner := sentDocument(enums.DocumentTypeIDCard, entities.DocumentApproved)
+	owner.Subject = enums.DocumentSubjectVehicleOwner
+
+	assert.Contains(t, requirements.NotApproved([]*entities.ProviderDocument{owner}), "documents.id_card")
 }
 
 func TestDocumentReviewNeedsAReasonToReject(t *testing.T) {

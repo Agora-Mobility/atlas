@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,6 +19,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/customerrors"
 	"github.com/Agora-Mobility/atlas/shared/enums"
+	"github.com/Agora-Mobility/atlas/shared/filetype"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/shared/phone"
 	"github.com/Agora-Mobility/atlas/usecases/providers/dtos"
@@ -52,18 +53,10 @@ func (e *IncompleteError) Error() string {
 }
 
 const (
-	sniffBytes          = 512
 	auditEntityProvider = "provider"
 	auditEntityDocument = "provider_document"
 	auditEntityReason   = "rejection_reason"
 )
-
-var extensions = map[string]string{
-	"image/jpeg":      ".jpg",
-	"image/png":       ".png",
-	"image/webp":      ".webp",
-	"application/pdf": ".pdf",
-}
 
 type CodeSender interface {
 	SendSilently(ctx context.Context, purpose enums.OTPPurpose, phone string) error
@@ -80,6 +73,11 @@ type Deps struct {
 	Tx        repository.ITransactionManager
 	Codes     CodeSender
 	Storage   services.IObjectStorage
+	Settings  Settings
+}
+
+type Settings struct {
+	MaxFileBytes int64
 }
 
 type Usecase struct {
@@ -280,32 +278,56 @@ func (u *Usecase) editableProvider(ctx context.Context, providerID uuid.UUID) (*
 	return provider, nil
 }
 
-func objectPrefix(providerID uuid.UUID, documentType string) string {
-	return "providers/" + providerID.String() + "/" + documentType + "/"
+func objectPrefix(providerID uuid.UUID, documentType enums.DocumentType) string {
+	return "providers/" + providerID.String() + "/" + documentType.String() + "/"
+}
+
+func documentSlot(spec entities.DocumentSpec, requested string) (enums.DocumentSlot, error) {
+	if requested == "" {
+		if len(spec.RequiredSlots) == 0 {
+			return "", ErrDocumentTypeUnknown
+		}
+		return spec.RequiredSlots[0], nil
+	}
+	slot := enums.DocumentSlot(requested)
+	if !spec.AcceptsSlot(slot) {
+		return "", customerrors.FieldError("slot", "Este documento não tem esta parte.")
+	}
+	return slot, nil
+}
+
+func specOf(code string) (entities.DocumentSpec, error) {
+	spec, known := entities.SpecOf(enums.DocumentType(code))
+	if !known || !spec.HasFiles() {
+		return spec, ErrDocumentTypeUnknown
+	}
+	return spec, nil
 }
 
 func (u *Usecase) UploadURL(ctx context.Context, providerID uuid.UUID, in dtos.UploadURLInput) (*dtos.UploadURLOutput, error) {
 	if _, err := u.editableProvider(ctx, providerID); err != nil {
 		return nil, err
 	}
-	documentType, err := u.Documents.DocumentType(ctx, in.DocumentType)
+	spec, err := specOf(in.DocumentType)
 	if err != nil {
 		return nil, err
 	}
-	if documentType == nil {
-		return nil, ErrDocumentTypeUnknown
+	slot, err := documentSlot(spec, in.Slot)
+	if err != nil {
+		return nil, err
 	}
-	if !documentType.Allows(in.ContentType) {
+	if !spec.Allows(slot, in.ContentType) {
 		return nil, ErrContentTypeRejected
 	}
-	if in.Size > documentType.MaxSizeBytes {
+	if in.Size > u.Settings.MaxFileBytes {
 		return nil, ErrFileTooLarge
 	}
 	id, err := uuid.NewV7()
 	if err != nil {
 		return nil, err
 	}
-	key := objectPrefix(providerID, documentType.Code) + id.String() + extensions[in.ContentType]
+	extension, _ := filetype.Extension(in.ContentType)
+	key := objectPrefix(providerID, spec.Type) + id.String() + extension
 	signed, err := u.Storage.PresignUpload(ctx, key, in.ContentType, in.Size)
 	if err != nil {
 		return nil, err
@@ -313,7 +335,7 @@ func (u *Usecase) UploadURL(ctx context.Context, providerID uuid.UUID, in dtos.U
 	return &dtos.UploadURLOutput{UploadURL: signed.URL, ObjectKey: key, ExpiresAt: signed.ExpiresAt, Headers: signed.Headers}, nil
 }
 
-func validObjectKey(key string, providerID uuid.UUID, documentType string) bool {
+func validObjectKey(key string, providerID uuid.UUID, documentType enums.DocumentType) bool {
 	file, found := strings.CutPrefix(key, objectPrefix(providerID, documentType))
 	if !found || strings.Contains(file, "/") {
 		return false
@@ -322,12 +344,7 @@ func validObjectKey(key string, providerID uuid.UUID, documentType string) bool 
 	if _, err := uuid.Parse(strings.TrimSuffix(file, extension)); err != nil {
 		return false
 	}
-	for _, allowed := range extensions {
-		if allowed == extension {
-			return true
-		}
-	}
-	return false
+	return filetype.IsKnownExtension(extension)
 }
 
 func (u *Usecase) RegisterDocument(ctx context.Context, providerID uuid.UUID, in dtos.RegisterDocumentInput) (*dtos.ProviderView, error) {
@@ -335,14 +352,15 @@ func (u *Usecase) RegisterDocument(ctx context.Context, providerID uuid.UUID, in
 	if err != nil {
 		return nil, err
 	}
-	documentType, err := u.Documents.DocumentType(ctx, in.DocumentType)
+	spec, err := specOf(in.DocumentType)
 	if err != nil {
 		return nil, err
 	}
-	if documentType == nil {
-		return nil, ErrDocumentTypeUnknown
+	slot, err := documentSlot(spec, in.Slot)
+	if err != nil {
+		return nil, err
 	}
-	if !validObjectKey(in.ObjectKey, providerID, documentType.Code) {
+	if !validObjectKey(in.ObjectKey, providerID, spec.Type) {
 		return nil, ErrObjectKeyInvalid
 	}
 	object, err := u.Storage.Stat(ctx, in.ObjectKey)
@@ -352,38 +370,54 @@ func (u *Usecase) RegisterDocument(ctx context.Context, providerID uuid.UUID, in
 	if object == nil {
 		return nil, ErrObjectNotFound
 	}
-	if object.SizeBytes > documentType.MaxSizeBytes {
+	if object.SizeBytes > u.Settings.MaxFileBytes {
 		u.discard(ctx, in.ObjectKey)
 		return nil, ErrFileTooLarge
 	}
-	head, err := u.Storage.FirstBytes(ctx, in.ObjectKey, sniffBytes)
+	head, err := u.Storage.FirstBytes(ctx, in.ObjectKey, filetype.SniffBytes)
 	if err != nil {
 		return nil, err
 	}
-	detected := strings.TrimSpace(strings.Split(http.DetectContentType(head), ";")[0])
-	if !documentType.Allows(detected) || extensions[detected] != path.Ext(in.ObjectKey) {
+	detected := filetype.Detect(head)
+	extension, _ := filetype.Extension(detected)
+	if !spec.Allows(slot, detected) || extension != path.Ext(in.ObjectKey) {
 		u.discard(ctx, in.ObjectKey)
 		return nil, ErrContentTypeRejected
 	}
-
-	previous, err := u.Documents.Document(ctx, providerID, documentType.Code)
-	if err != nil {
-		return nil, err
-	}
-	id, err := uuid.NewV7()
-	if err != nil {
-		return nil, err
-	}
 	now := u.now()
-	document := &entities.ProviderDocument{
-		ID: id, ProviderID: providerID, Type: documentType.Code, ObjectKey: in.ObjectKey, ContentType: detected, SizeBytes: object.SizeBytes,
-		Status: entities.DocumentUploaded, CreatedAt: now, UpdatedAt: now,
-	}
-	if err := u.Documents.SaveDocument(ctx, document); err != nil {
+	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		document, err := u.Documents.Document(ctx, providerID, spec.Type, enums.DocumentSubjectProvider)
+		if err != nil {
+			return err
+		}
+		if document == nil {
+			if document, err = entities.NewProviderDocument(providerID, spec.Type, enums.DocumentSubjectProvider, now); err != nil {
+				return err
+			}
+		}
+		document.Edited(now)
+		if err := u.Documents.SaveDocument(ctx, document); err != nil {
+			return err
+		}
+		version, err := u.Documents.NextFileVersion(ctx, document.ID, slot)
+		if err != nil {
+			return err
+		}
+		id, err := uuid.NewV7()
+		if err != nil {
+			return err
+		}
+		file := &entities.DocumentFile{
+			ID: id, DocumentID: document.ID, ProviderID: providerID, Slot: slot, Version: version, Status: entities.FileAccepted, ObjectKey: in.ObjectKey,
+			ContentType: detected, SizeBytes: object.SizeBytes, CreatedAt: now, UpdatedAt: now,
+		}
+		if err := u.Documents.SupersedeFiles(ctx, document.ID, slot, file.ID, now); err != nil {
+			return err
+		}
+		return u.Documents.SaveFile(ctx, file)
+	})
+	if err != nil {
 		return nil, err
-	}
-	if previous != nil && previous.ObjectKey != in.ObjectKey {
-		u.discard(ctx, previous.ObjectKey)
 	}
 	return u.view(ctx, provider, false)
 }
@@ -395,18 +429,27 @@ func (u *Usecase) discard(ctx context.Context, key string) {
 }
 
 func (u *Usecase) MyDocumentURL(ctx context.Context, providerID uuid.UUID, documentType string) (*dtos.DocumentURLOutput, error) {
-	document, err := u.Documents.Document(ctx, providerID, documentType)
+	spec, err := specOf(documentType)
+	if err != nil {
+		return nil, ErrDocumentNotFound
+	}
+	document, err := u.Documents.Document(ctx, providerID, spec.Type, enums.DocumentSubjectProvider)
 	if err != nil {
 		return nil, err
 	}
 	if document == nil {
 		return nil, ErrDocumentNotFound
 	}
-	signed, err := u.Storage.PresignDownload(ctx, document.ObjectKey)
-	if err != nil {
-		return nil, err
+	for _, slot := range append(slices.Clone(spec.RequiredSlots), spec.OptionalSlots...) {
+		if file := document.Current(slot); file != nil {
+			signed, err := u.Storage.PresignDownload(ctx, file.ObjectKey)
+			if err != nil {
+				return nil, err
+			}
+			return &dtos.DocumentURLOutput{URL: signed.URL, ExpiresAt: signed.ExpiresAt}, nil
+		}
 	}
-	return &dtos.DocumentURLOutput{URL: signed.URL, ExpiresAt: signed.ExpiresAt}, nil
+	return nil, ErrDocumentNotFound
 }
 
 func (u *Usecase) Submit(ctx context.Context, providerID uuid.UUID) (*dtos.ProviderView, error) {
@@ -489,10 +532,8 @@ func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLin
 			return nil, err
 		}
 		if requirements != nil {
-			for _, required := range requirements.Documents {
-				view.RequiredDocuments = append(view.RequiredDocuments, dtos.RequiredDocumentView{
-					Type: required.Code, Name: required.Name, Scope: required.Scope, AllowedContentTypes: required.AllowedContentTypes, MaxSizeBytes: required.MaxSizeBytes,
-				})
+			for i := range requirements.Documents {
+				view.RequiredDocuments = append(view.RequiredDocuments, requiredDocumentView(&requirements.Documents[i], u.Settings.MaxFileBytes))
 			}
 		}
 	}
@@ -517,23 +558,60 @@ func (u *Usecase) view(ctx context.Context, provider *entities.Provider, withLin
 		return nil, err
 	}
 	for _, document := range documents {
-		item := dtos.DocumentView{
-			Type: document.Type, Name: document.TypeName, Status: string(document.Status), RejectionReason: document.RejectionReason, ContentType: document.ContentType,
-			SizeBytes: document.SizeBytes, ReviewedAt: document.ReviewedAt, UpdatedAt: document.UpdatedAt,
-		}
-		if document.Status == entities.DocumentRejected {
-			item.RejectionReasons = toReasonViews(documentReasons[document.Type])
-		}
-		if withLinks {
-			signed, err := u.Storage.PresignDownload(ctx, document.ObjectKey)
-			if err != nil {
-				return nil, err
-			}
-			item.URL, item.URLExpiresAt = signed.URL, &signed.ExpiresAt
+		item, err := u.documentView(ctx, document, documentReasons[document.ID], withLinks)
+		if err != nil {
+			return nil, err
 		}
 		view.Documents = append(view.Documents, item)
 	}
 	return view, nil
+}
+
+func requiredDocumentView(spec *entities.DocumentSpec, maxBytes int64) dtos.RequiredDocumentView {
+	view := dtos.RequiredDocumentView{
+		Type: spec.Type.String(), Name: spec.Name, Scope: spec.Scope, MaxSizeBytes: maxBytes, Slots: []dtos.SlotView{}, AllowedContentTypes: []string{},
+	}
+	for _, slot := range spec.RequiredSlots {
+		view.Slots = append(view.Slots, dtos.SlotView{Slot: slot.String(), Required: true, AllowedContentTypes: spec.ContentTypes(slot)})
+	}
+	for _, slot := range spec.OptionalSlots {
+		view.Slots = append(view.Slots, dtos.SlotView{Slot: slot.String(), Required: false, AllowedContentTypes: spec.ContentTypes(slot)})
+	}
+	if len(spec.RequiredSlots) > 0 {
+		view.AllowedContentTypes = spec.ContentTypes(spec.RequiredSlots[0])
+	}
+	return view
+}
+
+func (u *Usecase) documentView(ctx context.Context, document *entities.ProviderDocument, reasons []entities.RejectionReason, withLinks bool) (dtos.DocumentView, error) {
+	item := dtos.DocumentView{
+		ID: document.ID, Type: document.Type.String(), Subject: document.Subject.String(), Name: document.Name(), Status: string(document.Status), RejectionReason: document.RejectionReason,
+		ReviewFlags: document.ReviewFlags, ReviewedAt: document.ReviewedAt, UpdatedAt: document.UpdatedAt, Files: []dtos.DocumentFileView{},
+	}
+	if document.Status == entities.DocumentRejected {
+		item.RejectionReasons = toReasonViews(reasons)
+	}
+	for i := range document.Files {
+		file := &document.Files[i]
+		if file.Status == entities.FilePendingUpload {
+			continue
+		}
+		fileView := dtos.DocumentFileView{
+			ID: file.ID, Slot: file.Slot.String(), Version: file.Version, Status: string(file.Status), ContentType: file.ContentType, SizeBytes: file.SizeBytes, RejectionCodes: file.RejectionCodes,
+		}
+		if withLinks {
+			signed, err := u.Storage.PresignDownload(ctx, file.ObjectKey)
+			if err != nil {
+				return item, err
+			}
+			fileView.URL, fileView.URLExpiresAt = signed.URL, &signed.ExpiresAt
+		}
+		if item.ContentType == "" && file.Status == entities.FileAccepted {
+			item.ContentType, item.SizeBytes, item.URL, item.URLExpiresAt = file.ContentType, file.SizeBytes, fileView.URL, fileView.URLExpiresAt
+		}
+		item.Files = append(item.Files, fileView)
+	}
+	return item, nil
 }
 
 func (u *Usecase) ListApplications(ctx context.Context, filter dtos.ApplicationFilter, page pagination.Params) (*dtos.ApplicationList, error) {
@@ -592,7 +670,14 @@ func (u *Usecase) ReviewDocument(ctx context.Context, actor entities.Actor, prov
 	if provider.Status != entities.ProviderPending {
 		return nil, ErrReviewNotAllowed
 	}
-	document, err := u.Documents.Document(ctx, providerID, documentType)
+	subject := enums.DocumentSubject(in.Subject)
+	if subject == "" {
+		subject = enums.DocumentSubjectProvider
+	}
+	if !enums.DocumentType(documentType).IsValid() || !subject.IsValid() {
+		return nil, ErrDocumentNotFound
+	}
+	document, err := u.Documents.Document(ctx, providerID, enums.DocumentType(documentType), subject)
 	if err != nil {
 		return nil, err
 	}
@@ -613,10 +698,10 @@ func (u *Usecase) ReviewDocument(ctx context.Context, actor entities.Actor, prov
 		if err := u.Documents.SaveDocument(ctx, document); err != nil {
 			return err
 		}
-		if err := u.Documents.ReplaceDocumentReasons(ctx, providerID, document.Type, reasonIDs); err != nil {
+		if err := u.Documents.ReplaceDocumentReasons(ctx, document, reasonIDs); err != nil {
 			return err
 		}
-		return u.audit(ctx, actor, "provider_document.review", auditEntityDocument, document.ID.String(), map[string]string{"type": document.Type, "status": string(document.Status), "reason": document.RejectionReason})
+		return u.audit(ctx, actor, "provider_document.review", auditEntityDocument, document.ID.String(), map[string]string{"type": document.Type.String(), "subject": document.Subject.String(), "status": string(document.Status), "reason": document.RejectionReason})
 	})
 	if err != nil {
 		return nil, err

@@ -82,6 +82,7 @@ type Querier interface {
 	DeactivateWorkshopMechanic(ctx context.Context, arg DeactivateWorkshopMechanicParams) (int64, error)
 	DeleteAddress(ctx context.Context, id uuid.UUID) error
 	DeleteDeviceToken(ctx context.Context, token string) error
+	DeleteDocumentFile(ctx context.Context, id uuid.UUID) error
 	DeleteMembershipRoles(ctx context.Context, membershipID uuid.UUID) error
 	DeleteProviderCoverage(ctx context.Context, providerID uuid.UUID) error
 	DeleteRequestTeam(ctx context.Context, requestID uuid.UUID) error
@@ -115,7 +116,7 @@ type Querier interface {
 	GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error)
 	GetCustomerVehicle(ctx context.Context, arg GetCustomerVehicleParams) (CustomerVehicle, error)
 	GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error)
-	GetDocumentType(ctx context.Context, code string) (GetDocumentTypeRow, error)
+	GetDocumentFile(ctx context.Context, id uuid.UUID) (ProviderDocumentFile, error)
 	GetETAObservation(ctx context.Context, arg GetETAObservationParams) (GetETAObservationRow, error)
 	GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstimate, error)
 	GetInvitationByHash(ctx context.Context, tokenHash string) (Invitation, error)
@@ -142,7 +143,9 @@ type Querier interface {
 	GetPlatformSetting(ctx context.Context, key string) (string, error)
 	GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error)
 	GetProviderCategory(ctx context.Context, userID uuid.UUID) (GetProviderCategoryRow, error)
-	GetProviderDocument(ctx context.Context, arg GetProviderDocumentParams) (GetProviderDocumentRow, error)
+	GetProviderDocument(ctx context.Context, arg GetProviderDocumentParams) (ProviderDocument, error)
+	GetProviderDocumentByID(ctx context.Context, id uuid.UUID) (ProviderDocument, error)
+	GetProviderDocumentFile(ctx context.Context, arg GetProviderDocumentFileParams) (ProviderDocumentFile, error)
 	GetProviderRequirements(ctx context.Context, serviceID uuid.UUID) (GetProviderRequirementsRow, error)
 	GetRatingOfRequest(ctx context.Context, requestID *uuid.UUID) (Rating, error)
 	GetReferralCode(ctx context.Context, id uuid.UUID) (*string, error)
@@ -238,6 +241,7 @@ type Querier interface {
 	ListCustomerVehicles(ctx context.Context, customerID uuid.UUID) ([]CustomerVehicle, error)
 	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
 	ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error)
+	ListDocumentFiles(ctx context.Context, documentID uuid.UUID) ([]ProviderDocumentFile, error)
 	ListDocumentRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]ListDocumentRejectionReasonsRow, error)
 	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]ListFareAdjustmentsRow, error)
 	ListFleetDrivers(ctx context.Context, arg ListFleetDriversParams) ([]ListFleetDriversRow, error)
@@ -257,7 +261,8 @@ type Querier interface {
 	ListPermissionsByScope(ctx context.Context, scope enums.OrganizationType) ([]ListPermissionsByScopeRow, error)
 	ListPlatformSettings(ctx context.Context) ([]ListPlatformSettingsRow, error)
 	ListProviderApplications(ctx context.Context, arg ListProviderApplicationsParams) ([]ListProviderApplicationsRow, error)
-	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error)
+	ListProviderDocumentFiles(ctx context.Context, providerID uuid.UUID) ([]ProviderDocumentFile, error)
+	ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ProviderDocument, error)
 	ListProviderRatings(ctx context.Context, arg ListProviderRatingsParams) ([]ListProviderRatingsRow, error)
 	ListProviderRejectionReasons(ctx context.Context, providerID uuid.UUID) ([]RejectionReason, error)
 	ListPublicVouchers(ctx context.Context, arg ListPublicVouchersParams) ([]Voucher, error)
@@ -271,7 +276,7 @@ type Querier interface {
 	ListRequestTeam(ctx context.Context, requestID uuid.UUID) ([]RequestTeamMember, error)
 	ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOfCustomerParams) ([]ServiceRequest, error)
 	ListRequestsWithProviderOnTheWay(ctx context.Context, limit int32) ([]ServiceRequest, error)
-	ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]ListRequiredDocumentsRow, error)
+	ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]enums.DocumentType, error)
 	ListRolePermissions(ctx context.Context, roleIds []uuid.UUID) ([]RolePermission, error)
 	ListRolesForOrganization(ctx context.Context, arg ListRolesForOrganizationParams) ([]Role, error)
 	ListSOSAlerts(ctx context.Context, arg ListSOSAlertsParams) ([]SosAlert, error)
@@ -280,6 +285,7 @@ type Querier interface {
 	ListServiceZones(ctx context.Context, onlyActive bool) ([]ListServiceZonesRow, error)
 	ListServices(ctx context.Context, arg ListServicesParams) ([]Service, error)
 	ListServicesOpenToProviders(ctx context.Context) ([]ListServicesOpenToProvidersRow, error)
+	ListStalePendingFiles(ctx context.Context, arg ListStalePendingFilesParams) ([]ProviderDocumentFile, error)
 	ListTicketMessages(ctx context.Context, ticketID uuid.UUID) ([]SupportMessage, error)
 	ListTickets(ctx context.Context, arg ListTicketsParams) ([]SupportTicket, error)
 	ListTicketsOfUser(ctx context.Context, arg ListTicketsOfUserParams) ([]SupportTicket, error)
@@ -309,6 +315,7 @@ type Querier interface {
 	MarkRequestMessagesRead(ctx context.Context, arg MarkRequestMessagesReadParams) error
 	MarkStopArrived(ctx context.Context, arg MarkStopArrivedParams) (int64, error)
 	NearestWorkshop(ctx context.Context, arg NearestWorkshopParams) (NearestWorkshopRow, error)
+	NextDocumentFileVersion(ctx context.Context, arg NextDocumentFileVersionParams) (int32, error)
 	NextRequestCode(ctx context.Context, id uuid.UUID) (string, error)
 	NextTicketCode(ctx context.Context) (string, error)
 	OfferRejectionReport(ctx context.Context, arg OfferRejectionReportParams) ([]OfferRejectionReportRow, error)
@@ -330,6 +337,7 @@ type Querier interface {
 	RevokeUserRefreshTokens(ctx context.Context, arg RevokeUserRefreshTokensParams) error
 	RoleIsAssigned(ctx context.Context, roleID uuid.UUID) (bool, error)
 	SaveAddress(ctx context.Context, arg SaveAddressParams) error
+	SaveDocumentFile(ctx context.Context, arg SaveDocumentFileParams) error
 	SaveProviderDocument(ctx context.Context, arg SaveProviderDocumentParams) error
 	SaveUserAddress(ctx context.Context, arg SaveUserAddressParams) error
 	SaveWorkshop(ctx context.Context, arg SaveWorkshopParams) error
@@ -344,6 +352,7 @@ type Querier interface {
 	SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error)
+	SupersedeDocumentFiles(ctx context.Context, arg SupersedeDocumentFilesParams) error
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	UnbalancedLedgerTransactions(ctx context.Context) (int64, error)
