@@ -144,6 +144,202 @@ func (ns NullOrganizationType) Value() (driver.Value, error) {
 	return string(ns.OrganizationType), nil
 }
 
+type ProviderDocumentSlot string
+
+const (
+	ProviderDocumentSlotMain           ProviderDocumentSlot = "main"
+	ProviderDocumentSlotFront          ProviderDocumentSlot = "front"
+	ProviderDocumentSlotBack           ProviderDocumentSlot = "back"
+	ProviderDocumentSlotRenewalReceipt ProviderDocumentSlot = "renewal_receipt"
+	ProviderDocumentSlotPage1          ProviderDocumentSlot = "page_1"
+	ProviderDocumentSlotPage2          ProviderDocumentSlot = "page_2"
+	ProviderDocumentSlotRear           ProviderDocumentSlot = "rear"
+	ProviderDocumentSlotSide           ProviderDocumentSlot = "side"
+	ProviderDocumentSlotInterior       ProviderDocumentSlot = "interior"
+	ProviderDocumentSlotPlate          ProviderDocumentSlot = "plate"
+	ProviderDocumentSlotFacade         ProviderDocumentSlot = "facade"
+	ProviderDocumentSlotWorkArea       ProviderDocumentSlot = "work_area"
+	ProviderDocumentSlotEquipment      ProviderDocumentSlot = "equipment"
+	ProviderDocumentSlotReception      ProviderDocumentSlot = "reception"
+	ProviderDocumentSlotExtra          ProviderDocumentSlot = "extra"
+)
+
+func (e *ProviderDocumentSlot) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderDocumentSlot(s)
+	case string:
+		*e = ProviderDocumentSlot(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderDocumentSlot: %T", src)
+	}
+	return nil
+}
+
+type NullProviderDocumentSlot struct {
+	ProviderDocumentSlot ProviderDocumentSlot `json:"provider_document_slot"`
+	Valid                bool                 `json:"valid"` // Valid is true if ProviderDocumentSlot is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderDocumentSlot) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderDocumentSlot, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderDocumentSlot.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderDocumentSlot) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderDocumentSlot), nil
+}
+
+type ProviderDocumentSubject string
+
+const (
+	ProviderDocumentSubjectProvider            ProviderDocumentSubject = "provider"
+	ProviderDocumentSubjectLegalRepresentative ProviderDocumentSubject = "legal_representative"
+	ProviderDocumentSubjectVehicleOwner        ProviderDocumentSubject = "vehicle_owner"
+)
+
+func (e *ProviderDocumentSubject) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderDocumentSubject(s)
+	case string:
+		*e = ProviderDocumentSubject(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderDocumentSubject: %T", src)
+	}
+	return nil
+}
+
+type NullProviderDocumentSubject struct {
+	ProviderDocumentSubject ProviderDocumentSubject `json:"provider_document_subject"`
+	Valid                   bool                    `json:"valid"` // Valid is true if ProviderDocumentSubject is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderDocumentSubject) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderDocumentSubject, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderDocumentSubject.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderDocumentSubject) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderDocumentSubject), nil
+}
+
+type ProviderDocumentType string
+
+const (
+	ProviderDocumentTypeProfilePhoto            ProviderDocumentType = "profile_photo"
+	ProviderDocumentTypeIDCard                  ProviderDocumentType = "id_card"
+	ProviderDocumentTypeSelfie                  ProviderDocumentType = "selfie"
+	ProviderDocumentTypeDrivingLicense          ProviderDocumentType = "driving_license"
+	ProviderDocumentTypeCriminalRecord          ProviderDocumentType = "criminal_record"
+	ProviderDocumentTypeVehiclePhoto            ProviderDocumentType = "vehicle_photo"
+	ProviderDocumentTypeVehicleRegistration     ProviderDocumentType = "vehicle_registration"
+	ProviderDocumentTypeVehicleOwnership        ProviderDocumentType = "vehicle_ownership"
+	ProviderDocumentTypeVehicleOwnerDeclaration ProviderDocumentType = "vehicle_owner_declaration"
+	ProviderDocumentTypeVehicleInsurance        ProviderDocumentType = "vehicle_insurance"
+	ProviderDocumentTypeVehicleInspection       ProviderDocumentType = "vehicle_inspection"
+	ProviderDocumentTypeBankAccount             ProviderDocumentType = "bank_account"
+	ProviderDocumentTypeBusinessLicense         ProviderDocumentType = "business_license"
+	ProviderDocumentTypeCommercialCertificate   ProviderDocumentType = "commercial_certificate"
+	ProviderDocumentTypeTaxID                   ProviderDocumentType = "tax_id"
+	ProviderDocumentTypeWorkshopPhoto           ProviderDocumentType = "workshop_photo"
+)
+
+func (e *ProviderDocumentType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderDocumentType(s)
+	case string:
+		*e = ProviderDocumentType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderDocumentType: %T", src)
+	}
+	return nil
+}
+
+type NullProviderDocumentType struct {
+	ProviderDocumentType ProviderDocumentType `json:"provider_document_type"`
+	Valid                bool                 `json:"valid"` // Valid is true if ProviderDocumentType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderDocumentType) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderDocumentType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderDocumentType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderDocumentType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderDocumentType), nil
+}
+
+type ProviderVerificationKind string
+
+const (
+	ProviderVerificationKindDriver   ProviderVerificationKind = "driver"
+	ProviderVerificationKindWorkshop ProviderVerificationKind = "workshop"
+)
+
+func (e *ProviderVerificationKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderVerificationKind(s)
+	case string:
+		*e = ProviderVerificationKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderVerificationKind: %T", src)
+	}
+	return nil
+}
+
+type NullProviderVerificationKind struct {
+	ProviderVerificationKind ProviderVerificationKind `json:"provider_verification_kind"`
+	Valid                    bool                     `json:"valid"` // Valid is true if ProviderVerificationKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderVerificationKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderVerificationKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderVerificationKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderVerificationKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderVerificationKind), nil
+}
+
 type UserRole string
 
 const (
@@ -233,6 +429,21 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 	return string(ns.UserStatus), nil
 }
 
+type Address struct {
+	ID           uuid.UUID   `json:"id"`
+	Lat          float64     `json:"lat"`
+	Lng          float64     `json:"lng"`
+	Geom         interface{} `json:"geom"`
+	Line         string      `json:"line"`
+	Reference    string      `json:"reference"`
+	Neighborhood string      `json:"neighborhood"`
+	City         string      `json:"city"`
+	Province     string      `json:"province"`
+	CountryCode  string      `json:"country_code"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+}
+
 type AuditLog struct {
 	ID             uuid.UUID       `json:"id"`
 	ActorID        *uuid.UUID      `json:"actor_id"`
@@ -250,6 +461,17 @@ type AuditLog struct {
 	OrganizationID *uuid.UUID      `json:"organization_id"`
 }
 
+type Bank struct {
+	ID           uuid.UUID `json:"id"`
+	Code         string    `json:"code"`
+	ShortName    string    `json:"short_name"`
+	Name         string    `json:"name"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type BlockReason struct {
 	ID        uuid.UUID `json:"id"`
 	Code      string    `json:"code"`
@@ -257,6 +479,89 @@ type BlockReason struct {
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type Booking struct {
+	ID              uuid.UUID  `json:"id"`
+	RequestID       uuid.UUID  `json:"request_id"`
+	WorkshopID      uuid.UUID  `json:"workshop_id"`
+	CustomerID      uuid.UUID  `json:"customer_id"`
+	VehicleID       uuid.UUID  `json:"vehicle_id"`
+	MechanicID      *uuid.UUID `json:"mechanic_id"`
+	Status          string     `json:"status"`
+	AtHome          bool       `json:"at_home"`
+	HomeFeeCents    int64      `json:"home_fee_cents"`
+	ServicesCents   int64      `json:"services_cents"`
+	StartsAt        time.Time  `json:"starts_at"`
+	EndsAt          time.Time  `json:"ends_at"`
+	ExpectedReadyAt *time.Time `json:"expected_ready_at"`
+	Description     string     `json:"description"`
+	MileageKm       *int32     `json:"mileage_km"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+type BookingEvent struct {
+	ID         int64      `json:"id"`
+	BookingID  uuid.UUID  `json:"booking_id"`
+	FromStatus string     `json:"from_status"`
+	ToStatus   string     `json:"to_status"`
+	ActorType  string     `json:"actor_type"`
+	ActorID    *uuid.UUID `json:"actor_id"`
+	OccurredAt time.Time  `json:"occurred_at"`
+}
+
+type BookingExtra struct {
+	ID          uuid.UUID  `json:"id"`
+	BookingID   uuid.UUID  `json:"booking_id"`
+	Description string     `json:"description"`
+	AmountCents int64      `json:"amount_cents"`
+	Status      string     `json:"status"`
+	DecidedAt   *time.Time `json:"decided_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+type BookingItem struct {
+	ID              uuid.UUID `json:"id"`
+	BookingID       uuid.UUID `json:"booking_id"`
+	ServiceID       uuid.UUID `json:"service_id"`
+	Name            string    `json:"name"`
+	PriceCents      int64     `json:"price_cents"`
+	DurationMinutes int32     `json:"duration_minutes"`
+}
+
+type CancellationRule struct {
+	ServiceID              uuid.UUID `json:"service_id"`
+	FeeCents               int64     `json:"fee_cents"`
+	FreeAfterAssignSeconds int32     `json:"free_after_assign_seconds"`
+	ScheduledFreeSeconds   int32     `json:"scheduled_free_seconds"`
+	ChargeWithoutProvider  bool      `json:"charge_without_provider"`
+	UpdatedAt              time.Time `json:"updated_at"`
+}
+
+type CatalogItem struct {
+	ID               uuid.UUID       `json:"id"`
+	Kind             string          `json:"kind"`
+	CategoryID       *uuid.UUID      `json:"category_id"`
+	Code             string          `json:"code"`
+	Label            string          `json:"label"`
+	Description      string          `json:"description"`
+	AmountCents      int64           `json:"amount_cents"`
+	PromoAmountCents *int64          `json:"promo_amount_cents"`
+	PromoUntil       *time.Time      `json:"promo_until"`
+	Attrs            json.RawMessage `json:"attrs"`
+	DisplayOrder     int32           `json:"display_order"`
+	IsActive         bool            `json:"is_active"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+}
+
+type CategoryPaymentMethod struct {
+	CategoryID   uuid.UUID `json:"category_id"`
+	Method       string    `json:"method"`
+	IsEnabled    bool      `json:"is_enabled"`
+	DisplayOrder int32     `json:"display_order"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Client struct {
@@ -269,6 +574,124 @@ type Client struct {
 	UpdatedAt time.Time        `json:"updated_at"`
 }
 
+type CustomerVehicle struct {
+	ID         uuid.UUID `json:"id"`
+	CustomerID uuid.UUID `json:"customer_id"`
+	Brand      string    `json:"brand"`
+	Model      string    `json:"model"`
+	Plate      string    `json:"plate"`
+	Year       int32     `json:"year"`
+	Fuel       string    `json:"fuel"`
+	IsActive   bool      `json:"is_active"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type DeviceToken struct {
+	Token     string    `json:"token"`
+	UserID    uuid.UUID `json:"user_id"`
+	Platform  string    `json:"platform"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type DispatchPolicy struct {
+	ID                     uuid.UUID  `json:"id"`
+	CategoryID             uuid.UUID  `json:"category_id"`
+	ZoneID                 *uuid.UUID `json:"zone_id"`
+	CandidateSource        string     `json:"candidate_source"`
+	H3Resolution           int16      `json:"h3_resolution"`
+	RadiiKm                []float64  `json:"radii_km"`
+	OfferMode              string     `json:"offer_mode"`
+	BatchSize              int16      `json:"batch_size"`
+	OfferTtlSeconds        int32      `json:"offer_ttl_seconds"`
+	SearchTtlSeconds       int32      `json:"search_ttl_seconds"`
+	AckTimeoutSeconds      int32      `json:"ack_timeout_seconds"`
+	AckGiveupSeconds       int32      `json:"ack_giveup_seconds"`
+	InitialChannels        []string   `json:"initial_channels"`
+	FallbackChannels       []string   `json:"fallback_channels"`
+	Ranking                string     `json:"ranking"`
+	TrackingStatuses       []string   `json:"tracking_statuses"`
+	OnExhausted            string     `json:"on_exhausted"`
+	ReserveProvider        bool       `json:"reserve_provider"`
+	ScheduleMaxDays        int32      `json:"schedule_max_days"`
+	SearchLeadSeconds      int32      `json:"search_lead_seconds"`
+	PricingMode            string     `json:"pricing_mode"`
+	AllowBoost             bool       `json:"allow_boost"`
+	RankByEta              bool       `json:"rank_by_eta"`
+	SmsOnAccept            bool       `json:"sms_on_accept"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
+	MaxStops               int16      `json:"max_stops"`
+	ScheduleSlotMinutes    int16      `json:"schedule_slot_minutes"`
+	RequiresCompletionCode bool       `json:"requires_completion_code"`
+	BookingOnly            bool       `json:"booking_only"`
+}
+
+type EtaObservation struct {
+	OriginH3R8      int64     `json:"origin_h3_r8"`
+	DestinationH3R8 int64     `json:"destination_h3_r8"`
+	HourBand        int16     `json:"hour_band"`
+	Samples         int32     `json:"samples"`
+	TotalSeconds    int64     `json:"total_seconds"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type FareAdjustment struct {
+	ID          int64      `json:"id"`
+	RequestID   uuid.UUID  `json:"request_id"`
+	Reason      string     `json:"reason"`
+	AmountCents int64      `json:"amount_cents"`
+	ActorID     *uuid.UUID `json:"actor_id"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+type FareEstimate struct {
+	ID              uuid.UUID       `json:"id"`
+	CustomerID      uuid.UUID       `json:"customer_id"`
+	TariffID        uuid.UUID       `json:"tariff_id"`
+	ServiceID       uuid.UUID       `json:"service_id"`
+	OriginLat       float64         `json:"origin_lat"`
+	OriginLng       float64         `json:"origin_lng"`
+	DestinationLat  *float64        `json:"destination_lat"`
+	DestinationLng  *float64        `json:"destination_lng"`
+	Stops           json.RawMessage `json:"stops"`
+	DistanceM       int32           `json:"distance_m"`
+	DurationS       int32           `json:"duration_s"`
+	RouteSource     string          `json:"route_source"`
+	TotalCents      int64           `json:"total_cents"`
+	CommissionCents int64           `json:"commission_cents"`
+	Currency        string          `json:"currency"`
+	ExpiresAt       time.Time       `json:"expires_at"`
+	CreatedAt       time.Time       `json:"created_at"`
+	ScheduledFor    *time.Time      `json:"scheduled_for"`
+	UsedAt          *time.Time      `json:"used_at"`
+	VehicleTypeID   *uuid.UUID      `json:"vehicle_type_id"`
+	Details         json.RawMessage `json:"details"`
+}
+
+type InboxItem struct {
+	ID        uuid.UUID  `json:"id"`
+	UserID    uuid.UUID  `json:"user_id"`
+	Kind      string     `json:"kind"`
+	Title     string     `json:"title"`
+	Body      string     `json:"body"`
+	LinkType  string     `json:"link_type"`
+	LinkID    *uuid.UUID `json:"link_id"`
+	EventID   string     `json:"event_id"`
+	ReadAt    *time.Time `json:"read_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+type Insurer struct {
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type Invitation struct {
 	ID           uuid.UUID  `json:"id"`
 	MembershipID uuid.UUID  `json:"membership_id"`
@@ -278,6 +701,37 @@ type Invitation struct {
 	AcceptedAt   *time.Time `json:"accepted_at"`
 	RevokedAt    *time.Time `json:"revoked_at"`
 	CreatedAt    time.Time  `json:"created_at"`
+}
+
+type LedgerEntry struct {
+	ID            int64      `json:"id"`
+	TransactionID uuid.UUID  `json:"transaction_id"`
+	AccountType   string     `json:"account_type"`
+	AccountID     *uuid.UUID `json:"account_id"`
+	AmountCents   int64      `json:"amount_cents"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+type LedgerTransaction struct {
+	ID             uuid.UUID  `json:"id"`
+	IdempotencyKey string     `json:"idempotency_key"`
+	Kind           string     `json:"kind"`
+	RequestID      *uuid.UUID `json:"request_id"`
+	PaymentID      *uuid.UUID `json:"payment_id"`
+	Note           string     `json:"note"`
+	ActorID        *uuid.UUID `json:"actor_id"`
+	Currency       string     `json:"currency"`
+	CreatedAt      time.Time  `json:"created_at"`
+}
+
+type MediaUpload struct {
+	ID          uuid.UUID  `json:"id"`
+	OwnerID     uuid.UUID  `json:"owner_id"`
+	ObjectKey   string     `json:"object_key"`
+	ContentType string     `json:"content_type"`
+	SizeBytes   int64      `json:"size_bytes"`
+	RequestID   *uuid.UUID `json:"request_id"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 type Membership struct {
@@ -297,12 +751,15 @@ type MembershipRole struct {
 	RoleID       uuid.UUID `json:"role_id"`
 }
 
-type MfaRecoveryCode struct {
-	ID        uuid.UUID  `json:"id"`
-	UserID    uuid.UUID  `json:"user_id"`
-	CodeHash  string     `json:"code_hash"`
-	UsedAt    *time.Time `json:"used_at"`
-	CreatedAt time.Time  `json:"created_at"`
+type Notification struct {
+	ID                int64      `json:"id"`
+	UserID            *uuid.UUID `json:"user_id"`
+	Channel           string     `json:"channel"`
+	Template          string     `json:"template"`
+	Status            string     `json:"status"`
+	ProviderMessageID string     `json:"provider_message_id"`
+	Error             string     `json:"error"`
+	CreatedAt         time.Time  `json:"created_at"`
 }
 
 type Organization struct {
@@ -330,10 +787,182 @@ type Outbox struct {
 	LastError     *string         `json:"last_error"`
 }
 
+type Payment struct {
+	ID               uuid.UUID  `json:"id"`
+	RequestID        uuid.UUID  `json:"request_id"`
+	CustomerID       uuid.UUID  `json:"customer_id"`
+	Method           string     `json:"method"`
+	Status           string     `json:"status"`
+	AmountCents      int64      `json:"amount_cents"`
+	RefundedCents    int64      `json:"refunded_cents"`
+	Currency         string     `json:"currency"`
+	MerchantID       string     `json:"merchant_id"`
+	ProviderChargeID *string    `json:"provider_charge_id"`
+	PayerPhoneMasked string     `json:"payer_phone_masked"`
+	ReferenceNumber  string     `json:"reference_number"`
+	ReferenceEntity  string     `json:"reference_entity"`
+	FailureMessage   string     `json:"failure_message"`
+	ExpiresAt        *time.Time `json:"expires_at"`
+	NextCheckAt      *time.Time `json:"next_check_at"`
+	PaidAt           *time.Time `json:"paid_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Kind             string     `json:"kind"`
+	GatewayFeeCents  *int64     `json:"gateway_fee_cents"`
+	Duplicate        bool       `json:"duplicate"`
+}
+
+type PaymentEvent struct {
+	ID         int64     `json:"id"`
+	PaymentID  uuid.UUID `json:"payment_id"`
+	Source     string    `json:"source"`
+	Status     string    `json:"status"`
+	Detail     string    `json:"detail"`
+	OccurredAt time.Time `json:"occurred_at"`
+}
+
+type PaymentRefund struct {
+	ID               uuid.UUID  `json:"id"`
+	PaymentID        uuid.UUID  `json:"payment_id"`
+	AmountCents      int64      `json:"amount_cents"`
+	Reason           string     `json:"reason"`
+	ProviderRefundID string     `json:"provider_refund_id"`
+	ActorID          *uuid.UUID `json:"actor_id"`
+	CreatedAt        time.Time  `json:"created_at"`
+}
+
 type Permission struct {
 	Code        string                   `json:"code"`
 	Description string                   `json:"description"`
 	Scopes      []enums.OrganizationType `json:"scopes"`
+}
+
+type PlatformSetting struct {
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type Provider struct {
+	UserID             uuid.UUID  `json:"user_id"`
+	Status             string     `json:"status"`
+	OrganizationID     *uuid.UUID `json:"organization_id"`
+	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
+	ServiceID          *uuid.UUID `json:"service_id"`
+	BirthDate          *time.Time `json:"birth_date"`
+	IDNumber           string     `json:"id_number"`
+	HomeAddressID      *uuid.UUID `json:"home_address_id"`
+	BaseAddressID      *uuid.UUID `json:"base_address_id"`
+	ServiceRadiusKm    *float64   `json:"service_radius_km"`
+	StatusReason       string     `json:"status_reason"`
+	SubmittedAt        *time.Time `json:"submitted_at"`
+	ReviewedAt         *time.Time `json:"reviewed_at"`
+	LastJobCompletedAt *time.Time `json:"last_job_completed_at"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	CancelledRequests  int32      `json:"cancelled_requests"`
+	RatingSum          int64      `json:"rating_sum"`
+	RatingCount        int32      `json:"rating_count"`
+	CompletedRequests  int32      `json:"completed_requests"`
+	Province           string     `json:"province"`
+	Municipality       string     `json:"municipality"`
+}
+
+type ProviderCoverage struct {
+	CategoryID uuid.UUID `json:"category_id"`
+	H3R6       int64     `json:"h3_r6"`
+	ProviderID uuid.UUID `json:"provider_id"`
+}
+
+type ProviderDocument struct {
+	ID              uuid.UUID             `json:"id"`
+	ProviderID      uuid.UUID             `json:"provider_id"`
+	DocumentType    enums.DocumentType    `json:"document_type"`
+	Status          string                `json:"status"`
+	RejectionReason string                `json:"rejection_reason"`
+	ReviewedBy      *uuid.UUID            `json:"reviewed_by"`
+	ReviewedAt      *time.Time            `json:"reviewed_at"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
+	Subject         enums.DocumentSubject `json:"subject"`
+	Number          string                `json:"number"`
+	IssuedAt        *time.Time            `json:"issued_at"`
+	ExpiresAt       *time.Time            `json:"expires_at"`
+	Details         json.RawMessage       `json:"details"`
+	ReviewFlags     []string              `json:"review_flags"`
+}
+
+type ProviderDocumentFile struct {
+	ID             uuid.UUID          `json:"id"`
+	DocumentID     uuid.UUID          `json:"document_id"`
+	ProviderID     uuid.UUID          `json:"provider_id"`
+	Slot           enums.DocumentSlot `json:"slot"`
+	Version        int32              `json:"version"`
+	Status         string             `json:"status"`
+	Url            string             `json:"url"`
+	ContentType    string             `json:"content_type"`
+	SizeBytes      int64              `json:"size_bytes"`
+	Sha256         string             `json:"sha256"`
+	Width          *int32             `json:"width"`
+	Height         *int32             `json:"height"`
+	QualityChecks  json.RawMessage    `json:"quality_checks"`
+	RejectionCodes []string           `json:"rejection_codes"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+}
+
+type ProviderDocumentRejectionReason struct {
+	ProviderID   uuid.UUID             `json:"provider_id"`
+	DocumentType enums.DocumentType    `json:"document_type"`
+	ReasonID     uuid.UUID             `json:"reason_id"`
+	Subject      enums.DocumentSubject `json:"subject"`
+}
+
+type ProviderLocationSample struct {
+	ID         int64     `json:"id"`
+	ProviderID uuid.UUID `json:"provider_id"`
+	RequestID  uuid.UUID `json:"request_id"`
+	Lat        float64   `json:"lat"`
+	Lng        float64   `json:"lng"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
+type ProviderRejectionReason struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	ReasonID   uuid.UUID `json:"reason_id"`
+}
+
+type ProviderVerification struct {
+	ID                    uuid.UUID              `json:"id"`
+	ProviderID            uuid.UUID              `json:"provider_id"`
+	Kind                  enums.VerificationKind `json:"kind"`
+	Workshop              json.RawMessage        `json:"workshop"`
+	DeclarationAcceptedAt *time.Time             `json:"declaration_accepted_at"`
+	SubmittedAt           *time.Time             `json:"submitted_at"`
+	CreatedAt             time.Time              `json:"created_at"`
+	UpdatedAt             time.Time              `json:"updated_at"`
+}
+
+type Rating struct {
+	ID            uuid.UUID   `json:"id"`
+	RequestID     *uuid.UUID  `json:"request_id"`
+	CustomerID    uuid.UUID   `json:"customer_id"`
+	ProviderID    *uuid.UUID  `json:"provider_id"`
+	Stars         int16       `json:"stars"`
+	ComplimentIds []uuid.UUID `json:"compliment_ids"`
+	Comment       string      `json:"comment"`
+	CreatedAt     time.Time   `json:"created_at"`
+	WorkshopID    *uuid.UUID  `json:"workshop_id"`
+}
+
+type Referral struct {
+	ID          uuid.UUID  `json:"id"`
+	ReferrerID  uuid.UUID  `json:"referrer_id"`
+	ReferredID  uuid.UUID  `json:"referred_id"`
+	Status      string     `json:"status"`
+	RewardCents int64      `json:"reward_cents"`
+	RewardedAt  *time.Time `json:"rewarded_at"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 type RefreshToken struct {
@@ -351,13 +980,75 @@ type RefreshToken struct {
 	MembershipID *uuid.UUID `json:"membership_id"`
 }
 
+type RejectionReason struct {
+	ID           uuid.UUID  `json:"id"`
+	Scope        string     `json:"scope"`
+	Code         string     `json:"code"`
+	Label        string     `json:"label"`
+	RequiresNote bool       `json:"requires_note"`
+	IsActive     bool       `json:"is_active"`
+	DisplayOrder int32      `json:"display_order"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	CategoryID   *uuid.UUID `json:"category_id"`
+}
+
+type RequestMessage struct {
+	ID           uuid.UUID  `json:"id"`
+	RequestID    uuid.UUID  `json:"request_id"`
+	SenderID     uuid.UUID  `json:"sender_id"`
+	SenderType   string     `json:"sender_type"`
+	Body         string     `json:"body"`
+	QuickReplyID *uuid.UUID `json:"quick_reply_id"`
+	ReadAt       *time.Time `json:"read_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+type RequestOffer struct {
+	ID             uuid.UUID  `json:"id"`
+	RequestID      uuid.UUID  `json:"request_id"`
+	ProviderID     uuid.UUID  `json:"provider_id"`
+	Status         string     `json:"status"`
+	SentAt         time.Time  `json:"sent_at"`
+	DeliveredAt    *time.Time `json:"delivered_at"`
+	DeliveredVia   *string    `json:"delivered_via"`
+	ExpiresAt      time.Time  `json:"expires_at"`
+	RespondedAt    *time.Time `json:"responded_at"`
+	NextActionAt   *time.Time `json:"next_action_at"`
+	FallbackStep   int16      `json:"fallback_step"`
+	QuoteCents     *int64     `json:"quote_cents"`
+	QuoteNote      string     `json:"quote_note"`
+	DistanceM      *int32     `json:"distance_m"`
+	NetCents       *int64     `json:"net_cents"`
+	BoostBps       int32      `json:"boost_bps"`
+	RejectReasonID *uuid.UUID `json:"reject_reason_id"`
+	RejectNote     string     `json:"reject_note"`
+}
+
+type RequestShare struct {
+	ID        uuid.UUID  `json:"id"`
+	RequestID uuid.UUID  `json:"request_id"`
+	TokenHash string     `json:"token_hash"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	RevokedAt *time.Time `json:"revoked_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+type RequestTeamMember struct {
+	ID        uuid.UUID `json:"id"`
+	RequestID uuid.UUID `json:"request_id"`
+	Name      string    `json:"name"`
+	Role      string    `json:"role"`
+	Verified  bool      `json:"verified"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Role struct {
 	ID             uuid.UUID              `json:"id"`
 	OrganizationID *uuid.UUID             `json:"organization_id"`
 	Scope          enums.OrganizationType `json:"scope"`
 	Code           string                 `json:"code"`
 	Name           string                 `json:"name"`
-	RequiresMfa    bool                   `json:"requires_mfa"`
 	IsSystem       bool                   `json:"is_system"`
 	CreatedAt      time.Time              `json:"created_at"`
 	UpdatedAt      time.Time              `json:"updated_at"`
@@ -395,21 +1086,201 @@ type ServiceCategory struct {
 	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+	PassengerSms string    `json:"passenger_sms"`
+	CodePrefix   string    `json:"code_prefix"`
+}
+
+type ServiceProviderRequirement struct {
+	ServiceID          uuid.UUID              `json:"service_id"`
+	RequiresVehicle    bool                   `json:"requires_vehicle"`
+	MinVehicleSeats    int32                  `json:"min_vehicle_seats"`
+	VehicleKinds       []string               `json:"vehicle_kinds"`
+	SelfSignup         bool                   `json:"self_signup"`
+	VerificationKind   enums.VerificationKind `json:"verification_kind"`
+	DrivingCategories  []string               `json:"driving_categories"`
+	MaxVehicleAgeYears *int32                 `json:"max_vehicle_age_years"`
+}
+
+type ServiceRequest struct {
+	ID                   uuid.UUID       `json:"id"`
+	CustomerID           uuid.UUID       `json:"customer_id"`
+	CategoryID           uuid.UUID       `json:"category_id"`
+	CategorySlug         string          `json:"category_slug"`
+	ServiceID            uuid.UUID       `json:"service_id"`
+	ZoneID               uuid.UUID       `json:"zone_id"`
+	PolicyID             uuid.UUID       `json:"policy_id"`
+	Status               string          `json:"status"`
+	Version              int32           `json:"version"`
+	PickupAddressID      uuid.UUID       `json:"pickup_address_id"`
+	ContactPhone         string          `json:"contact_phone"`
+	PickupH3R8           int64           `json:"pickup_h3_r8"`
+	DestinationAddressID *uuid.UUID      `json:"destination_address_id"`
+	DestinationH3R8      *int64          `json:"destination_h3_r8"`
+	PassengerName        string          `json:"passenger_name"`
+	PassengerPhone       string          `json:"passenger_phone"`
+	Details              json.RawMessage `json:"details"`
+	ScheduledFor         *time.Time      `json:"scheduled_for"`
+	SearchRound          int16           `json:"search_round"`
+	SearchExtended       bool            `json:"search_extended"`
+	SearchDeadlineAt     *time.Time      `json:"search_deadline_at"`
+	NextActionAt         *time.Time      `json:"next_action_at"`
+	ReminderAt           *time.Time      `json:"reminder_at"`
+	ProviderID           *uuid.UUID      `json:"provider_id"`
+	OrganizationID       *uuid.UUID      `json:"organization_id"`
+	FareEstimateID       *uuid.UUID      `json:"fare_estimate_id"`
+	FareCents            *int64          `json:"fare_cents"`
+	CommissionCents      *int64          `json:"commission_cents"`
+	BoostBps             int32           `json:"boost_bps"`
+	Currency             string          `json:"currency"`
+	NeedsOperator        bool            `json:"needs_operator"`
+	OperatorReason       string          `json:"operator_reason"`
+	IdempotencyKey       string          `json:"idempotency_key"`
+	CancelReason         string          `json:"cancel_reason"`
+	CancelledBy          string          `json:"cancelled_by"`
+	AcceptedAt           *time.Time      `json:"accepted_at"`
+	ArrivedAt            *time.Time      `json:"arrived_at"`
+	StartedAt            *time.Time      `json:"started_at"`
+	CompletedAt          *time.Time      `json:"completed_at"`
+	CreatedAt            time.Time       `json:"created_at"`
+	UpdatedAt            time.Time       `json:"updated_at"`
+	PaymentMethod        string          `json:"payment_method"`
+	PaymentStatus        string          `json:"payment_status"`
+	CancelReasonID       *uuid.UUID      `json:"cancel_reason_id"`
+	CancelFeeCents       int64           `json:"cancel_fee_cents"`
+	VoucherID            *uuid.UUID      `json:"voucher_id"`
+	VoucherCode          string          `json:"voucher_code"`
+	DiscountCents        int64           `json:"discount_cents"`
+	PublicCode           string          `json:"public_code"`
+	VehicleTypeID        *uuid.UUID      `json:"vehicle_type_id"`
+	CompletionCode       string          `json:"completion_code"`
+	CompletionAttempts   int16           `json:"completion_attempts"`
+	WorkshopID           *uuid.UUID      `json:"workshop_id"`
+	Prepay               bool            `json:"prepay"`
+	ExtraDueCents        int64           `json:"extra_due_cents"`
+	RemovalDay           *time.Time      `json:"removal_day"`
+	RemovalWindowID      *uuid.UUID      `json:"removal_window_id"`
+}
+
+type ServiceRequestEvent struct {
+	ID         int64      `json:"id"`
+	RequestID  uuid.UUID  `json:"request_id"`
+	FromStatus string     `json:"from_status"`
+	ToStatus   string     `json:"to_status"`
+	Version    int32      `json:"version"`
+	ActorType  string     `json:"actor_type"`
+	ActorID    *uuid.UUID `json:"actor_id"`
+	Reason     string     `json:"reason"`
+	OccurredAt time.Time  `json:"occurred_at"`
+}
+
+type ServiceRequestStop struct {
+	RequestID uuid.UUID  `json:"request_id"`
+	Position  int32      `json:"position"`
+	AddressID uuid.UUID  `json:"address_id"`
+	ArrivedAt *time.Time `json:"arrived_at"`
+}
+
+type ServiceRequiredDocument struct {
+	ServiceID    uuid.UUID          `json:"service_id"`
+	DocumentType enums.DocumentType `json:"document_type"`
+}
+
+type ServiceTariff struct {
+	ID                uuid.UUID  `json:"id"`
+	ServiceID         uuid.UUID  `json:"service_id"`
+	ZoneID            *uuid.UUID `json:"zone_id"`
+	Currency          string     `json:"currency"`
+	BaseFeeCents      int64      `json:"base_fee_cents"`
+	PerKmFeeCents     int64      `json:"per_km_fee_cents"`
+	PerMinuteFeeCents int64      `json:"per_minute_fee_cents"`
+	MinimumFeeCents   int64      `json:"minimum_fee_cents"`
+	ZoneFeeCents      int64      `json:"zone_fee_cents"`
+	NightFeeCents     int64      `json:"night_fee_cents"`
+	NightStartHour    int16      `json:"night_start_hour"`
+	NightEndHour      int16      `json:"night_end_hour"`
+	FreeWaitSeconds   int32      `json:"free_wait_seconds"`
+	CommissionBps     int32      `json:"commission_bps"`
+	ValidFrom         time.Time  `json:"valid_from"`
+	ValidUntil        *time.Time `json:"valid_until"`
+	CreatedAt         time.Time  `json:"created_at"`
+	StopFeeCents      int64      `json:"stop_fee_cents"`
+}
+
+type ServiceZone struct {
+	ID          uuid.UUID `json:"id"`
+	CountryCode string    `json:"country_code"`
+	Name        string    `json:"name"`
+	Geom        string    `json:"geom"`
+	Timezone    string    `json:"timezone"`
+	Currency    string    `json:"currency"`
+	IsActive    bool      `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type SosAlert struct {
+	ID         uuid.UUID  `json:"id"`
+	RequestID  uuid.UUID  `json:"request_id"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Lat        *float64   `json:"lat"`
+	Lng        *float64   `json:"lng"`
+	Note       string     `json:"note"`
+	Status     string     `json:"status"`
+	ResolvedBy *uuid.UUID `json:"resolved_by"`
+	ResolvedAt *time.Time `json:"resolved_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
+type SupportMessage struct {
+	ID         int64     `json:"id"`
+	TicketID   uuid.UUID `json:"ticket_id"`
+	SenderType string    `json:"sender_type"`
+	SenderID   uuid.UUID `json:"sender_id"`
+	Body       string    `json:"body"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type SupportTicket struct {
+	ID        uuid.UUID  `json:"id"`
+	Code      string     `json:"code"`
+	UserID    uuid.UUID  `json:"user_id"`
+	RequestID *uuid.UUID `json:"request_id"`
+	TopicID   *uuid.UUID `json:"topic_id"`
+	Subject   string     `json:"subject"`
+	Status    string     `json:"status"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
 type User struct {
-	ID          uuid.UUID        `json:"id"`
-	Name        string           `json:"name"`
-	Email       *string          `json:"email"`
-	Password    string           `json:"password"`
-	Phone       *string          `json:"phone"`
-	IsVerified  bool             `json:"is_verified"`
-	Status      enums.UserStatus `json:"status"`
-	Role        enums.Role       `json:"role"`
-	LastLoginAt *time.Time       `json:"last_login_at"`
-	CreatedAt   time.Time        `json:"created_at"`
-	UpdatedAt   time.Time        `json:"updated_at"`
-	DeletedAt   *time.Time       `json:"deleted_at"`
+	ID               uuid.UUID        `json:"id"`
+	Name             string           `json:"name"`
+	Email            *string          `json:"email"`
+	Password         string           `json:"password"`
+	Phone            *string          `json:"phone"`
+	IsVerified       bool             `json:"is_verified"`
+	Status           enums.UserStatus `json:"status"`
+	Role             enums.Role       `json:"role"`
+	LastLoginAt      *time.Time       `json:"last_login_at"`
+	CreatedAt        time.Time        `json:"created_at"`
+	UpdatedAt        time.Time        `json:"updated_at"`
+	DeletedAt        *time.Time       `json:"deleted_at"`
+	NotifyStatus     bool             `json:"notify_status"`
+	NotifyPromotions bool             `json:"notify_promotions"`
+	NotifySms        bool             `json:"notify_sms"`
+	ShareLocation    bool             `json:"share_location"`
+	Language         string           `json:"language"`
+	Currency         string           `json:"currency"`
+	AvatarUploadID   *uuid.UUID       `json:"avatar_upload_id"`
+	ReferralCode     *string          `json:"referral_code"`
+}
+
+type UserAddress struct {
+	AddressID uuid.UUID `json:"address_id"`
+	UserID    uuid.UUID `json:"user_id"`
+	Kind      string    `json:"kind"`
+	Label     string    `json:"label"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type UserBlock struct {
@@ -425,11 +1296,128 @@ type UserBlockReason struct {
 	BlockReasonID uuid.UUID `json:"block_reason_id"`
 }
 
-type UserMfa struct {
-	UserID       uuid.UUID  `json:"user_id"`
-	Secret       string     `json:"secret"`
-	ConfirmedAt  *time.Time `json:"confirmed_at"`
-	LastUsedStep int64      `json:"last_used_step"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+type Vehicle struct {
+	ID             uuid.UUID  `json:"id"`
+	ProviderID     *uuid.UUID `json:"provider_id"`
+	OrganizationID *uuid.UUID `json:"organization_id"`
+	Kind           string     `json:"kind"`
+	Brand          string     `json:"brand"`
+	Model          string     `json:"model"`
+	Year           *int32     `json:"year"`
+	Color          string     `json:"color"`
+	Plate          string     `json:"plate"`
+	Seats          *int32     `json:"seats"`
+	CapacityKg     *int32     `json:"capacity_kg"`
+	IsActive       bool       `json:"is_active"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type VehiclePhotoKeeper struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	KeeperID   uuid.UUID `json:"keeper_id"`
+}
+
+type VerificationReminder struct {
+	ID         uuid.UUID  `json:"id"`
+	ProviderID uuid.UUID  `json:"provider_id"`
+	Kind       string     `json:"kind"`
+	DocumentID *uuid.UUID `json:"document_id"`
+	ExpiresOn  *time.Time `json:"expires_on"`
+	DueAt      time.Time  `json:"due_at"`
+	SentAt     *time.Time `json:"sent_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
+type Voucher struct {
+	ID                uuid.UUID  `json:"id"`
+	Code              *string    `json:"code"`
+	Description       string     `json:"description"`
+	CategoryID        *uuid.UUID `json:"category_id"`
+	ServiceID         *uuid.UUID `json:"service_id"`
+	DiscountBps       int32      `json:"discount_bps"`
+	DiscountCents     int64      `json:"discount_cents"`
+	MaxDiscountCents  *int64     `json:"max_discount_cents"`
+	MinFareCents      int64      `json:"min_fare_cents"`
+	ValidFrom         time.Time  `json:"valid_from"`
+	ValidUntil        time.Time  `json:"valid_until"`
+	MaxRedemptions    *int32     `json:"max_redemptions"`
+	PerCustomerLimit  int32      `json:"per_customer_limit"`
+	IsPublic          bool       `json:"is_public"`
+	IsActive          bool       `json:"is_active"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	WorkshopID        *uuid.UUID `json:"workshop_id"`
+	WorkshopServiceID *uuid.UUID `json:"workshop_service_id"`
+	AutoApply         bool       `json:"auto_apply"`
+}
+
+type VoucherRedemption struct {
+	ID            int64      `json:"id"`
+	VoucherID     uuid.UUID  `json:"voucher_id"`
+	CustomerID    uuid.UUID  `json:"customer_id"`
+	RequestID     *uuid.UUID `json:"request_id"`
+	DiscountCents int64      `json:"discount_cents"`
+	ReleasedAt    *time.Time `json:"released_at"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+type Workshop struct {
+	ID                  uuid.UUID `json:"id"`
+	OrganizationID      uuid.UUID `json:"organization_id"`
+	AddressID           uuid.UUID `json:"address_id"`
+	Name                string    `json:"name"`
+	Phone               string    `json:"phone"`
+	OpeningHours        string    `json:"opening_hours"`
+	OffersHomeService   bool      `json:"offers_home_service"`
+	HomeServiceFeeCents int64     `json:"home_service_fee_cents"`
+	Currency            string    `json:"currency"`
+	IsActive            bool      `json:"is_active"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+	Capacity            int32     `json:"capacity"`
+	About               string    `json:"about"`
+	Warranty            string    `json:"warranty"`
+	RatingSum           int64     `json:"rating_sum"`
+	RatingCount         int32     `json:"rating_count"`
+}
+
+type WorkshopClosure struct {
+	WorkshopID uuid.UUID `json:"workshop_id"`
+	ClosedOn   time.Time `json:"closed_on"`
+	Reason     string    `json:"reason"`
+}
+
+type WorkshopFavorite struct {
+	CustomerID uuid.UUID `json:"customer_id"`
+	WorkshopID uuid.UUID `json:"workshop_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type WorkshopHour struct {
+	WorkshopID  uuid.UUID `json:"workshop_id"`
+	Weekday     int16     `json:"weekday"`
+	OpenMinute  int32     `json:"open_minute"`
+	CloseMinute int32     `json:"close_minute"`
+}
+
+type WorkshopMechanic struct {
+	ID         uuid.UUID `json:"id"`
+	WorkshopID uuid.UUID `json:"workshop_id"`
+	Name       string    `json:"name"`
+	IsActive   bool      `json:"is_active"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type WorkshopService struct {
+	ID              uuid.UUID  `json:"id"`
+	WorkshopID      uuid.UUID  `json:"workshop_id"`
+	Name            string     `json:"name"`
+	Description     string     `json:"description"`
+	PriceCents      int64      `json:"price_cents"`
+	DurationMinutes int32      `json:"duration_minutes"`
+	IsActive        bool       `json:"is_active"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	CategoryID      *uuid.UUID `json:"category_id"`
 }

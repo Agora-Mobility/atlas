@@ -27,6 +27,7 @@ type ErrorBody struct {
 	Code          string            `json:"code" example:"INVALID_CREDENTIALS"`
 	Message       string            `json:"message" example:"Invalid identifier or password."`
 	Details       map[string]string `json:"details,omitempty"`
+	Data          map[string]any    `json:"data,omitempty"`
 	CorrelationID string            `json:"correlation_id,omitempty"`
 }
 
@@ -68,6 +69,14 @@ func ValidationFailed(ctx *gin.Context, validationErr *customerrors.ValidationEr
 		Message: "Some fields are invalid.",
 		Details: validationErr.Fields,
 	})
+}
+
+func UnprocessableWithDetails(ctx *gin.Context, code, message string, details map[string]string) {
+	respond(ctx, http.StatusUnprocessableEntity, ErrorBody{Code: code, Message: message, Details: details})
+}
+
+func UnprocessableWithData(ctx *gin.Context, code, message string, details map[string]string, data map[string]any) {
+	respond(ctx, http.StatusUnprocessableEntity, ErrorBody{Code: code, Message: message, Details: details, Data: data})
 }
 
 func InvalidRequest(ctx *gin.Context, err error) {

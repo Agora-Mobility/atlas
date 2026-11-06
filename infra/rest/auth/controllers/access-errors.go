@@ -41,18 +41,6 @@ func handleAccessError(ctx *gin.Context, err error) {
 		shared.Conflict(ctx, "NIF_ALREADY_EXISTS", "Another organization already has this NIF.")
 	case errors.Is(err, usecases.ErrInvalidInvitation):
 		shared.RespondError(ctx, http.StatusUnprocessableEntity, "INVALID_INVITATION", "The invitation is invalid or has expired.")
-	case errors.Is(err, usecases.ErrInvalidMFAToken):
-		shared.Unauthorized(ctx, "INVALID_MFA_TOKEN", "The MFA step expired. Sign in again.")
-	case errors.Is(err, usecases.ErrInvalidMFACode):
-		shared.RespondError(ctx, http.StatusUnprocessableEntity, "INVALID_MFA_CODE", "The authenticator code is incorrect.")
-	case errors.Is(err, usecases.ErrMFASetupRequired):
-		shared.Conflict(ctx, "MFA_SETUP_REQUIRED", "Set up the authenticator app first.")
-	case errors.Is(err, usecases.ErrMFAAlreadyConfigured):
-		shared.Conflict(ctx, "MFA_ALREADY_CONFIGURED", "The authenticator app is already set up.")
-	case errors.Is(err, usecases.ErrMFANotConfigured):
-		shared.Conflict(ctx, "MFA_NOT_CONFIGURED", "The authenticator app is not set up.")
-	case errors.Is(err, usecases.ErrMFAResetNotAllowed):
-		shared.Forbidden(ctx, "MFA_RESET_NOT_ALLOWED", "This person belongs to other organizations: ask AGORA to reset the authenticator.")
 	case errors.Is(err, usecases.ErrUnknownPermission):
 		shared.RespondError(ctx, http.StatusUnprocessableEntity, "UNKNOWN_PERMISSION", "One or more permissions do not exist in this scope.")
 	case errors.Is(err, usecases.ErrSystemRole):

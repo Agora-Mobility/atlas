@@ -116,12 +116,15 @@ func MemberDeactivated(name, organization string) Message {
 	}
 }
 
-func MemberMFAReset(name, organization string) Message {
+func PasswordRecoveryCode(name, code string, validMinutes int) Message {
 	return Message{
-		Subject:  "A verificação em dois passos da sua conta foi reposta",
+		Subject:  "Código para recuperar a palavra-passe",
 		Greeting: Greeting(name),
-		Lines:    []string{"Um administrador de " + organization + " repôs a verificação em dois passos da sua conta.", "No próximo login vai ter de configurar de novo a aplicação de autenticação."},
-		Notes:    []string{"Se não pediu esta reposição, contacte de imediato o administrador da sua organização."},
+		Lines:    []string{"Use este código para criar uma nova palavra-passe na AGORA:", code},
+		Notes: []string{
+			fmt.Sprintf("O código é válido durante %d min e só pode ser usado uma vez. Não o partilhe.", validMinutes),
+			"Se não foi você a pedir este código, ignore esta mensagem. A sua palavra-passe não muda.",
+		},
 	}
 }
 

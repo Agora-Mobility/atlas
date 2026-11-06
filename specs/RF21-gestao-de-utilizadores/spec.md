@@ -43,9 +43,9 @@ RBAC. O acesso deles é por posse ("o recurso é teu?").
 
 | Actor | Cliente | Âmbito | Descrição |
 |---|---|---|---|
-| Super Admin AGORA | argus | PLATFORM | Todas as permissões PLATFORM. MFA obrigatório. |
+| Super Admin AGORA | argus | PLATFORM | Todas as permissões PLATFORM. |
 | Membro AGORA | argus | PLATFORM | Administrador, Operações, Financeiro, Suporte ou Auditor. |
-| Proprietário do parceiro | athena | PARTNER | Todas as permissões PARTNER e de membros. MFA obrigatório. |
+| Proprietário do parceiro | athena | PARTNER | Todas as permissões PARTNER e de membros. |
 | Membro do parceiro | athena | PARTNER | Gestor, Operador ou Financeiro. |
 | Convidado | argus / athena | – | Pessoa com um convite pendente. Ainda não autentica. |
 | Sistema | – | – | Seeds, arranque do primeiro Super Admin e tarefas internas. |
@@ -89,18 +89,18 @@ da organização do actor**, em qualquer âmbito.
 
 ## 5. Papéis de sistema
 
-| Âmbito | Papel | Permissões | MFA |
-|---|---|---|:-:|
-| PLATFORM | Super Admin | Todas as permissões PLATFORM | Obrigatório |
-| PLATFORM | Administrador | Todas as PLATFORM, excepto `roles:manage` e `refunds:approve` | |
-| PLATFORM | Operações | `providers:*`, `categories:manage`, `services:manage`, `requests:*`, `members:read` | |
-| PLATFORM | Financeiro | `finance:read`, `refunds:create`, `refunds:approve`, `reconciliation:run` | Obrigatório |
-| PLATFORM | Suporte | `members:read`, `providers:read`, `requests:read`, `requests:cancel` | |
-| PLATFORM | Auditor | Todas as `*:read` PLATFORM e `audit:read` | |
-| PARTNER | Proprietário | Todas as PARTNER e todas as de membros (`members:*`, `roles:read`, `roles:assign`) | Obrigatório |
-| PARTNER | Gestor | `members:read`, `members:invite`, `members:update`, `members:suspend`, `roles:read`, `roles:assign`, `partner.providers:*`, `partner.requests:read` | |
-| PARTNER | Operador | `partner.providers:read`, `partner.providers:manage`, `partner.requests:read` | |
-| PARTNER | Financeiro | `partner.finance:read`, `partner.requests:read` | |
+| Âmbito | Papel | Permissões |
+|---|---|---|
+| PLATFORM | Super Admin | Todas as permissões PLATFORM |
+| PLATFORM | Administrador | Todas as PLATFORM, excepto `roles:manage` e `refunds:approve` |
+| PLATFORM | Operações | `providers:*`, `categories:manage`, `services:manage`, `requests:*`, `members:read` |
+| PLATFORM | Financeiro | `finance:read`, `refunds:create`, `refunds:approve`, `reconciliation:run` |
+| PLATFORM | Suporte | `members:read`, `providers:read`, `requests:read`, `requests:cancel` |
+| PLATFORM | Auditor | Todas as `*:read` PLATFORM e `audit:read` |
+| PARTNER | Proprietário | Todas as PARTNER e todas as de membros (`members:*`, `roles:read`, `roles:assign`) |
+| PARTNER | Gestor | `members:read`, `members:invite`, `members:update`, `members:suspend`, `roles:read`, `roles:assign`, `partner.providers:*`, `partner.requests:read` |
+| PARTNER | Operador | `partner.providers:read`, `partner.providers:manage`, `partner.requests:read` |
+| PARTNER | Financeiro | `partner.finance:read`, `partner.requests:read` |
 
 No MVP 1 os papéis de sistema não são editáveis por API. O modelo suporta
 papéis personalizados por organização, mas sem endpoints para os criar.
@@ -142,9 +142,7 @@ papéis personalizados por organização, mas sem endpoints para os criar.
 3. O sistema envia um OTP (canal: Q2) e o convidado submete-o.
 4. O sistema guarda o hash da palavra-passe, marca o convite como aceite e
    passa a membership a `ACTIVE`.
-5. Se algum papel da membership exigir MFA, o sistema encaminha o convidado
-   para a activação de MFA antes da primeira sessão (RN09).
-6. O sistema regista a acção em `audit_logs`.
+5. O sistema regista a acção em `audit_logs`.
 
 ### 7.3 Gestão de papéis
 1. O actor com `roles:assign` envia a lista completa de papéis do alvo
@@ -217,7 +215,7 @@ query: a organização é a do actor, tirada do token.
 | RN06 | Suspender ou desactivar revoga de imediato todas as sessões e refresh tokens da membership e incrementa `perm_version`. |
 | RN07 | Alterar papéis incrementa `perm_version` e invalida a cache de permissões no Redis. O efeito é imediato no pedido seguinte. |
 | RN08 | O convite expira em 48 h, é de uso único e o reenvio invalida o anterior. Aceitar exige definir a palavra-passe e validar o OTP. |
-| RN09 | MFA obrigatório para memberships com Super Admin, Financeiro (PLATFORM) ou Proprietário (PARTNER). O login sem MFA activo leva ao fluxo de activação de MFA e não emite sessão completa. |
+| RN09 | ~~MFA obrigatório para memberships com Super Admin, Financeiro (PLATFORM) ou Proprietário (PARTNER).~~ **Removida** (ADR 0019, migration `000036`): todas as contas entram com telefone e palavra-passe. |
 | RN10 | Uma membership em estado diferente de `ACTIVE` não autentica. |
 | RN11 | Cada acção deste módulo gera um registo em `audit_logs`, com estado antes e depois, na mesma transacção da alteração. |
 | RN12 | As mensagens de erro e as respostas de login e de convite não revelam se um telefone ou e-mail existe. |
@@ -245,7 +243,6 @@ query: a organização é a do actor, tirada do token.
 | E-mail já é membro da organização | 409 `ALREADY_MEMBER`, só dentro da organização do actor e sem revelar contas de outras organizações (RN12) |
 | Convite expirado, usado, substituído ou inexistente | 422 `INVALID_INVITATION`, a mesma resposta para todos os casos (RN12) |
 | OTP errado, expirado ou com tentativas esgotadas | 422, com os códigos actuais (`INVALID_CODE`, `CODE_EXPIRED`, `CODE_ATTEMPTS_EXCEEDED`) |
-| Login com MFA obrigatório e não activado | Resposta de activação de MFA, sem sessão completa (RN09) |
 | Login de membership não `ACTIVE` | Mesma resposta genérica de credenciais inválidas ou conta inactiva (RN10, RN12) |
 | Redis indisponível ao resolver permissões | Fallback para a base de dados. Se a revogação de sessões não puder ser verificada, 503 (fail-closed, como em ADR 0006) |
 
@@ -256,7 +253,7 @@ fica para confirmar (Q10).
 
 | Tema | Exigência para o RF21 |
 |---|---|
-| Segurança | Senhas em argon2id; tokens de convite e OTP só em hash; MFA para papéis sensíveis; fail-closed na revogação. |
+| Segurança | Senhas em argon2id; tokens de convite e OTP só em hash; fail-closed na revogação. |
 | Isolamento | RLS activa nas tabelas com `organization_id`, incluindo para o dono das tabelas. |
 | Auditoria | `audit_logs` só aceita inserções, na mesma transacção da alteração (ADR 0013). |
 | Desempenho | Verificar uma permissão com cache quente não acrescenta consultas à base de dados; p95 a definir em Q10. |
@@ -302,8 +299,7 @@ fica para confirmar (Q10).
 - **CA08.5** Dado um convite criado, então a base de dados guarda só o hash do token.
 
 ### RN09 – MFA obrigatório
-- **CA09.1** Dado um membro com o papel Financeiro (PLATFORM) sem MFA activo, quando faz login com credenciais válidas, então recebe a resposta de activação de MFA e nenhum access token com acesso aos endpoints protegidos.
-- **CA09.2** Dado um Operador (PARTNER) sem MFA, quando faz login, então recebe uma sessão normal.
+- **Removida** (ADR 0019, migration `000036`): todas as contas entram com telefone e palavra-passe, sem segundo factor.
 
 ### RN10 – Só ACTIVE autentica
 - **CA10.1** Dada uma membership `SUSPENDED`, `INVITED` ou `DEACTIVATED`, quando o utilizador faz login, então não recebe sessão e a resposta é a mesma de credenciais inválidas.
@@ -344,7 +340,6 @@ fica para confirmar (Q10).
 - Criação, edição e remoção de papéis personalizados por API (o modelo suporta, mas sem endpoints).
 - Criação e gestão de organizações parceiras (cadastro do parceiro). Assume-se que a organização já existe (Q7).
 - Leitura do audit log no backoffice (RF26, C7).
-- Self-service de MFA além da activação obrigatória (ex.: recuperação de MFA, códigos de recuperação), a definir no plano.
 - SSO ou login social.
 - Eliminação física de utilizadores ou memberships.
 
@@ -364,7 +359,6 @@ Não decidi nenhuma destas questões.
 | Q8 | Um membro `DEACTIVATED` pode voltar a ser convidado para a mesma organização? A restrição `unique(user_id, organization_id)` impede uma segunda membership. |
 | Q9 | Um utilizador com várias memberships (ex.: membro de dois parceiros, ou da AGORA e de um parceiro): como se escolhe a organização activa no login, e pode trocar sem novo login? |
 | Q10 | Quais dos RNF01–RNF20 se aplicam e com que metas (ex.: p95 da autorização, retenção do audit log)? O plano MVP só tem a contagem, não o texto. |
-| Q11 | Que método de MFA: TOTP (app autenticadora), OTP por SMS ou ambos? |
 | Q12 | A identidade é partilhada com clientes e prestadores? Hoje `users` guarda todos e o e-mail é opcional. Um cliente da iris pode ser também membro de um parceiro com o mesmo registo `users`? |
 | Q13 | O JWT actual leva `sid` (para revogação imediata), `cid` e `role`. O novo leva `membership_id`, `organization_id`, `scope` e `perm_version`. Confirmo que `sid` e `cid` se mantêm, e que `role` deixa de ser usado para utilizadores internos? |
 | Q14 | O plano MVP coloca o RF21 no ciclo C7. Antecipá-lo afecta o calendário de outros requisitos? |

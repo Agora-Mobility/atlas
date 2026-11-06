@@ -223,6 +223,75 @@ func (mr *MockIOTPServiceMockRecorder) Verify(ctx, purpose, subject, code any) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockIOTPService)(nil).Verify), ctx, purpose, subject, code)
 }
 
+// MockIRecoveryTicketService is a mock of IRecoveryTicketService interface.
+type MockIRecoveryTicketService struct {
+	ctrl     *gomock.Controller
+	recorder *MockIRecoveryTicketServiceMockRecorder
+	isgomock struct{}
+}
+
+// MockIRecoveryTicketServiceMockRecorder is the mock recorder for MockIRecoveryTicketService.
+type MockIRecoveryTicketServiceMockRecorder struct {
+	mock *MockIRecoveryTicketService
+}
+
+// NewMockIRecoveryTicketService creates a new mock instance.
+func NewMockIRecoveryTicketService(ctrl *gomock.Controller) *MockIRecoveryTicketService {
+	mock := &MockIRecoveryTicketService{ctrl: ctrl}
+	mock.recorder = &MockIRecoveryTicketServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIRecoveryTicketService) EXPECT() *MockIRecoveryTicketServiceMockRecorder {
+	return m.recorder
+}
+
+// Consume mocks base method.
+func (m *MockIRecoveryTicketService) Consume(ctx context.Context, ticket string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Consume", ctx, ticket)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Consume indicates an expected call of Consume.
+func (mr *MockIRecoveryTicketServiceMockRecorder) Consume(ctx, ticket any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Consume", reflect.TypeOf((*MockIRecoveryTicketService)(nil).Consume), ctx, ticket)
+}
+
+// Issue mocks base method.
+func (m *MockIRecoveryTicketService) Issue(ctx context.Context, subject string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Issue", ctx, subject)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Issue indicates an expected call of Issue.
+func (mr *MockIRecoveryTicketServiceMockRecorder) Issue(ctx, subject any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIRecoveryTicketService)(nil).Issue), ctx, subject)
+}
+
+// Peek mocks base method.
+func (m *MockIRecoveryTicketService) Peek(ctx context.Context, ticket string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Peek", ctx, ticket)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Peek indicates an expected call of Peek.
+func (mr *MockIRecoveryTicketServiceMockRecorder) Peek(ctx, ticket any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peek", reflect.TypeOf((*MockIRecoveryTicketService)(nil).Peek), ctx, ticket)
+}
+
 // MockISessionRevocationStore is a mock of ISessionRevocationStore interface.
 type MockISessionRevocationStore struct {
 	ctrl     *gomock.Controller
@@ -390,209 +459,4 @@ func (m *MockIAccessResolver) Resolve(ctx context.Context, membershipID uuid.UUI
 func (mr *MockIAccessResolverMockRecorder) Resolve(ctx, membershipID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockIAccessResolver)(nil).Resolve), ctx, membershipID)
-}
-
-// MockITOTP is a mock of ITOTP interface.
-type MockITOTP struct {
-	ctrl     *gomock.Controller
-	recorder *MockITOTPMockRecorder
-	isgomock struct{}
-}
-
-// MockITOTPMockRecorder is the mock recorder for MockITOTP.
-type MockITOTPMockRecorder struct {
-	mock *MockITOTP
-}
-
-// NewMockITOTP creates a new mock instance.
-func NewMockITOTP(ctrl *gomock.Controller) *MockITOTP {
-	mock := &MockITOTP{ctrl: ctrl}
-	mock.recorder = &MockITOTPMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockITOTP) EXPECT() *MockITOTPMockRecorder {
-	return m.recorder
-}
-
-// Match mocks base method.
-func (m *MockITOTP) Match(secret, code string, at time.Time) (int64, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Match", secret, code, at)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
-}
-
-// Match indicates an expected call of Match.
-func (mr *MockITOTPMockRecorder) Match(secret, code, at any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Match", reflect.TypeOf((*MockITOTP)(nil).Match), secret, code, at)
-}
-
-// NewSecret mocks base method.
-func (m *MockITOTP) NewSecret() (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewSecret")
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewSecret indicates an expected call of NewSecret.
-func (mr *MockITOTPMockRecorder) NewSecret() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewSecret", reflect.TypeOf((*MockITOTP)(nil).NewSecret))
-}
-
-// URI mocks base method.
-func (m *MockITOTP) URI(secret, account string) string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "URI", secret, account)
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// URI indicates an expected call of URI.
-func (mr *MockITOTPMockRecorder) URI(secret, account any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "URI", reflect.TypeOf((*MockITOTP)(nil).URI), secret, account)
-}
-
-// MockISecretSealer is a mock of ISecretSealer interface.
-type MockISecretSealer struct {
-	ctrl     *gomock.Controller
-	recorder *MockISecretSealerMockRecorder
-	isgomock struct{}
-}
-
-// MockISecretSealerMockRecorder is the mock recorder for MockISecretSealer.
-type MockISecretSealerMockRecorder struct {
-	mock *MockISecretSealer
-}
-
-// NewMockISecretSealer creates a new mock instance.
-func NewMockISecretSealer(ctrl *gomock.Controller) *MockISecretSealer {
-	mock := &MockISecretSealer{ctrl: ctrl}
-	mock.recorder = &MockISecretSealerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockISecretSealer) EXPECT() *MockISecretSealerMockRecorder {
-	return m.recorder
-}
-
-// Open mocks base method.
-func (m *MockISecretSealer) Open(sealed string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Open", sealed)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Open indicates an expected call of Open.
-func (mr *MockISecretSealerMockRecorder) Open(sealed any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockISecretSealer)(nil).Open), sealed)
-}
-
-// Seal mocks base method.
-func (m *MockISecretSealer) Seal(plaintext string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Seal", plaintext)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Seal indicates an expected call of Seal.
-func (mr *MockISecretSealerMockRecorder) Seal(plaintext any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Seal", reflect.TypeOf((*MockISecretSealer)(nil).Seal), plaintext)
-}
-
-// MockIMFAChallengeStore is a mock of IMFAChallengeStore interface.
-type MockIMFAChallengeStore struct {
-	ctrl     *gomock.Controller
-	recorder *MockIMFAChallengeStoreMockRecorder
-	isgomock struct{}
-}
-
-// MockIMFAChallengeStoreMockRecorder is the mock recorder for MockIMFAChallengeStore.
-type MockIMFAChallengeStoreMockRecorder struct {
-	mock *MockIMFAChallengeStore
-}
-
-// NewMockIMFAChallengeStore creates a new mock instance.
-func NewMockIMFAChallengeStore(ctrl *gomock.Controller) *MockIMFAChallengeStore {
-	mock := &MockIMFAChallengeStore{ctrl: ctrl}
-	mock.recorder = &MockIMFAChallengeStoreMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockIMFAChallengeStore) EXPECT() *MockIMFAChallengeStoreMockRecorder {
-	return m.recorder
-}
-
-// Create mocks base method.
-func (m *MockIMFAChallengeStore) Create(ctx context.Context, challenge services.MFAChallenge) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, challenge)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Create indicates an expected call of Create.
-func (mr *MockIMFAChallengeStoreMockRecorder) Create(ctx, challenge any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockIMFAChallengeStore)(nil).Create), ctx, challenge)
-}
-
-// Delete mocks base method.
-func (m *MockIMFAChallengeStore) Delete(ctx context.Context, token string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", ctx, token)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Delete indicates an expected call of Delete.
-func (mr *MockIMFAChallengeStoreMockRecorder) Delete(ctx, token any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockIMFAChallengeStore)(nil).Delete), ctx, token)
-}
-
-// Find mocks base method.
-func (m *MockIMFAChallengeStore) Find(ctx context.Context, token string) (*services.MFAChallenge, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Find", ctx, token)
-	ret0, _ := ret[0].(*services.MFAChallenge)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Find indicates an expected call of Find.
-func (mr *MockIMFAChallengeStoreMockRecorder) Find(ctx, token any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockIMFAChallengeStore)(nil).Find), ctx, token)
-}
-
-// RecordFailure mocks base method.
-func (m *MockIMFAChallengeStore) RecordFailure(ctx context.Context, token string) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RecordFailure", ctx, token)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RecordFailure indicates an expected call of RecordFailure.
-func (mr *MockIMFAChallengeStoreMockRecorder) RecordFailure(ctx, token any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecordFailure", reflect.TypeOf((*MockIMFAChallengeStore)(nil).RecordFailure), ctx, token)
 }

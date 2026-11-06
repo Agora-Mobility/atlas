@@ -25,3 +25,18 @@ type Email struct {
 type IEmailSender interface {
 	Send(ctx context.Context, email Email) error
 }
+
+var ErrPushTokenInvalid = errors.New("push token is no longer valid")
+
+type PushMessage struct {
+	Token        string
+	Title        string
+	Body         string
+	Data         map[string]string
+	HighPriority bool
+	TTLSeconds   int
+}
+
+type IPushSender interface {
+	Send(ctx context.Context, message PushMessage) (string, error)
+}

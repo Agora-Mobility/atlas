@@ -8,16 +8,13 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Schema holds every table, type and function of the application. Nothing
-// of ours lives in public, which keeps only extension objects (PostGIS).
+// Schema holds everything of ours, PostGIS included. The database has no
+// other schema: migration 000001 removes public.
 const Schema = "atlas"
 
-// searchPath resolves our objects first and extension objects (public) next.
-// Unqualified CREATE statements in migrations land in Schema.
-const searchPath = Schema + ", public"
+const searchPath = Schema
 
-// ensureSchema creates Schema and, on databases migrated before it existed,
-// moves the migrations table into it so the version history is kept.
+// ensureSchema creates Schema, which the first migration installs PostGIS in.
 func ensureSchema(ctx context.Context, databaseURL string) error {
 	conn, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
@@ -32,19 +29,6 @@ func ensureSchema(ctx context.Context, databaseURL string) error {
 	if !exists {
 		if _, err := conn.Exec(ctx, "CREATE SCHEMA "+pgx.Identifier{Schema}.Sanitize()); err != nil {
 			return fmt.Errorf("create schema %s: %w", Schema, err)
-		}
-	}
-
-	var legacy bool
-	err = conn.QueryRow(ctx, `
-		SELECT to_regclass('public.schema_migrations') IS NOT NULL
-		   AND to_regclass($1 || '.schema_migrations') IS NULL`, Schema).Scan(&legacy)
-	if err != nil {
-		return fmt.Errorf("check migrations table: %w", err)
-	}
-	if legacy {
-		if _, err := conn.Exec(ctx, "ALTER TABLE public.schema_migrations SET SCHEMA "+pgx.Identifier{Schema}.Sanitize()); err != nil {
-			return fmt.Errorf("move migrations table to %s: %w", Schema, err)
 		}
 	}
 	return nil

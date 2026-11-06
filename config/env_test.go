@@ -1,8 +1,6 @@
 package config_test
 
 import (
-	"bytes"
-	"encoding/base64"
 	"os"
 	"strings"
 	"testing"
@@ -17,8 +15,6 @@ import (
 
 const secret = "test-secret-with-at-least-32-characters"
 
-var testMFAKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32))
-
 func isolateEnv(t *testing.T) {
 	t.Helper()
 	t.Chdir(t.TempDir())
@@ -30,11 +26,11 @@ func isolateEnv(t *testing.T) {
 }
 
 func setRequired(t *testing.T) {
+	t.Helper()
 	t.Setenv("DATABASE_URL", "postgres://localhost/atlas")
 	t.Setenv("REDIS_ADDR", "localhost:6379")
 	t.Setenv("RABBITMQ_URL", "amqp://localhost/")
 	t.Setenv("JWT_SECRET", secret)
-	t.Setenv("MFA_ENCRYPTION_KEY", testMFAKey)
 }
 
 func TestLoadDefaults(t *testing.T) {
@@ -61,6 +57,28 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, 10*time.Second, cfg.Email.Timeout)
 }
 
+func TestLoadProductionRequiresTheDocumentStorage(t *testing.T) {
+	setRequired(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.agora.ao")
+	t.Setenv("CASTBRICK_API_KEY", "key")
+	t.Setenv("RESEND_API_KEY", "key")
+	t.Setenv("EMAIL_FROM", "AGORA <no-reply@agora.ao>")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "R2_ACCOUNT_ID")
+
+	setAppyPay(t)
+	t.Setenv("R2_ACCOUNT_ID", "account")
+	t.Setenv("R2_ACCESS_KEY_ID", "id")
+	t.Setenv("R2_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("R2_BUCKET_NAME", "documents")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.Equal(t, "https://account.r2.cloudflarestorage.com", cfg.R2.ResolvedEndpoint())
+}
+
 func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 	isolateEnv(t)
 	setRequired(t)
@@ -77,6 +95,11 @@ func TestLoadProductionRequiresCastBrickKey(t *testing.T) {
 
 	t.Setenv("RESEND_API_KEY", "re_live_key")
 	t.Setenv("EMAIL_FROM", "Agora <no-reply@agora.ao>")
+	setAppyPay(t)
+	t.Setenv("R2_ACCOUNT_ID", "account")
+	t.Setenv("R2_ACCESS_KEY_ID", "id")
+	t.Setenv("R2_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("R2_BUCKET_NAME", "documents")
 	cfg, err := config.Load()
 	require.NoError(t, err)
 	assert.True(t, cfg.SMS.Enabled())
@@ -119,7 +142,48 @@ func TestLoadMissingRequired(t *testing.T) {
 	_, err := config.Load()
 
 	require.Error(t, err)
-	for _, key := range []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET", "MFA_ENCRYPTION_KEY"} {
+	for _, key := range []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"} {
 		assert.ErrorContains(t, err, key)
 	}
+}
+
+func setAppyPay(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{"APPYPAY_CLIENT_ID", "APPYPAY_CLIENT_SECRET", "APPYPAY_BASE_URL", "APPYPAY_TOKEN_URL", "APPYPAY_RESOURCE", "APPYPAY_GPO_METHOD", "APPYPAY_REF_METHOD"} {
+		t.Setenv(key, "value")
+	}
+}
+
+func TestLoadProductionRequiresTheAppyPayCredentials(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://agora.ao")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "APPYPAY_")
+}
+
+func TestLoadReadsTheFCMCredentialsFromAFile(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	path := t.TempDir() + "/firebase.json"
+	require.NoError(t, os.WriteFile(path, []byte(`{"type":"service_account"}`), 0o600))
+	t.Setenv("FCM_PROJECT_ID", "agora")
+	t.Setenv("FCM_CREDENTIALS_JSON", `{"inline":true}`)
+	t.Setenv("FCM_CREDENTIALS_FILE", path)
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"service_account"}`, cfg.FCM.CredentialsJSON, "the file wins over the inline JSON")
+	assert.True(t, cfg.FCM.Enabled())
+}
+
+func TestLoadFailsWhenTheFCMCredentialsFileIsMissing(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("FCM_CREDENTIALS_FILE", "/nowhere/firebase.json")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "FCM_CREDENTIALS_FILE")
 }

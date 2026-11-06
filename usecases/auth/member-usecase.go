@@ -38,7 +38,6 @@ var (
 	ErrIdentityInUse        = errors.New("the e-mail or phone belongs to a customer or provider account")
 	ErrIdentityConflict     = errors.New("the e-mail and the phone belong to different people")
 	ErrNIFAlreadyExists     = repository.ErrNIFAlreadyExists
-	ErrMFAResetNotAllowed   = errors.New("the person belongs to other organizations: only AGORA can reset the authenticator")
 )
 
 const (
@@ -51,7 +50,6 @@ const (
 	auditActionMemberSuspend  = "member.suspend"
 	auditActionMemberReactive = "member.reactivate"
 	auditActionMemberDeactive = "member.deactivate"
-	auditActionMemberMFAReset = "member.mfa-reset"
 	auditActionPartnerCreate  = "partner.create"
 	auditActionPartnerUpdate  = "partner.update"
 	auditActionAdminBootstrap = "member.bootstrap-super-admin"
@@ -84,7 +82,6 @@ type MemberUsecase struct {
 	roleRepo       repository.IRoleRepository
 	membershipRepo repository.IMembershipRepository
 	invitationRepo repository.IInvitationRepository
-	mfaRepo        repository.IUserMFARepository
 	auditRepo      repository.IAuditLogRepository
 	outboxRepo     repository.IOutboxRepository
 	txManager      repository.ITransactionManager
@@ -102,7 +99,6 @@ type MemberStores struct {
 	Roles       repository.IRoleRepository
 	Memberships repository.IMembershipRepository
 	Invitations repository.IInvitationRepository
-	MFA         repository.IUserMFARepository
 	Audit       repository.IAuditLogRepository
 	Outbox      repository.IOutboxRepository
 	Tx          repository.ITransactionManager
@@ -123,7 +119,6 @@ func NewMemberUsecase(
 		roleRepo:       stores.Roles,
 		membershipRepo: stores.Memberships,
 		invitationRepo: stores.Invitations,
-		mfaRepo:        stores.MFA,
 		auditRepo:      stores.Audit,
 		outboxRepo:     stores.Outbox,
 		txManager:      stores.Tx,
@@ -370,53 +365,6 @@ func (uc *MemberUsecase) Reactivate(ctx context.Context, actor StaffActor, membe
 
 func (uc *MemberUsecase) Deactivate(ctx context.Context, actor StaffActor, memberID uuid.UUID) (*dtos.MemberView, error) {
 	return uc.changeStatus(ctx, actor, memberID, deactivation)
-}
-
-func (uc *MemberUsecase) ResetMFA(ctx context.Context, actor StaffActor, memberID uuid.UUID) error {
-	org, err := uc.organization(ctx, actor.Access.OrganizationID)
-	if err != nil {
-		return err
-	}
-	ctx = tenant.WithOrganization(ctx, org.ID)
-	roles, err := uc.rolesOf(ctx, org)
-	if err != nil {
-		return err
-	}
-
-	return uc.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
-		target, err := uc.lockMember(ctx, org, memberID)
-		if err != nil {
-			return err
-		}
-		if target.UserID == actor.Access.UserID {
-			return ErrCannotManageSelf
-		}
-		if target.IsDeactivated() {
-			return ErrInvalidMemberState
-		}
-		if err := uc.ensureCanManage(actor, target, roles); err != nil {
-			return err
-		}
-		if actor.Access.Scope != enums.OrganizationTypePlatform {
-			outside, err := uc.membershipRepo.HasMembershipOutside(ctx, target.UserID, org.ID)
-			if err != nil {
-				return err
-			}
-			if outside {
-				return ErrMFAResetNotAllowed
-			}
-		}
-		if err := uc.mfaRepo.Delete(ctx, target.UserID); err != nil {
-			return err
-		}
-		if err := uc.revoker.RevokeUser(ctx, target.UserID); err != nil {
-			return err
-		}
-		if err := uc.publish(ctx, events.MemberMFAResetV1{MemberChange: memberChange(target, actor)}); err != nil {
-			return err
-		}
-		return uc.audit(ctx, actor.Audit, org, auditActionMemberMFAReset, target.ID, nil, nil)
-	})
 }
 
 func (uc *MemberUsecase) changeStatus(ctx context.Context, actor StaffActor, memberID uuid.UUID, change statusChange) (*dtos.MemberView, error) {

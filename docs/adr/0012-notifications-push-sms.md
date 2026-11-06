@@ -42,3 +42,19 @@ them.
 
 - Which SMS operator or aggregator, and its API and sender-id rules?
 - Which events need SMS as well as push?
+
+## Update 2026-11-01 (proposal 0001)
+
+- FCM is implemented over the HTTP v1 API (`infra/notification/push`), and invalid
+  tokens are deleted.
+- An offer is a special case with a short deadline: it does **not** go through
+  the normal retry budget. The watcher sends the fallback itself when no ack
+  arrives (Taxi: FCM at 3 s, next provider at 8 s). The policy holds the channels
+  and the times.
+- Policies with `fcm` in `initial_channels` (Maintenance, Removals) send at once
+  through the `notifications.requests` consumer.
+- Every send is stored in `notifications`.
+- The open question on which events need SMS is closed: offers according to the
+  policy, the assignment when `sms_on_accept` is set (Towing), and the passenger
+  of a request made for someone else.
+- Without FCM credentials pushes are written to the log, like SMS and e-mail.

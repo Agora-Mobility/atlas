@@ -23,7 +23,6 @@ type Controllers struct {
 	Members     *controllers.MemberController
 	Partners    *controllers.PartnerController
 	Invitations *controllers.InvitationController
-	MFA         *controllers.MFAController
 	Roles       *controllers.RoleController
 }
 
@@ -34,7 +33,6 @@ type Router struct {
 	members          *controllers.MemberController
 	partners         *controllers.PartnerController
 	invitations      *controllers.InvitationController
-	mfa              *controllers.MFAController
 	roles            *controllers.RoleController
 	authenticator    *middleware.Authenticator
 	authorizer       *middleware.Authorizer
@@ -56,7 +54,6 @@ func NewRouter(
 		members:          c.Members,
 		partners:         c.Partners,
 		invitations:      c.Invitations,
-		mfa:              c.MFA,
 		roles:            c.Roles,
 		authenticator:    authenticator,
 		authorizer:       authorizer,
@@ -84,6 +81,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 
 	recovery := authGroup.Group("/recovery", r.limiters.Recovery)
 	recovery.POST("/request", r.controller.RequestRecovery)
+	recovery.POST("/verify", r.controller.RecoveryVerify)
 	recovery.POST("/confirm", r.controller.ConfirmRecovery)
 
 	authGroup.POST("/logout", authenticated, r.controller.Logout)
@@ -100,12 +98,6 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	users.PUT("/password", r.controller.ChangePassword)
 
 	users.GET("/me/permissions", r.authorizer.RequireMembership(), r.members.MyAccess)
-	users.POST("/me/mfa/recovery-codes", r.limiters.Login, r.authorizer.RequireMembership(), r.mfa.RegenerateRecoveryCodes)
-
-	mfa := authGroup.Group("/mfa", r.limiters.Login)
-	mfa.POST("/setup", r.mfa.Setup)
-	mfa.POST("/verify", r.mfa.Verify)
-	mfa.POST("/recover", r.mfa.Recover)
 
 	invitations := api.Group("/invitations", clients, r.limiters.Phone)
 	invitations.POST("/verification-code", r.invitations.RequestCode)
@@ -130,7 +122,6 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	members.POST("/:id/reactivate", can(entities.PermMembersSuspend), r.members.Reactivate)
 	members.POST("/:id/deactivate", can(entities.PermMembersDeactivate), r.members.Deactivate)
 	members.POST("/:id/invitations/resend", can(entities.PermMembersInvite), r.members.ResendInvitation)
-	members.POST("/:id/mfa/reset", can(entities.PermMembersMFAReset), r.members.ResetMFA)
 
 	partners := staff.Group("/partners")
 	partners.GET("", can(entities.PermPartnersRead), r.partners.List)

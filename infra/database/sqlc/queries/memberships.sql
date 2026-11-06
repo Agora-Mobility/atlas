@@ -109,11 +109,7 @@ SELECT EXISTS (
 );
 
 -- name: GetMembershipAccess :one
-SELECT m.id, m.user_id, m.organization_id, o.type AS organization_type, m.status, m.perm_version,
-       EXISTS (
-           SELECT 1 FROM membership_roles mr JOIN roles r ON r.id = mr.role_id
-           WHERE mr.membership_id = m.id AND r.requires_mfa
-       )::boolean AS requires_mfa
+SELECT m.id, m.user_id, m.organization_id, o.type AS organization_type, m.status, m.perm_version
 FROM memberships m
 JOIN organizations o ON o.id = m.organization_id
 WHERE m.id = @id;

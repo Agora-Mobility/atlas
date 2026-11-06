@@ -1,10 +1,10 @@
 -- name: CreateRole :exec
-INSERT INTO roles (id, organization_id, scope, code, name, requires_mfa, is_system, created_at, updated_at)
-VALUES (@id, @organization_id, @scope, @code, @name, @requires_mfa, false, @created_at, @updated_at);
+INSERT INTO roles (id, organization_id, scope, code, name, is_system, created_at, updated_at)
+VALUES (@id, @organization_id, @scope, @code, @name, false, @created_at, @updated_at);
 
 -- name: UpdateRole :execrows
 UPDATE roles
-SET name = @name, requires_mfa = @requires_mfa, updated_at = @updated_at
+SET name = @name, updated_at = @updated_at
 WHERE id = @id AND NOT is_system;
 
 -- name: DeleteRolePermissions :exec

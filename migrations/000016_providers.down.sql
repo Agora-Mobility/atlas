@@ -1,0 +1,11 @@
+DROP TABLE provider_document_rejection_reasons;
+DROP TABLE provider_rejection_reasons;
+DROP TABLE rejection_reasons;
+DROP TABLE provider_documents;
+DROP TABLE service_required_documents;
+DROP TABLE service_provider_requirements;
+DROP TABLE provider_document_types;
+DROP TABLE device_tokens;
+DROP TABLE provider_coverage;
+DROP TABLE vehicles;
+DROP TABLE providers;

@@ -24,7 +24,6 @@ var memberMessages = map[string]memberMessage{
 	events.MemberSuspended:    emails.MemberSuspended,
 	events.MemberReactivated:  emails.MemberReactivated,
 	events.MemberDeactivated:  emails.MemberDeactivated,
-	events.MemberMFAReset:     emails.MemberMFAReset,
 }
 
 var accountMessages = map[string]accountMessage{

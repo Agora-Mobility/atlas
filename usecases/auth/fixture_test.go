@@ -25,6 +25,7 @@ const (
 	rawRefresh  = "raw-refresh"
 	hashRefresh = "hash-refresh"
 	otpTTL      = 5 * time.Minute
+	otpCooldown = 60 * time.Second
 	accessTTL   = 15 * time.Minute
 )
 
@@ -36,28 +37,25 @@ var (
 )
 
 type fixture struct {
-	users         *repomocks.MockIUserRepository
-	refreshTokens *repomocks.MockIRefreshTokenRepository
-	outbox        *repomocks.MockIOutboxRepository
-	tx            *repomocks.MockITransactionManager
-	hasher        *servicemocks.MockIPasswordHasher
-	accessTokens  *servicemocks.MockIAccessTokenIssuer
-	opaqueTokens  *servicemocks.MockIOpaqueTokenGenerator
-	otp           *servicemocks.MockIOTPService
-	sms           *servicemocks.MockISMSSender
-	email         *servicemocks.MockIEmailSender
-	revocations   *servicemocks.MockISessionRevocationStore
-	audit         *repomocks.MockIAuditLogRepository
-	blockReasons  *repomocks.MockIBlockReasonRepository
-	orgs          *repomocks.MockIOrganizationRepository
-	roles         *repomocks.MockIRoleRepository
-	memberships   *repomocks.MockIMembershipRepository
-	invitations   *repomocks.MockIInvitationRepository
-	mfa           *repomocks.MockIUserMFARepository
-	accessCache   *servicemocks.MockIAccessCache
-	challenges    *servicemocks.MockIMFAChallengeStore
-	totp          *servicemocks.MockITOTP
-	sealer        *servicemocks.MockISecretSealer
+	users          *repomocks.MockIUserRepository
+	refreshTokens  *repomocks.MockIRefreshTokenRepository
+	outbox         *repomocks.MockIOutboxRepository
+	tx             *repomocks.MockITransactionManager
+	hasher         *servicemocks.MockIPasswordHasher
+	accessTokens   *servicemocks.MockIAccessTokenIssuer
+	opaqueTokens   *servicemocks.MockIOpaqueTokenGenerator
+	otp            *servicemocks.MockIOTPService
+	recoveryTicket *servicemocks.MockIRecoveryTicketService
+	sms            *servicemocks.MockISMSSender
+	email          *servicemocks.MockIEmailSender
+	revocations    *servicemocks.MockISessionRevocationStore
+	audit          *repomocks.MockIAuditLogRepository
+	blockReasons   *repomocks.MockIBlockReasonRepository
+	orgs           *repomocks.MockIOrganizationRepository
+	roles          *repomocks.MockIRoleRepository
+	memberships    *repomocks.MockIMembershipRepository
+	invitations    *repomocks.MockIInvitationRepository
+	accessCache    *servicemocks.MockIAccessCache
 
 	auth              *usecases.AuthUsecase
 	refresh           *usecases.RefreshUsecase
@@ -75,34 +73,29 @@ type fixture struct {
 
 var invitationLinks = usecases.InvitationLinks{Platform: "https://argus.agora.ao/convite", Partner: "https://athena.agora.ao/convite"}
 
-const mfaChallengeTTL = 5 * time.Minute
-
 func newFixture(t *testing.T) fixture {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	f := fixture{
-		users:         repomocks.NewMockIUserRepository(ctrl),
-		refreshTokens: repomocks.NewMockIRefreshTokenRepository(ctrl),
-		outbox:        repomocks.NewMockIOutboxRepository(ctrl),
-		tx:            repomocks.NewMockITransactionManager(ctrl),
-		hasher:        servicemocks.NewMockIPasswordHasher(ctrl),
-		accessTokens:  servicemocks.NewMockIAccessTokenIssuer(ctrl),
-		opaqueTokens:  servicemocks.NewMockIOpaqueTokenGenerator(ctrl),
-		otp:           servicemocks.NewMockIOTPService(ctrl),
-		sms:           servicemocks.NewMockISMSSender(ctrl),
-		email:         servicemocks.NewMockIEmailSender(ctrl),
-		revocations:   servicemocks.NewMockISessionRevocationStore(ctrl),
-		audit:         repomocks.NewMockIAuditLogRepository(ctrl),
-		blockReasons:  repomocks.NewMockIBlockReasonRepository(ctrl),
-		orgs:          repomocks.NewMockIOrganizationRepository(ctrl),
-		roles:         repomocks.NewMockIRoleRepository(ctrl),
-		memberships:   repomocks.NewMockIMembershipRepository(ctrl),
-		invitations:   repomocks.NewMockIInvitationRepository(ctrl),
-		mfa:           repomocks.NewMockIUserMFARepository(ctrl),
-		accessCache:   servicemocks.NewMockIAccessCache(ctrl),
-		challenges:    servicemocks.NewMockIMFAChallengeStore(ctrl),
-		totp:          servicemocks.NewMockITOTP(ctrl),
-		sealer:        servicemocks.NewMockISecretSealer(ctrl),
+		users:          repomocks.NewMockIUserRepository(ctrl),
+		refreshTokens:  repomocks.NewMockIRefreshTokenRepository(ctrl),
+		outbox:         repomocks.NewMockIOutboxRepository(ctrl),
+		tx:             repomocks.NewMockITransactionManager(ctrl),
+		hasher:         servicemocks.NewMockIPasswordHasher(ctrl),
+		accessTokens:   servicemocks.NewMockIAccessTokenIssuer(ctrl),
+		opaqueTokens:   servicemocks.NewMockIOpaqueTokenGenerator(ctrl),
+		otp:            servicemocks.NewMockIOTPService(ctrl),
+		recoveryTicket: servicemocks.NewMockIRecoveryTicketService(ctrl),
+		sms:            servicemocks.NewMockISMSSender(ctrl),
+		email:          servicemocks.NewMockIEmailSender(ctrl),
+		revocations:    servicemocks.NewMockISessionRevocationStore(ctrl),
+		audit:          repomocks.NewMockIAuditLogRepository(ctrl),
+		blockReasons:   repomocks.NewMockIBlockReasonRepository(ctrl),
+		orgs:           repomocks.NewMockIOrganizationRepository(ctrl),
+		roles:          repomocks.NewMockIRoleRepository(ctrl),
+		memberships:    repomocks.NewMockIMembershipRepository(ctrl),
+		invitations:    repomocks.NewMockIInvitationRepository(ctrl),
+		accessCache:    servicemocks.NewMockIAccessCache(ctrl),
 	}
 	f.tx.EXPECT().WithinTransaction(gomock.Any(), gomock.Any()).AnyTimes().
 		DoAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) })
@@ -111,17 +104,17 @@ func newFixture(t *testing.T) fixture {
 	sessions := usecases.NewSessionIssuer(f.users, f.refreshTokens, f.tx, f.accessTokens, f.opaqueTokens, refreshTTL)
 	revoker := usecases.NewSessionRevoker(f.refreshTokens, f.revocations, accessTTL)
 	access := usecases.NewAccessResolver(f.memberships, f.accessCache)
-	f.staff = usecases.NewStaffSignIn(f.users, f.memberships, f.mfa, f.challenges, f.totp, f.sealer, f.opaqueTokens, f.audit, sessions, mfaChallengeTTL)
+	f.staff = usecases.NewStaffSignIn(f.users, f.memberships, sessions)
 	f.auth = usecases.NewAuthUsecase(f.users, f.outbox, f.tx, f.hasher, codeSender, sessions, f.staff, revoker)
 	f.refresh = usecases.NewRefreshUsecase(f.refreshTokens, f.users, access, f.tx, f.opaqueTokens, sessions, revoker, refreshTTL)
 	f.phoneVerification = usecases.NewPhoneVerificationUsecase(f.users, f.outbox, f.tx, f.otp, codeSender, sessions)
-	f.recovery = usecases.NewRecoveryUsecase(f.users, f.outbox, f.tx, f.hasher, f.otp, codeSender, revoker)
+	f.recovery = usecases.NewRecoveryUsecase(f.users, f.outbox, f.tx, f.hasher, f.otp, codeSender, revoker, f.recoveryTicket, f.email, otpCooldown)
 	f.profile = usecases.NewProfileUsecase(f.users, f.outbox, f.tx, f.hasher, f.otp, codeSender, revoker)
 	f.userAdmin = usecases.NewUserAdminUsecase(f.users, f.outbox, f.audit, f.blockReasons, f.tx, f.hasher, revoker)
 	f.bootstrap = usecases.NewAdminBootstrap(f.users, f.orgs, f.roles, f.memberships, f.outbox, f.audit, f.tx, f.hasher)
 	f.members = usecases.NewMemberUsecase(usecases.MemberStores{
 		Users: f.users, Orgs: f.orgs, Roles: f.roles, Memberships: f.memberships, Invitations: f.invitations,
-		MFA: f.mfa, Audit: f.audit, Outbox: f.outbox, Tx: f.tx,
+		Audit: f.audit, Outbox: f.outbox, Tx: f.tx,
 	}, f.opaqueTokens, f.sms, f.email, revoker, access, invitationLinks)
 	f.invitationFlow = usecases.NewInvitationUsecase(f.users, f.orgs, f.memberships, f.invitations, f.audit, f.outbox, f.tx,
 		f.hasher, f.opaqueTokens, f.otp, codeSender, access)

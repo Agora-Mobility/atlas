@@ -14,6 +14,11 @@ coverage.*
 .env.*
 !.env.example
 
+# Service account keys (Firebase and other Google credentials)
+/secrets/
+*firebase-adminsdk*.json
+*-service-account*.json
+
 # Confidential documents (project plans, contracts)
 *.pdf
 

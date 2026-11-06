@@ -4,12 +4,9 @@ package postgres_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,13 +14,10 @@ import (
 
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
-	"github.com/Agora-Mobility/atlas/migrations"
 )
 
 var appTables = []string{
-	"audit_log", "block_reasons", "clients", "invitations", "membership_roles", "memberships", "mfa_recovery_codes", "organizations", "outbox",
-	"permissions", "refresh_tokens", "role_permissions", "roles", "schema_migrations", "service_categories", "services", "user_block_reasons",
-	"user_blocks", "user_mfa", "users",
+	"addresses", "audit_log", "banks", "block_reasons", "booking_events", "booking_extras", "booking_items", "bookings", "cancellation_rules", "catalog_items", "category_payment_methods", "clients", "customer_vehicles", "device_tokens", "dispatch_policies", "eta_observations", "fare_adjustments", "fare_estimates", "inbox_items", "insurers", "invitations", "ledger_entries", "ledger_transactions", "media_uploads", "membership_roles", "memberships", "notifications", "organizations", "outbox", "payment_events", "payment_refunds", "payments", "permissions", "platform_settings", "provider_coverage", "provider_document_files", "provider_document_rejection_reasons", "provider_documents", "provider_location_samples", "provider_rejection_reasons", "provider_verifications", "providers", "ratings", "referrals", "refresh_tokens", "rejection_reasons", "request_messages", "request_offers", "request_shares", "request_team_members", "role_permissions", "roles", "schema_migrations", "service_categories", "service_provider_requirements", "service_request_events", "service_request_stops", "service_requests", "service_required_documents", "service_tariffs", "service_zones", "services", "sos_alerts", "support_messages", "support_tickets", "user_addresses", "user_block_reasons", "user_blocks", "users", "vehicles", "verification_reminders", "voucher_redemptions", "vouchers", "workshop_closures", "workshop_favorites", "workshop_hours", "workshop_mechanics", "workshop_services", "workshops",
 }
 
 func startPostgres(t *testing.T) string {
@@ -83,27 +77,49 @@ func typeSchema(t *testing.T, pool *pgxpool.Pool, name string) string {
 
 func assertEverythingInAtlas(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
+	ctx := context.Background()
 	assert.Equal(t, appTables, tablesIn(t, pool, postgres.Schema))
-	assert.Empty(t, tablesIn(t, pool, "public"), "public keeps only extension objects")
 	for _, name := range []string{"client_type", "user_role", "user_status", "organization_type", "membership_status"} {
 		assert.Equal(t, postgres.Schema, typeSchema(t, pool, name), name)
 	}
 	var postgisSchema string
-	require.NoError(t, pool.QueryRow(context.Background(),
+	require.NoError(t, pool.QueryRow(ctx,
 		"SELECT n.nspname FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace WHERE e.extname = 'postgis'").Scan(&postgisSchema))
-	assert.Equal(t, "public", postgisSchema)
+	assert.Equal(t, postgres.Schema, postgisSchema)
+
+	rows, err := pool.Query(ctx, "SELECT nspname FROM pg_namespace WHERE nspname NOT LIKE 'pg\\_%' AND nspname <> 'information_schema'")
+	require.NoError(t, err)
+	var schemas []string
+	for rows.Next() {
+		var name string
+		require.NoError(t, rows.Scan(&name))
+		schemas = append(schemas, name)
+	}
+	require.NoError(t, rows.Err())
+	assert.Equal(t, []string{postgres.Schema}, schemas, "atlas is the only schema")
 }
 
 func TestMigrate_NewDatabaseLivesInAtlas(t *testing.T) {
 	url := startPostgres(t)
 	require.NoError(t, postgres.Migrate(url, "up"))
 	pool := connect(t, url)
+	ctx := context.Background()
 
 	assertEverythingInAtlas(t, pool)
 
 	var clients int
-	require.NoError(t, pool.QueryRow(context.Background(), "SELECT count(*) FROM clients").Scan(&clients))
+	require.NoError(t, pool.QueryRow(ctx, "SELECT count(*) FROM clients").Scan(&clients))
 	assert.Equal(t, 4, clients, "unqualified queries resolve through the search_path")
+
+	var version int
+	var dirty bool
+	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
+	assert.Equal(t, 41, version)
+	assert.False(t, dirty)
+
+	var inMeters float64
+	require.NoError(t, pool.QueryRow(ctx, "SELECT ST_Distance(ST_MakePoint(13.23, -8.84)::geography, ST_MakePoint(13.24, -8.84)::geography)").Scan(&inMeters))
+	assert.Greater(t, inMeters, 1000.0, "PostGIS works from the atlas schema")
 
 	t.Run("down and up again", func(t *testing.T) {
 		require.NoError(t, postgres.Migrate(url, "down"))
@@ -112,42 +128,34 @@ func TestMigrate_NewDatabaseLivesInAtlas(t *testing.T) {
 	})
 }
 
-func TestMigrate_MovesALegacyPublicDatabaseKeepingData(t *testing.T) {
+func TestProviderAndAddressRules(t *testing.T) {
 	url := startPostgres(t)
-	ctx := context.Background()
-
-	// The runner before this change: default search_path, everything in public.
-	src, err := iofs.New(migrations.FS, ".")
-	require.NoError(t, err)
-	legacy, err := migrate.NewWithSourceInstance("iofs", src, "pgx5://"+strings.TrimPrefix(url, "postgres://"))
-	require.NoError(t, err)
-	require.NoError(t, legacy.Migrate(6))
-	_, _ = legacy.Close()
-
-	pool := connect(t, url)
-	_, err = pool.Exec(ctx, `INSERT INTO public.users (id, name, phone, password, role)
-		VALUES ('00000000-0000-0000-0000-0000000000a3', 'Cliente', '+244923000001', 'hash', 'customer')`)
-	require.NoError(t, err)
-
 	require.NoError(t, postgres.Migrate(url, "up"))
-	pool.Reset()
+	pool := connect(t, url)
+	ctx := context.Background()
+	const provider = "00000000-0000-0000-0000-000000000001"
+	_, err := pool.Exec(ctx, `INSERT INTO users (id, name, phone, password, status, role) VALUES ($1, 'P', '+244923000001', 'x', 'active', 'provider')`, provider)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `INSERT INTO providers (user_id) VALUES ($1)`, provider)
+	require.NoError(t, err)
 
-	assertEverythingInAtlas(t, pool)
+	_, err = pool.Exec(ctx, `INSERT INTO vehicles (provider_id, brand, model, color, plate) VALUES ($1, 'B', 'M', 'C', 'LD-1')`, provider)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `INSERT INTO vehicles (provider_id, brand, model, color, plate) VALUES ($1, 'B', 'M', 'C', 'LD-2')`, provider)
+	assert.Error(t, err, "one provider, one vehicle")
 
-	var name string
-	require.NoError(t, pool.QueryRow(ctx, "SELECT name FROM users WHERE phone = '+244923000001'").Scan(&name))
-	assert.Equal(t, "Cliente", name)
+	_, err = pool.Exec(ctx, `UPDATE providers SET status = 'approved' WHERE user_id = $1`, provider)
+	assert.Error(t, err, "an approved provider has a service")
 
-	var version int
-	var dirty bool
-	require.NoError(t, pool.QueryRow(ctx, "SELECT version, dirty FROM atlas.schema_migrations").Scan(&version, &dirty))
-	assert.Equal(t, 14, version)
-	assert.False(t, dirty)
+	_, err = pool.Exec(ctx, `INSERT INTO addresses (id, lat, lng) VALUES (gen_random_uuid(), 95, 13)`)
+	assert.Error(t, err, "latitude out of range")
 
-	_, err = pool.Exec(ctx, "UPDATE audit_log SET reason = 'x'")
-	require.ErrorContains(t, err, "append-only", "the trigger function moved with the table")
-
-	var canCreate bool
-	require.NoError(t, pool.QueryRow(ctx, "SELECT has_schema_privilege('public', 'public', 'CREATE')").Scan(&canCreate))
-	assert.False(t, canCreate, "PUBLIC cannot create objects in schema public")
+	_, err = pool.Exec(ctx, `INSERT INTO addresses (id, lat, lng) VALUES ('00000000-0000-0000-0000-0000000000f1', -8.84, 13.23), ('00000000-0000-0000-0000-0000000000f2', -8.85, 13.24)`)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `INSERT INTO user_addresses (address_id, user_id, kind) VALUES ('00000000-0000-0000-0000-0000000000f1', $1, 'home')`, provider)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `INSERT INTO user_addresses (address_id, user_id, kind) VALUES ('00000000-0000-0000-0000-0000000000f2', $1, 'home')`, provider)
+	assert.Error(t, err, "one home per user")
+	_, err = pool.Exec(ctx, `INSERT INTO user_addresses (address_id, user_id, kind) VALUES ('00000000-0000-0000-0000-0000000000f2', $1, 'other')`, provider)
+	assert.NoError(t, err, "as many others as needed")
 }

@@ -1,0 +1,377 @@
+{
+  "title": "Atlas dispatch and real time",
+  "uid": "atlas-dispatch",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "tags": [
+    "atlas",
+    "dispatch"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request to first delivered offer (p95)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, category) (rate(atlas_business_first_offer_delivered_seconds_bucket[5m])))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Time until ack (p50, p95)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, category, channel) (rate(atlas_business_offer_ack_seconds_bucket[5m])))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Offers by channel",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (channel, result) (rate(atlas_business_offer_channel_sends_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Offer outcomes",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (category, outcome) (rate(atlas_business_offer_outcomes_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Offers without response (%)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(atlas_business_offer_outcomes_total{outcome=\"no_response\"}[15m])) / sum(rate(atlas_business_offer_outcomes_total[15m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Request states",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (category, status) (rate(atlas_business_request_transitions_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "SSE connections",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(atlas_business_sse_connections)",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "SSE reconnects and resync",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (mode) (rate(atlas_business_sse_reconnects_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "SSE bytes per second",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(atlas_business_sse_bytes_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Candidate search (p95)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, source) (rate(atlas_business_candidate_search_seconds_bucket[5m])))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Cells per search (p95)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, source) (rate(atlas_business_candidate_search_cells_bucket[5m])))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Routing provider calls",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (api, result) (rate(atlas_business_routing_calls_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Quotes by route source",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (category, route_source, stage) (rate(atlas_business_fare_quotes_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Raise offer uses",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 48
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (category) (rate(atlas_business_fare_boosts_total[15m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Positions accepted and rejected",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(atlas_business_provider_positions_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

@@ -259,32 +259,6 @@ func (c *MemberController) ReplaceRoles(ctx *gin.Context) {
 	respond(ctx, http.StatusOK, resp, err)
 }
 
-// ResetMFA godoc
-//
-//	@Summary		Reset the authenticator of a member
-//	@Description	Requires members:mfa-reset, for a member who lost the authenticator app and the recovery codes. Ends every session; the next sign-in asks to set up MFA again. A partner cannot reset someone who also belongs to other organizations.
-//	@Tags			Members
-//	@Param			id	path	string	true	"Member (membership) id"
-//	@Success		204	"No Content"
-//	@Failure		401	{object}	shared.ErrorResponse	"Unauthorized or session ended"
-//	@Failure		403	{object}	shared.ErrorResponse	"Missing permission, privilege escalation, own account or member of other organizations"
-//	@Failure		404	{object}	shared.ErrorResponse	"Member not found"
-//	@Failure		409	{object}	shared.ErrorResponse	"Member deactivated"
-//	@Security		BearerAuth
-//	@Security		ClientId
-//	@Router			/api/v1/members/{id}/mfa/reset [post]
-func (c *MemberController) ResetMFA(ctx *gin.Context) {
-	actor, memberID, ok := memberRequest(ctx)
-	if !ok {
-		return
-	}
-	if err := c.members.ResetMFA(ctx.Request.Context(), actor, memberID); err != nil {
-		handleAccessError(ctx, err)
-		return
-	}
-	ctx.Status(http.StatusNoContent)
-}
-
 // Suspend godoc
 //
 //	@Summary		Suspend a member
@@ -589,7 +563,7 @@ func (c *InvitationController) RequestCode(ctx *gin.Context) {
 // Accept godoc
 //
 //	@Summary		Accept an invitation
-//	@Description	Sets the password (or confirms the current one when the person already has an account) and activates the membership. Sign in afterwards; roles that require MFA ask to set it up at the first sign-in.
+//	@Description	Sets the password (or confirms the current one when the person already has an account) and activates the membership. Sign in afterwards.
 //	@Tags			Invitations
 //	@Accept			json
 //	@Param			body	body	dtos.AcceptInvitationInput	true	"Token, password and SMS code"
@@ -612,126 +586,6 @@ func (c *InvitationController) Accept(ctx *gin.Context) {
 		return
 	}
 	ctx.Status(http.StatusNoContent)
-}
-
-type MFAController struct {
-	staff *usecases.StaffSignIn
-}
-
-func NewMFAController(staff *usecases.StaffSignIn) *MFAController {
-	return &MFAController{staff: staff}
-}
-
-// Setup godoc
-//
-//	@Summary		Start the authenticator app setup
-//	@Description	With the mfa_token of a login answered with setup_required. Returns the secret to scan; confirm it at /auth/mfa/verify.
-//	@Tags			Auth
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		dtos.MFATokenInput	true	"MFA token"
-//	@Success		200		{object}	dtos.MFASetupOutput
-//	@Failure		401		{object}	shared.ErrorResponse	"MFA step expired"
-//	@Failure		409		{object}	shared.ErrorResponse	"Already set up"
-//	@Security		ClientId
-//	@Router			/api/v1/auth/mfa/setup [post]
-func (c *MFAController) Setup(ctx *gin.Context) {
-	client, ok := requestClient(ctx)
-	if !ok {
-		return
-	}
-	var req dtos.MFATokenInput
-	if err := binding.JSON(ctx, &req); err != nil {
-		shared.InvalidRequest(ctx, err)
-		return
-	}
-	resp, err := c.staff.Setup(ctx.Request.Context(), client, req)
-	respond(ctx, http.StatusOK, resp, err)
-}
-
-// Verify godoc
-//
-//	@Summary		Finish the sign-in with an authenticator code
-//	@Description	With the mfa_token of the login and the 6-digit code of the app. Confirms a pending setup and starts the session.
-//	@Tags			Auth
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		dtos.MFAVerifyInput	true	"MFA token and code"
-//	@Success		200		{object}	dtos.SessionOutput
-//	@Failure		401		{object}	shared.ErrorResponse	"MFA step expired or too many attempts"
-//	@Failure		409		{object}	shared.ErrorResponse	"Setup required"
-//	@Failure		422		{object}	shared.ErrorResponse	"Wrong code"
-//	@Security		ClientId
-//	@Router			/api/v1/auth/mfa/verify [post]
-func (c *MFAController) Verify(ctx *gin.Context) {
-	client, ok := requestClient(ctx)
-	if !ok {
-		return
-	}
-	var req dtos.MFAVerifyInput
-	if err := binding.JSON(ctx, &req); err != nil {
-		shared.InvalidRequest(ctx, err)
-		return
-	}
-	resp, err := c.staff.Verify(ctx.Request.Context(), client, req)
-	respond(ctx, http.StatusOK, resp, err)
-}
-
-// Recover godoc
-//
-//	@Summary		Finish the sign-in with a recovery code
-//	@Description	For a member who lost the authenticator app. Each recovery code works once; regenerate them afterwards at POST /api/v1/users/me/mfa/recovery-codes.
-//	@Tags			Auth
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		dtos.MFARecoverInput	true	"MFA token and recovery code"
-//	@Success		200		{object}	dtos.SessionOutput
-//	@Failure		401		{object}	shared.ErrorResponse	"MFA step expired or too many attempts"
-//	@Failure		409		{object}	shared.ErrorResponse	"Setup required"
-//	@Failure		422		{object}	shared.ErrorResponse	"Wrong or used code"
-//	@Security		ClientId
-//	@Router			/api/v1/auth/mfa/recover [post]
-func (c *MFAController) Recover(ctx *gin.Context) {
-	client, ok := requestClient(ctx)
-	if !ok {
-		return
-	}
-	var req dtos.MFARecoverInput
-	if err := binding.JSON(ctx, &req); err != nil {
-		shared.InvalidRequest(ctx, err)
-		return
-	}
-	resp, err := c.staff.Recover(ctx.Request.Context(), client, req, ctx.ClientIP(), ctx.Request.UserAgent())
-	respond(ctx, http.StatusOK, resp, err)
-}
-
-// RegenerateRecoveryCodes godoc
-//
-//	@Summary		Generate new MFA recovery codes
-//	@Description	Confirm with a code of the authenticator app. The previous recovery codes stop working.
-//	@Tags			Auth
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		dtos.MFACodeInput	true	"Authenticator code"
-//	@Success		200		{object}	dtos.RecoveryCodesOutput
-//	@Failure		401		{object}	shared.ErrorResponse	"Unauthorized or session ended"
-//	@Failure		409		{object}	shared.ErrorResponse	"MFA not set up"
-//	@Failure		422		{object}	shared.ErrorResponse	"Wrong code"
-//	@Security		BearerAuth
-//	@Security		ClientId
-//	@Router			/api/v1/users/me/mfa/recovery-codes [post]
-func (c *MFAController) RegenerateRecoveryCodes(ctx *gin.Context) {
-	userID, ok := authenticatedUserID(ctx)
-	if !ok {
-		return
-	}
-	var req dtos.MFACodeInput
-	if err := binding.JSON(ctx, &req); err != nil {
-		shared.InvalidRequest(ctx, err)
-		return
-	}
-	resp, err := c.staff.RegenerateRecoveryCodes(ctx.Request.Context(), userID, req, ctx.ClientIP(), ctx.Request.UserAgent())
-	respond(ctx, http.StatusOK, resp, err)
 }
 
 type RoleController struct {

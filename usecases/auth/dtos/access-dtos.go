@@ -23,44 +23,6 @@ func ToAccessView(a *entities.Access) *AccessView {
 	return &AccessView{MembershipID: a.MembershipID, OrganizationID: a.OrganizationID, Scope: a.Scope, Permissions: a.Permissions}
 }
 
-type LoginOutput struct {
-	Session *SessionOutput
-	MFA     *MFAChallengeOutput
-}
-
-type MFAChallengeOutput struct {
-	Status    string `json:"status" enums:"setup_required,code_required" example:"code_required"`
-	MFAToken  string `json:"mfa_token"`
-	ExpiresIn int64  `json:"expires_in" example:"300"`
-}
-
-type MFATokenInput struct {
-	MFAToken string `json:"mfa_token" binding:"required,max=128"`
-}
-
-type MFAVerifyInput struct {
-	MFAToken string `json:"mfa_token" binding:"required,max=128"`
-	Code     string `json:"code" binding:"required,len=6,numeric" example:"123456"`
-}
-
-type MFARecoverInput struct {
-	MFAToken     string `json:"mfa_token" binding:"required,max=128"`
-	RecoveryCode string `json:"recovery_code" binding:"required,max=32" example:"7KQM-2XRT-PL9D"`
-}
-
-type MFACodeInput struct {
-	Code string `json:"code" binding:"required,len=6,numeric" example:"123456"`
-}
-
-type RecoveryCodesOutput struct {
-	RecoveryCodes []string `json:"recovery_codes" example:"7KQM-2XRT-PL9D"`
-}
-
-type MFASetupOutput struct {
-	Secret     string `json:"secret" example:"JBSWY3DPEHPK3PXP"`
-	OTPAuthURI string `json:"otpauth_uri" example:"otpauth://totp/AGORA:ana@agora.ao?secret=JBSWY3DPEHPK3PXP&issuer=AGORA"`
-}
-
 type OrganizationView struct {
 	ID        uuid.UUID              `json:"id"`
 	Type      enums.OrganizationType `json:"type" example:"partner"`
@@ -114,14 +76,13 @@ type RoleView struct {
 	Name        string                 `json:"name" example:"Operações"`
 	Scope       enums.OrganizationType `json:"scope" example:"platform"`
 	IsSystem    bool                   `json:"is_system"`
-	RequiresMFA bool                   `json:"requires_mfa"`
 	Permissions []entities.Permission  `json:"permissions" swaggertype:"array,string"`
 }
 
 func ToRoleView(r *entities.Role) RoleView {
 	return RoleView{
 		ID: r.ID, Code: r.Code, Name: r.Name, Scope: r.Scope, IsSystem: r.IsSystem,
-		RequiresMFA: r.RequiresMFA, Permissions: r.Permissions,
+		Permissions: r.Permissions,
 	}
 }
 
@@ -200,12 +161,10 @@ type MyAccessView struct {
 type CreateRoleInput struct {
 	Code        string   `json:"code" binding:"required,max=40" example:"field_support"`
 	Name        string   `json:"name" binding:"required,max=80" example:"Suporte de campo"`
-	RequiresMFA bool     `json:"requires_mfa"`
 	Permissions []string `json:"permissions" binding:"required,min=1,max=60" example:"members:read,providers:read"`
 }
 
 type UpdateRoleInput struct {
 	Name        *string  `json:"name" binding:"omitempty,max=80" example:"Suporte de campo"`
-	RequiresMFA *bool    `json:"requires_mfa"`
 	Permissions []string `json:"permissions" binding:"omitempty,min=1,max=60"`
 }

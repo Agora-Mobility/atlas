@@ -155,11 +155,7 @@ func (q *Queries) ExistsActiveMemberWithRole(ctx context.Context, arg ExistsActi
 }
 
 const getMembershipAccess = `-- name: GetMembershipAccess :one
-SELECT m.id, m.user_id, m.organization_id, o.type AS organization_type, m.status, m.perm_version,
-       EXISTS (
-           SELECT 1 FROM membership_roles mr JOIN roles r ON r.id = mr.role_id
-           WHERE mr.membership_id = m.id AND r.requires_mfa
-       )::boolean AS requires_mfa
+SELECT m.id, m.user_id, m.organization_id, o.type AS organization_type, m.status, m.perm_version
 FROM memberships m
 JOIN organizations o ON o.id = m.organization_id
 WHERE m.id = $1
@@ -172,7 +168,6 @@ type GetMembershipAccessRow struct {
 	OrganizationType enums.OrganizationType `json:"organization_type"`
 	Status           enums.MembershipStatus `json:"status"`
 	PermVersion      int64                  `json:"perm_version"`
-	RequiresMfa      bool                   `json:"requires_mfa"`
 }
 
 func (q *Queries) GetMembershipAccess(ctx context.Context, id uuid.UUID) (GetMembershipAccessRow, error) {
@@ -185,7 +180,6 @@ func (q *Queries) GetMembershipAccess(ctx context.Context, id uuid.UUID) (GetMem
 		&i.OrganizationType,
 		&i.Status,
 		&i.PermVersion,
-		&i.RequiresMfa,
 	)
 	return i, err
 }

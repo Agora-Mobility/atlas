@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -18,6 +19,7 @@ const (
 	roleContextKey      authContextKey = "role"
 	membershipKey       authContextKey = "membership"
 	accessKey           authContextKey = "access"
+	expiryContextKey    authContextKey = "session_expiry"
 )
 
 type TokenMembership struct {
@@ -72,4 +74,13 @@ func WithAccess(ctx context.Context, access *entities.Access) context.Context {
 func AccessFromContext(ctx context.Context) (*entities.Access, bool) {
 	access, ok := ctx.Value(accessKey).(*entities.Access)
 	return access, ok && access != nil
+}
+
+func WithTokenExpiry(ctx context.Context, expiresAt time.Time) context.Context {
+	return context.WithValue(ctx, expiryContextKey, expiresAt)
+}
+
+func TokenExpiryFromContext(ctx context.Context) time.Time {
+	expiresAt, _ := ctx.Value(expiryContextKey).(time.Time)
+	return expiresAt
 }

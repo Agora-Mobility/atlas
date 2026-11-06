@@ -4,7 +4,7 @@ ARG UID=1000
 ARG GID=1000
 
 # hadolint ignore=DL3018
-RUN apk add --no-cache ca-certificates git make curl bash postgresql-client \
+RUN apk add --no-cache ca-certificates git make curl bash postgresql-client gcc musl-dev \
     && addgroup -g "${GID}" atlas \
     && adduser -D -u "${UID}" -G atlas atlas \
     && mkdir -p /app /go/pkg/mod /home/atlas/.cache/go-build \
@@ -14,7 +14,7 @@ ENV GOPROXY=https://proxy.golang.org,direct \
     GOSUMDB=sum.golang.org \
     GOTOOLCHAIN=local \
     GOCACHE=/home/atlas/.cache/go-build \
-    CGO_ENABLED=0
+    CGO_ENABLED=1
 
 COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
 

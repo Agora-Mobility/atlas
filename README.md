@@ -106,14 +106,12 @@ which roles can sign in and which role a self-registration creates:
 
 Staff access is permission based (ADR 0015): each membership has roles, each
 role a set of permissions, and every staff endpoint checks one permission.
-Super Admin, Financeiro and Proprietário must set up an authenticator app: the
-login answers `202` with an `mfa_token`, then `POST /api/v1/auth/mfa/setup` and
-`POST /api/v1/auth/mfa/verify` start the session.
+Every account signs in with the phone number and the password alone.
 
 Protected routes also need `Authorization: Bearer <access_token>` from
 `POST /api/v1/auth/login`, which takes the phone and the password. `make seed`
-creates a customer, a provider, a Super Admin (`+244923000101`, asks for MFA),
-an Operações member (`+244923000102`) and the owner of a test partner
+creates a customer, a provider, a Super Admin (`+244923000101`), an Operações
+member (`+244923000102`) and the owner of a test partner
 (`+244923000105`), all with password `Agora@2026`:
 
 ```bash
@@ -191,3 +189,48 @@ before.
 - Branches: work on `develop`, release from `main`, tags `vX.Y.Z` (created by release-please, never by hand).
 - Configuration comes only from environment variables, validated at startup.
 - Never commit `.env` or confidential documents (`*.pdf` is ignored).
+
+## Dispatch and real time
+
+Proposal: `docs/proposals/0001-despacho-geoespacial-e-tempo-real.md`. Decisions:
+ADR 0008 to 0012 and 0016 to 0018.
+
+- `infra/geo/h3index`: the only package that imports H3. The API needs a C compiler
+  (`CGO_ENABLED=1`). After pulling this change, rebuild the dev image: `make docker-up`.
+- `usecases/dispatch`: policies, candidates, offers, quotes, watcher and fares.
+- `usecases/realtime` and `infra/sse`: projector, mailbox, signal and stream.
+- Policies, zones and tariffs are data managed under `/api/v1/admin`. `make seed`
+  creates a rough Luanda zone and illustrative tariffs, for development only.
+
+### Tests
+
+```bash
+make test              # unit
+make test-integration  # repositories, Redis and backoffice flows (Docker)
+make test-e2e          # full stack and acceptance criteria of the proposal (Docker)
+make test-load         # k6 against a disposable stack (Docker and k6)
+```
+
+## Provider sign-up
+
+Providers apply in the app and the backoffice reviews them (ADR 0007).
+
+1. `POST /api/v1/providers/register` with the phone only, then `POST /api/v1/auth/phone/verify`.
+2. `GET /api/v1/providers/services`, then `PUT /api/v1/providers/me/profile` with the
+   chosen `service_id`, the name, birth date, BI, province, municipality and optional e-mail.
+3. `GET /api/v1/providers/me/verification` lists the steps: eight for a driver and eight
+   for a partner workshop (maintenance). The progress is always computed by the server.
+4. For each file: `POST /api/v1/providers/me/verification/uploads` with the document type,
+   the slot (front, back, page_1, main…) and the subject, PUT the file to the returned URL
+   with the returned headers, then `POST .../uploads/{id}/confirm`. The file is processed
+   in the queue (sha256, EXIF and GPS removed, quality); poll `GET .../uploads/{id}`.
+5. Each step has its own `PUT` under `/api/v1/providers/me/verification` (identity card
+   data, driving licence, criminal record, vehicle, logbook, insurance, bank account, and
+   for workshops the licence, certificate, NIF, location and services).
+6. `GET .../verification/review`, then `POST .../verification/submit` with the declaration.
+
+The older `/me/vehicle`, `/me/documents*` and `/me/submit` endpoints still work for the
+clients already in production; new clients use the verification endpoints.
+
+Documents go to Cloudflare R2 (`R2_*` in `.env`). `make test-r2` checks the credentials
+against the real bucket. The other test suites never touch R2.

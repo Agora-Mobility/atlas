@@ -87,7 +87,7 @@ func NewAuthUsecase(
 
 func (uc *AuthUsecase) Register(ctx context.Context, req dtos.RegisterInput, client *entities.Client) (*dtos.UserView, error) {
 	role, allowed := client.SignUpRole()
-	if !allowed {
+	if !allowed || role == enums.RoleProvider {
 		return nil, ErrRegistrationNotAllowed
 	}
 
@@ -144,7 +144,7 @@ func (uc *AuthUsecase) sendVerificationCode(ctx context.Context, user *entities.
 	}
 }
 
-func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *entities.Client, ip, userAgent string) (*dtos.LoginOutput, error) {
+func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *entities.Client, ip, userAgent string) (*dtos.SessionOutput, error) {
 	user, err := uc.userRepo.FindByPhone(ctx, phone.Normalize(req.Phone))
 	if err != nil {
 		return nil, err
@@ -175,11 +175,7 @@ func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *e
 	if user.IsStaff() {
 		return uc.staff.Begin(ctx, user, client, ip, userAgent)
 	}
-	session, err := uc.sessions.Start(ctx, user, client, nil, ip, userAgent)
-	if err != nil {
-		return nil, err
-	}
-	return &dtos.LoginOutput{Session: session}, nil
+	return uc.sessions.Start(ctx, user, client, nil, ip, userAgent)
 }
 
 func (uc *AuthUsecase) Logout(ctx context.Context, sessionID uuid.UUID) error {

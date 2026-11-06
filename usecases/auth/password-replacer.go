@@ -19,6 +19,7 @@ const (
 var (
 	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
 	ErrPasswordTooLong  = errors.New("password must be at most 128 characters")
+	ErrPasswordReused   = errors.New("new password is the current one")
 )
 
 type passwordReplacer struct {
@@ -52,6 +53,10 @@ func (r passwordReplacer) replace(ctx context.Context, user *entities.User, newP
 		return fmt.Errorf("replace password: %w", err)
 	}
 	return nil
+}
+
+func ValidatePassword(password string) error {
+	return validatePassword(password)
 }
 
 func validatePassword(password string) error {

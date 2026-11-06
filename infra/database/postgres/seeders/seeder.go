@@ -18,6 +18,7 @@ var all = []seeder{
 	{name: "users", run: seedUsers},
 	{name: "partners", run: seedPartners},
 	{name: "memberships", run: seedMemberships},
+	{name: "dispatch", run: seedDispatch},
 }
 
 const partnerOrganizationID = "00000000-0000-0000-0000-0000000000b1"
@@ -28,6 +29,43 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	for _, s := range all {
 		if err := s.run(ctx, pool); err != nil {
 			return fmt.Errorf("seeder %s: %w", s.name, err)
+		}
+	}
+	return nil
+}
+
+const luandaApproximateArea = "MULTIPOLYGON(((12.9 -9.4,13.8 -9.4,13.8 -8.5,12.9 -8.5,12.9 -9.4)))"
+
+func seedDispatch(ctx context.Context, pool *pgxpool.Pool) error {
+	statements := []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO service_zones (id, country_code, name, geom, timezone, currency)
+		  VALUES ('00000000-0000-0000-0000-0000000000c1', 'AO', 'Luanda', ST_GeogFromText($1), 'Africa/Luanda', 'AOA')
+		  ON CONFLICT (id) DO NOTHING`, []any{luandaApproximateArea}},
+		{`INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps)
+		  SELECT s.id, 'AOA',
+		         CASE s.slug WHEN 'taxi-comfort' THEN 45000 WHEN 'taxi-xl' THEN 60000 ELSE 30000 END,
+		         CASE s.slug WHEN 'taxi-comfort' THEN 18000 WHEN 'taxi-xl' THEN 22000 ELSE 13000 END,
+		         CASE s.slug WHEN 'taxi-comfort' THEN 2000 WHEN 'taxi-xl' THEN 2500 ELSE 1500 END,
+		         CASE s.slug WHEN 'taxi-comfort' THEN 70000 WHEN 'taxi-xl' THEN 90000 ELSE 45000 END,
+		         0 FROM services s
+		  WHERE NOT EXISTS (SELECT 1 FROM service_tariffs t WHERE t.service_id = s.id AND t.valid_until IS NULL)`, nil},
+		{`INSERT INTO vouchers (id, code, description, category_id, discount_bps, valid_from, valid_until, per_customer_limit, is_public)
+		  SELECT '00000000-0000-0000-0000-0000000000d1', 'TAXI10', '10% no táxi', c.id, 1000, now() - interval '1 day', now() + interval '365 days', 5, true
+		  FROM service_categories c WHERE c.slug = 'taxi'
+		  ON CONFLICT DO NOTHING`, nil},
+		{`INSERT INTO providers (user_id, status, service_id)
+		  SELECT '00000000-0000-0000-0000-0000000000a4', 'approved', s.id FROM services s WHERE s.slug = 'taxi'
+		  ON CONFLICT (user_id) DO NOTHING`, nil},
+		{`INSERT INTO vehicles (provider_id, brand, model, year, color, plate, seats)
+		  VALUES ('00000000-0000-0000-0000-0000000000a4', 'Toyota', 'Corolla', 2020, 'Branco', 'LD-45-21-AF', 5)
+		  ON CONFLICT (provider_id) DO NOTHING`, nil},
+	}
+	for _, statement := range statements {
+		if _, err := pool.Exec(ctx, statement.sql, statement.args...); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -13,10 +13,24 @@ ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
 
+# H3 is a C library (infra/geo/h3index), so the API links it statically.
+# hadolint ignore=DL3008
+RUN if [ "$(dpkg --print-architecture)" != "$TARGETARCH" ]; then \
+        apt-get update && \
+        case "$TARGETARCH" in \
+            arm64) apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross ;; \
+            amd64) apt-get install -y --no-install-recommends gcc-x86-64-linux-gnu libc6-dev-amd64-cross ;; \
+        esac; \
+    fi
+
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/atlas . && \
+    case "$TARGETARCH" in \
+        arm64) export CC=aarch64-linux-gnu-gcc ;; \
+        amd64) export CC=x86_64-linux-gnu-gcc ;; \
+    esac && \
+    CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -tags netgo,osusergo -ldflags="-s -w -X main.version=${VERSION} -linkmode external -extldflags -static" -o /out/atlas . && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
@@ -16,7 +17,7 @@ import (
 
 // Publisher is the part of queue.Publisher the relay needs.
 type Publisher interface {
-	Publish(ctx context.Context, msg queue.Message) error
+	PublishBatch(ctx context.Context, msgs []queue.Message) (int, error)
 }
 
 // Relay polls the outbox and publishes pending events. Delivery is
@@ -76,29 +77,32 @@ func (r *Relay) processBatch(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("fetch pending: %w", err)
 	}
 
-	published := 0
+	if len(rows) == 0 {
+		return 0, nil
+	}
+
+	msgs := make([]queue.Message, 0, len(rows))
 	for _, row := range rows {
-		msg := queue.Message{
-			ID:         row.ID.String(),
-			Type:       row.EventType,
-			RoutingKey: row.RoutingKey,
-			Body:       row.Envelope,
-		}
-		if pubErr := r.publisher.Publish(ctx, msg); pubErr != nil {
-			logger.FromContext(ctx).Warn("outbox publish failed",
-				zap.String("event_id", msg.ID), zap.String("routing_key", msg.RoutingKey), zap.Error(pubErr))
-			errText := pubErr.Error()
-			if err := q.MarkOutboxEventFailed(ctx, gen.MarkOutboxEventFailedParams{ID: row.ID, LastError: &errText}); err != nil {
-				return 0, fmt.Errorf("mark failed: %w", err)
-			}
-			// Keep ordering: stop at the first failure and retry next tick.
-			break
-		}
-		if err := q.MarkOutboxEventPublished(ctx, row.ID); err != nil {
-			return 0, fmt.Errorf("mark published: %w", err)
-		}
+		msgs = append(msgs, queue.Message{ID: row.ID.String(), Type: row.EventType, RoutingKey: row.RoutingKey, Body: row.Envelope})
+	}
+	published, pubErr := r.publisher.PublishBatch(ctx, msgs)
+
+	ids := make([]uuid.UUID, 0, published)
+	for _, row := range rows[:published] {
+		ids = append(ids, row.ID)
 		prometheus.EventsPublished.WithLabelValues(row.EventType).Inc()
-		published++
+	}
+	if err := q.MarkOutboxEventsPublished(ctx, ids); err != nil {
+		return 0, fmt.Errorf("mark published: %w", err)
+	}
+	if pubErr != nil {
+		failed := rows[published]
+		logger.FromContext(ctx).Warn("outbox publish failed",
+			zap.String("event_id", failed.ID.String()), zap.String("routing_key", failed.RoutingKey), zap.Error(pubErr))
+		errText := pubErr.Error()
+		if err := q.MarkOutboxEventFailed(ctx, gen.MarkOutboxEventFailedParams{ID: failed.ID, LastError: &errText}); err != nil {
+			return 0, fmt.Errorf("mark failed: %w", err)
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {

@@ -178,7 +178,7 @@ func (r *RoleRepository) Create(ctx context.Context, role *entities.Role) error 
 		now := time.Now().UTC()
 		err := postgres.Queries(ctx, r.pool).CreateRole(ctx, gen.CreateRoleParams{
 			ID: role.ID, OrganizationID: role.OrganizationID, Scope: role.Scope, Code: role.Code, Name: role.Name,
-			RequiresMfa: role.RequiresMFA, CreatedAt: now, UpdatedAt: now,
+			CreatedAt: now, UpdatedAt: now,
 		})
 		if err != nil {
 			return userWriteError("insert role", err)
@@ -190,7 +190,7 @@ func (r *RoleRepository) Create(ctx context.Context, role *entities.Role) error 
 func (r *RoleRepository) Update(ctx context.Context, role *entities.Role) error {
 	return postgres.Scoped(ctx, r.pool, func(ctx context.Context) error {
 		q := postgres.Queries(ctx, r.pool)
-		rows, err := q.UpdateRole(ctx, gen.UpdateRoleParams{ID: role.ID, Name: role.Name, RequiresMfa: role.RequiresMFA, UpdatedAt: time.Now().UTC()})
+		rows, err := q.UpdateRole(ctx, gen.UpdateRoleParams{ID: role.ID, Name: role.Name, UpdatedAt: time.Now().UTC()})
 		if err != nil {
 			return fmt.Errorf("update role: %w", err)
 		}
@@ -260,7 +260,6 @@ func (r *RoleRepository) withPermissions(ctx context.Context, rows []gen.Role) (
 			Scope:          row.Scope,
 			Code:           row.Code,
 			Name:           row.Name,
-			RequiresMFA:    row.RequiresMfa,
 			IsSystem:       row.IsSystem,
 			Permissions:    []entities.Permission{},
 		}
@@ -482,7 +481,6 @@ func (r *MembershipRepository) Access(ctx context.Context, membershipID uuid.UUI
 			Scope:          row.OrganizationType,
 			Status:         row.Status,
 			PermVersion:    row.PermVersion,
-			RequiresMFA:    row.RequiresMfa,
 			Permissions:    perms,
 		}, nil
 	})
@@ -640,82 +638,6 @@ func invitationOrNil(row gen.Invitation, err error) (*entities.Invitation, error
 		ExpiresAt: row.ExpiresAt.UTC(), AcceptedAt: utcOrNil(row.AcceptedAt), RevokedAt: utcOrNil(row.RevokedAt),
 		CreatedAt: row.CreatedAt.UTC(),
 	}, nil
-}
-
-type UserMFARepository struct {
-	pool *pgxpool.Pool
-}
-
-var _ repository.IUserMFARepository = (*UserMFARepository)(nil)
-
-func NewUserMFARepository(pool *pgxpool.Pool) *UserMFARepository {
-	return &UserMFARepository{pool: pool}
-}
-
-func (r *UserMFARepository) Find(ctx context.Context, userID uuid.UUID) (*entities.UserMFA, error) {
-	row, err := postgres.Queries(ctx, r.pool).GetUserMFA(ctx, userID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get user mfa: %w", err)
-	}
-	return &entities.UserMFA{UserID: row.UserID, Secret: row.Secret, ConfirmedAt: utcOrNil(row.ConfirmedAt), LastUsedStep: row.LastUsedStep}, nil
-}
-
-func (r *UserMFARepository) SavePending(ctx context.Context, userID uuid.UUID, sealedSecret string, at time.Time) error {
-	if err := postgres.Queries(ctx, r.pool).SavePendingUserMFA(ctx, gen.SavePendingUserMFAParams{UserID: userID, Secret: sealedSecret, UpdatedAt: at}); err != nil {
-		return fmt.Errorf("save user mfa: %w", err)
-	}
-	return nil
-}
-
-func (r *UserMFARepository) Delete(ctx context.Context, userID uuid.UUID) error {
-	q := postgres.Queries(ctx, r.pool)
-	if err := q.DeleteRecoveryCodes(ctx, userID); err != nil {
-		return fmt.Errorf("delete recovery codes: %w", err)
-	}
-	if err := q.DeleteUserMFA(ctx, userID); err != nil {
-		return fmt.Errorf("delete user mfa: %w", err)
-	}
-	return nil
-}
-
-func (r *UserMFARepository) ReplaceRecoveryCodes(ctx context.Context, userID uuid.UUID, codeHashes []string, at time.Time) error {
-	return postgres.NewTxManager(r.pool).WithinTransaction(ctx, func(ctx context.Context) error {
-		q := postgres.Queries(ctx, r.pool)
-		if err := q.DeleteRecoveryCodes(ctx, userID); err != nil {
-			return fmt.Errorf("delete recovery codes: %w", err)
-		}
-		if err := q.CreateRecoveryCodes(ctx, gen.CreateRecoveryCodesParams{UserID: userID, CodeHashes: codeHashes, CreatedAt: at}); err != nil {
-			return fmt.Errorf("insert recovery codes: %w", err)
-		}
-		return nil
-	})
-}
-
-func (r *UserMFARepository) UseRecoveryCode(ctx context.Context, userID uuid.UUID, codeHash string, at time.Time) (bool, error) {
-	rows, err := postgres.Queries(ctx, r.pool).UseRecoveryCode(ctx, gen.UseRecoveryCodeParams{UserID: userID, CodeHash: codeHash, UsedAt: &at})
-	if err != nil {
-		return false, fmt.Errorf("use recovery code: %w", err)
-	}
-	return rows == 1, nil
-}
-
-func (r *UserMFARepository) CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error) {
-	count, err := postgres.Queries(ctx, r.pool).CountUnusedRecoveryCodes(ctx, userID)
-	if err != nil {
-		return 0, fmt.Errorf("count recovery codes: %w", err)
-	}
-	return count, nil
-}
-
-func (r *UserMFARepository) UseStep(ctx context.Context, userID uuid.UUID, step int64, at time.Time) (bool, error) {
-	rows, err := postgres.Queries(ctx, r.pool).UseUserMFAStep(ctx, gen.UseUserMFAStepParams{UserID: userID, Step: step, UsedAt: at})
-	if err != nil {
-		return false, fmt.Errorf("use mfa step: %w", err)
-	}
-	return rows == 1, nil
 }
 
 func inTenant[T any](ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) (T, error)) (T, error) {

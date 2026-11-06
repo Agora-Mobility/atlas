@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"strconv"
+	"sync"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -34,6 +36,7 @@ type ConsumerConfig struct {
 	Prefetch    int
 	MaxRetries  int
 	RetryDelay  time.Duration
+	Workers     int // events of one aggregate always go to the same worker, in order
 }
 
 // Consumer reads from a quorum queue with manual acks. Failed messages go to
@@ -98,6 +101,18 @@ func (c *Consumer) declareTopology(ch *amqp.Channel) error {
 	return nil
 }
 
+// EnsureTopology declares the queues and bindings. The relay must only publish
+// after this: a message sent to the exchange before its queue is bound is
+// dropped by the broker and never comes back.
+func (c *Consumer) EnsureTopology() error {
+	ch, err := c.mgr.Channel()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = ch.Close() }()
+	return c.declareTopology(ch)
+}
+
 func (c *Consumer) consume(ctx context.Context) error {
 	ch, err := c.mgr.Channel()
 	if err != nil {
@@ -117,17 +132,68 @@ func (c *Consumer) consume(ctx context.Context) error {
 		return fmt.Errorf("consume: %w", err)
 	}
 
+	workers := c.startWorkers(ctx, ch)
+	defer workers.stop()
+
 	for {
 		select {
 		case <-ctx.Done():
+			// Closing the channel blocks while prefetched deliveries are pending.
+			for d := range deliveries {
+				_ = d.Nack(false, true)
+			}
 			return nil
 		case d, ok := <-deliveries:
 			if !ok {
 				return errors.New("delivery channel closed")
 			}
-			c.handle(ctx, ch, d)
+			workers.dispatch(d)
 		}
 	}
+}
+
+type workerPool struct {
+	queues []chan amqp.Delivery
+	done   sync.WaitGroup
+}
+
+func (c *Consumer) startWorkers(ctx context.Context, ch *amqp.Channel) *workerPool {
+	count := max(c.cfg.Workers, 1)
+	pool := &workerPool{queues: make([]chan amqp.Delivery, count)}
+	for i := range pool.queues {
+		queue := make(chan amqp.Delivery, 1)
+		pool.queues[i] = queue
+		pool.done.Go(func() {
+			for d := range queue {
+				c.handle(ctx, ch, d)
+			}
+		})
+	}
+	return pool
+}
+
+func (p *workerPool) dispatch(d amqp.Delivery) {
+	p.queues[workerFor(d.Body, len(p.queues))] <- d
+}
+
+func (p *workerPool) stop() {
+	for _, queue := range p.queues {
+		close(queue)
+	}
+	p.done.Wait()
+}
+
+func workerFor(body []byte, workers int) int {
+	if workers == 1 {
+		return 0
+	}
+	var key struct {
+		AggregateID string `json:"aggregate_id"`
+	}
+	_ = json.Unmarshal(body, &key)
+	hash := fnv.New32a()
+	_, _ = hash.Write([]byte(key.AggregateID))
+	return int(hash.Sum32() % uint32(workers)) // #nosec G115 -- a small configured count
 }
 
 func (c *Consumer) handle(ctx context.Context, ch *amqp.Channel, d amqp.Delivery) {

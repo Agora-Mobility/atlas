@@ -6,7 +6,6 @@ import (
 	"context"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -20,8 +19,7 @@ import (
 	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
 )
 
-// signInSuperAdmin bootstraps the first super admin and returns a session
-// after the MFA setup.
+// signInSuperAdmin bootstraps the first super admin and returns a session.
 func signInSuperAdmin(t *testing.T, a api, pool *pgxpool.Pool) string {
 	t.Helper()
 	bootstrap := usecases.NewAdminBootstrap(repository.NewUserRepository(pool), repository.NewOrganizationRepository(pool),
@@ -31,9 +29,8 @@ func signInSuperAdmin(t *testing.T, a api, pool *pgxpool.Pool) string {
 	require.NoError(t, err)
 
 	res := a.call(http.MethodPost, "/api/v1/auth/login", backofficeApp, "", map[string]string{"phone": adminPhone, "password": adminPassword})
-	require.Equal(t, http.StatusAccepted, res.status, res.body)
-	mfaToken := res.body["mfa_token"].(string)
-	return a.verifyMFA(backofficeApp, mfaToken, a.setupMFA(mfaToken), time.Now())
+	require.Equal(t, http.StatusOK, res.status, res.body)
+	return res.body["access_token"].(string)
 }
 
 // catalogSlugs returns the category slugs of the public catalog and the
@@ -66,7 +63,7 @@ func TestCatalogFlow(t *testing.T) {
 
 		assert.Equal(t, []string{"taxi", "maintenance", "towing", "removals"}, categories)
 		assert.Equal(t, map[string][]string{
-			"taxi": {"taxi"}, "maintenance": {"maintenance"}, "towing": {"towing"}, "removals": {"removals"},
+			"taxi": {"taxi", "taxi-comfort", "taxi-xl"}, "maintenance": {"maintenance"}, "towing": {"towing"}, "removals": {"removals"},
 		}, offered)
 
 		res := a.call(http.MethodGet, "/api/v1/catalog", customerApp, "", nil)
@@ -152,7 +149,7 @@ func TestCatalogFlow(t *testing.T) {
 
 		res = a.call(http.MethodGet, "/api/v1/admin/services?is_active=true&category_id="+taxiID, backofficeApp, adminToken, nil)
 		require.Equal(t, http.StatusOK, res.status, res.body)
-		assert.EqualValues(t, 1, res.body["total"], "the service itself stays active for when the category returns")
+		assert.EqualValues(t, 3, res.body["total"], "the services themselves stay active for when the category returns")
 
 		res = a.call(http.MethodPatch, "/api/v1/admin/categories/"+taxiID, backofficeApp, adminToken, map[string]any{"is_active": true})
 		require.Equal(t, http.StatusOK, res.status, res.body)
@@ -161,7 +158,7 @@ func TestCatalogFlow(t *testing.T) {
 	})
 
 	t.Run("the tariff set in the backoffice reaches the app", func(t *testing.T) {
-		res := a.call(http.MethodGet, "/api/v1/admin/services?search=t%C3%A1xi", backofficeApp, adminToken, nil)
+		res := a.call(http.MethodGet, "/api/v1/admin/services?search=econ%C3%B3mico", backofficeApp, adminToken, nil)
 		require.Equal(t, http.StatusOK, res.status, res.body)
 		require.EqualValues(t, 1, res.body["total"], res.body)
 		taxiServiceID := res.body["items"].([]any)[0].(map[string]any)["id"].(string)
