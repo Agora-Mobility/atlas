@@ -1,5 +1,37 @@
 # Changelog
 
+## [3.0.0](https://github.com/Agora-Mobility/atlas/compare/v2.0.0...v3.0.0) (2026-11-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** POST /auth/recovery/confirm now takes recovery_token and new_password, instead of phone, code and new_password.
+* **routing:** route_source and source answer google instead of mapbox, and route.geometry is now an encoded polyline of precision 5, not 6.
+
+### Features
+
+* **auth:** add a single-use ticket for password recovery ([f49ee32](https://github.com/Agora-Mobility/atlas/commit/f49ee32c08253f1731a64e6dd0875e5c4c8b458b))
+* **auth:** recover the password by e-mail or SMS in two steps ([1714caf](https://github.com/Agora-Mobility/atlas/commit/1714caf0a0f528a75ec373384d957f2d61b66650))
+* **auth:** remove MFA, every account signs in with phone and password alone ([8a7e585](https://github.com/Agora-Mobility/atlas/commit/8a7e585064a3a49312b8b321f3fad0815c327f02))
+* **auth:** remove MFA, two-step password recovery and Google Maps routing ([7a76acc](https://github.com/Agora-Mobility/atlas/commit/7a76acc234fa404e4c3bcb867997b5fe2330ab15))
+* **config:** read the Firebase service account from FCM_CREDENTIALS_FILE ([cc4472c](https://github.com/Agora-Mobility/atlas/commit/cc4472c72de294218bed08a5052c6433e8a72969))
+* **emails:** add the password recovery code message ([a126e3b](https://github.com/Agora-Mobility/atlas/commit/a126e3bae7b316a675295563d826bbc9a6b06b89))
+* **notifications:** tell providers about their verification ([6cf05dc](https://github.com/Agora-Mobility/atlas/commit/6cf05dc7c8f3e4263d30db23b0bf626a8fac18b4))
+* P2 Repeat flow, bug fixes, swagger, tests, docs ([3215db9](https://github.com/Agora-Mobility/atlas/commit/3215db9d3aa80050a770e797f0c421d76e754f8f))
+* **pricing:** accept google as the route source of a quote ([d58d857](https://github.com/Agora-Mobility/atlas/commit/d58d857b250da7c1df9844ed8de671b7b4f097e5))
+* **providers:** add bank and insurer catalogs, rules per service and reminders ([a90498c](https://github.com/Agora-Mobility/atlas/commit/a90498cfc6836d86357981c29acc3892116d967c))
+* **providers:** add the image quality, OCR and liveness ports ([5e77eb2](https://github.com/Agora-Mobility/atlas/commit/5e77eb2aa680cc45b75f1249b0dd0899a048200a))
+* **providers:** add the rules that check IBAN, plate, NIF, BI, names and dates ([bfc379a](https://github.com/Agora-Mobility/atlas/commit/bfc379a0c346f7692a6cd4bd2ca1cbe9a8283488))
+* **providers:** add the verification endpoints of AGORA Pro ([f631494](https://github.com/Agora-Mobility/atlas/commit/f631494e1cbad966ebe27a7fd249335019f80e2c))
+* **providers:** AGORA Pro provider verification (KYC) ([050ba74](https://github.com/Agora-Mobility/atlas/commit/050ba7497b244ee9f76c8365cc8803a9425c1428))
+* **providers:** compute the verification progress on the server ([5ba2623](https://github.com/Agora-Mobility/atlas/commit/5ba262390b169cd83a09a8669bfbcc0db889c7b2))
+* **providers:** keep document types, slots and subjects as enums ([6e5fada](https://github.com/Agora-Mobility/atlas/commit/6e5fadaa6ae6791e31318c812256cadbe7876e78))
+* **providers:** take the service and personal data in one profile step ([c12a33e](https://github.com/Agora-Mobility/atlas/commit/c12a33e92117af8c30838bea14c5f947edcb9b48))
+* **rest:** explain required_without and excluded_with errors ([d7e00b3](https://github.com/Agora-Mobility/atlas/commit/d7e00b3e7f7ed4078258db25d774f8f099634451))
+* **routing:** replace Mapbox with the Google Routes API ([119d0bc](https://github.com/Agora-Mobility/atlas/commit/119d0bcbc0b856ab214eab5c175d194cfc78bfa0))
+* **shared:** detect file types by their magic bytes, HEIC included ([bb99d94](https://github.com/Agora-Mobility/atlas/commit/bb99d94ccb7414ec6c8cbefa8e1ff419d5260d59))
+* **shared:** strip EXIF and GPS from photos without re-encoding them ([b2e88a7](https://github.com/Agora-Mobility/atlas/commit/b2e88a7695dce1a3a5bb0bfa2b134a46e4498619))
+
 ## [2.0.0](https://github.com/Agora-Mobility/atlas/compare/v1.2.0...v2.0.0) (2026-11-03)
 
 
