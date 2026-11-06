@@ -52,7 +52,6 @@ jobs:
         env:
           IMAGE_REF: ${{ inputs.image }}@${{ inputs.digest }}
           ENV_FILE_BASE64: ${{ secrets.ENV_PRODUCTION_BASE64 }}
-          FCM_CREDENTIALS_BASE64: ${{ secrets.FCM_CREDENTIALS_BASE64 }}
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         with:
@@ -62,7 +61,7 @@ jobs:
           port: ${{ vars.SERVER_SSH_PORT || '22' }}
           fingerprint: ${{ secrets.SERVER_FINGERPRINT }}
           command_timeout: 15m
-          envs: IMAGE_REF,ENV_FILE_BASE64,FCM_CREDENTIALS_BASE64,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          envs: IMAGE_REF,ENV_FILE_BASE64,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
           script: |
             set -eu
             CONTAINER=atlas-api
@@ -80,17 +79,27 @@ jobs:
             (umask 077 && printf '%s' "$ENV_FILE_BASE64" | base64 --decode > .env)
 
             echo "🔑 Credencial do Firebase"
+            env_value() { sed -n "s/^$1=//p" .env | tail -n 1 | tr -d "\"'"; }
+            FCM_FILE=$(env_value FCM_CREDENTIALS_FILE)
+            FCM_BASE64=$(env_value FCM_CREDENTIALS_BASE64)
+            sed -i '/^FCM_CREDENTIALS_BASE64=/d' .env
             mkdir -p secrets && chmod 700 secrets
-            if [ -n "${FCM_CREDENTIALS_BASE64:-}" ]; then
-              printf '%s' "$FCM_CREDENTIALS_BASE64" | base64 --decode > secrets/firebase.json.new
+            if [ -n "$FCM_BASE64" ]; then
+              printf '%s' "$FCM_BASE64" | base64 --decode > secrets/firebase.json.new
               chmod 444 secrets/firebase.json.new
               mv secrets/firebase.json.new secrets/firebase.json
             fi
             FCM_ARGS=""
-            if [ -s secrets/firebase.json ]; then
-              FCM_ARGS="-v $HOME/atlas/secrets/firebase.json:/run/secrets/firebase.json:ro -e FCM_CREDENTIALS_FILE=/run/secrets/firebase.json"
-            else
-              echo "⚠️ secrets/firebase.json não existe: o push fica desligado se FCM_CREDENTIALS_JSON também estiver vazio"
+            if [ -n "$FCM_FILE" ]; then
+              case "$FCM_FILE" in
+                /*) ;;
+                *) echo "❌ FCM_CREDENTIALS_FILE tem de ser um caminho absoluto dentro do container"; exit 1 ;;
+              esac
+              if [ ! -s secrets/firebase.json ]; then
+                echo "❌ FCM_CREDENTIALS_FILE=$FCM_FILE mas FCM_CREDENTIALS_BASE64 está vazio e não há secrets/firebase.json no servidor"
+                exit 1
+              fi
+              FCM_ARGS="-v $HOME/atlas/secrets/firebase.json:$FCM_FILE:ro"
             fi
 
             echo "🌐 Garantindo redes docker"
