@@ -1086,8 +1086,6 @@ definitions:
         maxItems: 60
         minItems: 1
         type: array
-      requires_mfa:
-        type: boolean
     required:
     - code
     - name
@@ -1745,85 +1743,41 @@ definitions:
     required:
     - positions
     type: object
+  dtos.LoginCodeRequestInput:
+    properties:
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
+    required:
+    - phone
+    type: object
+  dtos.LoginCodeVerifyInput:
+    properties:
+      code:
+        example: "123456"
+        type: string
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
+    required:
+    - code
+    - phone
+    type: object
   dtos.LoginInput:
     properties:
-      identifier:
-        example: "+244923000000"
-        maxLength: 254
-        type: string
-      organization_id:
-        type: string
       password:
         example: S3gredo!forte
         maxLength: 128
         type: string
-    required:
-    - identifier
-    - password
-    type: object
-  dtos.MFAChallengeOutput:
-    properties:
-      expires_in:
-        example: 300
-        type: integer
-      mfa_token:
-        type: string
-      status:
-        enum:
-        - setup_required
-        - code_required
-        example: code_required
-        type: string
-    type: object
-  dtos.MFACodeInput:
-    properties:
-      code:
-        example: "123456"
-        type: string
-    required:
-    - code
-    type: object
-  dtos.MFARecoverInput:
-    properties:
-      mfa_token:
-        maxLength: 128
-        type: string
-      recovery_code:
-        example: 7KQM-2XRT-PL9D
+      phone:
+        example: "+244923000000"
         maxLength: 32
         type: string
     required:
-    - mfa_token
-    - recovery_code
-    type: object
-  dtos.MFASetupOutput:
-    properties:
-      otpauth_uri:
-        example: otpauth://totp/AGORA:ana@agora.ao?secret=JBSWY3DPEHPK3PXP&issuer=AGORA
-        type: string
-      secret:
-        example: JBSWY3DPEHPK3PXP
-        type: string
-    type: object
-  dtos.MFATokenInput:
-    properties:
-      mfa_token:
-        maxLength: 128
-        type: string
-    required:
-    - mfa_token
-    type: object
-  dtos.MFAVerifyInput:
-    properties:
-      code:
-        example: "123456"
-        type: string
-      mfa_token:
-        maxLength: 128
-        type: string
-    required:
-    - code
-    - mfa_token
+    - password
+    - phone
     type: object
   dtos.MarkedView:
     properties:
@@ -2951,22 +2905,47 @@ definitions:
       name:
         type: string
     type: object
-  dtos.RecoveryCodesOutput:
-    properties:
-      recovery_codes:
-        example:
-        - 7KQM-2XRT-PL9D
-        items:
-          type: string
-        type: array
-    type: object
   dtos.RecoveryConfirmInput:
+    properties:
+      new_password:
+        example: N0vo!segredo
+        type: string
+      recovery_token:
+        example: 6f1c2a9d8e7b4c05a3f2d1e0b9c8a7f6
+        maxLength: 128
+        type: string
+    required:
+    - new_password
+    - recovery_token
+    type: object
+  dtos.RecoveryRequestInput:
+    properties:
+      email:
+        example: ana@exemplo.ao
+        maxLength: 254
+        type: string
+      phone:
+        example: "+244923000000"
+        maxLength: 32
+        type: string
+    type: object
+  dtos.RecoveryRequestOutput:
+    properties:
+      message:
+        example: If the account exists, a code was sent.
+        type: string
+      resend_after_seconds:
+        example: 60
+        type: integer
+    type: object
+  dtos.RecoveryVerifyInput:
     properties:
       code:
         example: "123456"
         type: string
-      new_password:
-        example: N0vo!segredo
+      email:
+        example: ana@exemplo.ao
+        maxLength: 254
         type: string
       phone:
         example: "+244923000000"
@@ -2974,17 +2953,12 @@ definitions:
         type: string
     required:
     - code
-    - new_password
-    - phone
     type: object
-  dtos.RecoveryRequestInput:
+  dtos.RecoveryVerifyOutput:
     properties:
-      phone:
-        example: "+244923000000"
-        maxLength: 32
+      recovery_token:
+        example: 6f1c2a9d8e7b4c05a3f2d1e0b9c8a7f6
         type: string
-    required:
-    - phone
     type: object
   dtos.RedeemReferralInput:
     properties:
@@ -3657,8 +3631,6 @@ definitions:
         items:
           type: string
         type: array
-      requires_mfa:
-        type: boolean
       scope:
         allOf:
         - $ref: '#/definitions/enums.OrganizationType'
@@ -3826,12 +3798,6 @@ definitions:
       expires_in:
         example: 900
         type: integer
-      mfa_recovery_codes:
-        example:
-        - 7KQM-2XRT-PL9D
-        items:
-          type: string
-        type: array
       refresh_expires_at:
         type: string
       refresh_token:
@@ -4299,8 +4265,6 @@ definitions:
         maxItems: 60
         minItems: 1
         type: array
-      requires_mfa:
-        type: boolean
     type: object
   dtos.UpdateServiceInput:
     properties:
@@ -4502,6 +4466,9 @@ definitions:
         type: string
       email:
         type: string
+      has_password:
+        example: false
+        type: boolean
       id:
         type: string
       is_verified:
@@ -5608,8 +5575,8 @@ paths:
       - Backoffice dispatch
   /api/v1/admin/dispatch/heatmap:
     get:
-      description: Resolution 8 hexagons for the Mapbox map of the backoffice. Demand
-        covers the last 24 hours.
+      description: Resolution 8 hexagons for the Google Maps map of the backoffice.
+        Demand covers the last 24 hours.
       parameters:
       - description: Zone id
         in: query
@@ -7480,13 +7447,13 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'The identifier is an e-mail or a phone number in E.164 format.
-        Customers sign in through agora-customer-app and providers through agora-provider-app.
-        Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel
-        (partner membership); organization_id picks one partner when the person belongs
-        to several. When the membership requires MFA, or the person has set it up,
-        the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup
-        and /auth/mfa/verify.'
+      description: 'Every account signs in with its phone number and password; the
+        X-Client-Id header decides which accounts are accepted. Customers sign in
+        through agora-customer-app and providers through agora-provider-app. Staff
+        sign in through agora-backoffice (AGORA membership) or agora-partner-panel
+        (partner membership) and the session enters the oldest active membership of
+        that scope. The organization is never sent: it comes from the membership and
+        travels in the token.'
       parameters:
       - description: Login payload
         in: body
@@ -7501,10 +7468,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dtos.SessionOutput'
-        "202":
-          description: MFA step required
-          schema:
-            $ref: '#/definitions/dtos.MFAChallengeOutput'
         "400":
           description: Invalid request or missing client
           schema:
@@ -7528,6 +7491,101 @@ paths:
       security:
       - ClientId: []
       summary: Authenticate a user
+      tags:
+      - Auth
+  /api/v1/auth/login/otp/request:
+    post:
+      consumes:
+      - application/json
+      description: Customer and provider apps only. Sends an SMS code to the account
+        of the phone. Always answers 202 so the response does not reveal whether the
+        phone is registered. Continue with /auth/login/otp/verify.
+      parameters:
+      - description: Phone payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.LoginCodeRequestInput'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dtos.MessageOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Send a code to sign in without a password
+      tags:
+      - Auth
+  /api/v1/auth/login/otp/verify:
+    post:
+      consumes:
+      - application/json
+      description: Customer and provider apps only. Validates the code from /auth/login/otp/request
+        and returns an access token and a refresh token.
+      parameters:
+      - description: Phone and code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.LoginCodeVerifyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SessionOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Account blocked or client not allowed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid, expired or exhausted code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Sign in with the code sent by SMS
       tags:
       - Auth
   /api/v1/auth/logout:
@@ -7584,120 +7642,13 @@ paths:
       summary: Logout from all sessions
       tags:
       - Auth
-  /api/v1/auth/mfa/recover:
-    post:
-      consumes:
-      - application/json
-      description: For a member who lost the authenticator app. Each recovery code
-        works once; regenerate them afterwards at POST /api/v1/users/me/mfa/recovery-codes.
-      parameters:
-      - description: MFA token and recovery code
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.MFARecoverInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.SessionOutput'
-        "401":
-          description: MFA step expired or too many attempts
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "409":
-          description: Setup required
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "422":
-          description: Wrong or used code
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-      security:
-      - ClientId: []
-      summary: Finish the sign-in with a recovery code
-      tags:
-      - Auth
-  /api/v1/auth/mfa/setup:
-    post:
-      consumes:
-      - application/json
-      description: With the mfa_token of a login answered with setup_required. Returns
-        the secret to scan; confirm it at /auth/mfa/verify.
-      parameters:
-      - description: MFA token
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.MFATokenInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.MFASetupOutput'
-        "401":
-          description: MFA step expired
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "409":
-          description: Already set up
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-      security:
-      - ClientId: []
-      summary: Start the authenticator app setup
-      tags:
-      - Auth
-  /api/v1/auth/mfa/verify:
-    post:
-      consumes:
-      - application/json
-      description: With the mfa_token of the login and the 6-digit code of the app.
-        Confirms a pending setup and starts the session.
-      parameters:
-      - description: MFA token and code
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.MFAVerifyInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.SessionOutput'
-        "401":
-          description: MFA step expired or too many attempts
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "409":
-          description: Setup required
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "422":
-          description: Wrong code
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-      security:
-      - ClientId: []
-      summary: Finish the sign-in with an authenticator code
-      tags:
-      - Auth
   /api/v1/auth/phone/verification-code:
     post:
       consumes:
       - application/json
-      description: Customer and provider apps only. Serves the first verification
-        and every later sign-in without password. Always answers 202 so the response
-        does not reveal whether the phone is registered.
+      description: 'Customer and provider apps only. Sends nothing to an account already
+        verified: signing in with a code is /auth/login/otp/request. Always answers
+        202 so the response does not reveal whether the phone is registered.'
       parameters:
       - description: Phone payload
         in: body
@@ -7734,15 +7685,15 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Send a phone code to verify or sign in
+      summary: Resend the code that verifies a new account
       tags:
       - Auth
   /api/v1/auth/phone/verify:
     post:
       consumes:
       - application/json
-      description: Customer and provider apps only. Marks the phone verified on the
-        first use.
+      description: Customer and provider apps only. Takes the code sent by /auth/register
+        or /auth/phone/verification-code and marks the phone verified.
       parameters:
       - description: Phone and code
         in: body
@@ -7783,15 +7734,17 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Verify the phone code and start a session
+      summary: Verify a new account and start its first session
       tags:
       - Auth
   /api/v1/auth/recovery/confirm:
     post:
       consumes:
       - application/json
-      description: Ends every session of the user. Accounts without a password get
-        409 PASSWORD_NOT_SET and use POST /users/password instead.
+      description: Takes the recovery token from /auth/recovery/verify and the new
+        password. Ends every session of the user. A password equal to the current
+        one answers 422 PASSWORD_REUSED and keeps the token valid, so the user can
+        try another.
       parameters:
       - description: Recovery confirm payload
         in: body
@@ -7811,7 +7764,7 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "401":
-          description: Unknown client
+          description: Unknown client or invalid, expired or already used token
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "403":
@@ -7819,7 +7772,7 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "422":
-          description: Invalid code or password
+          description: Invalid password or equal to the current one
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "429":
@@ -7839,8 +7792,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: Sends a recovery code by SMS. Always answers 202 so the response
-        does not reveal whether the account exists.
+      description: Sends a recovery code by SMS when the body has phone, or by e-mail
+        when it has email. Send one of them, never both. Always answers 202 so the
+        response does not reveal whether the account exists. resend_after_seconds
+        is how long the app waits before offering a resend; a request sent earlier
+        sends nothing.
       parameters:
       - description: Recovery request payload
         in: body
@@ -7854,7 +7810,7 @@ paths:
         "202":
           description: Accepted
           schema:
-            $ref: '#/definitions/dtos.MessageOutput'
+            $ref: '#/definitions/dtos.RecoveryRequestOutput'
         "400":
           description: Invalid request or missing client
           schema:
@@ -7878,6 +7834,58 @@ paths:
       security:
       - ClientId: []
       summary: Request password recovery
+      tags:
+      - Auth
+  /api/v1/auth/recovery/verify:
+    post:
+      consumes:
+      - application/json
+      description: Validates the code sent by /auth/recovery/request, with the same
+        phone or email used there, and answers with a short-lived, single-use recovery
+        token. Send that token with the new password to /auth/recovery/confirm. A
+        wrong code answers INVALID_CODE, an expired one CODE_EXPIRED and too many
+        attempts CODE_ATTEMPTS_EXCEEDED.
+      parameters:
+      - description: Recovery verify payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RecoveryVerifyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RecoveryVerifyOutput'
+        "400":
+          description: Invalid request or missing client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "401":
+          description: Unknown client
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Client not allowed
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid, expired or exhausted code
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "429":
+          description: Too many requests
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - ClientId: []
+      summary: Validate the code of a password recovery
       tags:
       - Auth
   /api/v1/auth/refresh:
@@ -8403,8 +8411,8 @@ paths:
       consumes:
       - application/json
       description: Customers only. One priced option per active service of the category.
-        route_source tells whether the distance came from Mapbox or from the fallback
-        estimate.
+        route_source tells whether the distance came from Google Maps or from the
+        fallback estimate.
       parameters:
       - description: Route
         in: body
@@ -8702,9 +8710,10 @@ paths:
       - application/json
       description: Requires partner.providers:manage on /fleet, for the partner of
         the token, or partners:manage on /partners/{orgId}/fleet. Creates the account
-        as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm
-        and sends the documents in the app. AGORA still reviews and approves. vehicle_id
-        is optional and can be associated later.
+        as a draft and sends an SMS code; the driver validates it with /auth/recovery/verify,
+        sets the password with /auth/recovery/confirm and sends the documents in the
+        app. AGORA still reviews and approves. vehicle_id is optional and can be associated
+        later.
       parameters:
       - description: Driver
         in: body
@@ -9623,8 +9632,7 @@ paths:
       consumes:
       - application/json
       description: Sets the password (or confirms the current one when the person
-        already has an account) and activates the membership. Sign in afterwards;
-        roles that require MFA ask to set it up at the first sign-in.
+        already has an account) and activates the membership. Sign in afterwards.
       parameters:
       - description: Token, password and SMS code
         in: body
@@ -9913,43 +9921,6 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Resend the invitation
-      tags:
-      - Members
-  /api/v1/members/{id}/mfa/reset:
-    post:
-      description: Requires members:mfa-reset, for a member who lost the authenticator
-        app and the recovery codes. Ends every session; the next sign-in asks to set
-        up MFA again. A partner cannot reset someone who also belongs to other organizations.
-      parameters:
-      - description: Member (membership) id
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-        "401":
-          description: Unauthorized or session ended
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "403":
-          description: Missing permission, privilege escalation, own account or member
-            of other organizations
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "404":
-          description: Member not found
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "409":
-          description: Member deactivated
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-      security:
-      - BearerAuth: []
-      - ClientId: []
-      summary: Reset the authenticator of a member
       tags:
       - Members
   /api/v1/members/{id}/reactivate:
@@ -10557,9 +10528,10 @@ paths:
       - application/json
       description: Requires partner.providers:manage on /fleet, for the partner of
         the token, or partners:manage on /partners/{orgId}/fleet. Creates the account
-        as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm
-        and sends the documents in the app. AGORA still reviews and approves. vehicle_id
-        is optional and can be associated later.
+        as a draft and sends an SMS code; the driver validates it with /auth/recovery/verify,
+        sets the password with /auth/recovery/confirm and sends the documents in the
+        app. AGORA still reviews and approves. vehicle_id is optional and can be associated
+        later.
       parameters:
       - description: Partner id, only on /partners/{orgId}/fleet
         in: path
@@ -12243,7 +12215,7 @@ paths:
   /api/v1/requests/{id}/eta:
     get:
       description: From the last position of the provider, by route. source tells
-        whether it came from Mapbox or from the fallback.
+        whether it came from Google Maps or from the fallback.
       parameters:
       - description: Request id
         in: path
@@ -13654,44 +13626,6 @@ paths:
       summary: Set my profile photo
       tags:
       - Account
-  /api/v1/users/me/mfa/recovery-codes:
-    post:
-      consumes:
-      - application/json
-      description: Confirm with a code of the authenticator app. The previous recovery
-        codes stop working.
-      parameters:
-      - description: Authenticator code
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.MFACodeInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.RecoveryCodesOutput'
-        "401":
-          description: Unauthorized or session ended
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "409":
-          description: MFA not set up
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "422":
-          description: Wrong code
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-      security:
-      - BearerAuth: []
-      - ClientId: []
-      summary: Generate new MFA recovery codes
-      tags:
-      - Auth
   /api/v1/users/me/permissions:
     get:
       description: 'For the UI only: every endpoint checks its own permission.'

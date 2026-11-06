@@ -17,7 +17,6 @@ const (
 	MemberSuspended    = "access.member-suspended"
 	MemberReactivated  = "access.member-reactivated"
 	MemberDeactivated  = "access.member-deactivated"
-	MemberMFAReset     = "access.member-mfa-reset"
 	RoleCreated        = "access.role-created"
 	RoleUpdated        = "access.role-updated"
 	RoleDeleted        = "access.role-deleted"
@@ -78,12 +77,6 @@ type MemberDeactivatedV1 struct{ MemberChange }
 func (MemberDeactivatedV1) EventType() string     { return MemberDeactivated }
 func (MemberDeactivatedV1) EventVersion() int     { return 1 }
 func (MemberDeactivatedV1) AggregateType() string { return MembershipAggregate }
-
-type MemberMFAResetV1 struct{ MemberChange }
-
-func (MemberMFAResetV1) EventType() string     { return MemberMFAReset }
-func (MemberMFAResetV1) EventVersion() int     { return 1 }
-func (MemberMFAResetV1) AggregateType() string { return MembershipAggregate }
 
 type RoleChange struct {
 	RoleID         uuid.UUID  `json:"role_id"`

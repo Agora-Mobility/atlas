@@ -22,7 +22,7 @@ docker compose -f "$compose_file" up -d --wait
 export APP_ENV=test LOG_LEVEL=warn HTTP_PORT="$port" DB_MIGRATE_ON_START=false DB_MAX_CONNS="${LOAD_DB_CONNS:-60}" DB_MIN_CONNS=5
 export DATABASE_URL="postgres://atlas:atlas@127.0.0.1:25432/atlas?sslmode=disable"
 export REDIS_ADDR=127.0.0.1:26379 RABBITMQ_URL=amqp://atlas:atlas@127.0.0.1:25672/
-export JWT_SECRET="$(openssl rand -hex 32)" MFA_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+export JWT_SECRET="$(openssl rand -hex 32)"
 export RATE_LIMIT_REQUESTS=100000000 OUTBOX_POLL_INTERVAL=100ms RABBITMQ_PREFETCH=50
 
 cd "$root"

@@ -137,7 +137,7 @@ func staffToken(t *testing.T, user *entities.User, client *entities.Client, memb
 func TestRefresh_StaffSessionKeepsTheMembershipAndItsLatestPermissions(t *testing.T) {
 	f := newFixture(t)
 	staff := newUser(t, enums.RoleStaff, true)
-	_, access := staffAccess(staff, enums.OrganizationTypePlatform, false)
+	_, access := staffAccess(staff, enums.OrganizationTypePlatform)
 	access.PermVersion = 9
 	current := staffToken(t, staff, backoffice, access.MembershipID)
 	f.expectLookup(current)
@@ -162,7 +162,7 @@ func TestRefresh_StaffSessionKeepsTheMembershipAndItsLatestPermissions(t *testin
 func TestRefresh_SuspendedMembershipEndsTheSession(t *testing.T) {
 	f := newFixture(t)
 	staff := newUser(t, enums.RoleStaff, true)
-	_, access := staffAccess(staff, enums.OrganizationTypePlatform, false)
+	_, access := staffAccess(staff, enums.OrganizationTypePlatform)
 	access.Status = enums.MembershipStatusSuspended
 	current := staffToken(t, staff, backoffice, access.MembershipID)
 	f.expectLookup(current)

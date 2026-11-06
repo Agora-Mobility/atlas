@@ -13,7 +13,7 @@ var ErrRoutingUnavailable = errors.New("routing provider unavailable")
 type RouteSource string
 
 const (
-	RouteSourceMapbox   RouteSource = "mapbox"
+	RouteSourceGoogle   RouteSource = "google"
 	RouteSourceFallback RouteSource = "fallback"
 )
 

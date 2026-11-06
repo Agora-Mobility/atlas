@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/security/password"
-	"github.com/Agora-Mobility/atlas/infra/security/totp"
 	"github.com/Agora-Mobility/atlas/shared/enums"
 )
 
@@ -34,9 +32,10 @@ func newPartner(t *testing.T) *partner {
 	require.NoError(t, err)
 	userID, orgID, membershipID := uuid.New(), uuid.New(), uuid.New()
 	email := userID.String()[:8] + "@parceiro.ao"
+	phone := fmt.Sprintf("+24493%07d", uuid.New().ID()%10_000_000)
 	_, err = env.owner.Exec(ctx, `INSERT INTO organizations (id, type, name) VALUES ($1, 'partner', $2)`, orgID, "Parceiro "+userID.String()[:6])
 	require.NoError(t, err)
-	_, err = env.owner.Exec(ctx, `INSERT INTO users (id, name, email, password, is_verified, status, role) VALUES ($1, 'Dono Parceiro', $2, $3, true, 'active', 'staff')`, userID, email, hash)
+	_, err = env.owner.Exec(ctx, `INSERT INTO users (id, name, email, phone, password, is_verified, status, role) VALUES ($1, 'Dono Parceiro', $2, $3, $4, true, 'active', 'staff')`, userID, email, phone, hash)
 	require.NoError(t, err)
 	_, err = env.owner.Exec(ctx, `INSERT INTO memberships (id, user_id, organization_id, status, activated_at) VALUES ($1, $2, $3, 'active', now())`, membershipID, userID, orgID)
 	require.NoError(t, err)
@@ -44,15 +43,9 @@ func newPartner(t *testing.T) *partner {
 	require.NoError(t, err)
 
 	staff := &person{id: userID, client: partnerClient, api: env.api.baseURL}
-	login := staff.post(t, "/api/v1/auth/login", map[string]string{"identifier": email, "password": secret})
-	require.Equal(t, http.StatusAccepted, login.status, login.text)
-	setup := staff.post(t, "/api/v1/auth/mfa/setup", map[string]string{"mfa_token": login.str("mfa_token")})
-	require.Equal(t, http.StatusOK, setup.status, setup.text)
-	code, err := totp.CodeAt(setup.str("secret"), time.Now())
-	require.NoError(t, err)
-	verified := staff.post(t, "/api/v1/auth/mfa/verify", map[string]string{"mfa_token": login.str("mfa_token"), "code": code})
-	require.Equal(t, http.StatusOK, verified.status, verified.text)
-	staff.token = verified.str("access_token")
+	login := staff.post(t, "/api/v1/auth/login", map[string]string{"phone": phone, "password": secret})
+	require.Equal(t, http.StatusOK, login.status, login.text)
+	staff.token = login.str("access_token")
 	return &partner{person: staff, organizationID: orgID.String()}
 }
 

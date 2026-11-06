@@ -279,7 +279,7 @@
     },
     {
       "id": 12,
-      "title": "Mapbox calls",
+      "title": "Routing provider calls",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -295,7 +295,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (api, result) (rate(atlas_business_mapbox_calls_total[5m]))",
+          "expr": "sum by (api, result) (rate(atlas_business_routing_calls_total[5m]))",
           "legendFormat": "__auto",
           "refId": "A"
         }

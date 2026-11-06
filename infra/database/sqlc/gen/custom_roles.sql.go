@@ -61,8 +61,8 @@ func (q *Queries) BumpMembershipsWithRole(ctx context.Context, arg BumpMembershi
 }
 
 const createRole = `-- name: CreateRole :exec
-INSERT INTO roles (id, organization_id, scope, code, name, requires_mfa, is_system, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, false, $7, $8)
+INSERT INTO roles (id, organization_id, scope, code, name, is_system, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, false, $6, $7)
 `
 
 type CreateRoleParams struct {
@@ -71,7 +71,6 @@ type CreateRoleParams struct {
 	Scope          enums.OrganizationType `json:"scope"`
 	Code           string                 `json:"code"`
 	Name           string                 `json:"name"`
-	RequiresMfa    bool                   `json:"requires_mfa"`
 	CreatedAt      time.Time              `json:"created_at"`
 	UpdatedAt      time.Time              `json:"updated_at"`
 }
@@ -83,7 +82,6 @@ func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) error {
 		arg.Scope,
 		arg.Code,
 		arg.Name,
-		arg.RequiresMfa,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -126,24 +124,18 @@ func (q *Queries) RoleIsAssigned(ctx context.Context, roleID uuid.UUID) (bool, e
 
 const updateRole = `-- name: UpdateRole :execrows
 UPDATE roles
-SET name = $1, requires_mfa = $2, updated_at = $3
-WHERE id = $4 AND NOT is_system
+SET name = $1, updated_at = $2
+WHERE id = $3 AND NOT is_system
 `
 
 type UpdateRoleParams struct {
-	Name        string    `json:"name"`
-	RequiresMfa bool      `json:"requires_mfa"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	ID          uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
+	ID        uuid.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateRole(ctx context.Context, arg UpdateRoleParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateRole,
-		arg.Name,
-		arg.RequiresMfa,
-		arg.UpdatedAt,
-		arg.ID,
-	)
+	result, err := q.db.Exec(ctx, updateRole, arg.Name, arg.UpdatedAt, arg.ID)
 	if err != nil {
 		return 0, err
 	}

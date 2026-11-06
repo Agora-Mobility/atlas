@@ -1,6 +1,6 @@
 # ADR 0017 – Mapbox behind a routing interface
 
-- Status: accepted
+- Status: superseded by ADR 0020
 - Date: 2026-11-01
 - Requirements: RF10, RF13
 - Cycle: C3

@@ -68,13 +68,3 @@ type IInvitationRepository interface {
 	RevokePending(ctx context.Context, membershipID uuid.UUID, at time.Time) error
 	Accept(ctx context.Context, id uuid.UUID, at time.Time) error
 }
-
-type IUserMFARepository interface {
-	Find(ctx context.Context, userID uuid.UUID) (*entities.UserMFA, error)
-	SavePending(ctx context.Context, userID uuid.UUID, sealedSecret string, at time.Time) error
-	UseStep(ctx context.Context, userID uuid.UUID, step int64, at time.Time) (bool, error)
-	Delete(ctx context.Context, userID uuid.UUID) error
-	ReplaceRecoveryCodes(ctx context.Context, userID uuid.UUID, codeHashes []string, at time.Time) error
-	UseRecoveryCode(ctx context.Context, userID uuid.UUID, codeHash string, at time.Time) (bool, error)
-	CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID) (int64, error)
-}

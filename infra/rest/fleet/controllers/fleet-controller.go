@@ -181,7 +181,7 @@ func (c *FleetController) ListDrivers(ctx *gin.Context) {
 // RegisterDriver godoc
 //
 //	@Summary		Register a driver in a fleet
-//	@Description	Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver sets a password through /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.
+//	@Description	Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver validates it with /auth/recovery/verify, sets the password with /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.
 //	@Tags			Partner fleet
 //	@Accept			json
 //	@Produce		json

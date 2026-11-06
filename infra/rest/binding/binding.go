@@ -64,6 +64,10 @@ func message(fe validator.FieldError) string {
 	switch fe.Tag() {
 	case "required":
 		return "is required"
+	case "required_without":
+		return fmt.Sprintf("is required when %s is missing", strings.ToLower(fe.Param()))
+	case "excluded_with":
+		return fmt.Sprintf("cannot be sent together with %s", strings.ToLower(fe.Param()))
 	case "max":
 		return fmt.Sprintf("must be at most %s", fe.Param())
 	case "min":

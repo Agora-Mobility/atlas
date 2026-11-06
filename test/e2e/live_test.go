@@ -125,7 +125,7 @@ func TestETAComesFromTheRouteOfTheProvider(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, newCustomer(t).get(t, "/api/v1/requests/"+id+"/eta").status)
 	eta := customer.get(t, "/api/v1/requests/"+id+"/eta")
 	require.Equal(t, http.StatusOK, eta.status, eta.text)
-	assert.Equal(t, "mapbox", eta.str("source"))
+	assert.Equal(t, "google", eta.str("source"))
 	assert.Equal(t, "pickup", eta.str("target"))
 	assert.Positive(t, eta.num("duration_s"))
 	_ = driver

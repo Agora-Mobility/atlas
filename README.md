@@ -106,14 +106,12 @@ which roles can sign in and which role a self-registration creates:
 
 Staff access is permission based (ADR 0015): each membership has roles, each
 role a set of permissions, and every staff endpoint checks one permission.
-Super Admin, Financeiro and Proprietário must set up an authenticator app: the
-login answers `202` with an `mfa_token`, then `POST /api/v1/auth/mfa/setup` and
-`POST /api/v1/auth/mfa/verify` start the session.
+Every account signs in with the phone number and the password alone.
 
 Protected routes also need `Authorization: Bearer <access_token>` from
 `POST /api/v1/auth/login`, which takes the phone and the password. `make seed`
-creates a customer, a provider, a Super Admin (`+244923000101`, asks for MFA),
-an Operações member (`+244923000102`) and the owner of a test partner
+creates a customer, a provider, a Super Admin (`+244923000101`), an Operações
+member (`+244923000102`) and the owner of a test partner
 (`+244923000105`), all with password `Agora@2026`:
 
 ```bash

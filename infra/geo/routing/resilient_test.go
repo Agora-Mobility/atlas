@@ -37,7 +37,7 @@ func (s *stubRouter) Route(ctx context.Context, _, _ entities.GeoPoint, _ ...ent
 	if s.err != nil {
 		return services.Route{}, s.err
 	}
-	return services.Route{DistanceMeters: 1, Duration: time.Second, Source: services.RouteSourceMapbox}, nil
+	return services.Route{DistanceMeters: 1, Duration: time.Second, Source: services.RouteSourceGoogle}, nil
 }
 
 func (s *stubRouter) ETAs(context.Context, []entities.GeoPoint, entities.GeoPoint) ([]time.Duration, error) {
@@ -55,7 +55,7 @@ func settings() routing.Settings {
 func TestPrimaryRouteIsUsedWhileHealthy(t *testing.T) {
 	route, err := routing.NewResilient(&stubRouter{}, settings()).Route(context.Background(), from, to)
 	require.NoError(t, err)
-	assert.Equal(t, services.RouteSourceMapbox, route.Source)
+	assert.Equal(t, services.RouteSourceGoogle, route.Source)
 }
 
 func TestFailureFallsBackToRoadFactor(t *testing.T) {

@@ -92,13 +92,12 @@ func (c *AuthController) handleRegisterError(ctx *gin.Context, err error) {
 // Login godoc
 //
 //	@Summary		Authenticate a user
-//	@Description	Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership). The organization is never sent: it comes from the membership and travels in the token. When the membership requires MFA, or the person has set it up, the answer is 202 with an mfa_token instead of a session: continue with /auth/mfa/setup and /auth/mfa/verify.
+//	@Description	Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership) and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.LoginInput	true	"Login payload"
 //	@Success		200		{object}	dtos.SessionOutput
-//	@Success		202		{object}	dtos.MFAChallengeOutput	"MFA step required"
 //	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
 //	@Failure		401		{object}	shared.ErrorResponse	"Invalid credentials or unknown client"
 //	@Failure		403		{object}	shared.ErrorResponse	"Account blocked, phone not verified or client not allowed"
@@ -123,12 +122,8 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		c.handleLoginError(ctx, err)
 		return
 	}
-	if resp.MFA != nil {
-		ctx.JSON(http.StatusAccepted, resp.MFA)
-		return
-	}
 
-	ctx.JSON(http.StatusOK, resp.Session)
+	ctx.JSON(http.StatusOK, resp)
 }
 
 func (c *AuthController) handleLoginError(ctx *gin.Context, err error) {
@@ -346,12 +341,12 @@ func (c *AuthController) VerifyLoginCode(ctx *gin.Context) {
 // RequestRecovery godoc
 //
 //	@Summary		Request password recovery
-//	@Description	Sends a recovery code by SMS. Always answers 202 so the response does not reveal whether the account exists.
+//	@Description	Sends a recovery code by SMS when the body has phone, or by e-mail when it has email. Send one of them, never both. Always answers 202 so the response does not reveal whether the account exists. resend_after_seconds is how long the app waits before offering a resend; a request sent earlier sends nothing.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.RecoveryRequestInput	true	"Recovery request payload"
-//	@Success		202		{object}	dtos.MessageOutput
+//	@Success		202		{object}	dtos.RecoveryRequestOutput
 //	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
 //	@Failure		401		{object}	shared.ErrorResponse	"Unknown client"
 //	@Failure		422		{object}	shared.ErrorResponse	"Invalid fields"
@@ -376,22 +371,63 @@ func (c *AuthController) RequestRecovery(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusAccepted, dtos.MessageOutput{Message: genericCodeSentMessage})
+	ctx.JSON(http.StatusAccepted, dtos.RecoveryRequestOutput{
+		Message:            genericCodeSentMessage,
+		ResendAfterSeconds: c.recoveryUsecase.ResendAfterSeconds(),
+	})
+}
+
+// RecoveryVerify godoc
+//
+//	@Summary		Validate the code of a password recovery
+//	@Description	Validates the code sent by /auth/recovery/request, with the same phone or email used there, and answers with a short-lived, single-use recovery token. Send that token with the new password to /auth/recovery/confirm. A wrong code answers INVALID_CODE, an expired one CODE_EXPIRED and too many attempts CODE_ATTEMPTS_EXCEEDED.
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.RecoveryVerifyInput	true	"Recovery verify payload"
+//	@Success		200		{object}	dtos.RecoveryVerifyOutput
+//	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
+//	@Failure		401		{object}	shared.ErrorResponse	"Unknown client"
+//	@Failure		403		{object}	shared.ErrorResponse	"Client not allowed"
+//	@Failure		422		{object}	shared.ErrorResponse	"Invalid, expired or exhausted code"
+//	@Failure		429		{object}	shared.ErrorResponse	"Too many requests"
+//	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
+//	@Security		ClientId
+//	@Router			/api/v1/auth/recovery/verify [post]
+func (c *AuthController) RecoveryVerify(ctx *gin.Context) {
+	var req dtos.RecoveryVerifyInput
+	if err := binding.JSON(ctx, &req); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+
+	client, ok := requestClient(ctx)
+	if !ok {
+		return
+	}
+
+	resp, err := c.recoveryUsecase.VerifyRecovery(ctx.Request.Context(), req, client)
+	if err != nil {
+		handleSignInError(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, resp)
 }
 
 // ConfirmRecovery godoc
 //
 //	@Summary		Confirm recovery and set a new password
-//	@Description	Ends every session of the user. Accounts without a password get 409 PASSWORD_NOT_SET and use POST /users/password instead.
+//	@Description	Takes the recovery token from /auth/recovery/verify and the new password. Ends every session of the user. A password equal to the current one answers 422 PASSWORD_REUSED and keeps the token valid, so the user can try another.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		dtos.RecoveryConfirmInput	true	"Recovery confirm payload"
 //	@Success		200		{object}	dtos.MessageOutput
 //	@Failure		400		{object}	shared.ErrorResponse	"Invalid request or missing client"
-//	@Failure		401		{object}	shared.ErrorResponse	"Unknown client"
+//	@Failure		401		{object}	shared.ErrorResponse	"Unknown client or invalid, expired or already used token"
 //	@Failure		403		{object}	shared.ErrorResponse	"Client not allowed"
-//	@Failure		422		{object}	shared.ErrorResponse	"Invalid code or password"
+//	@Failure		422		{object}	shared.ErrorResponse	"Invalid password or equal to the current one"
 //	@Failure		429		{object}	shared.ErrorResponse	"Too many requests"
 //	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
 //	@Security		ClientId
@@ -623,12 +659,16 @@ func handleCommonError(ctx *gin.Context, err error) {
 		shared.RespondError(ctx, http.StatusUnprocessableEntity, "INVALID_PASSWORD", "Password must be at least 8 characters.")
 	case errors.Is(err, usecases.ErrPasswordTooLong):
 		shared.RespondError(ctx, http.StatusUnprocessableEntity, "INVALID_PASSWORD", "Password must be at most 128 characters.")
+	case errors.Is(err, usecases.ErrPasswordReused):
+		shared.RespondError(ctx, http.StatusUnprocessableEntity, "PASSWORD_REUSED", "The new password must differ from the current one.")
 	case errors.Is(err, usecases.ErrUserNotFound):
 		shared.NotFound(ctx, "USER_NOT_FOUND", "User not found.")
 	case errors.Is(err, usecases.ErrPasswordNotSet):
 		shared.Conflict(ctx, "PASSWORD_NOT_SET", "The account has no password yet.")
 	case errors.Is(err, usecases.ErrPasswordAlreadySet):
 		shared.Conflict(ctx, "PASSWORD_ALREADY_SET", "The account already has a password.")
+	case errors.Is(err, services.ErrRecoveryTicketInvalid):
+		shared.Unauthorized(ctx, "RECOVERY_TOKEN_INVALID", "The recovery token is invalid, expired or already used.")
 	case errors.Is(err, services.ErrSMSUnavailable):
 		shared.ServiceUnavailable(ctx, "SMS_UNAVAILABLE", "SMS is temporarily unavailable.")
 	default:

@@ -241,7 +241,7 @@ func (c *DispatchController) OperatorQueue(ctx *gin.Context) {
 // HeatMap godoc
 //
 //	@Summary		Supply and demand by H3 cell
-//	@Description	Resolution 8 hexagons for the Mapbox map of the backoffice. Demand covers the last 24 hours.
+//	@Description	Resolution 8 hexagons for the Google Maps map of the backoffice. Demand covers the last 24 hours.
 //	@Tags			Backoffice dispatch
 //	@Produce		json
 //	@Param			zone_id	query		string	false	"Zone id"

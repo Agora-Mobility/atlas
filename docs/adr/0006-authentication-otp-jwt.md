@@ -27,7 +27,7 @@ runs as several stateless instances behind a load balancer.
 - Customers and providers can also sign in with an **SMS code**, on its own
   endpoints and with its own OTP purpose, so a sign-up or recovery code never
   signs anyone in here. Staff clients are closed: an SMS code alone must not
-  replace the password and the MFA of a staff account.
+  replace the password of a staff account.
 - Sessions use a **short-lived JWT access token** (15 min, HS256, claims:
   `sub`, `role`, `sid` = session/token family, `cid` = client id) and a
   **rotating refresh token** (opaque, stored hashed in PostgreSQL, 30 days,
@@ -75,8 +75,9 @@ runs as several stateless instances behind a load balancer.
   | POST | `/api/v1/auth/refresh` | client | Rotate refresh token |
   | POST | `/api/v1/auth/phone/verification-code` | client | Resend the OTP of an unverified account (always 202) |
   | POST | `/api/v1/auth/phone/verify` | client | Verify phone, returns a session |
-  | POST | `/api/v1/auth/recovery/request` | client | Send reset OTP (always 202) |
-  | POST | `/api/v1/auth/recovery/confirm` | client | Reset with OTP, revokes all sessions |
+  | POST | `/api/v1/auth/recovery/request` | client | Send reset OTP by SMS or e-mail (always 202) |
+  | POST | `/api/v1/auth/recovery/verify` | client | Trade the OTP for a single-use recovery token |
+  | POST | `/api/v1/auth/recovery/confirm` | client | Set the new password with the token, revokes all sessions |
   | POST | `/api/v1/auth/logout` | client + bearer | Revoke the current session |
   | POST | `/api/v1/auth/logout-all` | client + bearer | Revoke every session |
   | GET | `/api/v1/users/me` | client + bearer | Authenticated user |

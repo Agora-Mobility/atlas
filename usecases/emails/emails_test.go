@@ -34,3 +34,13 @@ func TestGreetingWithoutName(t *testing.T) {
 	assert.Equal(t, "Olá,", emails.Greeting("  "))
 	assert.Equal(t, "Olá Ana,", emails.Greeting("Ana Maria Domingos"))
 }
+
+func TestPasswordRecoveryCodeShowsTheCodeOnlyInTheBody(t *testing.T) {
+	email, err := emails.PasswordRecoveryCode("Ana Domingos", "726564", 5).Render("ana@agora.ao", "recovery-code/1")
+
+	require.NoError(t, err)
+	assert.NotContains(t, email.Subject, "726564")
+	assert.Contains(t, email.HTML, "726564")
+	assert.Contains(t, email.Text, "726564")
+	assert.Contains(t, email.Text, "válido durante 5 min")
+}

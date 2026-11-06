@@ -4,7 +4,6 @@
 package config
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -17,25 +16,25 @@ import (
 )
 
 type Config struct {
-	App      AppConfig      `mapstructure:",squash"`
-	HTTP     HTTPConfig     `mapstructure:",squash"`
-	Log      LogConfig      `mapstructure:",squash"`
-	Database DatabaseConfig `mapstructure:",squash"`
-	Redis    RedisConfig    `mapstructure:",squash"`
-	RabbitMQ RabbitMQConfig `mapstructure:",squash"`
-	Outbox   OutboxConfig   `mapstructure:",squash"`
-	JWT      JWTConfig      `mapstructure:",squash"`
-	OTP      OTPConfig      `mapstructure:",squash"`
-	SMS      SMSConfig      `mapstructure:",squash"`
-	Email    EmailConfig    `mapstructure:",squash"`
-	Access   AccessConfig   `mapstructure:",squash"`
-	Dispatch DispatchConfig `mapstructure:",squash"`
-	Realtime RealtimeConfig `mapstructure:",squash"`
-	Mapbox   MapboxConfig   `mapstructure:",squash"`
-	FCM      FCMConfig      `mapstructure:",squash"`
-	R2       R2Config       `mapstructure:",squash"`
-	AppyPay  AppyPayConfig  `mapstructure:",squash"`
-	Calls    CallsConfig    `mapstructure:",squash"`
+	App        AppConfig        `mapstructure:",squash"`
+	HTTP       HTTPConfig       `mapstructure:",squash"`
+	Log        LogConfig        `mapstructure:",squash"`
+	Database   DatabaseConfig   `mapstructure:",squash"`
+	Redis      RedisConfig      `mapstructure:",squash"`
+	RabbitMQ   RabbitMQConfig   `mapstructure:",squash"`
+	Outbox     OutboxConfig     `mapstructure:",squash"`
+	JWT        JWTConfig        `mapstructure:",squash"`
+	OTP        OTPConfig        `mapstructure:",squash"`
+	SMS        SMSConfig        `mapstructure:",squash"`
+	Email      EmailConfig      `mapstructure:",squash"`
+	Access     AccessConfig     `mapstructure:",squash"`
+	Dispatch   DispatchConfig   `mapstructure:",squash"`
+	Realtime   RealtimeConfig   `mapstructure:",squash"`
+	GoogleMaps GoogleMapsConfig `mapstructure:",squash"`
+	FCM        FCMConfig        `mapstructure:",squash"`
+	R2         R2Config         `mapstructure:",squash"`
+	AppyPay    AppyPayConfig    `mapstructure:",squash"`
+	Calls      CallsConfig      `mapstructure:",squash"`
 }
 
 type CallsConfig struct {
@@ -124,18 +123,18 @@ type RealtimeConfig struct {
 	ProjectorWorkers int           `mapstructure:"REALTIME_PROJECTOR_WORKERS"`
 }
 
-type MapboxConfig struct {
-	AccessToken     string        `mapstructure:"MAPBOX_ACCESS_TOKEN"`
-	BaseURL         string        `mapstructure:"MAPBOX_BASE_URL"`
-	Timeout         time.Duration `mapstructure:"MAPBOX_TIMEOUT"`
-	BreakerFailures int           `mapstructure:"MAPBOX_BREAKER_FAILURES"`
-	BreakerCooldown time.Duration `mapstructure:"MAPBOX_BREAKER_COOLDOWN"`
+type GoogleMapsConfig struct {
+	APIKey          string        `mapstructure:"GOOGLE_MAPS_API_KEY"`
+	BaseURL         string        `mapstructure:"GOOGLE_MAPS_BASE_URL"`
+	Timeout         time.Duration `mapstructure:"GOOGLE_MAPS_TIMEOUT"`
+	BreakerFailures int           `mapstructure:"GOOGLE_MAPS_BREAKER_FAILURES"`
+	BreakerCooldown time.Duration `mapstructure:"GOOGLE_MAPS_BREAKER_COOLDOWN"`
 	RoadFactor      float64       `mapstructure:"ROUTING_ROAD_FACTOR"`
 	AverageSpeedKmh float64       `mapstructure:"ROUTING_FALLBACK_SPEED_KMH"`
 }
 
-func (c MapboxConfig) Enabled() bool {
-	return strings.TrimSpace(c.AccessToken) != ""
+func (c GoogleMapsConfig) Enabled() bool {
+	return strings.TrimSpace(c.APIKey) != ""
 }
 
 type FCMConfig struct {
@@ -235,9 +234,6 @@ func (c EmailConfig) Enabled() bool {
 }
 
 type AccessConfig struct {
-	MFAEncryptionKey     string        `mapstructure:"MFA_ENCRYPTION_KEY"`
-	MFAChallengeTTL      time.Duration `mapstructure:"MFA_CHALLENGE_TTL"`
-	MFAMaxAttempts       int           `mapstructure:"MFA_MAX_ATTEMPTS"`
 	PermissionCacheTTL   time.Duration `mapstructure:"PERMISSION_CACHE_TTL"`
 	InvitationBackoffice string        `mapstructure:"INVITATION_URL_BACKOFFICE"`
 	InvitationPartner    string        `mapstructure:"INVITATION_URL_PARTNER_PANEL"`
@@ -292,8 +288,6 @@ var defaults = map[string]any{
 	"RESEND_TIMEOUT":                   "10s",
 	"EMAIL_FROM":                       "",
 	"EMAIL_REPLY_TO":                   "",
-	"MFA_CHALLENGE_TTL":                "5m",
-	"MFA_MAX_ATTEMPTS":                 5,
 	"PERMISSION_CACHE_TTL":             "5m",
 	"INVITATION_URL_BACKOFFICE":        "http://localhost:3001/convite",
 	"INVITATION_URL_PARTNER_PANEL":     "http://localhost:3002/convite",
@@ -316,11 +310,11 @@ var defaults = map[string]any{
 	"SSE_MAILBOX_MAX_ENTRIES":          200,
 	"SSE_MAILBOX_TTL":                  "24h",
 	"SSE_RECONNECT_SPREAD":             "30s",
-	"MAPBOX_ACCESS_TOKEN":              "",
-	"MAPBOX_BASE_URL":                  "https://api.mapbox.com",
-	"MAPBOX_TIMEOUT":                   "2s",
-	"MAPBOX_BREAKER_FAILURES":          5,
-	"MAPBOX_BREAKER_COOLDOWN":          "30s",
+	"GOOGLE_MAPS_API_KEY":              "",
+	"GOOGLE_MAPS_BASE_URL":             "https://routes.googleapis.com",
+	"GOOGLE_MAPS_TIMEOUT":              "2s",
+	"GOOGLE_MAPS_BREAKER_FAILURES":     5,
+	"GOOGLE_MAPS_BREAKER_COOLDOWN":     "30s",
 	"ROUTING_ROAD_FACTOR":              1.4,
 	"ROUTING_FALLBACK_SPEED_KMH":       25,
 	"FCM_PROJECT_ID":                   "",
@@ -356,7 +350,7 @@ var defaults = map[string]any{
 
 const cloudflareIdleLimit = 100 * time.Second
 
-var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET", "MFA_ENCRYPTION_KEY"}
+var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"}
 
 func Load() (*Config, error) {
 	v := viper.New()
@@ -434,11 +428,8 @@ func (c *Config) validate() error {
 	if len(c.JWT.Secret) < 32 {
 		errs = append(errs, errors.New("JWT_SECRET must be at least 32 characters"))
 	}
-	if key, err := base64.StdEncoding.DecodeString(c.Access.MFAEncryptionKey); err != nil || len(key) != 32 {
-		errs = append(errs, errors.New("MFA_ENCRYPTION_KEY must be 32 random bytes encoded in base64 (openssl rand -base64 32)"))
-	}
-	if c.Access.MFAChallengeTTL <= 0 || c.Access.MFAMaxAttempts <= 0 || c.Access.PermissionCacheTTL <= 0 {
-		errs = append(errs, errors.New("MFA_CHALLENGE_TTL, MFA_MAX_ATTEMPTS and PERMISSION_CACHE_TTL must be positive"))
+	if c.Access.PermissionCacheTTL <= 0 {
+		errs = append(errs, errors.New("PERMISSION_CACHE_TTL must be positive"))
 	}
 	if strings.TrimSpace(c.Access.InvitationBackoffice) == "" || strings.TrimSpace(c.Access.InvitationPartner) == "" {
 		errs = append(errs, errors.New("INVITATION_URL_BACKOFFICE and INVITATION_URL_PARTNER_PANEL cannot be empty"))
@@ -505,10 +496,10 @@ func (c *Config) validateDispatch() []error {
 	if c.Realtime.ProjectorWorkers <= 0 || c.Dispatch.NotificationWorkers <= 0 {
 		errs = append(errs, errors.New("REALTIME_PROJECTOR_WORKERS and NOTIFICATION_WORKERS must be positive"))
 	}
-	if c.Mapbox.Timeout <= 0 || c.Mapbox.BreakerFailures <= 0 || c.Mapbox.BreakerCooldown <= 0 || strings.TrimSpace(c.Mapbox.BaseURL) == "" {
-		errs = append(errs, errors.New("MAPBOX_TIMEOUT, MAPBOX_BREAKER_FAILURES and MAPBOX_BREAKER_COOLDOWN must be positive and MAPBOX_BASE_URL cannot be empty"))
+	if c.GoogleMaps.Timeout <= 0 || c.GoogleMaps.BreakerFailures <= 0 || c.GoogleMaps.BreakerCooldown <= 0 || strings.TrimSpace(c.GoogleMaps.BaseURL) == "" {
+		errs = append(errs, errors.New("GOOGLE_MAPS_TIMEOUT, GOOGLE_MAPS_BREAKER_FAILURES and GOOGLE_MAPS_BREAKER_COOLDOWN must be positive and GOOGLE_MAPS_BASE_URL cannot be empty"))
 	}
-	if c.Mapbox.RoadFactor < 1 || c.Mapbox.AverageSpeedKmh <= 0 {
+	if c.GoogleMaps.RoadFactor < 1 || c.GoogleMaps.AverageSpeedKmh <= 0 {
 		errs = append(errs, errors.New("ROUTING_ROAD_FACTOR must be at least 1 and ROUTING_FALLBACK_SPEED_KMH positive"))
 	}
 	if c.R2.PresignTTL <= 0 {

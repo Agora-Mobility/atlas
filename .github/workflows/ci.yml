@@ -112,7 +112,6 @@ jobs:
 
       - name: Smoke test against service containers
         run: |
-          export MFA_ENCRYPTION_KEY="$(openssl rand -base64 32)"
           go build -o atlas .
           go run ./cmd/migrate up
           go run ./cmd/seed

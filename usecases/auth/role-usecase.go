@@ -64,7 +64,7 @@ func (uc *RoleUsecase) Create(ctx context.Context, actor StaffActor, req dtos.Cr
 	if err != nil {
 		return nil, err
 	}
-	role, err := entities.NewCustomRole(org, req.Code, req.Name, req.RequiresMFA, permissions)
+	role, err := entities.NewCustomRole(org, req.Code, req.Name, permissions)
 	if err != nil {
 		return nil, err
 	}
@@ -99,23 +99,20 @@ func (uc *RoleUsecase) Update(ctx context.Context, actor StaffActor, roleID uuid
 		return nil, err
 	}
 	before := dtos.ToRoleView(role)
-	name, requiresMFA, permissions := role.Name, role.RequiresMFA, role.Permissions
+	name, permissions := role.Name, role.Permissions
 	if req.Name != nil {
 		name = *req.Name
-	}
-	if req.RequiresMFA != nil {
-		requiresMFA = *req.RequiresMFA
 	}
 	if req.Permissions != nil {
 		if permissions, err = uc.grantable(ctx, actor, req.Permissions); err != nil {
 			return nil, err
 		}
 	}
-	if err := role.Change(name, requiresMFA, permissions); err != nil {
+	if err := role.Change(name, permissions); err != nil {
 		return nil, err
 	}
 	after := dtos.ToRoleView(role)
-	accessChanged := !slices.Equal(before.Permissions, after.Permissions) || before.RequiresMFA != after.RequiresMFA
+	accessChanged := !slices.Equal(before.Permissions, after.Permissions)
 
 	var affected []uuid.UUID
 	err = uc.txManager.WithinTransaction(ctx, func(ctx context.Context) error {

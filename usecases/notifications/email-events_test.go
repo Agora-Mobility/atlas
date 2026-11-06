@@ -66,7 +66,6 @@ func TestEmailEvents_MemberNoticesNameTheOrganization(t *testing.T) {
 		"suspended":     {events.MemberSuspendedV1{MemberChange: change}, "O seu acesso a Transportes Kianda foi suspenso"},
 		"reactivated":   {events.MemberReactivatedV1{MemberChange: change}, "O seu acesso a Transportes Kianda foi reactivado"},
 		"deactivated":   {events.MemberDeactivatedV1{MemberChange: change}, "O seu acesso a Transportes Kianda foi desactivado"},
-		"mfa reset":     {events.MemberMFAResetV1{MemberChange: change}, "A verificação em dois passos da sua conta foi reposta"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -129,6 +128,6 @@ func TestEmailEvents_ProviderFailureIsRetried(t *testing.T) {
 func TestEmailEvents_EveryBoundEventHasAMessage(t *testing.T) {
 	assert.ElementsMatch(t, []string{
 		events.MemberActivated, events.MemberRolesChanged, events.MemberSuspended, events.MemberReactivated,
-		events.MemberDeactivated, events.MemberMFAReset, events.UserBlocked, events.UserUnblocked,
+		events.MemberDeactivated, events.UserBlocked, events.UserUnblocked,
 	}, notifications.EmailEventTypes())
 }

@@ -51,7 +51,7 @@ O despacho (H3, ofertas, aceitação concorrente, watcher), o tempo real por SSE
 |---|---|---|---|---|---|
 | TX01 | Moradas guardadas Casa, Trabalho e "Guardar" | ✅ | `GET,POST /users/me/addresses`, `PUT,DELETE /users/me/addresses/{id}` | `infra/rest/addresses/router/address-router.go:22-25`; uma só `home` e `work` em `migrations/000007_addresses.up.sql:27`; teste `test/e2e/dispatch_test.go:1090` | |
 | TX01 | Destinos recentes | 🟡 | `GET /requests` | `infra/database/sqlc/queries/requests.sql:76` | Não há lista própria. A app teria de deduzir de `/requests`, sem remover repetidos |
-| TX01 | Escolher no mapa | ✅ | `POST /fare-estimates`, `POST /requests` | `usecases/dispatch/dtos/dispatch-dtos.go:12-17` | Lat/lng aceites. A geocodificação inversa fica na app, com Mapbox |
+| TX01 | Escolher no mapa | ✅ | `POST /fare-estimates`, `POST /requests` | `usecases/dispatch/dtos/dispatch-dtos.go:12-17` | Lat/lng aceites. A geocodificação inversa fica na app, com Google Maps |
 | TX01-A | Recolha, destino e paragens no pedido | ✅ | `POST /requests` | `domain/entities/service_request.go:263-282`; teste `test/e2e/dispatch_test.go:1047` | |
 | TX01-A | Adicionar e remover paragens depois de pedir | ✅ | `POST /requests/{id}/route` | `usecases/dispatch/requests.go:414-491`; teste `test/e2e/dispatch_test.go:903` | |
 | TX01-A | Distância total com paragens na estimativa | ✅ | `POST /fare-estimates` | `usecases/dispatch/fares.go:99-111`; confirmado localmente: 4,1 km vs. 31,3 km | |
@@ -130,7 +130,7 @@ Modelo de marcações, com estados próprios. Prova: `tests/e2e/qa_flows.py` M1 
 | RB03 | Método de pagamento | ✅ | `POST /requests` (`payment_method`) | Métodos por categoria em `category_payment_methods`, migração 000021 |  |
 | RB04 | Contacta N reboques próximos | ✅ | `POST /requests`, `GET /nearby` | Seed `parallel`, lote 3, migração 000015; teste `test/e2e/dispatch_test.go:604` | |
 | RB04 | Cancelar grátis nesta fase | ✅ | `POST /requests/{id}/cancel` | `usecases/dispatch/requests.go:304-338` | Grátis porque não há taxa, como em TX-E2 |
-| RB05 | ETA | 🟡 | SSE `/events` | `usecases/dispatch/presence.go:202-208` | Estimativa por distância em linha reta e velocidade média, não por Mapbox |
+| RB05 | ETA | 🟡 | SSE `/events` | `usecases/dispatch/presence.go:202-208` | Estimativa por distância em linha reta e velocidade média, não por Google Maps |
 | RB05 | Dados do motorista: rating e nº de serviços | 🟡 | `GET /requests/{id}` | `dispatch-dtos.go:64-69`, `usecases/dispatch/requests.go:576-593` | Tem nome, matrícula e viatura. Falta rating e contagem |
 | RB05 | Ligar, mensagem e partilhar | ❌ | | `ProviderSummary` sem telefone | Secção 11 |
 | RB05 | Código de entrega das chaves | ❌ | `POST /requests/{id}/complete` | `usecases/dispatch/offers.go:370-376` conclui sem código | Código e validação |

@@ -127,7 +127,7 @@ func (s *appypayStub) settle(merchantID, status string, amount float64) string {
 func completedRide(t *testing.T, customer *person, method string) (driver *person, requestID string, fare int64) {
 	t.Helper()
 	clearOnlineProviders(t)
-	env.mapbox.down.Store(false)
+	env.googleMaps.down.Store(false)
 	driver = newProvider(t, "taxi", point{-8.8400, 13.2350})
 	stream := driver.listen(t, "")
 	defer stream.stop()
