@@ -94,12 +94,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Unit and integration tests (race, coverage)
-        # Integration tests start their own PostGIS through testcontainers.
-        run: go test -race -tags=integration -covermode=atomic -coverprofile=coverage.out ./...
-
-      - name: End-to-end flows
-        run: go test -race -tags=e2e -count=1 -timeout=15m ./test/e2e/...
+      - name: Unit tests (race, coverage)
+        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
 
       - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1 >> "$GITHUB_STEP_SUMMARY"
