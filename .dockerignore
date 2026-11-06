@@ -8,6 +8,9 @@
 .env.*
 *.pem
 *.key
+secrets/
+*firebase-adminsdk*.json
+*-service-account*.json
 
 # Build output, coverage and test artefacts
 bin/

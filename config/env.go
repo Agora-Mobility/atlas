@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"strings"
 	"time"
 
@@ -188,12 +189,26 @@ func (c GoogleMapsConfig) Enabled() bool {
 type FCMConfig struct {
 	ProjectID       string        `mapstructure:"FCM_PROJECT_ID"`
 	CredentialsJSON string        `mapstructure:"FCM_CREDENTIALS_JSON"`
+	CredentialsFile string        `mapstructure:"FCM_CREDENTIALS_FILE"`
 	BaseURL         string        `mapstructure:"FCM_BASE_URL"`
 	Timeout         time.Duration `mapstructure:"FCM_TIMEOUT"`
 }
 
 func (c FCMConfig) Enabled() bool {
 	return strings.TrimSpace(c.ProjectID) != "" && strings.TrimSpace(c.CredentialsJSON) != ""
+}
+
+func (c *FCMConfig) readCredentialsFile() error {
+	path := strings.TrimSpace(c.CredentialsFile)
+	if path == "" {
+		return nil
+	}
+	content, err := os.ReadFile(path) // #nosec G304 -- the path comes from the operator's environment
+	if err != nil {
+		return fmt.Errorf("read FCM_CREDENTIALS_FILE: %w", err)
+	}
+	c.CredentialsJSON = string(content)
+	return nil
 }
 
 type AppConfig struct {
@@ -367,6 +382,7 @@ var defaults = map[string]any{
 	"ROUTING_FALLBACK_SPEED_KMH":            25,
 	"FCM_PROJECT_ID":                        "",
 	"FCM_CREDENTIALS_JSON":                  "",
+	"FCM_CREDENTIALS_FILE":                  "",
 	"FCM_BASE_URL":                          "https://fcm.googleapis.com",
 	"FCM_TIMEOUT":                           "5s",
 	"APPYPAY_CLIENT_ID":                     "",
@@ -442,6 +458,9 @@ func Load() (*Config, error) {
 	cfg.HTTP.CORSAllowedOrigins = compact(cfg.HTTP.CORSAllowedOrigins)
 	cfg.HTTP.TrustedProxies = compact(cfg.HTTP.TrustedProxies)
 	cfg.Verify.FakeQualityReasons = compact(cfg.Verify.FakeQualityReasons)
+	if err := cfg.FCM.readCredentialsFile(); err != nil {
+		return nil, err
+	}
 
 	var errs []error
 	for _, key := range required {

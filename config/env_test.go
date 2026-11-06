@@ -163,3 +163,27 @@ func TestLoadProductionRequiresTheAppyPayCredentials(t *testing.T) {
 	_, err := config.Load()
 	require.ErrorContains(t, err, "APPYPAY_")
 }
+
+func TestLoadReadsTheFCMCredentialsFromAFile(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	path := t.TempDir() + "/firebase.json"
+	require.NoError(t, os.WriteFile(path, []byte(`{"type":"service_account"}`), 0o600))
+	t.Setenv("FCM_PROJECT_ID", "agora")
+	t.Setenv("FCM_CREDENTIALS_JSON", `{"inline":true}`)
+	t.Setenv("FCM_CREDENTIALS_FILE", path)
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"service_account"}`, cfg.FCM.CredentialsJSON, "the file wins over the inline JSON")
+	assert.True(t, cfg.FCM.Enabled())
+}
+
+func TestLoadFailsWhenTheFCMCredentialsFileIsMissing(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("FCM_CREDENTIALS_FILE", "/nowhere/firebase.json")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "FCM_CREDENTIALS_FILE")
+}
