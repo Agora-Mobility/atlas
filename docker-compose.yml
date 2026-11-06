@@ -141,7 +141,7 @@ services:
     networks: [atlas]
 
   redis:
-    image: redis:8.8.4-alpine
+    image: redis:8.10.3-alpine
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
     environment:
       REDISCLI_AUTH: ${REDIS_PASSWORD}
