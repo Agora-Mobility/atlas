@@ -1,0 +1,2 @@
+ALTER INDEX provider_document_files_url_key RENAME TO provider_document_files_object_key_key;
+ALTER TABLE provider_document_files RENAME COLUMN url TO object_key;

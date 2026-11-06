@@ -88,7 +88,7 @@ func toProviderDocument(row *gen.ProviderDocument) (*entities.ProviderDocument, 
 func toDocumentFile(row *gen.ProviderDocumentFile) (entities.DocumentFile, error) {
 	file := entities.DocumentFile{
 		ID: row.ID, DocumentID: row.DocumentID, ProviderID: row.ProviderID, Slot: row.Slot, Version: int(row.Version), Status: entities.FileStatus(row.Status),
-		ObjectKey: row.ObjectKey, ContentType: row.ContentType, SizeBytes: row.SizeBytes, SHA256: row.Sha256, Width: intPointer(row.Width), Height: intPointer(row.Height),
+		URL: row.Url, ContentType: row.ContentType, SizeBytes: row.SizeBytes, SHA256: row.Sha256, Width: intPointer(row.Width), Height: intPointer(row.Height),
 		RejectionCodes: row.RejectionCodes, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 	}
 	if len(row.QualityChecks) > 0 {
@@ -241,7 +241,7 @@ func (r *ProviderDocumentRepository) SaveFile(ctx context.Context, f *entities.D
 		codes = []string{}
 	}
 	err = postgres.Queries(ctx, r.pool).SaveDocumentFile(ctx, gen.SaveDocumentFileParams{
-		ID: f.ID, DocumentID: f.DocumentID, ProviderID: f.ProviderID, Slot: f.Slot, Version: int32(f.Version), Status: string(f.Status), ObjectKey: f.ObjectKey,
+		ID: f.ID, DocumentID: f.DocumentID, ProviderID: f.ProviderID, Slot: f.Slot, Version: int32(f.Version), Status: string(f.Status), Url: f.URL,
 		ContentType: f.ContentType, SizeBytes: f.SizeBytes, Sha256: f.SHA256, Width: int32Pointer(f.Width), Height: int32Pointer(f.Height), QualityChecks: checks,
 		RejectionCodes: codes, CreatedAt: f.CreatedAt, UpdatedAt: f.UpdatedAt,
 	}) // #nosec G115 -- versions are small counters

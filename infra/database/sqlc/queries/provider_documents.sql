@@ -48,7 +48,7 @@ SELECT * FROM provider_document_files WHERE id = $1;
 SELECT (COALESCE(MAX(version), 0) + 1)::integer FROM provider_document_files WHERE document_id = $1 AND slot = $2;
 
 -- name: SaveDocumentFile :exec
-INSERT INTO provider_document_files (id, document_id, provider_id, slot, version, status, object_key, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at)
+INSERT INTO provider_document_files (id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 ON CONFLICT (id) DO UPDATE
 SET status = EXCLUDED.status, content_type = EXCLUDED.content_type, size_bytes = EXCLUDED.size_bytes, sha256 = EXCLUDED.sha256, width = EXCLUDED.width,

@@ -349,7 +349,7 @@ func (u *Usecase) AdminView(ctx context.Context, actor entities.Actor, providerI
 			if file.Status == entities.FilePendingUpload {
 				continue
 			}
-			signed, err := u.Storage.PresignDownloadFor(ctx, file.ObjectKey, u.Settings.ReadURLTTL)
+			signed, err := u.Storage.PresignDownloadFor(ctx, file.URL, u.Settings.ReadURLTTL)
 			if err != nil {
 				return nil, err
 			}

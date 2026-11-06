@@ -304,7 +304,7 @@ type DocumentFile struct {
 	Slot           enums.DocumentSlot
 	Version        int
 	Status         FileStatus
-	ObjectKey      string
+	URL            string
 	ContentType    string
 	SizeBytes      int64
 	SHA256         string

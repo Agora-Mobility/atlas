@@ -38,7 +38,7 @@ func (u *Usecase) dropStaleUploads(ctx context.Context) error {
 		return err
 	}
 	for i := range stale {
-		u.discard(ctx, stale[i].ObjectKey)
+		u.discard(ctx, stale[i].URL)
 		if err := u.Documents.DeletePendingFile(ctx, stale[i].ID); err != nil {
 			return err
 		}

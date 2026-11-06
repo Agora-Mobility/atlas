@@ -113,7 +113,7 @@ func (q *Queries) DeleteDocumentFile(ctx context.Context, id uuid.UUID) error {
 }
 
 const getDocumentFile = `-- name: GetDocumentFile :one
-SELECT id, document_id, provider_id, slot, version, status, object_key, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE id = $1
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE id = $1
 `
 
 func (q *Queries) GetDocumentFile(ctx context.Context, id uuid.UUID) (ProviderDocumentFile, error) {
@@ -126,7 +126,7 @@ func (q *Queries) GetDocumentFile(ctx context.Context, id uuid.UUID) (ProviderDo
 		&i.Slot,
 		&i.Version,
 		&i.Status,
-		&i.ObjectKey,
+		&i.Url,
 		&i.ContentType,
 		&i.SizeBytes,
 		&i.Sha256,
@@ -201,7 +201,7 @@ func (q *Queries) GetProviderDocumentByID(ctx context.Context, id uuid.UUID) (Pr
 }
 
 const getProviderDocumentFile = `-- name: GetProviderDocumentFile :one
-SELECT id, document_id, provider_id, slot, version, status, object_key, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE id = $1 AND provider_id = $2
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE id = $1 AND provider_id = $2
 `
 
 type GetProviderDocumentFileParams struct {
@@ -219,7 +219,7 @@ func (q *Queries) GetProviderDocumentFile(ctx context.Context, arg GetProviderDo
 		&i.Slot,
 		&i.Version,
 		&i.Status,
-		&i.ObjectKey,
+		&i.Url,
 		&i.ContentType,
 		&i.SizeBytes,
 		&i.Sha256,
@@ -335,7 +335,7 @@ func (q *Queries) ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListA
 }
 
 const listDocumentFiles = `-- name: ListDocumentFiles :many
-SELECT id, document_id, provider_id, slot, version, status, object_key, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE document_id = $1 AND status <> 'superseded' ORDER BY slot, version
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE document_id = $1 AND status <> 'superseded' ORDER BY slot, version
 `
 
 func (q *Queries) ListDocumentFiles(ctx context.Context, documentID uuid.UUID) ([]ProviderDocumentFile, error) {
@@ -354,7 +354,7 @@ func (q *Queries) ListDocumentFiles(ctx context.Context, documentID uuid.UUID) (
 			&i.Slot,
 			&i.Version,
 			&i.Status,
-			&i.ObjectKey,
+			&i.Url,
 			&i.ContentType,
 			&i.SizeBytes,
 			&i.Sha256,
@@ -426,7 +426,7 @@ func (q *Queries) ListDocumentRejectionReasons(ctx context.Context, providerID u
 }
 
 const listProviderDocumentFiles = `-- name: ListProviderDocumentFiles :many
-SELECT id, document_id, provider_id, slot, version, status, object_key, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE provider_id = $1 AND status <> 'superseded' ORDER BY slot, version
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE provider_id = $1 AND status <> 'superseded' ORDER BY slot, version
 `
 
 func (q *Queries) ListProviderDocumentFiles(ctx context.Context, providerID uuid.UUID) ([]ProviderDocumentFile, error) {
@@ -445,7 +445,7 @@ func (q *Queries) ListProviderDocumentFiles(ctx context.Context, providerID uuid
 			&i.Slot,
 			&i.Version,
 			&i.Status,
-			&i.ObjectKey,
+			&i.Url,
 			&i.ContentType,
 			&i.SizeBytes,
 			&i.Sha256,
@@ -660,7 +660,7 @@ func (q *Queries) ListServicesOpenToProviders(ctx context.Context) ([]ListServic
 }
 
 const listStalePendingFiles = `-- name: ListStalePendingFiles :many
-SELECT id, document_id, provider_id, slot, version, status, object_key, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE status = 'pending_upload' AND created_at < $1::timestamptz ORDER BY created_at LIMIT $2
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE status = 'pending_upload' AND created_at < $1::timestamptz ORDER BY created_at LIMIT $2
 `
 
 type ListStalePendingFilesParams struct {
@@ -684,7 +684,7 @@ func (q *Queries) ListStalePendingFiles(ctx context.Context, arg ListStalePendin
 			&i.Slot,
 			&i.Version,
 			&i.Status,
-			&i.ObjectKey,
+			&i.Url,
 			&i.ContentType,
 			&i.SizeBytes,
 			&i.Sha256,
@@ -722,7 +722,7 @@ func (q *Queries) NextDocumentFileVersion(ctx context.Context, arg NextDocumentF
 }
 
 const saveDocumentFile = `-- name: SaveDocumentFile :exec
-INSERT INTO provider_document_files (id, document_id, provider_id, slot, version, status, object_key, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at)
+INSERT INTO provider_document_files (id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 ON CONFLICT (id) DO UPDATE
 SET status = EXCLUDED.status, content_type = EXCLUDED.content_type, size_bytes = EXCLUDED.size_bytes, sha256 = EXCLUDED.sha256, width = EXCLUDED.width,
@@ -736,7 +736,7 @@ type SaveDocumentFileParams struct {
 	Slot           enums.DocumentSlot `json:"slot"`
 	Version        int32              `json:"version"`
 	Status         string             `json:"status"`
-	ObjectKey      string             `json:"object_key"`
+	Url            string             `json:"url"`
 	ContentType    string             `json:"content_type"`
 	SizeBytes      int64              `json:"size_bytes"`
 	Sha256         string             `json:"sha256"`
@@ -756,7 +756,7 @@ func (q *Queries) SaveDocumentFile(ctx context.Context, arg SaveDocumentFilePara
 		arg.Slot,
 		arg.Version,
 		arg.Status,
-		arg.ObjectKey,
+		arg.Url,
 		arg.ContentType,
 		arg.SizeBytes,
 		arg.Sha256,

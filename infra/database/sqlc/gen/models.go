@@ -899,7 +899,7 @@ type ProviderDocumentFile struct {
 	Slot           enums.DocumentSlot `json:"slot"`
 	Version        int32              `json:"version"`
 	Status         string             `json:"status"`
-	ObjectKey      string             `json:"object_key"`
+	Url            string             `json:"url"`
 	ContentType    string             `json:"content_type"`
 	SizeBytes      int64              `json:"size_bytes"`
 	Sha256         string             `json:"sha256"`

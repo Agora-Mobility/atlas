@@ -131,10 +131,10 @@ func (u *Usecase) ReadIdentity(ctx context.Context, documentID uuid.UUID) error 
 		return u.finishExtraction(ctx, document, nil, failureUnreadable)
 	}
 	images := services.IdentityImages{FrontContentType: front[0].ContentType, BackContentType: back[0].ContentType}
-	if images.Front, err = u.Storage.Read(ctx, front[0].ObjectKey, u.Settings.MaxFileBytes); err != nil {
+	if images.Front, err = u.Storage.Read(ctx, front[0].URL, u.Settings.MaxFileBytes); err != nil {
 		return err
 	}
-	if images.Back, err = u.Storage.Read(ctx, back[0].ObjectKey, u.Settings.MaxFileBytes); err != nil {
+	if images.Back, err = u.Storage.Read(ctx, back[0].URL, u.Settings.MaxFileBytes); err != nil {
 		return err
 	}
 	read, err := u.OCR.ReadIdentityCard(ctx, images)
@@ -368,7 +368,7 @@ func (u *Usecase) SubmitSelfie(ctx context.Context, providerID uuid.UUID, in dto
 	if file.Status == entities.FilePendingUpload {
 		return nil, ErrUploadNotReady
 	}
-	image, err := u.Storage.Read(ctx, file.ObjectKey, u.Settings.MaxFileBytes)
+	image, err := u.Storage.Read(ctx, file.URL, u.Settings.MaxFileBytes)
 	if err != nil {
 		return nil, err
 	}

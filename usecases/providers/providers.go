@@ -413,7 +413,7 @@ func (u *Usecase) RegisterDocument(ctx context.Context, providerID uuid.UUID, in
 			return err
 		}
 		file := &entities.DocumentFile{
-			ID: id, DocumentID: document.ID, ProviderID: providerID, Slot: slot, Version: version, Status: entities.FileAccepted, ObjectKey: in.ObjectKey,
+			ID: id, DocumentID: document.ID, ProviderID: providerID, Slot: slot, Version: version, Status: entities.FileAccepted, URL: in.ObjectKey,
 			ContentType: detected, SizeBytes: object.SizeBytes, CreatedAt: now, UpdatedAt: now,
 		}
 		if err := u.Documents.SupersedeFiles(ctx, document.ID, slot, file.ID, now); err != nil {
@@ -447,7 +447,7 @@ func (u *Usecase) MyDocumentURL(ctx context.Context, providerID uuid.UUID, docum
 	}
 	for _, slot := range append(slices.Clone(spec.RequiredSlots), spec.OptionalSlots...) {
 		if file := document.Current(slot); file != nil {
-			signed, err := u.Storage.PresignDownload(ctx, file.ObjectKey)
+			signed, err := u.Storage.PresignDownload(ctx, file.URL)
 			if err != nil {
 				return nil, err
 			}
@@ -605,7 +605,7 @@ func (u *Usecase) documentView(ctx context.Context, document *entities.ProviderD
 			ID: file.ID, Slot: file.Slot.String(), Version: file.Version, Status: string(file.Status), ContentType: file.ContentType, SizeBytes: file.SizeBytes, RejectionCodes: file.RejectionCodes,
 		}
 		if withLinks {
-			signed, err := u.Storage.PresignDownload(ctx, file.ObjectKey)
+			signed, err := u.Storage.PresignDownload(ctx, file.URL)
 			if err != nil {
 				return item, err
 			}

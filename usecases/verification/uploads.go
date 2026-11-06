@@ -90,7 +90,7 @@ func (u *Usecase) StartUpload(ctx context.Context, providerID uuid.UUID, in dtos
 	now := u.now()
 	file := &entities.DocumentFile{
 		ID: fileID, DocumentID: document.ID, ProviderID: providerID, Slot: slot, Status: entities.FilePendingUpload, ContentType: in.ContentType, SizeBytes: in.Size,
-		ObjectKey: objectKey(providerID, s.verification.ID, spec.Type, slot, fileID, extension), RejectionCodes: []string{}, CreatedAt: now, UpdatedAt: now,
+		URL: objectKey(providerID, s.verification.ID, spec.Type, slot, fileID, extension), RejectionCodes: []string{}, CreatedAt: now, UpdatedAt: now,
 	}
 	err = u.Tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		if err := u.Documents.SaveDocument(ctx, document); err != nil {
@@ -104,7 +104,7 @@ func (u *Usecase) StartUpload(ctx context.Context, providerID uuid.UUID, in dtos
 	if err != nil {
 		return nil, err
 	}
-	signed, err := u.Storage.PresignUpload(ctx, file.ObjectKey, in.ContentType, in.Size)
+	signed, err := u.Storage.PresignUpload(ctx, file.URL, in.ContentType, in.Size)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (u *Usecase) ConfirmUpload(ctx context.Context, providerID, uploadID uuid.U
 	if _, err := u.editable(ctx, providerID); err != nil {
 		return nil, err
 	}
-	object, err := u.Storage.Stat(ctx, file.ObjectKey)
+	object, err := u.Storage.Stat(ctx, file.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -148,16 +148,16 @@ func (u *Usecase) ConfirmUpload(ctx context.Context, providerID, uploadID uuid.U
 		return nil, ErrFileNotUploaded
 	}
 	if object.SizeBytes > u.Settings.MaxFileBytes {
-		u.discard(ctx, file.ObjectKey)
+		u.discard(ctx, file.URL)
 		return nil, entities.NewRuleError(CodeFileTooLarge, "size", "O ficheiro é demasiado grande.").With("max_bytes", u.Settings.MaxFileBytes)
 	}
-	head, err := u.Storage.FirstBytes(ctx, file.ObjectKey, filetype.SniffBytes)
+	head, err := u.Storage.FirstBytes(ctx, file.URL, filetype.SniffBytes)
 	if err != nil {
 		return nil, err
 	}
 	spec, _ := entities.SpecOf(document.Type)
 	if detected := filetype.Detect(head); detected != file.ContentType || !spec.Allows(file.Slot, detected) {
-		u.discard(ctx, file.ObjectKey)
+		u.discard(ctx, file.URL)
 		return nil, entities.NewRuleError(CodeInvalidFileType, "file", "O conteúdo do ficheiro não corresponde ao tipo indicado.").With("detected", detected)
 	}
 	now := u.now()
@@ -199,7 +199,7 @@ func (u *Usecase) UploadURL(ctx context.Context, providerID, uploadID uuid.UUID)
 	if file.Status == entities.FilePendingUpload {
 		return nil, ErrFileNotUploaded
 	}
-	signed, err := u.Storage.PresignDownloadFor(ctx, file.ObjectKey, u.Settings.ReadURLTTL)
+	signed, err := u.Storage.PresignDownloadFor(ctx, file.URL, u.Settings.ReadURLTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func (u *Usecase) ProcessFile(ctx context.Context, fileID uuid.UUID) error {
 	if err != nil || document == nil {
 		return err
 	}
-	content, err := u.Storage.Read(ctx, file.ObjectKey, u.Settings.MaxFileBytes)
+	content, err := u.Storage.Read(ctx, file.URL, u.Settings.MaxFileBytes)
 	if err != nil {
 		return err
 	}
@@ -277,7 +277,7 @@ func (u *Usecase) cleanImage(ctx context.Context, file *entities.DocumentFile, c
 		return nil, err
 	}
 	if removed {
-		if err := u.Storage.Write(ctx, file.ObjectKey, file.ContentType, stripped); err != nil {
+		if err := u.Storage.Write(ctx, file.URL, file.ContentType, stripped); err != nil {
 			return nil, err
 		}
 	}
