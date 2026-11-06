@@ -2,10 +2,13 @@ package entities
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/Agora-Mobility/atlas/shared/enums"
 )
 
 type ProviderStatus string
@@ -18,14 +21,6 @@ const (
 	ProviderSuspended ProviderStatus = "suspended"
 )
 
-type DocumentStatus string
-
-const (
-	DocumentUploaded DocumentStatus = "uploaded"
-	DocumentApproved DocumentStatus = "approved"
-	DocumentRejected DocumentStatus = "rejected"
-)
-
 const (
 	minProviderAgeYears = 18
 	minBirthYear        = 1900
@@ -34,6 +29,8 @@ const (
 	maxProfileTextLen   = 120
 	maxReasonTextLen    = 2000
 )
+
+var idCardNumber = regexp.MustCompile(`^\d{9}[A-Z]{2}\d{3}$`)
 
 var (
 	ErrProfileLocked             = errors.New("the profile cannot change in this state")
@@ -91,7 +88,8 @@ type Provider struct {
 	RequestedServiceID *uuid.UUID
 	BirthDate          *time.Time
 	IDNumber           string
-	HomeAddress        *Address
+	Province           string
+	Municipality       string
 	Vehicle            Vehicle
 	StatusReason       string
 	SubmittedAt        *time.Time
@@ -122,28 +120,42 @@ func (p *Provider) RequestService(serviceID uuid.UUID) error {
 	return nil
 }
 
-func (p *Provider) SetPersonalData(birthDate time.Time, idNumber string, address Address, now time.Time) error {
+type PersonalData struct {
+	BirthDate    time.Time
+	IDNumber     string
+	Province     string
+	Municipality string
+}
+
+func (d PersonalData) normalized(now time.Time) (PersonalData, error) {
+	d.IDNumber = strings.ToUpper(strings.Join(strings.Fields(d.IDNumber), ""))
+	d.Province, d.Municipality = strings.TrimSpace(d.Province), strings.TrimSpace(d.Municipality)
+	if d.BirthDate.Year() < minBirthYear || d.BirthDate.AddDate(minProviderAgeYears, 0, 0).After(now) {
+		return d, validationError("birth_date", "É preciso ter pelo menos 18 anos.")
+	}
+	if !idCardNumber.MatchString(d.IDNumber) {
+		return d, validationError("id_number", "O número do BI tem 9 algarismos, 2 letras e 3 algarismos, como 005487123LA041.")
+	}
+	if d.Province == "" || len([]rune(d.Province)) > maxProfileTextLen {
+		return d, validationError("province", "Indica a província.")
+	}
+	if d.Municipality == "" || len([]rune(d.Municipality)) > maxProfileTextLen {
+		return d, validationError("municipality", "Indica o município.")
+	}
+	return d, nil
+}
+
+func (p *Provider) SetProfile(serviceID uuid.UUID, data PersonalData, now time.Time) error {
 	if !p.IsEditable() {
 		return ErrProfileLocked
 	}
-	idNumber = strings.TrimSpace(idNumber)
-	if birthDate.Year() < minBirthYear || birthDate.AddDate(minProviderAgeYears, 0, 0).After(now) {
-		return validationError("birth_date", "É preciso ter pelo menos 18 anos.")
-	}
-	if idNumber == "" || len([]rune(idNumber)) > maxProfileTextLen {
-		return validationError("id_number", "Indica o número do documento de identificação.")
-	}
-	if p.HomeAddress != nil {
-		address.ID = p.HomeAddress.ID
-	}
-	normalized, err := address.Normalized("address")
+	normalized, err := data.normalized(now)
 	if err != nil {
 		return err
 	}
-	if normalized.Line == "" {
-		return validationError("address.line", "Indica a morada.")
-	}
-	p.BirthDate, p.IDNumber, p.HomeAddress = &birthDate, idNumber, &normalized
+	p.RequestedServiceID = &serviceID
+	p.BirthDate, p.IDNumber = &normalized.BirthDate, normalized.IDNumber
+	p.Province, p.Municipality = normalized.Province, normalized.Municipality
 	return nil
 }
 
@@ -216,65 +228,17 @@ func normalizedReason(reason string) (string, error) {
 	return reason, nil
 }
 
-type DocumentType struct {
-	Code                string
-	Name                string
-	Scope               string
-	AllowedContentTypes []string
-	MaxSizeBytes        int64
-}
-
-func (t DocumentType) Allows(contentType string) bool {
-	for _, allowed := range t.AllowedContentTypes {
-		if allowed == contentType {
-			return true
-		}
-	}
-	return false
-}
-
-type ProviderDocument struct {
-	ID              uuid.UUID
-	ProviderID      uuid.UUID
-	Type            string
-	TypeName        string
-	ObjectKey       string
-	ContentType     string
-	SizeBytes       int64
-	Status          DocumentStatus
-	RejectionReason string
-	ReviewedBy      *uuid.UUID
-	ReviewedAt      *time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-}
-
-func (d *ProviderDocument) Review(approved bool, reason string, reviewer *uuid.UUID, now time.Time) error {
-	if approved {
-		d.Status = DocumentApproved
-		d.RejectionReason = ""
-	} else {
-		normalized, err := normalizedReason(reason)
-		if err != nil {
-			return err
-		}
-		d.Status = DocumentRejected
-		d.RejectionReason = normalized
-	}
-	d.ReviewedBy = reviewer
-	d.ReviewedAt = &now
-	d.UpdatedAt = now
-	return nil
-}
-
 type ProviderRequirements struct {
-	ServiceID       uuid.UUID
-	ServiceName     string
-	RequiresVehicle bool
-	MinVehicleSeats int
-	VehicleKinds    []string
-	SelfSignup      bool
-	Documents       []DocumentType
+	ServiceID          uuid.UUID
+	ServiceName        string
+	RequiresVehicle    bool
+	MinVehicleSeats    int
+	VehicleKinds       []string
+	SelfSignup         bool
+	VerificationKind   enums.VerificationKind
+	DrivingCategories  []string
+	MaxVehicleAgeYears *int
+	Documents          []DocumentSpec
 }
 
 func (r *ProviderRequirements) MissingFor(profile *Provider, name string, documents []*ProviderDocument) map[string]string {
@@ -288,23 +252,25 @@ func (r *ProviderRequirements) MissingFor(profile *Provider, name string, docume
 	if profile.IDNumber == "" {
 		missing["personal.id_number"] = "Falta o número do documento de identificação."
 	}
-	if profile.HomeAddress == nil {
-		missing["personal.address"] = "Falta a morada."
+	if profile.Province == "" {
+		missing["personal.province"] = "Falta a província."
+	}
+	if profile.Municipality == "" {
+		missing["personal.municipality"] = "Falta o município."
 	}
 	if r.RequiresVehicle {
 		r.addVehicleGaps(profile.Vehicle, missing)
 	}
-	byType := make(map[string]*ProviderDocument, len(documents))
-	for _, document := range documents {
-		byType[document.Type] = document
-	}
-	for _, required := range r.Documents {
-		document, sent := byType[required.Code]
+	byType := providerDocumentsByType(documents)
+	for i := range r.Documents {
+		required := &r.Documents[i]
+		document, sent := byType[required.Type]
+		key := "documents." + required.Type.String()
 		switch {
-		case !sent:
-			missing["documents."+required.Code] = "Falta: " + required.Name + "."
+		case !sent || (required.HasFiles() && !document.AnyFile()):
+			missing[key] = "Falta: " + required.Name + "."
 		case document.Status == DocumentRejected:
-			missing["documents."+required.Code] = "Rejeitado, envia de novo: " + document.RejectionReason
+			missing[key] = "Rejeitado, envia de novo: " + document.RejectionReason
 		}
 	}
 	return missing
@@ -344,15 +310,23 @@ func (r *ProviderRequirements) VehicleGaps(vehicle Vehicle) map[string]string {
 }
 
 func (r *ProviderRequirements) NotApproved(documents []*ProviderDocument) map[string]string {
-	approved := make(map[string]bool, len(documents))
-	for _, document := range documents {
-		approved[document.Type] = document.Status == DocumentApproved
-	}
+	byType := providerDocumentsByType(documents)
 	pending := map[string]string{}
-	for _, required := range r.Documents {
-		if !approved[required.Code] {
-			pending["documents."+required.Code] = "Ainda não aprovado: " + required.Name + "."
+	for i := range r.Documents {
+		required := &r.Documents[i]
+		if document, sent := byType[required.Type]; !sent || document.Status != DocumentApproved {
+			pending["documents."+required.Type.String()] = "Ainda não aprovado: " + required.Name + "."
 		}
 	}
 	return pending
+}
+
+func providerDocumentsByType(documents []*ProviderDocument) map[enums.DocumentType]*ProviderDocument {
+	byType := make(map[enums.DocumentType]*ProviderDocument, len(documents))
+	for _, document := range documents {
+		if document.Subject == enums.DocumentSubjectProvider {
+			byType[document.Type] = document
+		}
+	}
+	return byType
 }

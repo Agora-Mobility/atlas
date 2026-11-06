@@ -1668,6 +1668,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/providers/{id}/verification": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Progress, review and every document with its data, flags and short-lived links to the files. Every call is recorded in the audit log.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice providers"
+                ],
+                "summary": "Verification of a provider (backoffice)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User id of the provider",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/verification.AdminVerificationView"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing providers.read",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/rejection-reasons": {
             "get": {
                 "security": [
@@ -9742,6 +9785,158 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/providers/catalogs/banks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Search by name, short name or the four-digit IBAN code.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Banks",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name, short name or code",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogList-dtos_BankView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/catalogs/company-types": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Company types",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogList-dtos_OptionView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/catalogs/driving-categories": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Driving license categories",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogList-dtos_OptionView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/catalogs/insurers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Insurers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Part of the name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogList-dtos_InsurerView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/catalogs/workshop-services": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Workshop services",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CatalogList-github_com_Agora-Mobility_atlas_usecases_verification_dtos_WorkshopServiceView"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/providers/me/coverage": {
             "put": {
                 "security": [
@@ -10097,59 +10292,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/providers/me/personal": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Provider account"
-                ],
-                "summary": "Save the personal data",
-                "parameters": [
-                    {
-                        "description": "Personal data",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.PersonalDataInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.ProviderView"
-                        }
-                    },
-                    "409": {
-                        "description": "PROFILE_LOCKED",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Invalid fields",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/providers/me/profile": {
             "get": {
                 "security": [
@@ -10173,6 +10315,58 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "One step for the service and the personal data. A provider offers a single service: choosing again replaces the requested one. service_id comes from GET /api/v1/providers/services; the service a provider really takes comes from the approval. A fleet driver keeps the service the fleet chose. id_number is the BI: 9 digits, 2 letters and 3 digits. email is optional and must not belong to another account; sending it empty removes it. Only in draft or rejected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider account"
+                ],
+                "summary": "Choose the service and save the personal data",
+                "parameters": [
+                    {
+                        "description": "Service and personal data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProfileInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderView"
+                        }
+                    },
+                    "409": {
+                        "description": "PROFILE_LOCKED, MANAGED_BY_FLEET or EMAIL_ALREADY_EXISTS",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "SERVICE_NOT_OPEN or invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -10214,60 +10408,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.RatingList"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/providers/me/service": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
-                "description": "Stored as the requested service. The service a provider really takes comes from the approval.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Provider account"
-                ],
-                "summary": "Choose the service to provide",
-                "parameters": [
-                    {
-                        "description": "Service",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.RequestServiceInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.ProviderView"
-                        }
-                    },
-                    "409": {
-                        "description": "PROFILE_LOCKED",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "SERVICE_NOT_OPEN",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -10340,7 +10480,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dtos.VehicleInput"
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_providers_dtos.VehicleInput"
                         }
                     }
                 ],
@@ -10366,6 +10506,1142 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/providers/me/verification": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Everything the step list needs (PK01, PK15, PK16, PK01-B): status, driver or workshop, progress computed by the server, minutes left, next step and the groups with the status of each step. The first call creates the verification for the service chosen in the profile.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Verification progress and steps",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VerificationView"
+                        }
+                    },
+                    "422": {
+                        "description": "SERVICE_NOT_CHOSEN",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/bank-account": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "AO06 with 21 digits and mod-97. Digits five to eight name the bank: another bank answers IBAN_BANK_MISMATCH with the detected bank. The holder must be the person on the card. The proof is the main slot of bank_account. The IBAN is always masked in answers.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Bank details (PK07, PK07-A)",
+                "parameters": [
+                    {
+                        "description": "Account",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BankAccountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BankAccountView"
+                        }
+                    },
+                    "422": {
+                        "description": "INVALID_IBAN, IBAN_BANK_MISMATCH or HOLDER_NAME_MISMATCH",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/criminal-record": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The file is the main slot of criminal_record (photo or PDF). Issued at most 90 days ago and not in the future.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Criminal record (PK12)",
+                "parameters": [
+                    {
+                        "description": "Certificate",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CriminalRecordInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/verification.StepResult"
+                        }
+                    },
+                    "422": {
+                        "description": "CERTIFICATE_TOO_OLD",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/criminal-record/reminder": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Schedules a push in 24 hours. The progress stays saved.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Remind me tomorrow (PK12)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ReminderView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/driving-license": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The photos are the front and back slots of driving_license. The license must not be expired and must have a category the service needs (taxi B, towing and removals C1 or C).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Driving license (PK05)",
+                "parameters": [
+                    {
+                        "description": "License",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DrivingLicenseInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/verification.StepResult"
+                        }
+                    },
+                    "422": {
+                        "description": "DOCUMENT_EXPIRED or DRIVING_CATEGORY_REQUIRED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/identity-card/data": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Every field can be edited. Fields that differ from the reading are kept in manually_edited_fields and go to review; source manual (after three failed readings) also goes to review. An expired card answers IDENTITY_CARD_EXPIRED unless the SIAC renewal receipt was sent (BI-E5). From here on the card name is the reference for the IBAN holder and the logbook.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Confirm or correct the identity card data (BI05, BI-E6)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Repeat safely",
+                        "name": "Idempotency-Key",
+                        "in": "header"
+                    },
+                    {
+                        "description": "Card data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.IdentityInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/verification.StepResult"
+                        }
+                    },
+                    "422": {
+                        "description": "IDENTITY_CARD_EXPIRED, MANUAL_ENTRY_NOT_ALLOWED or invalid fields",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/identity-card/extraction": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "processing, completed with the fields and their confidence, or failed. manual_entry_allowed tells when to show the manual form.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "State of the identity card reading",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "provider or legal_representative",
+                        "name": "subject",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ExtractionView"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Needs the front and the back accepted. The reading runs in the queue: poll GET with the same path. At most three attempts; after that EXTRACTION_MAX_ATTEMPTS and the app moves to manual entry (BI-E6).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Start reading the identity card (BI04)",
+                "parameters": [
+                    {
+                        "description": "Whose card",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SubjectInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ExtractionView"
+                        }
+                    },
+                    "422": {
+                        "description": "DOCUMENT_FILES_MISSING or EXTRACTION_MAX_ATTEMPTS",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/review": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Summary by section with the step to edit, the documents sent out of the total, the masked IBAN, the declaration to accept and the missing steps.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Review before submitting (PK16, PK08, OV09)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.ReviewView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/selfie": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Upload the final photo as slot main of selfie, then send the session and the upload id. accepted, or LIVENESS_FAILED with attempts and max_attempts. On the third failure the selfie goes to manual review and the step counts as sent.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Send the selfie of the liveness session (SF02–SF04)",
+                "parameters": [
+                    {
+                        "description": "Session and photo",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SelfieInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SelfieView"
+                        }
+                    },
+                    "422": {
+                        "description": "LIVENESS_FAILED or LIVENESS_SESSION_INVALID",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/selfie/session": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Liveness only: the face is not compared with the card photo. The challenge is BLINK.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Start a liveness session (SF01)",
+                "parameters": [
+                    {
+                        "description": "Whose selfie",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SubjectInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.LivenessSessionView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/submit": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Needs the declaration and every step. Moves to review, locks the changes (409 VERIFICATION_LOCKED), tells the backoffice and sends a push to the provider. Submitting again answers the same review.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Submit the verification",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Repeat safely",
+                        "name": "Idempotency-Key",
+                        "in": "header"
+                    },
+                    {
+                        "description": "Declaration",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.SubmitInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.ReviewView"
+                        }
+                    },
+                    "409": {
+                        "description": "VERIFICATION_LOCKED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "DECLARATION_REQUIRED or VERIFICATION_INCOMPLETE with data.missing_items",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/uploads": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Checks the document type, slot, subject, content type and size, and returns a pre-signed PUT to R2 with the headers to send. Then PUT the file and call the confirm endpoint. A new file for the same slot replaces the old one once it is accepted; the old one is kept as superseded. The identity card sides are slots front and back of id_card; the SIAC renewal receipt is the renewal_receipt slot.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Start the upload of a document file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Repeat safely",
+                        "name": "Idempotency-Key",
+                        "in": "header"
+                    },
+                    {
+                        "description": "File",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.StartUploadInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.StartedUpload"
+                        }
+                    },
+                    "409": {
+                        "description": "VERIFICATION_LOCKED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "INVALID_FILE_TYPE, FILE_TOO_LARGE, INVALID_SLOT or DOCUMENT_NOT_IN_PLAN",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/uploads/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "processing, accepted or quality_failed, with each quality check and the reasons (TEXT_NOT_LEGIBLE, SHADOW_ON_DATA, CORNERS_NOT_VISIBLE, GLARE, BLURRY, TOO_DARK).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "State of an uploaded file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Upload id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UploadView"
+                        }
+                    },
+                    "404": {
+                        "description": "UPLOAD_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/uploads/{id}/confirm": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Checks with HeadObject that the file exists and fits the size, and checks the magic bytes. The file then goes to processing: EXIF and GPS are removed and the quality is checked in the queue. Poll GET /uploads/{id} for accepted or quality_failed with the reasons (BI-E4). Confirming twice answers the same file.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Confirm an uploaded file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Upload id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UploadView"
+                        }
+                    },
+                    "404": {
+                        "description": "UPLOAD_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "FILE_NOT_UPLOADED, FILE_TOO_LARGE or INVALID_FILE_TYPE",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/uploads/{id}/url": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "A pre-signed GET of a few minutes, only for the owner. Files are never public.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Short-lived link to see my file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Upload id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ReadURL"
+                        }
+                    },
+                    "404": {
+                        "description": "UPLOAD_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/vehicle": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Angolan plate AA-00-00-AA, accepted without hyphens. The five photos are the front, rear, side, interior and plate slots of vehicle_photo.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Vehicle (PK06)",
+                "parameters": [
+                    {
+                        "description": "Vehicle",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.VehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/verification.StepResult"
+                        }
+                    },
+                    "422": {
+                        "description": "INVALID_PLATE or VEHICLE_TOO_OLD",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/vehicle/insurance": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The certificates are the main slot of vehicle_insurance and vehicle_inspection. Both dates must be in the future. Another insurer goes to review.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Insurance and inspection (PK14, PK14-A)",
+                "parameters": [
+                    {
+                        "description": "Insurance",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.InsuranceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/verification.StepResult"
+                        }
+                    },
+                    "422": {
+                        "description": "DOCUMENT_EXPIRED or INSURER_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/vehicle/registration": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The photos are page_1 and page_2 of vehicle_registration. When the owner is not the person on the card, the owner declaration (vehicle_owner_declaration) and the owner's card (id_card with subject vehicle_owner) are needed and the step goes to review.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Logbook (PK13)",
+                "parameters": [
+                    {
+                        "description": "Owner",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VehicleRegistrationInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.VehicleRegistrationView"
+                        }
+                    },
+                    "422": {
+                        "description": "IDENTITY_NOT_CONFIRMED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/bank-account": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Same rules as the driver, but the holder must be the company name given with the NIF. A personal account is refused on the holder field.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Company bank details (OV08)",
+                "parameters": [
+                    {
+                        "description": "Account",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BankAccountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BankAccountView"
+                        }
+                    },
+                    "422": {
+                        "description": "INVALID_IBAN, IBAN_BANK_MISMATCH or HOLDER_NAME_MISMATCH",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/business-license": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The file is the main slot of business_license. The validity must be in the future; a notice goes out 30 days before. The repair activity is checked by the team.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Business license (OV01)",
+                "parameters": [
+                    {
+                        "description": "License",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.BusinessLicenseInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/verification.StepResult"
+                        }
+                    },
+                    "422": {
+                        "description": "DOCUMENT_EXPIRED",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/commercial-certificate": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The file is the main slot of commercial_certificate. Issued less than six months ago.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Commercial certificate (OV02)",
+                "parameters": [
+                    {
+                        "description": "Certificate",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.CommercialCertificateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/verification.StepResult"
+                        }
+                    },
+                    "422": {
+                        "description": "CERTIFICATE_TOO_OLD",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/location": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Days 0 (Sunday) to 6 (Saturday), times HH:MM with open before close, at least one open day. Bookings only happen inside these hours.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Address and opening hours (OV06)",
+                "parameters": [
+                    {
+                        "description": "Location",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.LocationInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.LocationView"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/services": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Base price \"from\", in whole Kz without VAT, above zero. These services show up in the customer search once the workshop is approved.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Services and prices (OV07)",
+                "parameters": [
+                    {
+                        "description": "Services",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ServicesInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dtos.PricedServiceView"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/tax-id": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Ten digits. A company name that differs from the business license goes to review without blocking.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider verification"
+                ],
+                "summary": "Company NIF (OV03)",
+                "parameters": [
+                    {
+                        "description": "Company",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.TaxIDInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/verification.StepResult"
+                        }
+                    },
+                    "422": {
+                        "description": "INVALID_NIF",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/providers/register": {
             "post": {
                 "security": [
@@ -10373,7 +11649,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Only through agora-provider-app: the account type comes from the client, never from the payload. Creates the account and a draft profile, and sends an SMS code. Confirm it with POST /api/v1/auth/phone/verify to get a session.",
+                "description": "Only through agora-provider-app: the account type comes from the client, never from the payload. Takes only the phone, creates the account and a draft profile, and sends an SMS code. Calling it again for an unverified number sends a new code. Confirm it with POST /api/v1/auth/phone/verify to get a session. A registered number answers PHONE_ALREADY_EXISTS: the app moves to the sign-in by SMS code. The name and the other data are filled in later in the profile.",
                 "consumes": [
                     "application/json"
                 ],
@@ -10383,7 +11659,7 @@ const docTemplate = `{
                 "tags": [
                     "Provider account"
                 ],
-                "summary": "Create a provider account",
+                "summary": "Create a provider account with the phone",
                 "parameters": [
                     {
                         "description": "Account",
@@ -15322,6 +16598,72 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.BankAccountInput": {
+            "type": "object",
+            "required": [
+                "bank_id",
+                "holder_name",
+                "iban"
+            ],
+            "properties": {
+                "bank_id": {
+                    "type": "string"
+                },
+                "holder_name": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "example": "Domingos Mateus Kiala"
+                },
+                "iban": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "example": "AO06 0040 0000 1234 5678 1014 2"
+                }
+            }
+        },
+        "dtos.BankAccountView": {
+            "type": "object",
+            "properties": {
+                "bank": {
+                    "$ref": "#/definitions/dtos.BankView"
+                },
+                "holder_name": {
+                    "type": "string"
+                },
+                "iban": {
+                    "type": "string",
+                    "example": "AO06 •••• 1014 2"
+                },
+                "owner_type": {
+                    "type": "string",
+                    "example": "person"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "completed"
+                }
+            }
+        },
+        "dtos.BankView": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "0040"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Banco Angolano de Investimentos"
+                },
+                "short_name": {
+                    "type": "string",
+                    "example": "BAI"
+                }
+            }
+        },
         "dtos.BlockReasonList": {
             "type": "object",
             "properties": {
@@ -15537,6 +16879,29 @@ const docTemplate = `{
                 },
                 "label": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.BusinessLicenseInput": {
+            "type": "object",
+            "required": [
+                "expires_at",
+                "number"
+            ],
+            "properties": {
+                "company_name": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "example": "Auto Kiala, Lda"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "example": "2027-12-31"
+                },
+                "number": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "ALV-2026-00981"
                 }
             }
         },
@@ -15885,6 +17250,50 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CatalogList-dtos_BankView": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.BankView"
+                    }
+                }
+            }
+        },
+        "dtos.CatalogList-dtos_InsurerView": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.InsurerView"
+                    }
+                }
+            }
+        },
+        "dtos.CatalogList-dtos_OptionView": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.OptionView"
+                    }
+                }
+            }
+        },
+        "dtos.CatalogList-github_com_Agora-Mobility_atlas_usecases_verification_dtos_WorkshopServiceView": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.WorkshopServiceView"
+                    }
+                }
+            }
+        },
         "dtos.CatalogService": {
             "type": "object",
             "properties": {
@@ -16031,6 +17440,24 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 200,
                     "example": "Feriado"
+                }
+            }
+        },
+        "dtos.CommercialCertificateInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "issued_at"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "0123-4567-8901"
+                },
+                "issued_at": {
+                    "type": "string",
+                    "example": "2026-09-01"
                 }
             }
         },
@@ -16383,6 +17810,24 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CriminalRecordInput": {
+            "type": "object",
+            "required": [
+                "certificate_number",
+                "issued_at"
+            ],
+            "properties": {
+                "certificate_number": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "RC-2026-118273"
+                },
+                "issued_at": {
+                    "type": "string",
+                    "example": "2026-10-20"
+                }
+            }
+        },
         "dtos.CustomerVehicleInput": {
             "type": "object",
             "required": [
@@ -16470,7 +17915,7 @@ const docTemplate = `{
                 "slots": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dtos.SlotView"
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.SlotView"
                     }
                 },
                 "status": {
@@ -16532,6 +17977,44 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.DocumentFileView": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rejection_codes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "size_bytes": {
+                    "type": "integer"
+                },
+                "slot": {
+                    "type": "string",
+                    "example": "front"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "accepted"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "url_expires_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
         "dtos.DocumentURLOutput": {
             "type": "object",
             "properties": {
@@ -16549,6 +18032,15 @@ const docTemplate = `{
                 "content_type": {
                     "type": "string"
                 },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DocumentFileView"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -16561,6 +18053,12 @@ const docTemplate = `{
                         "$ref": "#/definitions/dtos.RejectionReasonView"
                     }
                 },
+                "review_flags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "reviewed_at": {
                     "type": "string"
                 },
@@ -16569,6 +18067,10 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                },
+                "subject": {
+                    "type": "string",
+                    "example": "provider"
                 },
                 "type": {
                     "type": "string"
@@ -16581,6 +18083,25 @@ const docTemplate = `{
                 },
                 "url_expires_at": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.DocumentsSummary": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ItemView"
+                    }
+                },
+                "sent": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 8
                 }
             }
         },
@@ -16636,6 +18157,36 @@ const docTemplate = `{
                 },
                 "vehicle_plate": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.DrivingLicenseInput": {
+            "type": "object",
+            "required": [
+                "categories",
+                "expires_at",
+                "number"
+            ],
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "maxItems": 13,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "B"
+                    ]
+                },
+                "expires_at": {
+                    "type": "string",
+                    "example": "2030-06-30"
+                },
+                "number": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "LA-123456"
                 }
             }
         },
@@ -16718,6 +18269,45 @@ const docTemplate = `{
                         "approved",
                         "declined"
                     ]
+                }
+            }
+        },
+        "dtos.ExtractionView": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "confidence": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "failure": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "manual_entry_allowed": {
+                    "type": "boolean"
+                },
+                "max_attempts": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "requires_renewal_receipt": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "processing"
                 }
             }
         },
@@ -16993,6 +18583,33 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.GroupView": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "estimated_minutes": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ItemView"
+                    }
+                },
+                "key": {
+                    "type": "string",
+                    "example": "about_you"
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 4
+                }
+            }
+        },
         "dtos.HeatCell": {
             "type": "object",
             "properties": {
@@ -17084,6 +18701,58 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.IdentityInput": {
+            "type": "object",
+            "required": [
+                "birth_date",
+                "expires_at",
+                "full_name",
+                "issued_at",
+                "number",
+                "source"
+            ],
+            "properties": {
+                "birth_date": {
+                    "type": "string",
+                    "example": "1988-03-14"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "example": "2032-01-10"
+                },
+                "full_name": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "example": "Domingos Mateus Kiala"
+                },
+                "issued_at": {
+                    "type": "string",
+                    "example": "2022-01-10"
+                },
+                "number": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "005487123LA041"
+                },
+                "source": {
+                    "type": "string",
+                    "enum": [
+                        "ocr",
+                        "manual"
+                    ],
+                    "example": "ocr"
+                },
+                "subject": {
+                    "type": "string",
+                    "enum": [
+                        "provider",
+                        "legal_representative",
+                        "vehicle_owner"
+                    ],
+                    "example": "provider"
+                }
+            }
+        },
         "dtos.InboxItemView": {
             "type": "object",
             "properties": {
@@ -17143,6 +18812,42 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.InsuranceInput": {
+            "type": "object",
+            "required": [
+                "inspection_expires_at",
+                "insurance_expires_at"
+            ],
+            "properties": {
+                "inspection_expires_at": {
+                    "type": "string",
+                    "example": "2027-01-15"
+                },
+                "insurance_expires_at": {
+                    "type": "string",
+                    "example": "2027-03-31"
+                },
+                "insurer_id": {
+                    "type": "string"
+                },
+                "other_insurer_name": {
+                    "type": "string",
+                    "maxLength": 120
+                }
+            }
+        },
+        "dtos.InsurerView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "ENSA"
+                }
+            }
+        },
         "dtos.InvitationTokenInput": {
             "type": "object",
             "required": [
@@ -17186,6 +18891,19 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "dtos.ItemView": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "identity_card"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "completed"
                 }
             }
         },
@@ -17246,6 +18964,93 @@ const docTemplate = `{
                 },
                 "total_cents": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.LivenessSessionView": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "challenge": {
+                    "type": "string",
+                    "example": "BLINK"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "max_attempts": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "session_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.LocationInput": {
+            "type": "object",
+            "required": [
+                "address",
+                "lat",
+                "lng",
+                "opening_hours"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Rua Rainha Ginga, 45, Luanda"
+                },
+                "lat": {
+                    "type": "number",
+                    "maximum": 90,
+                    "minimum": -90,
+                    "example": -8.8147
+                },
+                "lng": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180,
+                    "example": 13.2302
+                },
+                "opening_hours": {
+                    "type": "array",
+                    "maxItems": 7,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dtos.OpeningDayInput"
+                    }
+                },
+                "reference": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Ao lado da farmácia"
+                }
+            }
+        },
+        "dtos.LocationView": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "opening_hours": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.OpeningDayView"
+                    }
+                },
+                "reference": {
+                    "type": "string"
                 }
             }
         },
@@ -17688,6 +19493,51 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.OpeningDayInput": {
+            "type": "object",
+            "required": [
+                "day"
+            ],
+            "properties": {
+                "close": {
+                    "type": "string",
+                    "example": "18:00"
+                },
+                "closed": {
+                    "type": "boolean"
+                },
+                "day": {
+                    "type": "integer",
+                    "maximum": 6,
+                    "minimum": 0,
+                    "example": 1
+                },
+                "open": {
+                    "type": "string",
+                    "example": "08:00"
+                }
+            }
+        },
+        "dtos.OpeningDayView": {
+            "type": "object",
+            "properties": {
+                "close": {
+                    "type": "string",
+                    "example": "18:00"
+                },
+                "closed": {
+                    "type": "boolean"
+                },
+                "day": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "open": {
+                    "type": "string",
+                    "example": "08:00"
+                }
+            }
+        },
         "dtos.OperatorCancelInput": {
             "type": "object",
             "required": [
@@ -17697,6 +19547,19 @@ const docTemplate = `{
                 "reason": {
                     "type": "string",
                     "maxLength": 200
+                }
+            }
+        },
+        "dtos.OptionView": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "limited_company"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Sociedade por quotas (Lda)"
                 }
             }
         },
@@ -17882,28 +19745,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/enums.OrganizationType"
                     }
-                }
-            }
-        },
-        "dtos.PersonalDataInput": {
-            "type": "object",
-            "required": [
-                "address",
-                "birth_date",
-                "id_number"
-            ],
-            "properties": {
-                "address": {
-                    "$ref": "#/definitions/dtos.AddressInput"
-                },
-                "birth_date": {
-                    "type": "string",
-                    "example": "1990-05-20"
-                },
-                "id_number": {
-                    "type": "string",
-                    "maxLength": 120,
-                    "example": "000000000LA000"
                 }
             }
         },
@@ -18486,6 +20327,21 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.PricedServiceView": {
+            "type": "object",
+            "properties": {
+                "base_price": {
+                    "type": "integer",
+                    "example": 15000
+                },
+                "label": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.PricingInput": {
             "type": "object",
             "properties": {
@@ -18520,6 +20376,68 @@ const docTemplate = `{
                 "per_minute_fee_cents": {
                     "type": "integer",
                     "example": 0
+                }
+            }
+        },
+        "dtos.ProfileInput": {
+            "type": "object",
+            "required": [
+                "birth_date",
+                "id_number",
+                "municipality",
+                "name",
+                "province",
+                "service_id"
+            ],
+            "properties": {
+                "birth_date": {
+                    "type": "string",
+                    "example": "1988-03-14"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "domingos@exemplo.ao"
+                },
+                "id_number": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "005487123LA041"
+                },
+                "municipality": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Talatona"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Domingos Mateus Kiala"
+                },
+                "province": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Luanda"
+                },
+                "service_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.ProgressView": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "percent": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 8
                 }
             }
         },
@@ -18589,9 +20507,6 @@ const docTemplate = `{
         "dtos.ProviderView": {
             "type": "object",
             "properties": {
-                "address": {
-                    "$ref": "#/definitions/dtos.AddressView"
-                },
                 "birth_date": {
                     "type": "string"
                 },
@@ -18613,6 +20528,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "municipality": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -18620,6 +20538,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone": {
+                    "type": "string"
+                },
+                "province": {
                     "type": "string"
                 },
                 "requested_service_id": {
@@ -18695,6 +20616,32 @@ const docTemplate = `{
                 },
                 "vehicle_plate": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.QualityView": {
+            "type": "object",
+            "properties": {
+                "corners_visible": {
+                    "type": "boolean"
+                },
+                "metadata_removed": {
+                    "type": "boolean"
+                },
+                "no_glare": {
+                    "type": "boolean"
+                },
+                "no_shadow_on_data": {
+                    "type": "boolean"
+                },
+                "sharp": {
+                    "type": "boolean"
+                },
+                "text_legible": {
+                    "type": "boolean"
+                },
+                "well_lit": {
+                    "type": "boolean"
                 }
             }
         },
@@ -18864,6 +20811,17 @@ const docTemplate = `{
                 },
                 "stars": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.ReadURL": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },
@@ -19160,6 +21118,11 @@ const docTemplate = `{
                 "object_key": {
                     "type": "string",
                     "maxLength": 255
+                },
+                "slot": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "front"
                 }
             }
         },
@@ -19210,26 +21173,9 @@ const docTemplate = `{
         "dtos.RegisterProviderInput": {
             "type": "object",
             "required": [
-                "name",
-                "password",
                 "phone"
             ],
             "properties": {
-                "email": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "example": "pedro@exemplo.ao"
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 120,
-                    "example": "Pedro Cunga"
-                },
-                "password": {
-                    "type": "string",
-                    "maxLength": 128,
-                    "example": "S3gredo!forte"
-                },
                 "phone": {
                     "type": "string",
                     "maxLength": 32,
@@ -19245,9 +21191,6 @@ const docTemplate = `{
                 },
                 "is_verified": {
                     "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
                 },
                 "phone": {
                     "type": "string"
@@ -19313,6 +21256,14 @@ const docTemplate = `{
                 "scope": {
                     "type": "string",
                     "example": "document"
+                }
+            }
+        },
+        "dtos.ReminderView": {
+            "type": "object",
+            "properties": {
+                "remind_at": {
+                    "type": "string"
                 }
             }
         },
@@ -19631,17 +21582,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.RequestServiceInput": {
-            "type": "object",
-            "required": [
-                "service_id"
-            ],
-            "properties": {
-                "service_id": {
-                    "type": "string"
-                }
-            }
-        },
         "dtos.RequestSummary": {
             "type": "object",
             "properties": {
@@ -19864,6 +21804,12 @@ const docTemplate = `{
                 "scope": {
                     "type": "string"
                 },
+                "slots": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_providers_dtos.SlotView"
+                    }
+                },
                 "type": {
                     "type": "string"
                 }
@@ -19904,6 +21850,15 @@ const docTemplate = `{
                         "approved",
                         "rejected"
                     ]
+                },
+                "subject": {
+                    "type": "string",
+                    "enum": [
+                        "provider",
+                        "legal_representative",
+                        "vehicle_owner"
+                    ],
+                    "example": "provider"
                 }
             }
         },
@@ -19916,7 +21871,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dtos.ReviewView"
+                        "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.ReviewView"
                     }
                 },
                 "page": {
@@ -19960,20 +21915,24 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.ReviewView": {
+        "dtos.ReviewSection": {
             "type": "object",
             "properties": {
-                "comment": {
-                    "type": "string"
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {}
                 },
-                "created_at": {
-                    "type": "string"
+                "key": {
+                    "type": "string",
+                    "example": "personal"
                 },
-                "id": {
-                    "type": "string"
+                "status": {
+                    "type": "string",
+                    "example": "completed"
                 },
-                "stars": {
-                    "type": "integer"
+                "step": {
+                    "type": "string",
+                    "example": "identity_card"
                 }
             }
         },
@@ -20171,6 +22130,50 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.SelfieInput": {
+            "type": "object",
+            "required": [
+                "session_id",
+                "upload_id"
+            ],
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "subject": {
+                    "type": "string",
+                    "enum": [
+                        "provider",
+                        "legal_representative"
+                    ],
+                    "example": "provider"
+                },
+                "upload_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.SelfieView": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "max_attempts": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "accepted"
+                }
+            }
+        },
         "dtos.SendMessageInput": {
             "type": "object",
             "properties": {
@@ -20204,6 +22207,23 @@ const docTemplate = `{
                 },
                 "total_pages": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.ServicePriceInput": {
+            "type": "object",
+            "required": [
+                "base_price",
+                "service_id"
+            ],
+            "properties": {
+                "base_price": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 15000
+                },
+                "service_id": {
+                    "type": "string"
                 }
             }
         },
@@ -20252,6 +22272,22 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.ServicesInput": {
+            "type": "object",
+            "required": [
+                "services"
+            ],
+            "properties": {
+                "services": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dtos.ServicePriceInput"
+                    }
                 }
             }
         },
@@ -20405,14 +22441,89 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.SlotView": {
+        "dtos.StartUploadInput": {
+            "type": "object",
+            "required": [
+                "content_type",
+                "document_type",
+                "size",
+                "slot"
+            ],
+            "properties": {
+                "content_type": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "image/jpeg"
+                },
+                "document_type": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "id_card"
+                },
+                "size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 204800
+                },
+                "slot": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "front"
+                },
+                "subject": {
+                    "type": "string",
+                    "enum": [
+                        "provider",
+                        "legal_representative",
+                        "vehicle_owner"
+                    ],
+                    "example": "provider"
+                }
+            }
+        },
+        "dtos.StartedUpload": {
             "type": "object",
             "properties": {
-                "ends_at": {
+                "expires_at": {
                     "type": "string"
                 },
-                "starts_at": {
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "upload_id": {
                     "type": "string"
+                },
+                "upload_url": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "dtos.SubjectInput": {
+            "type": "object",
+            "properties": {
+                "subject": {
+                    "type": "string",
+                    "enum": [
+                        "provider",
+                        "legal_representative"
+                    ],
+                    "example": "provider"
+                }
+            }
+        },
+        "dtos.SubmitInput": {
+            "type": "object",
+            "properties": {
+                "declaration_accepted": {
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },
@@ -20562,6 +22673,31 @@ const docTemplate = `{
                 },
                 "zone_id": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.TaxIDInput": {
+            "type": "object",
+            "required": [
+                "company_name",
+                "company_type",
+                "nif"
+            ],
+            "properties": {
+                "company_name": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "example": "Auto Kiala, Lda"
+                },
+                "company_type": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "example": "limited_company"
+                },
+                "nif": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "5417123456"
                 }
             }
         },
@@ -21058,6 +23194,11 @@ const docTemplate = `{
                     "type": "integer",
                     "minimum": 1,
                     "example": 204800
+                },
+                "slot": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "front"
                 }
             }
         },
@@ -21078,6 +23219,59 @@ const docTemplate = `{
                 },
                 "upload_url": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.UploadView": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "document_type": {
+                    "type": "string",
+                    "example": "id_card"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "quality": {
+                    "$ref": "#/definitions/dtos.QualityView"
+                },
+                "reasons": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "size_bytes": {
+                    "type": "integer"
+                },
+                "slot": {
+                    "type": "string",
+                    "example": "front"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "accepted"
+                },
+                "subject": {
+                    "type": "string",
+                    "example": "provider"
+                },
+                "version": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "width": {
+                    "type": "integer"
                 }
             }
         },
@@ -21246,68 +23440,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dtos.VehicleInput": {
-            "type": "object",
-            "required": [
-                "brand",
-                "color",
-                "model",
-                "plate",
-                "seats",
-                "year"
-            ],
-            "properties": {
-                "brand": {
-                    "type": "string",
-                    "maxLength": 120,
-                    "example": "Toyota"
-                },
-                "capacity_kg": {
-                    "type": "integer",
-                    "maximum": 100000,
-                    "minimum": 0,
-                    "example": 1500
-                },
-                "color": {
-                    "type": "string",
-                    "maxLength": 120,
-                    "example": "Branco"
-                },
-                "kind": {
-                    "type": "string",
-                    "enum": [
-                        "car",
-                        "motorcycle",
-                        "van",
-                        "truck",
-                        "tow_truck"
-                    ],
-                    "example": "car"
-                },
-                "model": {
-                    "type": "string",
-                    "maxLength": 120,
-                    "example": "Corolla"
-                },
-                "plate": {
-                    "type": "string",
-                    "maxLength": 20,
-                    "example": "LD-45-21-AF"
-                },
-                "seats": {
-                    "type": "integer",
-                    "maximum": 100,
-                    "minimum": 1,
-                    "example": 5
-                },
-                "year": {
-                    "type": "integer",
-                    "maximum": 2200,
-                    "minimum": 1900,
-                    "example": 2020
-                }
-            }
-        },
         "dtos.VehicleList": {
             "type": "object",
             "properties": {
@@ -21325,6 +23457,41 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.VehicleRegistrationInput": {
+            "type": "object",
+            "required": [
+                "owner_name"
+            ],
+            "properties": {
+                "owner_name": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "example": "Domingos Mateus Kiala"
+                }
+            }
+        },
+        "dtos.VehicleRegistrationView": {
+            "type": "object",
+            "properties": {
+                "owner_documents_required": {
+                    "type": "boolean"
+                },
+                "owner_is_provider": {
+                    "type": "boolean"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "plate": {
+                    "type": "string",
+                    "example": "LD-45-21-AF"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "completed"
                 }
             }
         },
@@ -21368,6 +23535,45 @@ const docTemplate = `{
                 },
                 "year": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.VerificationView": {
+            "type": "object",
+            "properties": {
+                "estimated_minutes_left": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.GroupView"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "locked": {
+                    "type": "boolean"
+                },
+                "next_item": {
+                    "type": "string",
+                    "example": "selfie"
+                },
+                "progress": {
+                    "$ref": "#/definitions/dtos.ProgressView"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "in_progress"
+                },
+                "submitted_at": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "driver"
                 }
             }
         },
@@ -21915,6 +24121,121 @@ const docTemplate = `{
                 }
             }
         },
+        "entities.DocumentDetails": {
+            "type": "object",
+            "properties": {
+                "bank_id": {
+                    "type": "string"
+                },
+                "birth_date": {
+                    "type": "string"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "company_name": {
+                    "type": "string"
+                },
+                "company_type": {
+                    "type": "string"
+                },
+                "extraction": {
+                    "$ref": "#/definitions/entities.Extraction"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "holder_name": {
+                    "type": "string"
+                },
+                "insurer_id": {
+                    "type": "string"
+                },
+                "liveness": {
+                    "$ref": "#/definitions/entities.Liveness"
+                },
+                "manually_edited_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "other_insurer_name": {
+                    "type": "string"
+                },
+                "owner_is_provider": {
+                    "type": "boolean"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "owner_type": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
+        "entities.Extraction": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "confidence": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "failure": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "requested_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "entities.Liveness": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "challenge": {
+                    "type": "string"
+                },
+                "checked_at": {
+                    "type": "string"
+                },
+                "failure_reason": {
+                    "type": "string"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "entities.RemovalLine": {
             "type": "object",
             "properties": {
@@ -22091,6 +24412,34 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.ReviewView": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "stars": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.SlotView": {
+            "type": "object",
+            "properties": {
+                "ends_at": {
+                    "type": "string"
+                },
+                "starts_at": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_Agora-Mobility_atlas_usecases_bookings_dtos.WorkshopServiceView": {
             "type": "object",
             "properties": {
@@ -22193,6 +24542,194 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Agora-Mobility_atlas_usecases_providers_dtos.SlotView": {
+            "type": "object",
+            "properties": {
+                "allowed_content_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "slot": {
+                    "type": "string",
+                    "example": "front"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_providers_dtos.VehicleInput": {
+            "type": "object",
+            "required": [
+                "brand",
+                "color",
+                "model",
+                "plate",
+                "seats",
+                "year"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Toyota"
+                },
+                "capacity_kg": {
+                    "type": "integer",
+                    "maximum": 100000,
+                    "minimum": 0,
+                    "example": 1500
+                },
+                "color": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Branco"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "car",
+                        "motorcycle",
+                        "van",
+                        "truck",
+                        "tow_truck"
+                    ],
+                    "example": "car"
+                },
+                "model": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Corolla"
+                },
+                "plate": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "LD-45-21-AF"
+                },
+                "seats": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1,
+                    "example": 5
+                },
+                "year": {
+                    "type": "integer",
+                    "maximum": 2200,
+                    "minimum": 1900,
+                    "example": 2020
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_verification_dtos.ReviewView": {
+            "type": "object",
+            "properties": {
+                "declaration": {
+                    "type": "string"
+                },
+                "documents": {
+                    "$ref": "#/definitions/dtos.DocumentsSummary"
+                },
+                "missing_items": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ReviewSection"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "example": "in_progress"
+                },
+                "submitted_at": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "driver"
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_verification_dtos.VehicleInput": {
+            "type": "object",
+            "required": [
+                "brand",
+                "color",
+                "model",
+                "plate",
+                "seats",
+                "year"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Toyota"
+                },
+                "capacity_kg": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 0
+                },
+                "color": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Branco"
+                },
+                "kind": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "car"
+                },
+                "model": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Corolla"
+                },
+                "plate": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "LD-45-21-AF"
+                },
+                "seats": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1,
+                    "example": 5
+                },
+                "year": {
+                    "type": "integer",
+                    "maximum": 2200,
+                    "minimum": 1900,
+                    "example": 2020
+                }
+            }
+        },
+        "github_com_Agora-Mobility_atlas_usecases_verification_dtos.WorkshopServiceView": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "oil"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Óleo e filtros"
+                }
+            }
+        },
         "shared.ErrorBody": {
             "type": "object",
             "properties": {
@@ -22202,6 +24739,10 @@ const docTemplate = `{
                 },
                 "correlation_id": {
                     "type": "string"
+                },
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {}
                 },
                 "details": {
                     "type": "object",
@@ -22220,6 +24761,127 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "$ref": "#/definitions/shared.ErrorBody"
+                }
+            }
+        },
+        "verification.AdminDocumentView": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "$ref": "#/definitions/entities.DocumentDetails"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/verification.AdminFileView"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "issued_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "string"
+                },
+                "rejection_reason": {
+                    "type": "string"
+                },
+                "review_flags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "verification.AdminFileView": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata_removed": {
+                    "type": "boolean"
+                },
+                "reasons": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sha256": {
+                    "type": "string"
+                },
+                "size_bytes": {
+                    "type": "integer"
+                },
+                "slot": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uploaded_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "url_expires_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "verification.AdminVerificationView": {
+            "type": "object",
+            "properties": {
+                "documents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/verification.AdminDocumentView"
+                    }
+                },
+                "review": {
+                    "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.ReviewView"
+                },
+                "verification": {
+                    "$ref": "#/definitions/dtos.VerificationView"
+                }
+            }
+        },
+        "verification.StepResult": {
+            "type": "object",
+            "properties": {
+                "item": {
+                    "type": "string",
+                    "example": "driving_license"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "completed"
                 }
             }
         }

@@ -6,9 +6,7 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/repository"
 	"github.com/Agora-Mobility/atlas/infra/rest/providers/controllers"
 	providersrouter "github.com/Agora-Mobility/atlas/infra/rest/providers/router"
-	"github.com/Agora-Mobility/atlas/infra/security/password"
 	"github.com/Agora-Mobility/atlas/infra/storage/r2"
-	usecases "github.com/Agora-Mobility/atlas/usecases/auth"
 	"github.com/Agora-Mobility/atlas/usecases/providers"
 )
 
@@ -37,10 +35,10 @@ func newProvidersModule(c *Container, storage services.IObjectStorage) *Provider
 		Outbox:    c.Outbox,
 		Audit:     repository.NewAuditLogRepository(c.Pool),
 		Tx:        c.TxManager,
-		Hasher:    password.NewArgon2Hasher(password.DefaultParams),
 		Codes:     c.Auth.CodeSender,
 		Storage:   storage,
-		Passwords: usecases.ValidatePassword,
+		Approvals: c.Verification.Usecase,
+		Settings:  providers.Settings{MaxFileBytes: c.Config.Verify.MaxFileBytes},
 	})
 	return &ProvidersModule{
 		Usecase: uc,

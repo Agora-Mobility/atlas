@@ -7,24 +7,32 @@ package gen
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
+	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/google/uuid"
 )
 
 const addDocumentRejectionReasons = `-- name: AddDocumentRejectionReasons :exec
-INSERT INTO provider_document_rejection_reasons (provider_id, document_type, reason_id)
-SELECT $1::uuid, $2::text, unnest($3::uuid[])
+INSERT INTO provider_document_rejection_reasons (provider_id, document_type, subject, reason_id)
+SELECT $1::uuid, $2::provider_document_type, $3::provider_document_subject, unnest($4::uuid[])
 `
 
 type AddDocumentRejectionReasonsParams struct {
-	ProviderID   uuid.UUID   `json:"provider_id"`
-	DocumentType string      `json:"document_type"`
-	ReasonIds    []uuid.UUID `json:"reason_ids"`
+	ProviderID   uuid.UUID             `json:"provider_id"`
+	DocumentType enums.DocumentType    `json:"document_type"`
+	Subject      enums.DocumentSubject `json:"subject"`
+	ReasonIds    []uuid.UUID           `json:"reason_ids"`
 }
 
 func (q *Queries) AddDocumentRejectionReasons(ctx context.Context, arg AddDocumentRejectionReasonsParams) error {
-	_, err := q.db.Exec(ctx, addDocumentRejectionReasons, arg.ProviderID, arg.DocumentType, arg.ReasonIds)
+	_, err := q.db.Exec(ctx, addDocumentRejectionReasons,
+		arg.ProviderID,
+		arg.DocumentType,
+		arg.Subject,
+		arg.ReasonIds,
+	)
 	return err
 }
 
@@ -43,16 +51,17 @@ func (q *Queries) AddProviderRejectionReasons(ctx context.Context, arg AddProvid
 }
 
 const clearDocumentRejectionReasons = `-- name: ClearDocumentRejectionReasons :exec
-DELETE FROM provider_document_rejection_reasons WHERE provider_id = $1 AND document_type = $2
+DELETE FROM provider_document_rejection_reasons WHERE provider_id = $1 AND document_type = $2 AND subject = $3
 `
 
 type ClearDocumentRejectionReasonsParams struct {
-	ProviderID   uuid.UUID `json:"provider_id"`
-	DocumentType string    `json:"document_type"`
+	ProviderID   uuid.UUID             `json:"provider_id"`
+	DocumentType enums.DocumentType    `json:"document_type"`
+	Subject      enums.DocumentSubject `json:"subject"`
 }
 
 func (q *Queries) ClearDocumentRejectionReasons(ctx context.Context, arg ClearDocumentRejectionReasonsParams) error {
-	_, err := q.db.Exec(ctx, clearDocumentRejectionReasons, arg.ProviderID, arg.DocumentType)
+	_, err := q.db.Exec(ctx, clearDocumentRejectionReasons, arg.ProviderID, arg.DocumentType, arg.Subject)
 	return err
 }
 
@@ -94,82 +103,138 @@ func (q *Queries) CreateRejectionReason(ctx context.Context, arg CreateRejection
 	return err
 }
 
-const getDocumentType = `-- name: GetDocumentType :one
-SELECT code, name, scope, allowed_content_types, max_size_bytes FROM provider_document_types WHERE code = $1
+const deleteDocumentFile = `-- name: DeleteDocumentFile :exec
+DELETE FROM provider_document_files WHERE id = $1 AND status = 'pending_upload'
 `
 
-type GetDocumentTypeRow struct {
-	Code                string   `json:"code"`
-	Name                string   `json:"name"`
-	Scope               string   `json:"scope"`
-	AllowedContentTypes []string `json:"allowed_content_types"`
-	MaxSizeBytes        int64    `json:"max_size_bytes"`
+func (q *Queries) DeleteDocumentFile(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteDocumentFile, id)
+	return err
 }
 
-func (q *Queries) GetDocumentType(ctx context.Context, code string) (GetDocumentTypeRow, error) {
-	row := q.db.QueryRow(ctx, getDocumentType, code)
-	var i GetDocumentTypeRow
+const getDocumentFile = `-- name: GetDocumentFile :one
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE id = $1
+`
+
+func (q *Queries) GetDocumentFile(ctx context.Context, id uuid.UUID) (ProviderDocumentFile, error) {
+	row := q.db.QueryRow(ctx, getDocumentFile, id)
+	var i ProviderDocumentFile
 	err := row.Scan(
-		&i.Code,
-		&i.Name,
-		&i.Scope,
-		&i.AllowedContentTypes,
-		&i.MaxSizeBytes,
+		&i.ID,
+		&i.DocumentID,
+		&i.ProviderID,
+		&i.Slot,
+		&i.Version,
+		&i.Status,
+		&i.Url,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.Sha256,
+		&i.Width,
+		&i.Height,
+		&i.QualityChecks,
+		&i.RejectionCodes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getProviderDocument = `-- name: GetProviderDocument :one
-SELECT d.id, d.provider_id, d.document_type, d.object_key, d.content_type, d.size_bytes, d.status, d.rejection_reason, d.reviewed_by, d.reviewed_at, d.created_at, d.updated_at, t.name AS type_name
-FROM provider_documents d
-JOIN provider_document_types t ON t.code = d.document_type
-WHERE d.provider_id = $1 AND d.document_type = $2
+SELECT id, provider_id, document_type, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at, subject, number, issued_at, expires_at, details, review_flags FROM provider_documents WHERE provider_id = $1 AND document_type = $2 AND subject = $3
 `
 
 type GetProviderDocumentParams struct {
-	ProviderID   uuid.UUID `json:"provider_id"`
-	DocumentType string    `json:"document_type"`
+	ProviderID   uuid.UUID             `json:"provider_id"`
+	DocumentType enums.DocumentType    `json:"document_type"`
+	Subject      enums.DocumentSubject `json:"subject"`
 }
 
-type GetProviderDocumentRow struct {
-	ID              uuid.UUID  `json:"id"`
-	ProviderID      uuid.UUID  `json:"provider_id"`
-	DocumentType    string     `json:"document_type"`
-	ObjectKey       string     `json:"object_key"`
-	ContentType     string     `json:"content_type"`
-	SizeBytes       int64      `json:"size_bytes"`
-	Status          string     `json:"status"`
-	RejectionReason string     `json:"rejection_reason"`
-	ReviewedBy      *uuid.UUID `json:"reviewed_by"`
-	ReviewedAt      *time.Time `json:"reviewed_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	TypeName        string     `json:"type_name"`
-}
-
-func (q *Queries) GetProviderDocument(ctx context.Context, arg GetProviderDocumentParams) (GetProviderDocumentRow, error) {
-	row := q.db.QueryRow(ctx, getProviderDocument, arg.ProviderID, arg.DocumentType)
-	var i GetProviderDocumentRow
+func (q *Queries) GetProviderDocument(ctx context.Context, arg GetProviderDocumentParams) (ProviderDocument, error) {
+	row := q.db.QueryRow(ctx, getProviderDocument, arg.ProviderID, arg.DocumentType, arg.Subject)
+	var i ProviderDocument
 	err := row.Scan(
 		&i.ID,
 		&i.ProviderID,
 		&i.DocumentType,
-		&i.ObjectKey,
-		&i.ContentType,
-		&i.SizeBytes,
 		&i.Status,
 		&i.RejectionReason,
 		&i.ReviewedBy,
 		&i.ReviewedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.TypeName,
+		&i.Subject,
+		&i.Number,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.Details,
+		&i.ReviewFlags,
+	)
+	return i, err
+}
+
+const getProviderDocumentByID = `-- name: GetProviderDocumentByID :one
+SELECT id, provider_id, document_type, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at, subject, number, issued_at, expires_at, details, review_flags FROM provider_documents WHERE id = $1
+`
+
+func (q *Queries) GetProviderDocumentByID(ctx context.Context, id uuid.UUID) (ProviderDocument, error) {
+	row := q.db.QueryRow(ctx, getProviderDocumentByID, id)
+	var i ProviderDocument
+	err := row.Scan(
+		&i.ID,
+		&i.ProviderID,
+		&i.DocumentType,
+		&i.Status,
+		&i.RejectionReason,
+		&i.ReviewedBy,
+		&i.ReviewedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Subject,
+		&i.Number,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.Details,
+		&i.ReviewFlags,
+	)
+	return i, err
+}
+
+const getProviderDocumentFile = `-- name: GetProviderDocumentFile :one
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE id = $1 AND provider_id = $2
+`
+
+type GetProviderDocumentFileParams struct {
+	ID         uuid.UUID `json:"id"`
+	ProviderID uuid.UUID `json:"provider_id"`
+}
+
+func (q *Queries) GetProviderDocumentFile(ctx context.Context, arg GetProviderDocumentFileParams) (ProviderDocumentFile, error) {
+	row := q.db.QueryRow(ctx, getProviderDocumentFile, arg.ID, arg.ProviderID)
+	var i ProviderDocumentFile
+	err := row.Scan(
+		&i.ID,
+		&i.DocumentID,
+		&i.ProviderID,
+		&i.Slot,
+		&i.Version,
+		&i.Status,
+		&i.Url,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.Sha256,
+		&i.Width,
+		&i.Height,
+		&i.QualityChecks,
+		&i.RejectionCodes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getProviderRequirements = `-- name: GetProviderRequirements :one
-SELECT o.service_id, o.requires_vehicle, o.min_vehicle_seats, o.vehicle_kinds, o.self_signup, s.name AS service_name
+SELECT o.service_id, o.requires_vehicle, o.min_vehicle_seats, o.vehicle_kinds, o.self_signup, o.verification_kind, o.driving_categories, o.max_vehicle_age_years, s.name AS service_name
 FROM service_provider_requirements o
 JOIN services s ON s.id = o.service_id
 JOIN service_categories c ON c.id = s.category_id
@@ -177,12 +242,15 @@ WHERE o.service_id = $1 AND s.is_active AND c.is_active
 `
 
 type GetProviderRequirementsRow struct {
-	ServiceID       uuid.UUID `json:"service_id"`
-	RequiresVehicle bool      `json:"requires_vehicle"`
-	MinVehicleSeats int32     `json:"min_vehicle_seats"`
-	VehicleKinds    []string  `json:"vehicle_kinds"`
-	SelfSignup      bool      `json:"self_signup"`
-	ServiceName     string    `json:"service_name"`
+	ServiceID          uuid.UUID              `json:"service_id"`
+	RequiresVehicle    bool                   `json:"requires_vehicle"`
+	MinVehicleSeats    int32                  `json:"min_vehicle_seats"`
+	VehicleKinds       []string               `json:"vehicle_kinds"`
+	SelfSignup         bool                   `json:"self_signup"`
+	VerificationKind   enums.VerificationKind `json:"verification_kind"`
+	DrivingCategories  []string               `json:"driving_categories"`
+	MaxVehicleAgeYears *int32                 `json:"max_vehicle_age_years"`
+	ServiceName        string                 `json:"service_name"`
 }
 
 func (q *Queries) GetProviderRequirements(ctx context.Context, serviceID uuid.UUID) (GetProviderRequirementsRow, error) {
@@ -194,6 +262,9 @@ func (q *Queries) GetProviderRequirements(ctx context.Context, serviceID uuid.UU
 		&i.MinVehicleSeats,
 		&i.VehicleKinds,
 		&i.SelfSignup,
+		&i.VerificationKind,
+		&i.DrivingCategories,
+		&i.MaxVehicleAgeYears,
 		&i.ServiceName,
 	)
 	return i, err
@@ -263,14 +334,57 @@ func (q *Queries) ListActiveRejectionReasonsByIDs(ctx context.Context, arg ListA
 	return items, nil
 }
 
+const listDocumentFiles = `-- name: ListDocumentFiles :many
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE document_id = $1 AND status <> 'superseded' ORDER BY slot, version
+`
+
+func (q *Queries) ListDocumentFiles(ctx context.Context, documentID uuid.UUID) ([]ProviderDocumentFile, error) {
+	rows, err := q.db.Query(ctx, listDocumentFiles, documentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProviderDocumentFile{}
+	for rows.Next() {
+		var i ProviderDocumentFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocumentID,
+			&i.ProviderID,
+			&i.Slot,
+			&i.Version,
+			&i.Status,
+			&i.Url,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.Sha256,
+			&i.Width,
+			&i.Height,
+			&i.QualityChecks,
+			&i.RejectionCodes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDocumentRejectionReasons = `-- name: ListDocumentRejectionReasons :many
-SELECT dr.document_type, r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order, r.category_id
-FROM provider_document_rejection_reasons dr JOIN rejection_reasons r ON r.id = dr.reason_id
+SELECT d.id AS document_id, r.id, r.scope, r.code, r.label, r.requires_note, r.is_active, r.display_order, r.category_id
+FROM provider_document_rejection_reasons dr
+JOIN rejection_reasons r ON r.id = dr.reason_id
+JOIN provider_documents d ON d.provider_id = dr.provider_id AND d.document_type = dr.document_type AND d.subject = dr.subject
 WHERE dr.provider_id = $1 ORDER BY r.display_order, r.label
 `
 
 type ListDocumentRejectionReasonsRow struct {
-	DocumentType string     `json:"document_type"`
+	DocumentID   uuid.UUID  `json:"document_id"`
 	ID           uuid.UUID  `json:"id"`
 	Scope        string     `json:"scope"`
 	Code         string     `json:"code"`
@@ -291,7 +405,7 @@ func (q *Queries) ListDocumentRejectionReasons(ctx context.Context, providerID u
 	for rows.Next() {
 		var i ListDocumentRejectionReasonsRow
 		if err := rows.Scan(
-			&i.DocumentType,
+			&i.DocumentID,
 			&i.ID,
 			&i.Scope,
 			&i.Code,
@@ -311,53 +425,76 @@ func (q *Queries) ListDocumentRejectionReasons(ctx context.Context, providerID u
 	return items, nil
 }
 
-const listProviderDocuments = `-- name: ListProviderDocuments :many
-SELECT d.id, d.provider_id, d.document_type, d.object_key, d.content_type, d.size_bytes, d.status, d.rejection_reason, d.reviewed_by, d.reviewed_at, d.created_at, d.updated_at, t.name AS type_name
-FROM provider_documents d
-JOIN provider_document_types t ON t.code = d.document_type
-WHERE d.provider_id = $1
-ORDER BY t.display_order
+const listProviderDocumentFiles = `-- name: ListProviderDocumentFiles :many
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE provider_id = $1 AND status <> 'superseded' ORDER BY slot, version
 `
 
-type ListProviderDocumentsRow struct {
-	ID              uuid.UUID  `json:"id"`
-	ProviderID      uuid.UUID  `json:"provider_id"`
-	DocumentType    string     `json:"document_type"`
-	ObjectKey       string     `json:"object_key"`
-	ContentType     string     `json:"content_type"`
-	SizeBytes       int64      `json:"size_bytes"`
-	Status          string     `json:"status"`
-	RejectionReason string     `json:"rejection_reason"`
-	ReviewedBy      *uuid.UUID `json:"reviewed_by"`
-	ReviewedAt      *time.Time `json:"reviewed_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	TypeName        string     `json:"type_name"`
+func (q *Queries) ListProviderDocumentFiles(ctx context.Context, providerID uuid.UUID) ([]ProviderDocumentFile, error) {
+	rows, err := q.db.Query(ctx, listProviderDocumentFiles, providerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProviderDocumentFile{}
+	for rows.Next() {
+		var i ProviderDocumentFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocumentID,
+			&i.ProviderID,
+			&i.Slot,
+			&i.Version,
+			&i.Status,
+			&i.Url,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.Sha256,
+			&i.Width,
+			&i.Height,
+			&i.QualityChecks,
+			&i.RejectionCodes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
-func (q *Queries) ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ListProviderDocumentsRow, error) {
+const listProviderDocuments = `-- name: ListProviderDocuments :many
+SELECT id, provider_id, document_type, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at, subject, number, issued_at, expires_at, details, review_flags FROM provider_documents WHERE provider_id = $1 ORDER BY document_type, subject
+`
+
+func (q *Queries) ListProviderDocuments(ctx context.Context, providerID uuid.UUID) ([]ProviderDocument, error) {
 	rows, err := q.db.Query(ctx, listProviderDocuments, providerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListProviderDocumentsRow{}
+	items := []ProviderDocument{}
 	for rows.Next() {
-		var i ListProviderDocumentsRow
+		var i ProviderDocument
 		if err := rows.Scan(
 			&i.ID,
 			&i.ProviderID,
 			&i.DocumentType,
-			&i.ObjectKey,
-			&i.ContentType,
-			&i.SizeBytes,
 			&i.Status,
 			&i.RejectionReason,
 			&i.ReviewedBy,
 			&i.ReviewedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.TypeName,
+			&i.Subject,
+			&i.Number,
+			&i.IssuedAt,
+			&i.ExpiresAt,
+			&i.Details,
+			&i.ReviewFlags,
 		); err != nil {
 			return nil, err
 		}
@@ -448,40 +585,22 @@ func (q *Queries) ListRejectionReasons(ctx context.Context, arg ListRejectionRea
 }
 
 const listRequiredDocuments = `-- name: ListRequiredDocuments :many
-SELECT t.code, t.name, t.scope, t.allowed_content_types, t.max_size_bytes
-FROM service_required_documents r
-JOIN provider_document_types t ON t.code = r.document_type
-WHERE r.service_id = $1
-ORDER BY t.display_order
+SELECT document_type FROM service_required_documents WHERE service_id = $1 ORDER BY document_type
 `
 
-type ListRequiredDocumentsRow struct {
-	Code                string   `json:"code"`
-	Name                string   `json:"name"`
-	Scope               string   `json:"scope"`
-	AllowedContentTypes []string `json:"allowed_content_types"`
-	MaxSizeBytes        int64    `json:"max_size_bytes"`
-}
-
-func (q *Queries) ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]ListRequiredDocumentsRow, error) {
+func (q *Queries) ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]enums.DocumentType, error) {
 	rows, err := q.db.Query(ctx, listRequiredDocuments, serviceID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListRequiredDocumentsRow{}
+	items := []enums.DocumentType{}
 	for rows.Next() {
-		var i ListRequiredDocumentsRow
-		if err := rows.Scan(
-			&i.Code,
-			&i.Name,
-			&i.Scope,
-			&i.AllowedContentTypes,
-			&i.MaxSizeBytes,
-		); err != nil {
+		var document_type enums.DocumentType
+		if err := rows.Scan(&document_type); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, document_type)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -540,27 +659,141 @@ func (q *Queries) ListServicesOpenToProviders(ctx context.Context) ([]ListServic
 	return items, nil
 }
 
+const listStalePendingFiles = `-- name: ListStalePendingFiles :many
+SELECT id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at FROM provider_document_files WHERE status = 'pending_upload' AND created_at < $1::timestamptz ORDER BY created_at LIMIT $2
+`
+
+type ListStalePendingFilesParams struct {
+	Before  time.Time `json:"before"`
+	MaxRows int32     `json:"max_rows"`
+}
+
+func (q *Queries) ListStalePendingFiles(ctx context.Context, arg ListStalePendingFilesParams) ([]ProviderDocumentFile, error) {
+	rows, err := q.db.Query(ctx, listStalePendingFiles, arg.Before, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProviderDocumentFile{}
+	for rows.Next() {
+		var i ProviderDocumentFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocumentID,
+			&i.ProviderID,
+			&i.Slot,
+			&i.Version,
+			&i.Status,
+			&i.Url,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.Sha256,
+			&i.Width,
+			&i.Height,
+			&i.QualityChecks,
+			&i.RejectionCodes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const nextDocumentFileVersion = `-- name: NextDocumentFileVersion :one
+SELECT (COALESCE(MAX(version), 0) + 1)::integer FROM provider_document_files WHERE document_id = $1 AND slot = $2
+`
+
+type NextDocumentFileVersionParams struct {
+	DocumentID uuid.UUID          `json:"document_id"`
+	Slot       enums.DocumentSlot `json:"slot"`
+}
+
+func (q *Queries) NextDocumentFileVersion(ctx context.Context, arg NextDocumentFileVersionParams) (int32, error) {
+	row := q.db.QueryRow(ctx, nextDocumentFileVersion, arg.DocumentID, arg.Slot)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const saveDocumentFile = `-- name: SaveDocumentFile :exec
+INSERT INTO provider_document_files (id, document_id, provider_id, slot, version, status, url, content_type, size_bytes, sha256, width, height, quality_checks, rejection_codes, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+ON CONFLICT (id) DO UPDATE
+SET status = EXCLUDED.status, content_type = EXCLUDED.content_type, size_bytes = EXCLUDED.size_bytes, sha256 = EXCLUDED.sha256, width = EXCLUDED.width,
+    height = EXCLUDED.height, quality_checks = EXCLUDED.quality_checks, rejection_codes = EXCLUDED.rejection_codes, updated_at = EXCLUDED.updated_at
+`
+
+type SaveDocumentFileParams struct {
+	ID             uuid.UUID          `json:"id"`
+	DocumentID     uuid.UUID          `json:"document_id"`
+	ProviderID     uuid.UUID          `json:"provider_id"`
+	Slot           enums.DocumentSlot `json:"slot"`
+	Version        int32              `json:"version"`
+	Status         string             `json:"status"`
+	Url            string             `json:"url"`
+	ContentType    string             `json:"content_type"`
+	SizeBytes      int64              `json:"size_bytes"`
+	Sha256         string             `json:"sha256"`
+	Width          *int32             `json:"width"`
+	Height         *int32             `json:"height"`
+	QualityChecks  json.RawMessage    `json:"quality_checks"`
+	RejectionCodes []string           `json:"rejection_codes"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+}
+
+func (q *Queries) SaveDocumentFile(ctx context.Context, arg SaveDocumentFileParams) error {
+	_, err := q.db.Exec(ctx, saveDocumentFile,
+		arg.ID,
+		arg.DocumentID,
+		arg.ProviderID,
+		arg.Slot,
+		arg.Version,
+		arg.Status,
+		arg.Url,
+		arg.ContentType,
+		arg.SizeBytes,
+		arg.Sha256,
+		arg.Width,
+		arg.Height,
+		arg.QualityChecks,
+		arg.RejectionCodes,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
+}
+
 const saveProviderDocument = `-- name: SaveProviderDocument :exec
-INSERT INTO provider_documents (id, provider_id, document_type, object_key, content_type, size_bytes, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-ON CONFLICT (provider_id, document_type) DO UPDATE
-SET object_key = EXCLUDED.object_key, content_type = EXCLUDED.content_type, size_bytes = EXCLUDED.size_bytes, status = EXCLUDED.status,
-    rejection_reason = EXCLUDED.rejection_reason, reviewed_by = EXCLUDED.reviewed_by, reviewed_at = EXCLUDED.reviewed_at, updated_at = EXCLUDED.updated_at
+INSERT INTO provider_documents (id, provider_id, document_type, subject, number, issued_at, expires_at, details, review_flags, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+ON CONFLICT (id) DO UPDATE
+SET number = EXCLUDED.number, issued_at = EXCLUDED.issued_at, expires_at = EXCLUDED.expires_at, details = EXCLUDED.details, review_flags = EXCLUDED.review_flags,
+    status = EXCLUDED.status, rejection_reason = EXCLUDED.rejection_reason, reviewed_by = EXCLUDED.reviewed_by, reviewed_at = EXCLUDED.reviewed_at, updated_at = EXCLUDED.updated_at
 `
 
 type SaveProviderDocumentParams struct {
-	ID              uuid.UUID  `json:"id"`
-	ProviderID      uuid.UUID  `json:"provider_id"`
-	DocumentType    string     `json:"document_type"`
-	ObjectKey       string     `json:"object_key"`
-	ContentType     string     `json:"content_type"`
-	SizeBytes       int64      `json:"size_bytes"`
-	Status          string     `json:"status"`
-	RejectionReason string     `json:"rejection_reason"`
-	ReviewedBy      *uuid.UUID `json:"reviewed_by"`
-	ReviewedAt      *time.Time `json:"reviewed_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              uuid.UUID             `json:"id"`
+	ProviderID      uuid.UUID             `json:"provider_id"`
+	DocumentType    enums.DocumentType    `json:"document_type"`
+	Subject         enums.DocumentSubject `json:"subject"`
+	Number          string                `json:"number"`
+	IssuedAt        *time.Time            `json:"issued_at"`
+	ExpiresAt       *time.Time            `json:"expires_at"`
+	Details         json.RawMessage       `json:"details"`
+	ReviewFlags     []string              `json:"review_flags"`
+	Status          string                `json:"status"`
+	RejectionReason string                `json:"rejection_reason"`
+	ReviewedBy      *uuid.UUID            `json:"reviewed_by"`
+	ReviewedAt      *time.Time            `json:"reviewed_at"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
 }
 
 func (q *Queries) SaveProviderDocument(ctx context.Context, arg SaveProviderDocumentParams) error {
@@ -568,15 +801,40 @@ func (q *Queries) SaveProviderDocument(ctx context.Context, arg SaveProviderDocu
 		arg.ID,
 		arg.ProviderID,
 		arg.DocumentType,
-		arg.ObjectKey,
-		arg.ContentType,
-		arg.SizeBytes,
+		arg.Subject,
+		arg.Number,
+		arg.IssuedAt,
+		arg.ExpiresAt,
+		arg.Details,
+		arg.ReviewFlags,
 		arg.Status,
 		arg.RejectionReason,
 		arg.ReviewedBy,
 		arg.ReviewedAt,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+	)
+	return err
+}
+
+const supersedeDocumentFiles = `-- name: SupersedeDocumentFiles :exec
+UPDATE provider_document_files SET status = 'superseded', updated_at = $1::timestamptz
+WHERE document_id = $2 AND slot = $3 AND id <> $4 AND status IN ('accepted', 'quality_failed', 'processing')
+`
+
+type SupersedeDocumentFilesParams struct {
+	Now        time.Time          `json:"now"`
+	DocumentID uuid.UUID          `json:"document_id"`
+	Slot       enums.DocumentSlot `json:"slot"`
+	KeepID     uuid.UUID          `json:"keep_id"`
+}
+
+func (q *Queries) SupersedeDocumentFiles(ctx context.Context, arg SupersedeDocumentFilesParams) error {
+	_, err := q.db.Exec(ctx, supersedeDocumentFiles,
+		arg.Now,
+		arg.DocumentID,
+		arg.Slot,
+		arg.KeepID,
 	)
 	return err
 }

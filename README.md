@@ -215,12 +215,22 @@ make test-load         # k6 against a disposable stack (Docker and k6)
 
 Providers apply in the app and the backoffice reviews them (ADR 0007).
 
-1. `POST /api/v1/providers/register`, then `POST /api/v1/auth/phone/verify`.
-2. `GET /api/v1/providers/services`, then `PUT /api/v1/providers/me/service`.
-3. `PUT /api/v1/providers/me/personal` and `PUT /api/v1/providers/me/vehicle`.
-4. For each document: `POST /api/v1/providers/me/documents/upload-url`, PUT the file to
-   the returned URL with the returned headers, then `POST /api/v1/providers/me/documents`.
-5. `POST /api/v1/providers/me/submit`. `GET /api/v1/providers/me/profile` shows what is missing.
+1. `POST /api/v1/providers/register` with the phone only, then `POST /api/v1/auth/phone/verify`.
+2. `GET /api/v1/providers/services`, then `PUT /api/v1/providers/me/profile` with the
+   chosen `service_id`, the name, birth date, BI, province, municipality and optional e-mail.
+3. `GET /api/v1/providers/me/verification` lists the steps: eight for a driver and eight
+   for a partner workshop (maintenance). The progress is always computed by the server.
+4. For each file: `POST /api/v1/providers/me/verification/uploads` with the document type,
+   the slot (front, back, page_1, main…) and the subject, PUT the file to the returned URL
+   with the returned headers, then `POST .../uploads/{id}/confirm`. The file is processed
+   in the queue (sha256, EXIF and GPS removed, quality); poll `GET .../uploads/{id}`.
+5. Each step has its own `PUT` under `/api/v1/providers/me/verification` (identity card
+   data, driving licence, criminal record, vehicle, logbook, insurance, bank account, and
+   for workshops the licence, certificate, NIF, location and services).
+6. `GET .../verification/review`, then `POST .../verification/submit` with the declaration.
+
+The older `/me/vehicle`, `/me/documents*` and `/me/submit` endpoints still work for the
+clients already in production; new clients use the verification endpoints.
 
 Documents go to Cloudflare R2 (`R2_*` in `.env`). `make test-r2` checks the credentials
 against the real bucket. The other test suites never touch R2.

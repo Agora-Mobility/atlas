@@ -12,6 +12,7 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	services "github.com/Agora-Mobility/atlas/domain/services"
 	gomock "go.uber.org/mock/gomock"
@@ -85,6 +86,21 @@ func (mr *MockIObjectStorageMockRecorder) PresignDownload(ctx, key any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignDownload", reflect.TypeOf((*MockIObjectStorage)(nil).PresignDownload), ctx, key)
 }
 
+// PresignDownloadFor mocks base method.
+func (m *MockIObjectStorage) PresignDownloadFor(ctx context.Context, key string, ttl time.Duration) (*services.PresignedURL, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PresignDownloadFor", ctx, key, ttl)
+	ret0, _ := ret[0].(*services.PresignedURL)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PresignDownloadFor indicates an expected call of PresignDownloadFor.
+func (mr *MockIObjectStorageMockRecorder) PresignDownloadFor(ctx, key, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignDownloadFor", reflect.TypeOf((*MockIObjectStorage)(nil).PresignDownloadFor), ctx, key, ttl)
+}
+
 // PresignUpload mocks base method.
 func (m *MockIObjectStorage) PresignUpload(ctx context.Context, key, contentType string, sizeBytes int64) (*services.PresignedURL, error) {
 	m.ctrl.T.Helper()
@@ -100,6 +116,21 @@ func (mr *MockIObjectStorageMockRecorder) PresignUpload(ctx, key, contentType, s
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignUpload", reflect.TypeOf((*MockIObjectStorage)(nil).PresignUpload), ctx, key, contentType, sizeBytes)
 }
 
+// Read mocks base method.
+func (m *MockIObjectStorage) Read(ctx context.Context, key string, maxBytes int64) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Read", ctx, key, maxBytes)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Read indicates an expected call of Read.
+func (mr *MockIObjectStorageMockRecorder) Read(ctx, key, maxBytes any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockIObjectStorage)(nil).Read), ctx, key, maxBytes)
+}
+
 // Stat mocks base method.
 func (m *MockIObjectStorage) Stat(ctx context.Context, key string) (*services.StoredObject, error) {
 	m.ctrl.T.Helper()
@@ -113,4 +144,18 @@ func (m *MockIObjectStorage) Stat(ctx context.Context, key string) (*services.St
 func (mr *MockIObjectStorageMockRecorder) Stat(ctx, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stat", reflect.TypeOf((*MockIObjectStorage)(nil).Stat), ctx, key)
+}
+
+// Write mocks base method.
+func (m *MockIObjectStorage) Write(ctx context.Context, key, contentType string, content []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Write", ctx, key, contentType, content)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Write indicates an expected call of Write.
+func (mr *MockIObjectStorageMockRecorder) Write(ctx, key, contentType, content any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockIObjectStorage)(nil).Write), ctx, key, contentType, content)
 }

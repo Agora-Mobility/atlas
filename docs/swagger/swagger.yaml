@@ -388,6 +388,53 @@ definitions:
       url:
         type: string
     type: object
+  dtos.BankAccountInput:
+    properties:
+      bank_id:
+        type: string
+      holder_name:
+        example: Domingos Mateus Kiala
+        maxLength: 160
+        type: string
+      iban:
+        example: AO06 0040 0000 1234 5678 1014 2
+        maxLength: 40
+        type: string
+    required:
+    - bank_id
+    - holder_name
+    - iban
+    type: object
+  dtos.BankAccountView:
+    properties:
+      bank:
+        $ref: '#/definitions/dtos.BankView'
+      holder_name:
+        type: string
+      iban:
+        example: AO06 •••• 1014 2
+        type: string
+      owner_type:
+        example: person
+        type: string
+      status:
+        example: completed
+        type: string
+    type: object
+  dtos.BankView:
+    properties:
+      code:
+        example: "0040"
+        type: string
+      id:
+        type: string
+      name:
+        example: Banco Angolano de Investimentos
+        type: string
+      short_name:
+        example: BAI
+        type: string
+    type: object
   dtos.BlockReasonList:
     properties:
       items:
@@ -534,6 +581,23 @@ definitions:
         type: string
       label:
         type: string
+    type: object
+  dtos.BusinessLicenseInput:
+    properties:
+      company_name:
+        example: Auto Kiala, Lda
+        maxLength: 160
+        type: string
+      expires_at:
+        example: "2027-12-31"
+        type: string
+      number:
+        example: ALV-2026-00981
+        maxLength: 64
+        type: string
+    required:
+    - expires_at
+    - number
     type: object
   dtos.CadenceView:
     properties:
@@ -771,6 +835,34 @@ definitions:
       promo_until:
         type: string
     type: object
+  dtos.CatalogList-dtos_BankView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.BankView'
+        type: array
+    type: object
+  dtos.CatalogList-dtos_InsurerView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.InsurerView'
+        type: array
+    type: object
+  dtos.CatalogList-dtos_OptionView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.OptionView'
+        type: array
+    type: object
+  dtos.CatalogList-github_com_Agora-Mobility_atlas_usecases_verification_dtos_WorkshopServiceView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.WorkshopServiceView'
+        type: array
+    type: object
   dtos.CatalogService:
     properties:
       description:
@@ -874,6 +966,19 @@ definitions:
         type: string
     required:
     - date
+    type: object
+  dtos.CommercialCertificateInput:
+    properties:
+      code:
+        example: 0123-4567-8901
+        maxLength: 64
+        type: string
+      issued_at:
+        example: "2026-09-01"
+        type: string
+    required:
+    - code
+    - issued_at
     type: object
   dtos.CompleteInput:
     properties:
@@ -1131,6 +1236,19 @@ definitions:
     - requires_destination
     - slug
     type: object
+  dtos.CriminalRecordInput:
+    properties:
+      certificate_number:
+        example: RC-2026-118273
+        maxLength: 64
+        type: string
+      issued_at:
+        example: "2026-10-20"
+        type: string
+    required:
+    - certificate_number
+    - issued_at
+    type: object
   dtos.CustomerVehicleInput:
     properties:
       brand:
@@ -1194,7 +1312,7 @@ definitions:
         type: string
       slots:
         items:
-          $ref: '#/definitions/dtos.SlotView'
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.SlotView'
         type: array
       status:
         enum:
@@ -1237,6 +1355,32 @@ definitions:
     - platform
     - token
     type: object
+  dtos.DocumentFileView:
+    properties:
+      content_type:
+        type: string
+      id:
+        type: string
+      rejection_codes:
+        items:
+          type: string
+        type: array
+      size_bytes:
+        type: integer
+      slot:
+        example: front
+        type: string
+      status:
+        example: accepted
+        type: string
+      url:
+        type: string
+      url_expires_at:
+        type: string
+      version:
+        example: 1
+        type: integer
+    type: object
   dtos.DocumentURLOutput:
     properties:
       expires_at:
@@ -1248,6 +1392,12 @@ definitions:
     properties:
       content_type:
         type: string
+      files:
+        items:
+          $ref: '#/definitions/dtos.DocumentFileView'
+        type: array
+      id:
+        type: string
       name:
         type: string
       rejection_reason:
@@ -1256,11 +1406,18 @@ definitions:
         items:
           $ref: '#/definitions/dtos.RejectionReasonView'
         type: array
+      review_flags:
+        items:
+          type: string
+        type: array
       reviewed_at:
         type: string
       size_bytes:
         type: integer
       status:
+        type: string
+      subject:
+        example: provider
         type: string
       type:
         type: string
@@ -1270,6 +1427,19 @@ definitions:
         type: string
       url_expires_at:
         type: string
+    type: object
+  dtos.DocumentsSummary:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.ItemView'
+        type: array
+      sent:
+        example: 8
+        type: integer
+      total:
+        example: 8
+        type: integer
     type: object
   dtos.DriverList:
     properties:
@@ -1306,6 +1476,28 @@ definitions:
         type: string
       vehicle_plate:
         type: string
+    type: object
+  dtos.DrivingLicenseInput:
+    properties:
+      categories:
+        example:
+        - B
+        items:
+          type: string
+        maxItems: 13
+        minItems: 1
+        type: array
+      expires_at:
+        example: "2030-06-30"
+        type: string
+      number:
+        example: LA-123456
+        maxLength: 32
+        type: string
+    required:
+    - categories
+    - expires_at
+    - number
     type: object
   dtos.ETAView:
     properties:
@@ -1361,6 +1553,33 @@ definitions:
         - pending
         - approved
         - declined
+        type: string
+    type: object
+  dtos.ExtractionView:
+    properties:
+      attempts:
+        example: 1
+        type: integer
+      confidence:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+      failure:
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+      manual_entry_allowed:
+        type: boolean
+      max_attempts:
+        example: 3
+        type: integer
+      requires_renewal_receipt:
+        type: boolean
+      status:
+        example: processing
         type: string
     type: object
   dtos.FareBreakdown:
@@ -1553,6 +1772,25 @@ definitions:
       stars:
         type: integer
     type: object
+  dtos.GroupView:
+    properties:
+      completed:
+        example: 1
+        type: integer
+      estimated_minutes:
+        example: 4
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/dtos.ItemView'
+        type: array
+      key:
+        example: about_you
+        type: string
+      total:
+        example: 4
+        type: integer
+    type: object
   dtos.HeatCell:
     properties:
       cell:
@@ -1615,6 +1853,46 @@ definitions:
         minimum: 0
         type: integer
     type: object
+  dtos.IdentityInput:
+    properties:
+      birth_date:
+        example: "1988-03-14"
+        type: string
+      expires_at:
+        example: "2032-01-10"
+        type: string
+      full_name:
+        example: Domingos Mateus Kiala
+        maxLength: 160
+        type: string
+      issued_at:
+        example: "2022-01-10"
+        type: string
+      number:
+        example: 005487123LA041
+        maxLength: 32
+        type: string
+      source:
+        enum:
+        - ocr
+        - manual
+        example: ocr
+        type: string
+      subject:
+        enum:
+        - provider
+        - legal_representative
+        - vehicle_owner
+        example: provider
+        type: string
+    required:
+    - birth_date
+    - expires_at
+    - full_name
+    - issued_at
+    - number
+    - source
+    type: object
   dtos.InboxItemView:
     properties:
       body:
@@ -1655,6 +1933,31 @@ definitions:
       unread:
         type: integer
     type: object
+  dtos.InsuranceInput:
+    properties:
+      inspection_expires_at:
+        example: "2027-01-15"
+        type: string
+      insurance_expires_at:
+        example: "2027-03-31"
+        type: string
+      insurer_id:
+        type: string
+      other_insurer_name:
+        maxLength: 120
+        type: string
+    required:
+    - inspection_expires_at
+    - insurance_expires_at
+    type: object
+  dtos.InsurerView:
+    properties:
+      id:
+        type: string
+      name:
+        example: ENSA
+        type: string
+    type: object
   dtos.InvitationTokenInput:
     properties:
       token:
@@ -1688,6 +1991,15 @@ definitions:
     - name
     - phone
     - role_ids
+    type: object
+  dtos.ItemView:
+    properties:
+      key:
+        example: identity_card
+        type: string
+      status:
+        example: completed
+        type: string
     type: object
   dtos.LedgerLine:
     properties:
@@ -1727,6 +2039,69 @@ definitions:
         type: string
       total_cents:
         type: integer
+    type: object
+  dtos.LivenessSessionView:
+    properties:
+      attempts:
+        example: 0
+        type: integer
+      challenge:
+        example: BLINK
+        type: string
+      expires_at:
+        type: string
+      max_attempts:
+        example: 3
+        type: integer
+      session_id:
+        type: string
+    type: object
+  dtos.LocationInput:
+    properties:
+      address:
+        example: Rua Rainha Ginga, 45, Luanda
+        maxLength: 255
+        type: string
+      lat:
+        example: -8.8147
+        maximum: 90
+        minimum: -90
+        type: number
+      lng:
+        example: 13.2302
+        maximum: 180
+        minimum: -180
+        type: number
+      opening_hours:
+        items:
+          $ref: '#/definitions/dtos.OpeningDayInput'
+        maxItems: 7
+        minItems: 1
+        type: array
+      reference:
+        example: Ao lado da farmácia
+        maxLength: 255
+        type: string
+    required:
+    - address
+    - lat
+    - lng
+    - opening_hours
+    type: object
+  dtos.LocationView:
+    properties:
+      address:
+        type: string
+      lat:
+        type: number
+      lng:
+        type: number
+      opening_hours:
+        items:
+          $ref: '#/definitions/dtos.OpeningDayView'
+        type: array
+      reference:
+        type: string
     type: object
   dtos.LocationsInput:
     properties:
@@ -2019,6 +2394,38 @@ definitions:
     - message
     - subject
     type: object
+  dtos.OpeningDayInput:
+    properties:
+      close:
+        example: "18:00"
+        type: string
+      closed:
+        type: boolean
+      day:
+        example: 1
+        maximum: 6
+        minimum: 0
+        type: integer
+      open:
+        example: "08:00"
+        type: string
+    required:
+    - day
+    type: object
+  dtos.OpeningDayView:
+    properties:
+      close:
+        example: "18:00"
+        type: string
+      closed:
+        type: boolean
+      day:
+        example: 1
+        type: integer
+      open:
+        example: "08:00"
+        type: string
+    type: object
   dtos.OperatorCancelInput:
     properties:
       reason:
@@ -2026,6 +2433,15 @@ definitions:
         type: string
     required:
     - reason
+    type: object
+  dtos.OptionView:
+    properties:
+      code:
+        example: limited_company
+        type: string
+      label:
+        example: Sociedade por quotas (Lda)
+        type: string
     type: object
   dtos.OrganizationPage:
     properties:
@@ -2149,22 +2565,6 @@ definitions:
         items:
           $ref: '#/definitions/enums.OrganizationType'
         type: array
-    type: object
-  dtos.PersonalDataInput:
-    properties:
-      address:
-        $ref: '#/definitions/dtos.AddressInput'
-      birth_date:
-        example: "1990-05-20"
-        type: string
-      id_number:
-        example: 000000000LA000
-        maxLength: 120
-        type: string
-    required:
-    - address
-    - birth_date
-    - id_number
     type: object
   dtos.PhoneChangeConfirmInput:
     properties:
@@ -2587,6 +2987,16 @@ definitions:
     - currency
     - language
     type: object
+  dtos.PricedServiceView:
+    properties:
+      base_price:
+        example: 15000
+        type: integer
+      label:
+        type: string
+      service_id:
+        type: string
+    type: object
   dtos.PricingInput:
     properties:
       base_fee_cents:
@@ -2612,6 +3022,53 @@ definitions:
         type: integer
       per_minute_fee_cents:
         example: 0
+        type: integer
+    type: object
+  dtos.ProfileInput:
+    properties:
+      birth_date:
+        example: "1988-03-14"
+        type: string
+      email:
+        example: domingos@exemplo.ao
+        maxLength: 254
+        type: string
+      id_number:
+        example: 005487123LA041
+        maxLength: 32
+        type: string
+      municipality:
+        example: Talatona
+        maxLength: 120
+        type: string
+      name:
+        example: Domingos Mateus Kiala
+        maxLength: 120
+        type: string
+      province:
+        example: Luanda
+        maxLength: 120
+        type: string
+      service_id:
+        type: string
+    required:
+    - birth_date
+    - id_number
+    - municipality
+    - name
+    - province
+    - service_id
+    type: object
+  dtos.ProgressView:
+    properties:
+      completed:
+        example: 1
+        type: integer
+      percent:
+        example: 12
+        type: integer
+      total:
+        example: 8
         type: integer
     type: object
   dtos.PromotionView:
@@ -2657,8 +3114,6 @@ definitions:
     type: object
   dtos.ProviderView:
     properties:
-      address:
-        $ref: '#/definitions/dtos.AddressView'
       birth_date:
         type: string
       documents:
@@ -2673,11 +3128,15 @@ definitions:
         additionalProperties:
           type: string
         type: object
+      municipality:
+        type: string
       name:
         type: string
       organization_id:
         type: string
       phone:
+        type: string
+      province:
         type: string
       requested_service_id:
         type: string
@@ -2728,6 +3187,23 @@ definitions:
         type: string
       vehicle_plate:
         type: string
+    type: object
+  dtos.QualityView:
+    properties:
+      corners_visible:
+        type: boolean
+      metadata_removed:
+        type: boolean
+      no_glare:
+        type: boolean
+      no_shadow_on_data:
+        type: boolean
+      sharp:
+        type: boolean
+      text_legible:
+        type: boolean
+      well_lit:
+        type: boolean
     type: object
   dtos.QuickReplyList:
     properties:
@@ -2840,6 +3316,13 @@ definitions:
         type: string
       stars:
         type: integer
+    type: object
+  dtos.ReadURL:
+    properties:
+      expires_at:
+        type: string
+      url:
+        type: string
     type: object
   dtos.ReasonOption:
     properties:
@@ -3039,6 +3522,10 @@ definitions:
       object_key:
         maxLength: 255
         type: string
+      slot:
+        example: front
+        maxLength: 32
+        type: string
     required:
     - document_type
     - object_key
@@ -3077,25 +3564,11 @@ definitions:
     type: object
   dtos.RegisterProviderInput:
     properties:
-      email:
-        example: pedro@exemplo.ao
-        maxLength: 254
-        type: string
-      name:
-        example: Pedro Cunga
-        maxLength: 120
-        type: string
-      password:
-        example: S3gredo!forte
-        maxLength: 128
-        type: string
       phone:
         example: "+244923000000"
         maxLength: 32
         type: string
     required:
-    - name
-    - password
     - phone
     type: object
   dtos.RegisteredProvider:
@@ -3104,8 +3577,6 @@ definitions:
         type: string
       is_verified:
         type: boolean
-      name:
-        type: string
       phone:
         type: string
       status:
@@ -3149,6 +3620,11 @@ definitions:
         type: boolean
       scope:
         example: document
+        type: string
+    type: object
+  dtos.ReminderView:
+    properties:
+      remind_at:
         type: string
     type: object
   dtos.RemovalBookingInput:
@@ -3365,13 +3841,6 @@ definitions:
       total:
         type: integer
     type: object
-  dtos.RequestServiceInput:
-    properties:
-      service_id:
-        type: string
-    required:
-    - service_id
-    type: object
   dtos.RequestSummary:
     properties:
       group_by:
@@ -3521,6 +3990,10 @@ definitions:
         type: string
       scope:
         type: string
+      slots:
+        items:
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_providers_dtos.SlotView'
+        type: array
       type:
         type: string
     type: object
@@ -3547,6 +4020,13 @@ definitions:
         - approved
         - rejected
         type: string
+      subject:
+        enum:
+        - provider
+        - legal_representative
+        - vehicle_owner
+        example: provider
+        type: string
     required:
     - status
     type: object
@@ -3556,7 +4036,7 @@ definitions:
         type: number
       items:
         items:
-          $ref: '#/definitions/dtos.ReviewView'
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_bookings_dtos.ReviewView'
         type: array
       page:
         type: integer
@@ -3586,16 +4066,20 @@ definitions:
     required:
     - status
     type: object
-  dtos.ReviewView:
+  dtos.ReviewSection:
     properties:
-      comment:
+      fields:
+        additionalProperties: {}
+        type: object
+      key:
+        example: personal
         type: string
-      created_at:
+      status:
+        example: completed
         type: string
-      id:
+      step:
+        example: identity_card
         type: string
-      stars:
-        type: integer
     type: object
   dtos.RoleList:
     properties:
@@ -3728,6 +4212,37 @@ definitions:
     - offer_id
     - version
     type: object
+  dtos.SelfieInput:
+    properties:
+      session_id:
+        maxLength: 128
+        type: string
+      subject:
+        enum:
+        - provider
+        - legal_representative
+        example: provider
+        type: string
+      upload_id:
+        type: string
+    required:
+    - session_id
+    - upload_id
+    type: object
+  dtos.SelfieView:
+    properties:
+      attempts:
+        example: 1
+        type: integer
+      max_attempts:
+        example: 3
+        type: integer
+      reason:
+        type: string
+      status:
+        example: accepted
+        type: string
+    type: object
   dtos.SendMessageInput:
     properties:
       body:
@@ -3751,6 +4266,18 @@ definitions:
         type: integer
       total_pages:
         type: integer
+    type: object
+  dtos.ServicePriceInput:
+    properties:
+      base_price:
+        example: 15000
+        minimum: 1
+        type: integer
+      service_id:
+        type: string
+    required:
+    - base_price
+    - service_id
     type: object
   dtos.ServiceView:
     properties:
@@ -3785,6 +4312,17 @@ definitions:
         type: string
       updated_at:
         type: string
+    type: object
+  dtos.ServicesInput:
+    properties:
+      services:
+        items:
+          $ref: '#/definitions/dtos.ServicePriceInput'
+        maxItems: 50
+        minItems: 1
+        type: array
+    required:
+    - services
     type: object
   dtos.SessionOutput:
     properties:
@@ -3890,12 +4428,67 @@ definitions:
       url:
         type: string
     type: object
-  dtos.SlotView:
+  dtos.StartUploadInput:
     properties:
-      ends_at:
+      content_type:
+        example: image/jpeg
+        maxLength: 64
         type: string
-      starts_at:
+      document_type:
+        example: id_card
+        maxLength: 64
         type: string
+      size:
+        example: 204800
+        minimum: 1
+        type: integer
+      slot:
+        example: front
+        maxLength: 32
+        type: string
+      subject:
+        enum:
+        - provider
+        - legal_representative
+        - vehicle_owner
+        example: provider
+        type: string
+    required:
+    - content_type
+    - document_type
+    - size
+    - slot
+    type: object
+  dtos.StartedUpload:
+    properties:
+      expires_at:
+        type: string
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      upload_id:
+        type: string
+      upload_url:
+        type: string
+      version:
+        example: 1
+        type: integer
+    type: object
+  dtos.SubjectInput:
+    properties:
+      subject:
+        enum:
+        - provider
+        - legal_representative
+        example: provider
+        type: string
+    type: object
+  dtos.SubmitInput:
+    properties:
+      declaration_accepted:
+        example: true
+        type: boolean
     type: object
   dtos.TariffInput:
     properties:
@@ -4005,6 +4598,25 @@ definitions:
     required:
     - currency
     - service_id
+    type: object
+  dtos.TaxIDInput:
+    properties:
+      company_name:
+        example: Auto Kiala, Lda
+        maxLength: 160
+        type: string
+      company_type:
+        example: limited_company
+        maxLength: 40
+        type: string
+      nif:
+        example: "5417123456"
+        maxLength: 20
+        type: string
+    required:
+    - company_name
+    - company_type
+    - nif
     type: object
   dtos.TeamInput:
     properties:
@@ -4351,6 +4963,10 @@ definitions:
         example: 204800
         minimum: 1
         type: integer
+      slot:
+        example: front
+        maxLength: 32
+        type: string
     required:
     - content_type
     - document_type
@@ -4368,6 +4984,43 @@ definitions:
         type: string
       upload_url:
         type: string
+    type: object
+  dtos.UploadView:
+    properties:
+      content_type:
+        example: image/jpeg
+        type: string
+      created_at:
+        type: string
+      document_type:
+        example: id_card
+        type: string
+      height:
+        type: integer
+      id:
+        type: string
+      quality:
+        $ref: '#/definitions/dtos.QualityView'
+      reasons:
+        items:
+          type: string
+        type: array
+      size_bytes:
+        type: integer
+      slot:
+        example: front
+        type: string
+      status:
+        example: accepted
+        type: string
+      subject:
+        example: provider
+        type: string
+      version:
+        example: 1
+        type: integer
+      width:
+        type: integer
     type: object
   dtos.UserAddressInput:
     properties:
@@ -4484,56 +5137,6 @@ definitions:
       status:
         $ref: '#/definitions/enums.UserStatus'
     type: object
-  dtos.VehicleInput:
-    properties:
-      brand:
-        example: Toyota
-        maxLength: 120
-        type: string
-      capacity_kg:
-        example: 1500
-        maximum: 100000
-        minimum: 0
-        type: integer
-      color:
-        example: Branco
-        maxLength: 120
-        type: string
-      kind:
-        enum:
-        - car
-        - motorcycle
-        - van
-        - truck
-        - tow_truck
-        example: car
-        type: string
-      model:
-        example: Corolla
-        maxLength: 120
-        type: string
-      plate:
-        example: LD-45-21-AF
-        maxLength: 20
-        type: string
-      seats:
-        example: 5
-        maximum: 100
-        minimum: 1
-        type: integer
-      year:
-        example: 2020
-        maximum: 2200
-        minimum: 1900
-        type: integer
-    required:
-    - brand
-    - color
-    - model
-    - plate
-    - seats
-    - year
-    type: object
   dtos.VehicleList:
     properties:
       items:
@@ -4546,6 +5149,30 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  dtos.VehicleRegistrationInput:
+    properties:
+      owner_name:
+        example: Domingos Mateus Kiala
+        maxLength: 160
+        type: string
+    required:
+    - owner_name
+    type: object
+  dtos.VehicleRegistrationView:
+    properties:
+      owner_documents_required:
+        type: boolean
+      owner_is_provider:
+        type: boolean
+      owner_name:
+        type: string
+      plate:
+        example: LD-45-21-AF
+        type: string
+      status:
+        example: completed
+        type: string
     type: object
   dtos.VehicleSummary:
     properties:
@@ -4574,6 +5201,33 @@ definitions:
         type: integer
       year:
         type: integer
+    type: object
+  dtos.VerificationView:
+    properties:
+      estimated_minutes_left:
+        example: 10
+        type: integer
+      groups:
+        items:
+          $ref: '#/definitions/dtos.GroupView'
+        type: array
+      id:
+        type: string
+      locked:
+        type: boolean
+      next_item:
+        example: selfie
+        type: string
+      progress:
+        $ref: '#/definitions/dtos.ProgressView'
+      status:
+        example: in_progress
+        type: string
+      submitted_at:
+        type: string
+      type:
+        example: driver
+        type: string
     type: object
   dtos.VoucherInput:
     properties:
@@ -4948,6 +5602,82 @@ definitions:
       timezone:
         type: string
     type: object
+  entities.DocumentDetails:
+    properties:
+      bank_id:
+        type: string
+      birth_date:
+        type: string
+      categories:
+        items:
+          type: string
+        type: array
+      company_name:
+        type: string
+      company_type:
+        type: string
+      extraction:
+        $ref: '#/definitions/entities.Extraction'
+      full_name:
+        type: string
+      holder_name:
+        type: string
+      insurer_id:
+        type: string
+      liveness:
+        $ref: '#/definitions/entities.Liveness'
+      manually_edited_fields:
+        items:
+          type: string
+        type: array
+      other_insurer_name:
+        type: string
+      owner_is_provider:
+        type: boolean
+      owner_name:
+        type: string
+      owner_type:
+        type: string
+      source:
+        type: string
+    type: object
+  entities.Extraction:
+    properties:
+      attempts:
+        type: integer
+      confidence:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+      failure:
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+      finished_at:
+        type: string
+      requested_at:
+        type: string
+      status:
+        type: string
+    type: object
+  entities.Liveness:
+    properties:
+      attempts:
+        type: integer
+      challenge:
+        type: string
+      checked_at:
+        type: string
+      failure_reason:
+        type: string
+      session_id:
+        type: string
+      status:
+        type: string
+    type: object
   entities.RemovalLine:
     properties:
       amount_cents:
@@ -5069,6 +5799,24 @@ definitions:
         - workshop
         type: string
     type: object
+  github_com_Agora-Mobility_atlas_usecases_bookings_dtos.ReviewView:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      stars:
+        type: integer
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_bookings_dtos.SlotView:
+    properties:
+      ends_at:
+        type: string
+      starts_at:
+        type: string
+    type: object
   github_com_Agora-Mobility_atlas_usecases_bookings_dtos.WorkshopServiceView:
     properties:
       description:
@@ -5135,6 +5883,148 @@ definitions:
       price_cents:
         type: integer
     type: object
+  github_com_Agora-Mobility_atlas_usecases_providers_dtos.SlotView:
+    properties:
+      allowed_content_types:
+        items:
+          type: string
+        type: array
+      required:
+        type: boolean
+      slot:
+        example: front
+        type: string
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_providers_dtos.VehicleInput:
+    properties:
+      brand:
+        example: Toyota
+        maxLength: 120
+        type: string
+      capacity_kg:
+        example: 1500
+        maximum: 100000
+        minimum: 0
+        type: integer
+      color:
+        example: Branco
+        maxLength: 120
+        type: string
+      kind:
+        enum:
+        - car
+        - motorcycle
+        - van
+        - truck
+        - tow_truck
+        example: car
+        type: string
+      model:
+        example: Corolla
+        maxLength: 120
+        type: string
+      plate:
+        example: LD-45-21-AF
+        maxLength: 20
+        type: string
+      seats:
+        example: 5
+        maximum: 100
+        minimum: 1
+        type: integer
+      year:
+        example: 2020
+        maximum: 2200
+        minimum: 1900
+        type: integer
+    required:
+    - brand
+    - color
+    - model
+    - plate
+    - seats
+    - year
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_verification_dtos.ReviewView:
+    properties:
+      declaration:
+        type: string
+      documents:
+        $ref: '#/definitions/dtos.DocumentsSummary'
+      missing_items:
+        items:
+          type: string
+        type: array
+      sections:
+        items:
+          $ref: '#/definitions/dtos.ReviewSection'
+        type: array
+      status:
+        example: in_progress
+        type: string
+      submitted_at:
+        type: string
+      type:
+        example: driver
+        type: string
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_verification_dtos.VehicleInput:
+    properties:
+      brand:
+        example: Toyota
+        maxLength: 120
+        type: string
+      capacity_kg:
+        example: 0
+        minimum: 0
+        type: integer
+      color:
+        example: Branco
+        maxLength: 120
+        type: string
+      kind:
+        example: car
+        maxLength: 32
+        type: string
+      model:
+        example: Corolla
+        maxLength: 120
+        type: string
+      plate:
+        example: LD-45-21-AF
+        maxLength: 20
+        type: string
+      seats:
+        example: 5
+        maximum: 100
+        minimum: 1
+        type: integer
+      year:
+        example: 2020
+        maximum: 2200
+        minimum: 1900
+        type: integer
+    required:
+    - brand
+    - color
+    - model
+    - plate
+    - seats
+    - year
+    type: object
+  github_com_Agora-Mobility_atlas_usecases_verification_dtos.WorkshopServiceView:
+    properties:
+      code:
+        example: oil
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      label:
+        example: Óleo e filtros
+        type: string
+    type: object
   shared.ErrorBody:
     properties:
       code:
@@ -5142,6 +6032,9 @@ definitions:
         type: string
       correlation_id:
         type: string
+      data:
+        additionalProperties: {}
+        type: object
       details:
         additionalProperties:
           type: string
@@ -5154,6 +6047,86 @@ definitions:
     properties:
       error:
         $ref: '#/definitions/shared.ErrorBody'
+    type: object
+  verification.AdminDocumentView:
+    properties:
+      details:
+        $ref: '#/definitions/entities.DocumentDetails'
+      expires_at:
+        type: string
+      files:
+        items:
+          $ref: '#/definitions/verification.AdminFileView'
+        type: array
+      id:
+        type: string
+      issued_at:
+        type: string
+      name:
+        type: string
+      number:
+        type: string
+      rejection_reason:
+        type: string
+      review_flags:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+      subject:
+        type: string
+      type:
+        type: string
+    type: object
+  verification.AdminFileView:
+    properties:
+      content_type:
+        type: string
+      id:
+        type: string
+      metadata_removed:
+        type: boolean
+      reasons:
+        items:
+          type: string
+        type: array
+      sha256:
+        type: string
+      size_bytes:
+        type: integer
+      slot:
+        type: string
+      status:
+        type: string
+      uploaded_at:
+        type: string
+      url:
+        type: string
+      url_expires_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  verification.AdminVerificationView:
+    properties:
+      documents:
+        items:
+          $ref: '#/definitions/verification.AdminDocumentView'
+        type: array
+      review:
+        $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.ReviewView'
+      verification:
+        $ref: '#/definitions/dtos.VerificationView'
+    type: object
+  verification.StepResult:
+    properties:
+      item:
+        example: driving_license
+        type: string
+      status:
+        example: completed
+        type: string
     type: object
 info:
   contact: {}
@@ -6197,6 +7170,33 @@ paths:
       summary: Settle the balance of a provider
       tags:
       - Backoffice
+  /api/v1/admin/providers/{id}/verification:
+    get:
+      description: Progress, review and every document with its data, flags and short-lived
+        links to the files. Every call is recorded in the audit log.
+      parameters:
+      - description: User id of the provider
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/verification.AdminVerificationView'
+        "403":
+          description: Missing providers.read
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Verification of a provider (backoffice)
+      tags:
+      - Backoffice providers
   /api/v1/admin/rejection-reasons:
     get:
       description: 'Requires providers:read. Fills the reason selector of a review.
@@ -11336,6 +12336,92 @@ paths:
       summary: Permission catalog of the scope
       tags:
       - Members
+  /api/v1/providers/catalogs/banks:
+    get:
+      description: Search by name, short name or the four-digit IBAN code.
+      parameters:
+      - description: Name, short name or code
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CatalogList-dtos_BankView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Banks
+      tags:
+      - Provider verification
+  /api/v1/providers/catalogs/company-types:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CatalogList-dtos_OptionView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Company types
+      tags:
+      - Provider verification
+  /api/v1/providers/catalogs/driving-categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CatalogList-dtos_OptionView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Driving license categories
+      tags:
+      - Provider verification
+  /api/v1/providers/catalogs/insurers:
+    get:
+      parameters:
+      - description: Part of the name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CatalogList-dtos_InsurerView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Insurers
+      tags:
+      - Provider verification
+  /api/v1/providers/catalogs/workshop-services:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.CatalogList-github_com_Agora-Mobility_atlas_usecases_verification_dtos_WorkshopServiceView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Workshop services
+      tags:
+      - Provider verification
   /api/v1/providers/me/coverage:
     put:
       consumes:
@@ -11554,38 +12640,6 @@ paths:
       summary: Enter the live index
       tags:
       - Provider work
-  /api/v1/providers/me/personal:
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Personal data
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.PersonalDataInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.ProviderView'
-        "409":
-          description: PROFILE_LOCKED
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "422":
-          description: Invalid fields
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-      security:
-      - BearerAuth: []
-      - ClientId: []
-      summary: Save the personal data
-      tags:
-      - Provider account
   /api/v1/providers/me/profile:
     get:
       description: Status, data, documents, what the requested service requires and
@@ -11601,6 +12655,43 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: My provider profile
+      tags:
+      - Provider account
+    put:
+      consumes:
+      - application/json
+      description: 'One step for the service and the personal data. A provider offers
+        a single service: choosing again replaces the requested one. service_id comes
+        from GET /api/v1/providers/services; the service a provider really takes comes
+        from the approval. A fleet driver keeps the service the fleet chose. id_number
+        is the BI: 9 digits, 2 letters and 3 digits. email is optional and must not
+        belong to another account; sending it empty removes it. Only in draft or rejected.'
+      parameters:
+      - description: Service and personal data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ProfileInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderView'
+        "409":
+          description: PROFILE_LOCKED, MANAGED_BY_FLEET or EMAIL_ALREADY_EXISTS
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: SERVICE_NOT_OPEN or invalid fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Choose the service and save the personal data
       tags:
       - Provider account
   /api/v1/providers/me/ratings:
@@ -11627,40 +12718,6 @@ paths:
       summary: Ratings the provider received
       tags:
       - Provider work
-  /api/v1/providers/me/service:
-    put:
-      consumes:
-      - application/json
-      description: Stored as the requested service. The service a provider really
-        takes comes from the approval.
-      parameters:
-      - description: Service
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.RequestServiceInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.ProviderView'
-        "409":
-          description: PROFILE_LOCKED
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-        "422":
-          description: SERVICE_NOT_OPEN
-          schema:
-            $ref: '#/definitions/shared.ErrorResponse'
-      security:
-      - BearerAuth: []
-      - ClientId: []
-      summary: Choose the service to provide
-      tags:
-      - Provider account
   /api/v1/providers/me/submit:
     post:
       description: Answers 422 PROFILE_INCOMPLETE with the list of what is missing
@@ -11696,7 +12753,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/dtos.VehicleInput'
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_providers_dtos.VehicleInput'
       produces:
       - application/json
       responses:
@@ -11718,14 +12775,749 @@ paths:
       summary: Save the vehicle
       tags:
       - Provider account
+  /api/v1/providers/me/verification:
+    get:
+      description: 'Everything the step list needs (PK01, PK15, PK16, PK01-B): status,
+        driver or workshop, progress computed by the server, minutes left, next step
+        and the groups with the status of each step. The first call creates the verification
+        for the service chosen in the profile.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.VerificationView'
+        "422":
+          description: SERVICE_NOT_CHOSEN
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Verification progress and steps
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/bank-account:
+    put:
+      consumes:
+      - application/json
+      description: 'AO06 with 21 digits and mod-97. Digits five to eight name the
+        bank: another bank answers IBAN_BANK_MISMATCH with the detected bank. The
+        holder must be the person on the card. The proof is the main slot of bank_account.
+        The IBAN is always masked in answers.'
+      parameters:
+      - description: Account
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.BankAccountInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BankAccountView'
+        "422":
+          description: INVALID_IBAN, IBAN_BANK_MISMATCH or HOLDER_NAME_MISMATCH
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Bank details (PK07, PK07-A)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/criminal-record:
+    put:
+      consumes:
+      - application/json
+      description: The file is the main slot of criminal_record (photo or PDF). Issued
+        at most 90 days ago and not in the future.
+      parameters:
+      - description: Certificate
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CriminalRecordInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/verification.StepResult'
+        "422":
+          description: CERTIFICATE_TOO_OLD
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Criminal record (PK12)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/criminal-record/reminder:
+    post:
+      description: Schedules a push in 24 hours. The progress stays saved.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ReminderView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Remind me tomorrow (PK12)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/driving-license:
+    put:
+      consumes:
+      - application/json
+      description: The photos are the front and back slots of driving_license. The
+        license must not be expired and must have a category the service needs (taxi
+        B, towing and removals C1 or C).
+      parameters:
+      - description: License
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.DrivingLicenseInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/verification.StepResult'
+        "422":
+          description: DOCUMENT_EXPIRED or DRIVING_CATEGORY_REQUIRED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Driving license (PK05)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/identity-card/data:
+    put:
+      consumes:
+      - application/json
+      description: Every field can be edited. Fields that differ from the reading
+        are kept in manually_edited_fields and go to review; source manual (after
+        three failed readings) also goes to review. An expired card answers IDENTITY_CARD_EXPIRED
+        unless the SIAC renewal receipt was sent (BI-E5). From here on the card name
+        is the reference for the IBAN holder and the logbook.
+      parameters:
+      - description: Repeat safely
+        in: header
+        name: Idempotency-Key
+        type: string
+      - description: Card data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.IdentityInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/verification.StepResult'
+        "422":
+          description: IDENTITY_CARD_EXPIRED, MANUAL_ENTRY_NOT_ALLOWED or invalid
+            fields
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Confirm or correct the identity card data (BI05, BI-E6)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/identity-card/extraction:
+    get:
+      description: processing, completed with the fields and their confidence, or
+        failed. manual_entry_allowed tells when to show the manual form.
+      parameters:
+      - description: provider or legal_representative
+        in: query
+        name: subject
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ExtractionView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: State of the identity card reading
+      tags:
+      - Provider verification
+    post:
+      consumes:
+      - application/json
+      description: 'Needs the front and the back accepted. The reading runs in the
+        queue: poll GET with the same path. At most three attempts; after that EXTRACTION_MAX_ATTEMPTS
+        and the app moves to manual entry (BI-E6).'
+      parameters:
+      - description: Whose card
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/dtos.SubjectInput'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dtos.ExtractionView'
+        "422":
+          description: DOCUMENT_FILES_MISSING or EXTRACTION_MAX_ATTEMPTS
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Start reading the identity card (BI04)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/review:
+    get:
+      description: Summary by section with the step to edit, the documents sent out
+        of the total, the masked IBAN, the declaration to accept and the missing steps.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.ReviewView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Review before submitting (PK16, PK08, OV09)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/selfie:
+    post:
+      consumes:
+      - application/json
+      description: Upload the final photo as slot main of selfie, then send the session
+        and the upload id. accepted, or LIVENESS_FAILED with attempts and max_attempts.
+        On the third failure the selfie goes to manual review and the step counts
+        as sent.
+      parameters:
+      - description: Session and photo
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SelfieInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.SelfieView'
+        "422":
+          description: LIVENESS_FAILED or LIVENESS_SESSION_INVALID
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Send the selfie of the liveness session (SF02–SF04)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/selfie/session:
+    post:
+      consumes:
+      - application/json
+      description: 'Liveness only: the face is not compared with the card photo. The
+        challenge is BLINK.'
+      parameters:
+      - description: Whose selfie
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/dtos.SubjectInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.LivenessSessionView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Start a liveness session (SF01)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/submit:
+    post:
+      consumes:
+      - application/json
+      description: Needs the declaration and every step. Moves to review, locks the
+        changes (409 VERIFICATION_LOCKED), tells the backoffice and sends a push to
+        the provider. Submitting again answers the same review.
+      parameters:
+      - description: Repeat safely
+        in: header
+        name: Idempotency-Key
+        type: string
+      - description: Declaration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SubmitInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.ReviewView'
+        "409":
+          description: VERIFICATION_LOCKED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: DECLARATION_REQUIRED or VERIFICATION_INCOMPLETE with data.missing_items
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Submit the verification
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/uploads:
+    post:
+      consumes:
+      - application/json
+      description: Checks the document type, slot, subject, content type and size,
+        and returns a pre-signed PUT to R2 with the headers to send. Then PUT the
+        file and call the confirm endpoint. A new file for the same slot replaces
+        the old one once it is accepted; the old one is kept as superseded. The identity
+        card sides are slots front and back of id_card; the SIAC renewal receipt is
+        the renewal_receipt slot.
+      parameters:
+      - description: Repeat safely
+        in: header
+        name: Idempotency-Key
+        type: string
+      - description: File
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.StartUploadInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dtos.StartedUpload'
+        "409":
+          description: VERIFICATION_LOCKED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: INVALID_FILE_TYPE, FILE_TOO_LARGE, INVALID_SLOT or DOCUMENT_NOT_IN_PLAN
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Start the upload of a document file
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/uploads/{id}:
+    get:
+      description: processing, accepted or quality_failed, with each quality check
+        and the reasons (TEXT_NOT_LEGIBLE, SHADOW_ON_DATA, CORNERS_NOT_VISIBLE, GLARE,
+        BLURRY, TOO_DARK).
+      parameters:
+      - description: Upload id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UploadView'
+        "404":
+          description: UPLOAD_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: State of an uploaded file
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/uploads/{id}/confirm:
+    post:
+      description: 'Checks with HeadObject that the file exists and fits the size,
+        and checks the magic bytes. The file then goes to processing: EXIF and GPS
+        are removed and the quality is checked in the queue. Poll GET /uploads/{id}
+        for accepted or quality_failed with the reasons (BI-E4). Confirming twice
+        answers the same file.'
+      parameters:
+      - description: Upload id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UploadView'
+        "404":
+          description: UPLOAD_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: FILE_NOT_UPLOADED, FILE_TOO_LARGE or INVALID_FILE_TYPE
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Confirm an uploaded file
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/uploads/{id}/url:
+    get:
+      description: A pre-signed GET of a few minutes, only for the owner. Files are
+        never public.
+      parameters:
+      - description: Upload id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ReadURL'
+        "404":
+          description: UPLOAD_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Short-lived link to see my file
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/vehicle:
+    put:
+      consumes:
+      - application/json
+      description: Angolan plate AA-00-00-AA, accepted without hyphens. The five photos
+        are the front, rear, side, interior and plate slots of vehicle_photo.
+      parameters:
+      - description: Vehicle
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.VehicleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/verification.StepResult'
+        "422":
+          description: INVALID_PLATE or VEHICLE_TOO_OLD
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Vehicle (PK06)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/vehicle/insurance:
+    put:
+      consumes:
+      - application/json
+      description: The certificates are the main slot of vehicle_insurance and vehicle_inspection.
+        Both dates must be in the future. Another insurer goes to review.
+      parameters:
+      - description: Insurance
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.InsuranceInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/verification.StepResult'
+        "422":
+          description: DOCUMENT_EXPIRED or INSURER_NOT_FOUND
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Insurance and inspection (PK14, PK14-A)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/vehicle/registration:
+    put:
+      consumes:
+      - application/json
+      description: The photos are page_1 and page_2 of vehicle_registration. When
+        the owner is not the person on the card, the owner declaration (vehicle_owner_declaration)
+        and the owner's card (id_card with subject vehicle_owner) are needed and the
+        step goes to review.
+      parameters:
+      - description: Owner
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.VehicleRegistrationInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.VehicleRegistrationView'
+        "422":
+          description: IDENTITY_NOT_CONFIRMED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Logbook (PK13)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/workshop/bank-account:
+    put:
+      consumes:
+      - application/json
+      description: Same rules as the driver, but the holder must be the company name
+        given with the NIF. A personal account is refused on the holder field.
+      parameters:
+      - description: Account
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.BankAccountInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.BankAccountView'
+        "422":
+          description: INVALID_IBAN, IBAN_BANK_MISMATCH or HOLDER_NAME_MISMATCH
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Company bank details (OV08)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/workshop/business-license:
+    put:
+      consumes:
+      - application/json
+      description: The file is the main slot of business_license. The validity must
+        be in the future; a notice goes out 30 days before. The repair activity is
+        checked by the team.
+      parameters:
+      - description: License
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.BusinessLicenseInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/verification.StepResult'
+        "422":
+          description: DOCUMENT_EXPIRED
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Business license (OV01)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/workshop/commercial-certificate:
+    put:
+      consumes:
+      - application/json
+      description: The file is the main slot of commercial_certificate. Issued less
+        than six months ago.
+      parameters:
+      - description: Certificate
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CommercialCertificateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/verification.StepResult'
+        "422":
+          description: CERTIFICATE_TOO_OLD
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Commercial certificate (OV02)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/workshop/location:
+    put:
+      consumes:
+      - application/json
+      description: Days 0 (Sunday) to 6 (Saturday), times HH:MM with open before close,
+        at least one open day. Bookings only happen inside these hours.
+      parameters:
+      - description: Location
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.LocationInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.LocationView'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Address and opening hours (OV06)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/workshop/services:
+    put:
+      consumes:
+      - application/json
+      description: Base price "from", in whole Kz without VAT, above zero. These services
+        show up in the customer search once the workshop is approved.
+      parameters:
+      - description: Services
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.ServicesInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dtos.PricedServiceView'
+            type: array
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Services and prices (OV07)
+      tags:
+      - Provider verification
+  /api/v1/providers/me/verification/workshop/tax-id:
+    put:
+      consumes:
+      - application/json
+      description: Ten digits. A company name that differs from the business license
+        goes to review without blocking.
+      parameters:
+      - description: Company
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.TaxIDInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/verification.StepResult'
+        "422":
+          description: INVALID_NIF
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Company NIF (OV03)
+      tags:
+      - Provider verification
   /api/v1/providers/register:
     post:
       consumes:
       - application/json
       description: 'Only through agora-provider-app: the account type comes from the
-        client, never from the payload. Creates the account and a draft profile, and
-        sends an SMS code. Confirm it with POST /api/v1/auth/phone/verify to get a
-        session.'
+        client, never from the payload. Takes only the phone, creates the account
+        and a draft profile, and sends an SMS code. Calling it again for an unverified
+        number sends a new code. Confirm it with POST /api/v1/auth/phone/verify to
+        get a session. A registered number answers PHONE_ALREADY_EXISTS: the app moves
+        to the sign-in by SMS code. The name and the other data are filled in later
+        in the profile.'
       parameters:
       - description: Account
         in: body
@@ -11754,7 +13546,7 @@ paths:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - ClientId: []
-      summary: Create a provider account
+      summary: Create a provider account with the phone
       tags:
       - Provider account
   /api/v1/providers/services:

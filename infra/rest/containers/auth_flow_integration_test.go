@@ -730,6 +730,7 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 	c.Auth = auth
 	c.Catalog = newCatalogModule(c)
 	c.Dispatch = newDispatchModule(c, push.LogSender{}, newRoutingProvider(cfg.GoogleMaps))
+	c.Verification = newVerificationModule(c, r2.Unavailable{})
 	c.Providers = newProvidersModule(c, r2.Unavailable{})
 	c.Fleet = newFleetModule(c)
 	c.Payments = newPaymentsModule(c)

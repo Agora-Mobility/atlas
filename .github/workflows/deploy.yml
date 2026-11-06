@@ -78,6 +78,30 @@ jobs:
             fi
             (umask 077 && printf '%s' "$ENV_FILE_BASE64" | base64 --decode > .env)
 
+            echo "🔑 Credencial do Firebase"
+            env_value() { sed -n "s/^$1=//p" .env | tail -n 1 | tr -d "\"'"; }
+            FCM_FILE=$(env_value FCM_CREDENTIALS_FILE)
+            FCM_BASE64=$(env_value FCM_CREDENTIALS_BASE64)
+            sed -i '/^FCM_CREDENTIALS_BASE64=/d' .env
+            mkdir -p secrets && chmod 700 secrets
+            if [ -n "$FCM_BASE64" ]; then
+              printf '%s' "$FCM_BASE64" | base64 --decode > secrets/firebase.json.new
+              chmod 444 secrets/firebase.json.new
+              mv secrets/firebase.json.new secrets/firebase.json
+            fi
+            FCM_ARGS=""
+            if [ -n "$FCM_FILE" ]; then
+              case "$FCM_FILE" in
+                /*) ;;
+                *) echo "❌ FCM_CREDENTIALS_FILE tem de ser um caminho absoluto dentro do container"; exit 1 ;;
+              esac
+              if [ ! -s secrets/firebase.json ]; then
+                echo "❌ FCM_CREDENTIALS_FILE=$FCM_FILE mas FCM_CREDENTIALS_BASE64 está vazio e não há secrets/firebase.json no servidor"
+                exit 1
+              fi
+              FCM_ARGS="-v $HOME/atlas/secrets/firebase.json:$FCM_FILE:ro"
+            fi
+
             echo "🌐 Garantindo redes docker"
             if ! docker network inspect atlas >/dev/null 2>&1; then
               echo "❌ docker network 'atlas' not found: start infra-prod/applications first"
@@ -95,6 +119,7 @@ jobs:
                 --name "$CONTAINER" \
                 --restart unless-stopped \
                 --env-file .env \
+                $FCM_ARGS \
                 -e HTTP_PORT=8700 \
                 -e LOG_OUTPUT=stdout \
                 -e TRUSTED_PROXIES=172.30.3.1 \

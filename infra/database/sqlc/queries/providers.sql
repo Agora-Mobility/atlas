@@ -5,11 +5,11 @@ INSERT INTO providers (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING;
 SELECT * FROM providers WHERE user_id = $1;
 
 -- name: UpsertProvider :exec
-INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, home_address_id, status_reason, submitted_at, reviewed_at, organization_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, province, municipality, status_reason, submitted_at, reviewed_at, organization_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 ON CONFLICT (user_id) DO UPDATE
 SET status = EXCLUDED.status, service_id = EXCLUDED.service_id, requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date,
-    id_number = EXCLUDED.id_number, home_address_id = EXCLUDED.home_address_id, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
+    id_number = EXCLUDED.id_number, province = EXCLUDED.province, municipality = EXCLUDED.municipality, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
     reviewed_at = EXCLUDED.reviewed_at, organization_id = EXCLUDED.organization_id, updated_at = now();
 
 -- name: GetVehicleOfProvider :one

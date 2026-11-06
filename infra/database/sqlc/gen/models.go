@@ -144,6 +144,202 @@ func (ns NullOrganizationType) Value() (driver.Value, error) {
 	return string(ns.OrganizationType), nil
 }
 
+type ProviderDocumentSlot string
+
+const (
+	ProviderDocumentSlotMain           ProviderDocumentSlot = "main"
+	ProviderDocumentSlotFront          ProviderDocumentSlot = "front"
+	ProviderDocumentSlotBack           ProviderDocumentSlot = "back"
+	ProviderDocumentSlotRenewalReceipt ProviderDocumentSlot = "renewal_receipt"
+	ProviderDocumentSlotPage1          ProviderDocumentSlot = "page_1"
+	ProviderDocumentSlotPage2          ProviderDocumentSlot = "page_2"
+	ProviderDocumentSlotRear           ProviderDocumentSlot = "rear"
+	ProviderDocumentSlotSide           ProviderDocumentSlot = "side"
+	ProviderDocumentSlotInterior       ProviderDocumentSlot = "interior"
+	ProviderDocumentSlotPlate          ProviderDocumentSlot = "plate"
+	ProviderDocumentSlotFacade         ProviderDocumentSlot = "facade"
+	ProviderDocumentSlotWorkArea       ProviderDocumentSlot = "work_area"
+	ProviderDocumentSlotEquipment      ProviderDocumentSlot = "equipment"
+	ProviderDocumentSlotReception      ProviderDocumentSlot = "reception"
+	ProviderDocumentSlotExtra          ProviderDocumentSlot = "extra"
+)
+
+func (e *ProviderDocumentSlot) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderDocumentSlot(s)
+	case string:
+		*e = ProviderDocumentSlot(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderDocumentSlot: %T", src)
+	}
+	return nil
+}
+
+type NullProviderDocumentSlot struct {
+	ProviderDocumentSlot ProviderDocumentSlot `json:"provider_document_slot"`
+	Valid                bool                 `json:"valid"` // Valid is true if ProviderDocumentSlot is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderDocumentSlot) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderDocumentSlot, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderDocumentSlot.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderDocumentSlot) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderDocumentSlot), nil
+}
+
+type ProviderDocumentSubject string
+
+const (
+	ProviderDocumentSubjectProvider            ProviderDocumentSubject = "provider"
+	ProviderDocumentSubjectLegalRepresentative ProviderDocumentSubject = "legal_representative"
+	ProviderDocumentSubjectVehicleOwner        ProviderDocumentSubject = "vehicle_owner"
+)
+
+func (e *ProviderDocumentSubject) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderDocumentSubject(s)
+	case string:
+		*e = ProviderDocumentSubject(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderDocumentSubject: %T", src)
+	}
+	return nil
+}
+
+type NullProviderDocumentSubject struct {
+	ProviderDocumentSubject ProviderDocumentSubject `json:"provider_document_subject"`
+	Valid                   bool                    `json:"valid"` // Valid is true if ProviderDocumentSubject is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderDocumentSubject) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderDocumentSubject, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderDocumentSubject.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderDocumentSubject) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderDocumentSubject), nil
+}
+
+type ProviderDocumentType string
+
+const (
+	ProviderDocumentTypeProfilePhoto            ProviderDocumentType = "profile_photo"
+	ProviderDocumentTypeIDCard                  ProviderDocumentType = "id_card"
+	ProviderDocumentTypeSelfie                  ProviderDocumentType = "selfie"
+	ProviderDocumentTypeDrivingLicense          ProviderDocumentType = "driving_license"
+	ProviderDocumentTypeCriminalRecord          ProviderDocumentType = "criminal_record"
+	ProviderDocumentTypeVehiclePhoto            ProviderDocumentType = "vehicle_photo"
+	ProviderDocumentTypeVehicleRegistration     ProviderDocumentType = "vehicle_registration"
+	ProviderDocumentTypeVehicleOwnership        ProviderDocumentType = "vehicle_ownership"
+	ProviderDocumentTypeVehicleOwnerDeclaration ProviderDocumentType = "vehicle_owner_declaration"
+	ProviderDocumentTypeVehicleInsurance        ProviderDocumentType = "vehicle_insurance"
+	ProviderDocumentTypeVehicleInspection       ProviderDocumentType = "vehicle_inspection"
+	ProviderDocumentTypeBankAccount             ProviderDocumentType = "bank_account"
+	ProviderDocumentTypeBusinessLicense         ProviderDocumentType = "business_license"
+	ProviderDocumentTypeCommercialCertificate   ProviderDocumentType = "commercial_certificate"
+	ProviderDocumentTypeTaxID                   ProviderDocumentType = "tax_id"
+	ProviderDocumentTypeWorkshopPhoto           ProviderDocumentType = "workshop_photo"
+)
+
+func (e *ProviderDocumentType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderDocumentType(s)
+	case string:
+		*e = ProviderDocumentType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderDocumentType: %T", src)
+	}
+	return nil
+}
+
+type NullProviderDocumentType struct {
+	ProviderDocumentType ProviderDocumentType `json:"provider_document_type"`
+	Valid                bool                 `json:"valid"` // Valid is true if ProviderDocumentType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderDocumentType) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderDocumentType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderDocumentType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderDocumentType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderDocumentType), nil
+}
+
+type ProviderVerificationKind string
+
+const (
+	ProviderVerificationKindDriver   ProviderVerificationKind = "driver"
+	ProviderVerificationKindWorkshop ProviderVerificationKind = "workshop"
+)
+
+func (e *ProviderVerificationKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderVerificationKind(s)
+	case string:
+		*e = ProviderVerificationKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderVerificationKind: %T", src)
+	}
+	return nil
+}
+
+type NullProviderVerificationKind struct {
+	ProviderVerificationKind ProviderVerificationKind `json:"provider_verification_kind"`
+	Valid                    bool                     `json:"valid"` // Valid is true if ProviderVerificationKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderVerificationKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderVerificationKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderVerificationKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderVerificationKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderVerificationKind), nil
+}
+
 type UserRole string
 
 const (
@@ -263,6 +459,17 @@ type AuditLog struct {
 	UserAgent      string          `json:"user_agent"`
 	CreatedAt      time.Time       `json:"created_at"`
 	OrganizationID *uuid.UUID      `json:"organization_id"`
+}
+
+type Bank struct {
+	ID           uuid.UUID `json:"id"`
+	Code         string    `json:"code"`
+	ShortName    string    `json:"short_name"`
+	Name         string    `json:"name"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type BlockReason struct {
@@ -476,6 +683,15 @@ type InboxItem struct {
 	CreatedAt time.Time  `json:"created_at"`
 }
 
+type Insurer struct {
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	IsActive     bool      `json:"is_active"`
+	DisplayOrder int32     `json:"display_order"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type Invitation struct {
 	ID           uuid.UUID  `json:"id"`
 	MembershipID uuid.UUID  `json:"membership_id"`
@@ -648,6 +864,8 @@ type Provider struct {
 	RatingSum          int64      `json:"rating_sum"`
 	RatingCount        int32      `json:"rating_count"`
 	CompletedRequests  int32      `json:"completed_requests"`
+	Province           string     `json:"province"`
+	Municipality       string     `json:"municipality"`
 }
 
 type ProviderCoverage struct {
@@ -657,33 +875,47 @@ type ProviderCoverage struct {
 }
 
 type ProviderDocument struct {
-	ID              uuid.UUID  `json:"id"`
-	ProviderID      uuid.UUID  `json:"provider_id"`
-	DocumentType    string     `json:"document_type"`
-	ObjectKey       string     `json:"object_key"`
-	ContentType     string     `json:"content_type"`
-	SizeBytes       int64      `json:"size_bytes"`
-	Status          string     `json:"status"`
-	RejectionReason string     `json:"rejection_reason"`
-	ReviewedBy      *uuid.UUID `json:"reviewed_by"`
-	ReviewedAt      *time.Time `json:"reviewed_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              uuid.UUID             `json:"id"`
+	ProviderID      uuid.UUID             `json:"provider_id"`
+	DocumentType    enums.DocumentType    `json:"document_type"`
+	Status          string                `json:"status"`
+	RejectionReason string                `json:"rejection_reason"`
+	ReviewedBy      *uuid.UUID            `json:"reviewed_by"`
+	ReviewedAt      *time.Time            `json:"reviewed_at"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
+	Subject         enums.DocumentSubject `json:"subject"`
+	Number          string                `json:"number"`
+	IssuedAt        *time.Time            `json:"issued_at"`
+	ExpiresAt       *time.Time            `json:"expires_at"`
+	Details         json.RawMessage       `json:"details"`
+	ReviewFlags     []string              `json:"review_flags"`
+}
+
+type ProviderDocumentFile struct {
+	ID             uuid.UUID          `json:"id"`
+	DocumentID     uuid.UUID          `json:"document_id"`
+	ProviderID     uuid.UUID          `json:"provider_id"`
+	Slot           enums.DocumentSlot `json:"slot"`
+	Version        int32              `json:"version"`
+	Status         string             `json:"status"`
+	Url            string             `json:"url"`
+	ContentType    string             `json:"content_type"`
+	SizeBytes      int64              `json:"size_bytes"`
+	Sha256         string             `json:"sha256"`
+	Width          *int32             `json:"width"`
+	Height         *int32             `json:"height"`
+	QualityChecks  json.RawMessage    `json:"quality_checks"`
+	RejectionCodes []string           `json:"rejection_codes"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
 type ProviderDocumentRejectionReason struct {
-	ProviderID   uuid.UUID `json:"provider_id"`
-	DocumentType string    `json:"document_type"`
-	ReasonID     uuid.UUID `json:"reason_id"`
-}
-
-type ProviderDocumentType struct {
-	Code                string   `json:"code"`
-	Name                string   `json:"name"`
-	Scope               string   `json:"scope"`
-	AllowedContentTypes []string `json:"allowed_content_types"`
-	MaxSizeBytes        int64    `json:"max_size_bytes"`
-	DisplayOrder        int32    `json:"display_order"`
+	ProviderID   uuid.UUID             `json:"provider_id"`
+	DocumentType enums.DocumentType    `json:"document_type"`
+	ReasonID     uuid.UUID             `json:"reason_id"`
+	Subject      enums.DocumentSubject `json:"subject"`
 }
 
 type ProviderLocationSample struct {
@@ -698,6 +930,17 @@ type ProviderLocationSample struct {
 type ProviderRejectionReason struct {
 	ProviderID uuid.UUID `json:"provider_id"`
 	ReasonID   uuid.UUID `json:"reason_id"`
+}
+
+type ProviderVerification struct {
+	ID                    uuid.UUID              `json:"id"`
+	ProviderID            uuid.UUID              `json:"provider_id"`
+	Kind                  enums.VerificationKind `json:"kind"`
+	Workshop              json.RawMessage        `json:"workshop"`
+	DeclarationAcceptedAt *time.Time             `json:"declaration_accepted_at"`
+	SubmittedAt           *time.Time             `json:"submitted_at"`
+	CreatedAt             time.Time              `json:"created_at"`
+	UpdatedAt             time.Time              `json:"updated_at"`
 }
 
 type Rating struct {
@@ -848,11 +1091,14 @@ type ServiceCategory struct {
 }
 
 type ServiceProviderRequirement struct {
-	ServiceID       uuid.UUID `json:"service_id"`
-	RequiresVehicle bool      `json:"requires_vehicle"`
-	MinVehicleSeats int32     `json:"min_vehicle_seats"`
-	VehicleKinds    []string  `json:"vehicle_kinds"`
-	SelfSignup      bool      `json:"self_signup"`
+	ServiceID          uuid.UUID              `json:"service_id"`
+	RequiresVehicle    bool                   `json:"requires_vehicle"`
+	MinVehicleSeats    int32                  `json:"min_vehicle_seats"`
+	VehicleKinds       []string               `json:"vehicle_kinds"`
+	SelfSignup         bool                   `json:"self_signup"`
+	VerificationKind   enums.VerificationKind `json:"verification_kind"`
+	DrivingCategories  []string               `json:"driving_categories"`
+	MaxVehicleAgeYears *int32                 `json:"max_vehicle_age_years"`
 }
 
 type ServiceRequest struct {
@@ -935,8 +1181,8 @@ type ServiceRequestStop struct {
 }
 
 type ServiceRequiredDocument struct {
-	ServiceID    uuid.UUID `json:"service_id"`
-	DocumentType string    `json:"document_type"`
+	ServiceID    uuid.UUID          `json:"service_id"`
+	DocumentType enums.DocumentType `json:"document_type"`
 }
 
 type ServiceTariff struct {
@@ -1065,6 +1311,22 @@ type Vehicle struct {
 	IsActive       bool       `json:"is_active"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type VehiclePhotoKeeper struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	KeeperID   uuid.UUID `json:"keeper_id"`
+}
+
+type VerificationReminder struct {
+	ID         uuid.UUID  `json:"id"`
+	ProviderID uuid.UUID  `json:"provider_id"`
+	Kind       string     `json:"kind"`
+	DocumentID *uuid.UUID `json:"document_id"`
+	ExpiresOn  *time.Time `json:"expires_on"`
+	DueAt      time.Time  `json:"due_at"`
+	SentAt     *time.Time `json:"sent_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 type Voucher struct {

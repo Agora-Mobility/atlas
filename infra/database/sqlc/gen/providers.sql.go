@@ -144,7 +144,7 @@ func (q *Queries) FilterEligibleProviders(ctx context.Context, arg FilterEligibl
 }
 
 const getProvider = `-- name: GetProvider :one
-SELECT user_id, status, organization_id, requested_service_id, service_id, birth_date, id_number, home_address_id, base_address_id, service_radius_km, status_reason, submitted_at, reviewed_at, last_job_completed_at, created_at, updated_at, cancelled_requests, rating_sum, rating_count, completed_requests FROM providers WHERE user_id = $1
+SELECT user_id, status, organization_id, requested_service_id, service_id, birth_date, id_number, home_address_id, base_address_id, service_radius_km, status_reason, submitted_at, reviewed_at, last_job_completed_at, created_at, updated_at, cancelled_requests, rating_sum, rating_count, completed_requests, province, municipality FROM providers WHERE user_id = $1
 `
 
 func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, error) {
@@ -171,6 +171,8 @@ func (q *Queries) GetProvider(ctx context.Context, userID uuid.UUID) (Provider, 
 		&i.RatingSum,
 		&i.RatingCount,
 		&i.CompletedRequests,
+		&i.Province,
+		&i.Municipality,
 	)
 	return i, err
 }
@@ -497,11 +499,11 @@ func (q *Queries) UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenPa
 }
 
 const upsertProvider = `-- name: UpsertProvider :exec
-INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, home_address_id, status_reason, submitted_at, reviewed_at, organization_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO providers (user_id, status, service_id, requested_service_id, birth_date, id_number, province, municipality, status_reason, submitted_at, reviewed_at, organization_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 ON CONFLICT (user_id) DO UPDATE
 SET status = EXCLUDED.status, service_id = EXCLUDED.service_id, requested_service_id = EXCLUDED.requested_service_id, birth_date = EXCLUDED.birth_date,
-    id_number = EXCLUDED.id_number, home_address_id = EXCLUDED.home_address_id, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
+    id_number = EXCLUDED.id_number, province = EXCLUDED.province, municipality = EXCLUDED.municipality, status_reason = EXCLUDED.status_reason, submitted_at = EXCLUDED.submitted_at,
     reviewed_at = EXCLUDED.reviewed_at, organization_id = EXCLUDED.organization_id, updated_at = now()
 `
 
@@ -512,7 +514,8 @@ type UpsertProviderParams struct {
 	RequestedServiceID *uuid.UUID `json:"requested_service_id"`
 	BirthDate          *time.Time `json:"birth_date"`
 	IDNumber           string     `json:"id_number"`
-	HomeAddressID      *uuid.UUID `json:"home_address_id"`
+	Province           string     `json:"province"`
+	Municipality       string     `json:"municipality"`
 	StatusReason       string     `json:"status_reason"`
 	SubmittedAt        *time.Time `json:"submitted_at"`
 	ReviewedAt         *time.Time `json:"reviewed_at"`
@@ -527,7 +530,8 @@ func (q *Queries) UpsertProvider(ctx context.Context, arg UpsertProviderParams) 
 		arg.RequestedServiceID,
 		arg.BirthDate,
 		arg.IDNumber,
-		arg.HomeAddressID,
+		arg.Province,
+		arg.Municipality,
 		arg.StatusReason,
 		arg.SubmittedAt,
 		arg.ReviewedAt,

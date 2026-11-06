@@ -51,6 +51,7 @@ type Container struct {
 	Notifications *NotificationsModule
 	Dispatch      *DispatchModule
 	Providers     *ProvidersModule
+	Verification  *VerificationModule
 	Fleet         *FleetModule
 	Payments      *PaymentsModule
 	Experience    *ExperienceModule
@@ -122,7 +123,9 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 		return nil, err
 	}
 	c.Dispatch = newDispatchModule(c, pushSender, newRoutingProvider(cfg.GoogleMaps))
-	c.Providers = newProvidersModule(c, newObjectStorage(cfg.R2))
+	storage := newObjectStorage(cfg.R2)
+	c.Verification = newVerificationModule(c, storage)
+	c.Providers = newProvidersModule(c, storage)
 	c.Fleet = newFleetModule(c)
 	c.Payments = newPaymentsModule(c)
 	c.Experience = newExperienceModule(c)
@@ -149,7 +152,7 @@ func (c *Container) Consumers() []*queue.Consumer {
 }
 
 func (c *Container) consumerConfigs() []queue.ConsumerConfig {
-	return append(c.Notifications.Consumers(), c.Dispatch.Consumers()...)
+	return append(append(c.Notifications.Consumers(), c.Dispatch.Consumers()...), c.Verification.Consumers()...)
 }
 
 func newSMSSender(cfg config.SMSConfig) services.ISMSSender {

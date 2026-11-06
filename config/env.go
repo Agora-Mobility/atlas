@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ type Config struct {
 	GoogleMaps GoogleMapsConfig `mapstructure:",squash"`
 	FCM        FCMConfig        `mapstructure:",squash"`
 	R2         R2Config         `mapstructure:",squash"`
+	Verify     VerifyConfig     `mapstructure:",squash"`
 	AppyPay    AppyPayConfig    `mapstructure:",squash"`
 	Calls      CallsConfig      `mapstructure:",squash"`
 }
@@ -97,6 +99,53 @@ func (c R2Config) ResolvedEndpoint() string {
 	return ""
 }
 
+type VerifyConfig struct {
+	MaxFileBytes          int64         `mapstructure:"VERIFICATION_MAX_FILE_BYTES"`
+	ReadURLTTL            time.Duration `mapstructure:"VERIFICATION_READ_URL_TTL"`
+	MinProviderAge        int           `mapstructure:"VERIFICATION_MIN_PROVIDER_AGE"`
+	MaxAttempts           int           `mapstructure:"VERIFICATION_MAX_ATTEMPTS"`
+	CriminalRecordMaxDays int           `mapstructure:"VERIFICATION_CRIMINAL_RECORD_MAX_DAYS"`
+	CertificateMaxMonths  int           `mapstructure:"VERIFICATION_CERTIFICATE_MAX_MONTHS"`
+	ExpiryNoticeDays      int           `mapstructure:"VERIFICATION_EXPIRY_NOTICE_DAYS"`
+	PendingUploadTTL      time.Duration `mapstructure:"VERIFICATION_PENDING_UPLOAD_TTL"`
+	ReminderDelay         time.Duration `mapstructure:"VERIFICATION_REMINDER_DELAY"`
+	HousekeepingInterval  time.Duration `mapstructure:"VERIFICATION_HOUSEKEEPING_INTERVAL"`
+	UploadRateLimit       int           `mapstructure:"VERIFICATION_UPLOAD_RATE_LIMIT"`
+	CheckRateLimit        int           `mapstructure:"VERIFICATION_CHECK_RATE_LIMIT"`
+	RateWindow            time.Duration `mapstructure:"VERIFICATION_RATE_WINDOW"`
+	QualityProvider       string        `mapstructure:"VERIFICATION_QUALITY_PROVIDER"`
+	OCRProvider           string        `mapstructure:"VERIFICATION_OCR_PROVIDER"`
+	LivenessProvider      string        `mapstructure:"VERIFICATION_LIVENESS_PROVIDER"`
+	FakeQualityReasons    []string      `mapstructure:"VERIFICATION_FAKE_QUALITY_REASONS"`
+	FakeOCRFail           bool          `mapstructure:"VERIFICATION_FAKE_OCR_FAIL"`
+	FakeLivenessFail      bool          `mapstructure:"VERIFICATION_FAKE_LIVENESS_FAIL"`
+	Workers               int           `mapstructure:"VERIFICATION_WORKERS"`
+}
+
+var verificationModes = map[string]bool{"fake": true, "manual": true}
+
+func (c VerifyConfig) validate(env enums.Environment) []error {
+	var errs []error
+	if c.MaxFileBytes <= 0 || c.ReadURLTTL <= 0 || c.MaxAttempts <= 0 || c.MinProviderAge <= 0 || c.Workers <= 0 {
+		errs = append(errs, errors.New("VERIFICATION_MAX_FILE_BYTES, VERIFICATION_READ_URL_TTL, VERIFICATION_MAX_ATTEMPTS, VERIFICATION_MIN_PROVIDER_AGE and VERIFICATION_WORKERS must be positive"))
+	}
+	if c.CriminalRecordMaxDays <= 0 || c.CertificateMaxMonths <= 0 || c.ExpiryNoticeDays <= 0 {
+		errs = append(errs, errors.New("VERIFICATION_CRIMINAL_RECORD_MAX_DAYS, VERIFICATION_CERTIFICATE_MAX_MONTHS and VERIFICATION_EXPIRY_NOTICE_DAYS must be positive"))
+	}
+	if c.PendingUploadTTL <= 0 || c.ReminderDelay <= 0 || c.HousekeepingInterval <= 0 || c.RateWindow <= 0 || c.UploadRateLimit <= 0 || c.CheckRateLimit <= 0 {
+		errs = append(errs, errors.New("VERIFICATION_PENDING_UPLOAD_TTL, VERIFICATION_REMINDER_DELAY, VERIFICATION_HOUSEKEEPING_INTERVAL and the verification rate limits must be positive"))
+	}
+	for name, mode := range map[string]string{"VERIFICATION_QUALITY_PROVIDER": c.QualityProvider, "VERIFICATION_OCR_PROVIDER": c.OCRProvider, "VERIFICATION_LIVENESS_PROVIDER": c.LivenessProvider} {
+		if !verificationModes[mode] {
+			errs = append(errs, fmt.Errorf("%s must be fake or manual, got %q", name, mode))
+		}
+		if mode == "fake" && env == enums.EnvProduction {
+			errs = append(errs, fmt.Errorf("%s cannot be fake in production", name))
+		}
+	}
+	return errs
+}
+
 type DispatchConfig struct {
 	WatcherInterval     time.Duration `mapstructure:"DISPATCH_WATCHER_INTERVAL"`
 	WatcherBatch        int           `mapstructure:"DISPATCH_WATCHER_BATCH"`
@@ -140,12 +189,26 @@ func (c GoogleMapsConfig) Enabled() bool {
 type FCMConfig struct {
 	ProjectID       string        `mapstructure:"FCM_PROJECT_ID"`
 	CredentialsJSON string        `mapstructure:"FCM_CREDENTIALS_JSON"`
+	CredentialsFile string        `mapstructure:"FCM_CREDENTIALS_FILE"`
 	BaseURL         string        `mapstructure:"FCM_BASE_URL"`
 	Timeout         time.Duration `mapstructure:"FCM_TIMEOUT"`
 }
 
 func (c FCMConfig) Enabled() bool {
 	return strings.TrimSpace(c.ProjectID) != "" && strings.TrimSpace(c.CredentialsJSON) != ""
+}
+
+func (c *FCMConfig) readCredentialsFile() error {
+	path := strings.TrimSpace(c.CredentialsFile)
+	if path == "" {
+		return nil
+	}
+	content, err := os.ReadFile(path) // #nosec G304 -- the path comes from the operator's environment
+	if err != nil {
+		return fmt.Errorf("read FCM_CREDENTIALS_FILE: %w", err)
+	}
+	c.CredentialsJSON = string(content)
+	return nil
 }
 
 type AppConfig struct {
@@ -244,108 +307,129 @@ func (c SMSConfig) Enabled() bool {
 }
 
 var defaults = map[string]any{
-	"APP_NAME":                         "atlas",
-	"APP_ENV":                          "development",
-	"HTTP_PORT":                        8700,
-	"HTTP_READ_TIMEOUT":                "15s",
-	"HTTP_WRITE_TIMEOUT":               "15s",
-	"HTTP_IDLE_TIMEOUT":                "60s",
-	"HTTP_SHUTDOWN_TIMEOUT":            "20s",
-	"CORS_ALLOWED_ORIGINS":             "*",
-	"TRUSTED_PROXIES":                  "",
-	"RATE_LIMIT_REQUESTS":              100,
-	"RATE_LIMIT_WINDOW":                "1m",
-	"AUTH_RATE_LIMIT_REQUESTS":         10,
-	"AUTH_RATE_LIMIT_WINDOW":           "1m",
-	"LOG_LEVEL":                        "info",
-	"LOG_OUTPUT":                       "stdout",
-	"DB_MAX_CONNS":                     20,
-	"DB_MIN_CONNS":                     2,
-	"DB_MAX_CONN_LIFETIME":             "1h",
-	"DB_MAX_CONN_IDLE_TIME":            "15m",
-	"DB_MIGRATE_ON_START":              true,
-	"REDIS_PASSWORD":                   "",
-	"REDIS_DB":                         0,
-	"RABBITMQ_EXCHANGE":                "agora.events",
-	"RABBITMQ_PREFETCH":                10,
-	"RABBITMQ_MAX_RETRIES":             5,
-	"RABBITMQ_RETRY_DELAY":             "10s",
-	"EVENT_DEDUP_TTL":                  "24h",
-	"OUTBOX_POLL_INTERVAL":             "1s",
-	"OUTBOX_BATCH_SIZE":                100,
-	"JWT_ISSUER":                       "atlas",
-	"JWT_ACCESS_TTL":                   "15m",
-	"JWT_REFRESH_TTL":                  "720h",
-	"OTP_TTL":                          "5m",
-	"OTP_MAX_ATTEMPTS":                 5,
-	"OTP_RESEND_COOLDOWN":              "60s",
-	"CASTBRICK_API_KEY":                "",
-	"CASTBRICK_BASE_URL":               "https://api.castbrick.co/v1",
-	"CASTBRICK_SENDER_ID":              "",
-	"CASTBRICK_TIMEOUT":                "10s",
-	"RESEND_API_KEY":                   "",
-	"RESEND_BASE_URL":                  "https://api.resend.com",
-	"RESEND_TIMEOUT":                   "10s",
-	"EMAIL_FROM":                       "",
-	"EMAIL_REPLY_TO":                   "",
-	"PERMISSION_CACHE_TTL":             "5m",
-	"INVITATION_URL_BACKOFFICE":        "http://localhost:3001/convite",
-	"INVITATION_URL_PARTNER_PANEL":     "http://localhost:3002/convite",
-	"DISPATCH_WATCHER_INTERVAL":        "1s",
-	"DISPATCH_WATCHER_BATCH":           200,
-	"DISPATCH_CHANNEL_TIMEOUT":         "5s",
-	"FARE_ESTIMATE_TTL":                "5m",
-	"NEARBY_MIN_CELL_COUNT":            3,
-	"LOCATION_MAX_ACCURACY_M":          100,
-	"LOCATION_MAX_SPEED_KMH":           200,
-	"LOCATION_HISTORY_RETENTION":       "720h",
-	"OFFER_DEEP_LINK_BASE":             "agoraprovider://app",
-	"OPERATOR_ALERT_PHONE":             "",
-	"IDEMPOTENCY_TTL":                  "24h",
-	"NOTIFICATION_WORKERS":             8,
-	"REALTIME_PROJECTOR_WORKERS":       16,
-	"SSE_HEARTBEAT_INTERVAL":           "15s",
-	"SSE_POLL_INTERVAL":                "30s",
-	"SSE_DEAD_AFTER":                   "38s",
-	"SSE_MAILBOX_MAX_ENTRIES":          200,
-	"SSE_MAILBOX_TTL":                  "24h",
-	"SSE_RECONNECT_SPREAD":             "30s",
-	"GOOGLE_MAPS_API_KEY":              "",
-	"GOOGLE_MAPS_BASE_URL":             "https://routes.googleapis.com",
-	"GOOGLE_MAPS_TIMEOUT":              "2s",
-	"GOOGLE_MAPS_BREAKER_FAILURES":     5,
-	"GOOGLE_MAPS_BREAKER_COOLDOWN":     "30s",
-	"ROUTING_ROAD_FACTOR":              1.4,
-	"ROUTING_FALLBACK_SPEED_KMH":       25,
-	"FCM_PROJECT_ID":                   "",
-	"FCM_CREDENTIALS_JSON":             "",
-	"FCM_BASE_URL":                     "https://fcm.googleapis.com",
-	"FCM_TIMEOUT":                      "5s",
-	"APPYPAY_CLIENT_ID":                "",
-	"APPYPAY_CLIENT_SECRET":            "",
-	"APPYPAY_BASE_URL":                 "",
-	"APPYPAY_TOKEN_URL":                "",
-	"APPYPAY_RESOURCE":                 "",
-	"APPYPAY_GPO_METHOD":               "",
-	"APPYPAY_REF_METHOD":               "",
-	"APPYPAY_TIMEOUT":                  "30s",
-	"PAYMENT_GPO_WINDOW":               "5m",
-	"PAYMENT_REFERENCE_TTL":            "72h",
-	"PAYMENT_RECONCILE_INTERVAL":       "15s",
-	"PAYMENT_RECONCILE_BATCH":          50,
-	"PAYMENT_GPO_CHECK_INTERVAL":       "15s",
-	"PAYMENT_REFERENCE_CHECK_INTERVAL": "10m",
-	"LEDGER_CURRENCY":                  "AOA",
-	"CALLS_BASE_URL":                   "",
-	"CALLS_API_KEY":                    "",
-	"CALLS_TIMEOUT":                    "5s",
-	"SHARE_BASE_URL":                   "https://agora.ao/v",
-	"R2_ACCOUNT_ID":                    "",
-	"R2_ACCESS_KEY_ID":                 "",
-	"R2_SECRET_ACCESS_KEY":             "",
-	"R2_BUCKET_NAME":                   "",
-	"R2_ENDPOINT":                      "",
-	"R2_PRESIGN_TTL":                   "15m",
+	"APP_NAME":                              "atlas",
+	"APP_ENV":                               "development",
+	"HTTP_PORT":                             8700,
+	"HTTP_READ_TIMEOUT":                     "15s",
+	"HTTP_WRITE_TIMEOUT":                    "15s",
+	"HTTP_IDLE_TIMEOUT":                     "60s",
+	"HTTP_SHUTDOWN_TIMEOUT":                 "20s",
+	"CORS_ALLOWED_ORIGINS":                  "*",
+	"TRUSTED_PROXIES":                       "",
+	"RATE_LIMIT_REQUESTS":                   100,
+	"RATE_LIMIT_WINDOW":                     "1m",
+	"AUTH_RATE_LIMIT_REQUESTS":              10,
+	"AUTH_RATE_LIMIT_WINDOW":                "1m",
+	"LOG_LEVEL":                             "info",
+	"LOG_OUTPUT":                            "stdout",
+	"DB_MAX_CONNS":                          20,
+	"DB_MIN_CONNS":                          2,
+	"DB_MAX_CONN_LIFETIME":                  "1h",
+	"DB_MAX_CONN_IDLE_TIME":                 "15m",
+	"DB_MIGRATE_ON_START":                   true,
+	"REDIS_PASSWORD":                        "",
+	"REDIS_DB":                              0,
+	"RABBITMQ_EXCHANGE":                     "agora.events",
+	"RABBITMQ_PREFETCH":                     10,
+	"RABBITMQ_MAX_RETRIES":                  5,
+	"RABBITMQ_RETRY_DELAY":                  "10s",
+	"EVENT_DEDUP_TTL":                       "24h",
+	"OUTBOX_POLL_INTERVAL":                  "1s",
+	"OUTBOX_BATCH_SIZE":                     100,
+	"JWT_ISSUER":                            "atlas",
+	"JWT_ACCESS_TTL":                        "15m",
+	"JWT_REFRESH_TTL":                       "720h",
+	"OTP_TTL":                               "5m",
+	"OTP_MAX_ATTEMPTS":                      5,
+	"OTP_RESEND_COOLDOWN":                   "60s",
+	"CASTBRICK_API_KEY":                     "",
+	"CASTBRICK_BASE_URL":                    "https://api.castbrick.co/v1",
+	"CASTBRICK_SENDER_ID":                   "",
+	"CASTBRICK_TIMEOUT":                     "10s",
+	"RESEND_API_KEY":                        "",
+	"RESEND_BASE_URL":                       "https://api.resend.com",
+	"RESEND_TIMEOUT":                        "10s",
+	"EMAIL_FROM":                            "",
+	"EMAIL_REPLY_TO":                        "",
+	"PERMISSION_CACHE_TTL":                  "5m",
+	"INVITATION_URL_BACKOFFICE":             "http://localhost:3001/convite",
+	"INVITATION_URL_PARTNER_PANEL":          "http://localhost:3002/convite",
+	"DISPATCH_WATCHER_INTERVAL":             "1s",
+	"DISPATCH_WATCHER_BATCH":                200,
+	"DISPATCH_CHANNEL_TIMEOUT":              "5s",
+	"FARE_ESTIMATE_TTL":                     "5m",
+	"NEARBY_MIN_CELL_COUNT":                 3,
+	"LOCATION_MAX_ACCURACY_M":               100,
+	"LOCATION_MAX_SPEED_KMH":                200,
+	"LOCATION_HISTORY_RETENTION":            "720h",
+	"OFFER_DEEP_LINK_BASE":                  "agoraprovider://app",
+	"OPERATOR_ALERT_PHONE":                  "",
+	"IDEMPOTENCY_TTL":                       "24h",
+	"NOTIFICATION_WORKERS":                  8,
+	"REALTIME_PROJECTOR_WORKERS":            16,
+	"SSE_HEARTBEAT_INTERVAL":                "15s",
+	"SSE_POLL_INTERVAL":                     "30s",
+	"SSE_DEAD_AFTER":                        "38s",
+	"SSE_MAILBOX_MAX_ENTRIES":               200,
+	"SSE_MAILBOX_TTL":                       "24h",
+	"SSE_RECONNECT_SPREAD":                  "30s",
+	"GOOGLE_MAPS_API_KEY":                   "",
+	"GOOGLE_MAPS_BASE_URL":                  "https://routes.googleapis.com",
+	"GOOGLE_MAPS_TIMEOUT":                   "2s",
+	"GOOGLE_MAPS_BREAKER_FAILURES":          5,
+	"GOOGLE_MAPS_BREAKER_COOLDOWN":          "30s",
+	"ROUTING_ROAD_FACTOR":                   1.4,
+	"ROUTING_FALLBACK_SPEED_KMH":            25,
+	"FCM_PROJECT_ID":                        "",
+	"FCM_CREDENTIALS_JSON":                  "",
+	"FCM_CREDENTIALS_FILE":                  "",
+	"FCM_BASE_URL":                          "https://fcm.googleapis.com",
+	"FCM_TIMEOUT":                           "5s",
+	"APPYPAY_CLIENT_ID":                     "",
+	"APPYPAY_CLIENT_SECRET":                 "",
+	"APPYPAY_BASE_URL":                      "",
+	"APPYPAY_TOKEN_URL":                     "",
+	"APPYPAY_RESOURCE":                      "",
+	"APPYPAY_GPO_METHOD":                    "",
+	"APPYPAY_REF_METHOD":                    "",
+	"APPYPAY_TIMEOUT":                       "30s",
+	"PAYMENT_GPO_WINDOW":                    "5m",
+	"PAYMENT_REFERENCE_TTL":                 "72h",
+	"PAYMENT_RECONCILE_INTERVAL":            "15s",
+	"PAYMENT_RECONCILE_BATCH":               50,
+	"PAYMENT_GPO_CHECK_INTERVAL":            "15s",
+	"PAYMENT_REFERENCE_CHECK_INTERVAL":      "10m",
+	"LEDGER_CURRENCY":                       "AOA",
+	"CALLS_BASE_URL":                        "",
+	"CALLS_API_KEY":                         "",
+	"CALLS_TIMEOUT":                         "5s",
+	"SHARE_BASE_URL":                        "https://agora.ao/v",
+	"R2_ACCOUNT_ID":                         "",
+	"R2_ACCESS_KEY_ID":                      "",
+	"R2_SECRET_ACCESS_KEY":                  "",
+	"R2_BUCKET_NAME":                        "",
+	"R2_ENDPOINT":                           "",
+	"R2_PRESIGN_TTL":                        "15m",
+	"VERIFICATION_MAX_FILE_BYTES":           10485760,
+	"VERIFICATION_READ_URL_TTL":             "5m",
+	"VERIFICATION_MIN_PROVIDER_AGE":         18,
+	"VERIFICATION_MAX_ATTEMPTS":             3,
+	"VERIFICATION_CRIMINAL_RECORD_MAX_DAYS": 90,
+	"VERIFICATION_CERTIFICATE_MAX_MONTHS":   6,
+	"VERIFICATION_EXPIRY_NOTICE_DAYS":       30,
+	"VERIFICATION_PENDING_UPLOAD_TTL":       "24h",
+	"VERIFICATION_REMINDER_DELAY":           "24h",
+	"VERIFICATION_HOUSEKEEPING_INTERVAL":    "1h",
+	"VERIFICATION_UPLOAD_RATE_LIMIT":        60,
+	"VERIFICATION_CHECK_RATE_LIMIT":         15,
+	"VERIFICATION_RATE_WINDOW":              "1m",
+	"VERIFICATION_QUALITY_PROVIDER":         "manual",
+	"VERIFICATION_OCR_PROVIDER":             "manual",
+	"VERIFICATION_LIVENESS_PROVIDER":        "manual",
+	"VERIFICATION_FAKE_QUALITY_REASONS":     "",
+	"VERIFICATION_FAKE_OCR_FAIL":            false,
+	"VERIFICATION_FAKE_LIVENESS_FAIL":       false,
+	"VERIFICATION_WORKERS":                  4,
 }
 
 const cloudflareIdleLimit = 100 * time.Second
@@ -373,6 +457,10 @@ func Load() (*Config, error) {
 	}
 	cfg.HTTP.CORSAllowedOrigins = compact(cfg.HTTP.CORSAllowedOrigins)
 	cfg.HTTP.TrustedProxies = compact(cfg.HTTP.TrustedProxies)
+	cfg.Verify.FakeQualityReasons = compact(cfg.Verify.FakeQualityReasons)
+	if err := cfg.FCM.readCredentialsFile(); err != nil {
+		return nil, err
+	}
 
 	var errs []error
 	for _, key := range required {
@@ -505,6 +593,7 @@ func (c *Config) validateDispatch() []error {
 	if c.R2.PresignTTL <= 0 {
 		errs = append(errs, errors.New("R2_PRESIGN_TTL must be positive"))
 	}
+	errs = append(errs, c.Verify.validate(c.App.Env)...)
 	if c.FCM.Timeout <= 0 || strings.TrimSpace(c.FCM.BaseURL) == "" {
 		errs = append(errs, errors.New("FCM_TIMEOUT must be positive and FCM_BASE_URL cannot be empty"))
 	}

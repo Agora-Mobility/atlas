@@ -18,6 +18,7 @@ import (
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/usecases/providers"
 	"github.com/Agora-Mobility/atlas/usecases/providers/dtos"
+	"github.com/Agora-Mobility/atlas/usecases/verification"
 )
 
 type ProviderController struct {
@@ -55,6 +56,8 @@ var errorTable = []struct {
 	{entities.ErrInvalidProviderTransition, http.StatusConflict, "INVALID_PROVIDER_TRANSITION", "This change of status is not possible."},
 	{entities.ErrReviewReasonRequired, http.StatusUnprocessableEntity, "REASON_REQUIRED", "A reason is required."},
 	{services.ErrStorageUnavailable, http.StatusServiceUnavailable, "STORAGE_UNAVAILABLE", "File storage is not available."},
+	{repository.ErrNIFTaken, http.StatusConflict, "NIF_ALREADY_REGISTERED", "An organization already has this NIF."},
+	{verification.ErrWorkshopIncomplete, http.StatusUnprocessableEntity, "WORKSHOP_INCOMPLETE", "The workshop data is incomplete."},
 }
 
 func respond(ctx *gin.Context, status int, body any, err error) {
@@ -125,8 +128,8 @@ func providerParam(ctx *gin.Context) (uuid.UUID, bool) {
 
 // Register godoc
 //
-//	@Summary		Create a provider account
-//	@Description	Only through agora-provider-app: the account type comes from the client, never from the payload. Creates the account and a draft profile, and sends an SMS code. Confirm it with POST /api/v1/auth/phone/verify to get a session.
+//	@Summary		Create a provider account with the phone
+//	@Description	Only through agora-provider-app: the account type comes from the client, never from the payload. Takes only the phone, creates the account and a draft profile, and sends an SMS code. Calling it again for an unverified number sends a new code. Confirm it with POST /api/v1/auth/phone/verify to get a session. A registered number answers PHONE_ALREADY_EXISTS: the app moves to the sign-in by SMS code. The name and the other data are filled in later in the profile.
 //	@Tags			Provider account
 //	@Accept			json
 //	@Produce		json
@@ -185,58 +188,31 @@ func (c *ProviderController) MyProfile(ctx *gin.Context) {
 	respond(ctx, http.StatusOK, view, err)
 }
 
-// RequestService godoc
+// SetProfile godoc
 //
-//	@Summary		Choose the service to provide
-//	@Description	Stored as the requested service. The service a provider really takes comes from the approval.
+//	@Summary		Choose the service and save the personal data
+//	@Description	One step for the service and the personal data. A provider offers a single service: choosing again replaces the requested one. service_id comes from GET /api/v1/providers/services; the service a provider really takes comes from the approval. A fleet driver keeps the service the fleet chose. id_number is the BI: 9 digits, 2 letters and 3 digits. email is optional and must not belong to another account; sending it empty removes it. Only in draft or rejected.
 //	@Tags			Provider account
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		dtos.RequestServiceInput	true	"Service"
+//	@Param			body	body		dtos.ProfileInput	true	"Service and personal data"
 //	@Success		200		{object}	dtos.ProviderView
-//	@Failure		409		{object}	shared.ErrorResponse	"PROFILE_LOCKED"
-//	@Failure		422		{object}	shared.ErrorResponse	"SERVICE_NOT_OPEN"
+//	@Failure		409		{object}	shared.ErrorResponse	"PROFILE_LOCKED, MANAGED_BY_FLEET or EMAIL_ALREADY_EXISTS"
+//	@Failure		422		{object}	shared.ErrorResponse	"SERVICE_NOT_OPEN or invalid fields"
 //	@Security		BearerAuth
 //	@Security		ClientId
-//	@Router			/api/v1/providers/me/service [put]
-func (c *ProviderController) RequestService(ctx *gin.Context) {
+//	@Router			/api/v1/providers/me/profile [put]
+func (c *ProviderController) SetProfile(ctx *gin.Context) {
 	providerID, ok := currentProvider(ctx)
 	if !ok {
 		return
 	}
-	var in dtos.RequestServiceInput
+	var in dtos.ProfileInput
 	if err := binding.JSON(ctx, &in); err != nil {
 		shared.InvalidRequest(ctx, err)
 		return
 	}
-	view, err := c.providers.RequestService(ctx.Request.Context(), providerID, in)
-	respond(ctx, http.StatusOK, view, err)
-}
-
-// SetPersonalData godoc
-//
-//	@Summary	Save the personal data
-//	@Tags		Provider account
-//	@Accept		json
-//	@Produce	json
-//	@Param		body	body		dtos.PersonalDataInput	true	"Personal data"
-//	@Success	200		{object}	dtos.ProviderView
-//	@Failure	409		{object}	shared.ErrorResponse	"PROFILE_LOCKED"
-//	@Failure	422		{object}	shared.ErrorResponse	"Invalid fields"
-//	@Security	BearerAuth
-//	@Security	ClientId
-//	@Router		/api/v1/providers/me/personal [put]
-func (c *ProviderController) SetPersonalData(ctx *gin.Context) {
-	providerID, ok := currentProvider(ctx)
-	if !ok {
-		return
-	}
-	var in dtos.PersonalDataInput
-	if err := binding.JSON(ctx, &in); err != nil {
-		shared.InvalidRequest(ctx, err)
-		return
-	}
-	view, err := c.providers.SetPersonalData(ctx.Request.Context(), providerID, in)
+	view, err := c.providers.SetProfile(ctx.Request.Context(), providerID, in)
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -414,11 +390,15 @@ func (c *ProviderController) ListApplications(ctx *gin.Context) {
 //	@Security		ClientId
 //	@Router			/api/v1/admin/providers/{id} [get]
 func (c *ProviderController) GetApplication(ctx *gin.Context) {
+	actor, ok := staffActor(ctx)
+	if !ok {
+		return
+	}
 	id, ok := providerParam(ctx)
 	if !ok {
 		return
 	}
-	view, err := c.providers.GetApplication(ctx.Request.Context(), id)
+	view, err := c.providers.GetApplication(ctx.Request.Context(), actor, id)
 	respond(ctx, http.StatusOK, view, err)
 }
 

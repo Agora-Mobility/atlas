@@ -12,9 +12,11 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	entities "github.com/Agora-Mobility/atlas/domain/entities"
 	repository "github.com/Agora-Mobility/atlas/domain/repository"
+	enums "github.com/Agora-Mobility/atlas/shared/enums"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -72,26 +74,55 @@ func (mr *MockIProviderDocumentRepositoryMockRecorder) CreateReason(ctx, reason 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateReason", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).CreateReason), ctx, reason)
 }
 
-// Document mocks base method.
-func (m *MockIProviderDocumentRepository) Document(ctx context.Context, providerID uuid.UUID, documentType string) (*entities.ProviderDocument, error) {
+// DeletePendingFile mocks base method.
+func (m *MockIProviderDocumentRepository) DeletePendingFile(ctx context.Context, fileID uuid.UUID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Document", ctx, providerID, documentType)
+	ret := m.ctrl.Call(m, "DeletePendingFile", ctx, fileID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeletePendingFile indicates an expected call of DeletePendingFile.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) DeletePendingFile(ctx, fileID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePendingFile", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).DeletePendingFile), ctx, fileID)
+}
+
+// Document mocks base method.
+func (m *MockIProviderDocumentRepository) Document(ctx context.Context, providerID uuid.UUID, documentType enums.DocumentType, subject enums.DocumentSubject) (*entities.ProviderDocument, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Document", ctx, providerID, documentType, subject)
 	ret0, _ := ret[0].(*entities.ProviderDocument)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Document indicates an expected call of Document.
-func (mr *MockIProviderDocumentRepositoryMockRecorder) Document(ctx, providerID, documentType any) *gomock.Call {
+func (mr *MockIProviderDocumentRepositoryMockRecorder) Document(ctx, providerID, documentType, subject any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Document", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).Document), ctx, providerID, documentType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Document", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).Document), ctx, providerID, documentType, subject)
+}
+
+// DocumentByID mocks base method.
+func (m *MockIProviderDocumentRepository) DocumentByID(ctx context.Context, id uuid.UUID) (*entities.ProviderDocument, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DocumentByID", ctx, id)
+	ret0, _ := ret[0].(*entities.ProviderDocument)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DocumentByID indicates an expected call of DocumentByID.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) DocumentByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentByID", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).DocumentByID), ctx, id)
 }
 
 // DocumentReasons mocks base method.
-func (m *MockIProviderDocumentRepository) DocumentReasons(ctx context.Context, providerID uuid.UUID) (map[string][]entities.RejectionReason, error) {
+func (m *MockIProviderDocumentRepository) DocumentReasons(ctx context.Context, providerID uuid.UUID) (map[uuid.UUID][]entities.RejectionReason, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DocumentReasons", ctx, providerID)
-	ret0, _ := ret[0].(map[string][]entities.RejectionReason)
+	ret0, _ := ret[0].(map[uuid.UUID][]entities.RejectionReason)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -100,21 +131,6 @@ func (m *MockIProviderDocumentRepository) DocumentReasons(ctx context.Context, p
 func (mr *MockIProviderDocumentRepositoryMockRecorder) DocumentReasons(ctx, providerID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentReasons", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).DocumentReasons), ctx, providerID)
-}
-
-// DocumentType mocks base method.
-func (m *MockIProviderDocumentRepository) DocumentType(ctx context.Context, code string) (*entities.DocumentType, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DocumentType", ctx, code)
-	ret0, _ := ret[0].(*entities.DocumentType)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DocumentType indicates an expected call of DocumentType.
-func (mr *MockIProviderDocumentRepositoryMockRecorder) DocumentType(ctx, code any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentType", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).DocumentType), ctx, code)
 }
 
 // Documents mocks base method.
@@ -130,6 +146,36 @@ func (m *MockIProviderDocumentRepository) Documents(ctx context.Context, provide
 func (mr *MockIProviderDocumentRepositoryMockRecorder) Documents(ctx, providerID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Documents", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).Documents), ctx, providerID)
+}
+
+// File mocks base method.
+func (m *MockIProviderDocumentRepository) File(ctx context.Context, providerID, fileID uuid.UUID) (*entities.DocumentFile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "File", ctx, providerID, fileID)
+	ret0, _ := ret[0].(*entities.DocumentFile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// File indicates an expected call of File.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) File(ctx, providerID, fileID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "File", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).File), ctx, providerID, fileID)
+}
+
+// FileByID mocks base method.
+func (m *MockIProviderDocumentRepository) FileByID(ctx context.Context, fileID uuid.UUID) (*entities.DocumentFile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FileByID", ctx, fileID)
+	ret0, _ := ret[0].(*entities.DocumentFile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FileByID indicates an expected call of FileByID.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) FileByID(ctx, fileID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FileByID", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).FileByID), ctx, fileID)
 }
 
 // FindReason mocks base method.
@@ -160,6 +206,21 @@ func (m *MockIProviderDocumentRepository) ListReasons(ctx context.Context, scope
 func (mr *MockIProviderDocumentRepositoryMockRecorder) ListReasons(ctx, scope, includeInactive any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListReasons", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).ListReasons), ctx, scope, includeInactive)
+}
+
+// NextFileVersion mocks base method.
+func (m *MockIProviderDocumentRepository) NextFileVersion(ctx context.Context, documentID uuid.UUID, slot enums.DocumentSlot) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NextFileVersion", ctx, documentID, slot)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NextFileVersion indicates an expected call of NextFileVersion.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) NextFileVersion(ctx, documentID, slot any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextFileVersion", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).NextFileVersion), ctx, documentID, slot)
 }
 
 // OpenServices mocks base method.
@@ -193,17 +254,17 @@ func (mr *MockIProviderDocumentRepositoryMockRecorder) ProviderReasons(ctx, prov
 }
 
 // ReplaceDocumentReasons mocks base method.
-func (m *MockIProviderDocumentRepository) ReplaceDocumentReasons(ctx context.Context, providerID uuid.UUID, documentType string, reasonIDs []uuid.UUID) error {
+func (m *MockIProviderDocumentRepository) ReplaceDocumentReasons(ctx context.Context, document *entities.ProviderDocument, reasonIDs []uuid.UUID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReplaceDocumentReasons", ctx, providerID, documentType, reasonIDs)
+	ret := m.ctrl.Call(m, "ReplaceDocumentReasons", ctx, document, reasonIDs)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ReplaceDocumentReasons indicates an expected call of ReplaceDocumentReasons.
-func (mr *MockIProviderDocumentRepositoryMockRecorder) ReplaceDocumentReasons(ctx, providerID, documentType, reasonIDs any) *gomock.Call {
+func (mr *MockIProviderDocumentRepositoryMockRecorder) ReplaceDocumentReasons(ctx, document, reasonIDs any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceDocumentReasons", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).ReplaceDocumentReasons), ctx, providerID, documentType, reasonIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceDocumentReasons", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).ReplaceDocumentReasons), ctx, document, reasonIDs)
 }
 
 // ReplaceProviderReasons mocks base method.
@@ -247,6 +308,49 @@ func (m *MockIProviderDocumentRepository) SaveDocument(ctx context.Context, docu
 func (mr *MockIProviderDocumentRepositoryMockRecorder) SaveDocument(ctx, document any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveDocument", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).SaveDocument), ctx, document)
+}
+
+// SaveFile mocks base method.
+func (m *MockIProviderDocumentRepository) SaveFile(ctx context.Context, file *entities.DocumentFile) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveFile", ctx, file)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveFile indicates an expected call of SaveFile.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) SaveFile(ctx, file any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFile", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).SaveFile), ctx, file)
+}
+
+// StalePendingFiles mocks base method.
+func (m *MockIProviderDocumentRepository) StalePendingFiles(ctx context.Context, before time.Time, limit int) ([]entities.DocumentFile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StalePendingFiles", ctx, before, limit)
+	ret0, _ := ret[0].([]entities.DocumentFile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StalePendingFiles indicates an expected call of StalePendingFiles.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) StalePendingFiles(ctx, before, limit any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StalePendingFiles", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).StalePendingFiles), ctx, before, limit)
+}
+
+// SupersedeFiles mocks base method.
+func (m *MockIProviderDocumentRepository) SupersedeFiles(ctx context.Context, documentID uuid.UUID, slot enums.DocumentSlot, keepID uuid.UUID, now time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SupersedeFiles", ctx, documentID, slot, keepID, now)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SupersedeFiles indicates an expected call of SupersedeFiles.
+func (mr *MockIProviderDocumentRepositoryMockRecorder) SupersedeFiles(ctx, documentID, slot, keepID, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SupersedeFiles", reflect.TypeOf((*MockIProviderDocumentRepository)(nil).SupersedeFiles), ctx, documentID, slot, keepID, now)
 }
 
 // UpdateReason mocks base method.

@@ -178,3 +178,46 @@ func TestOperatorAlertUsesTheConfiguredPhone(t *testing.T) {
 
 	assert.Contains(t, sms.sent["+244933333333"], "no_provider")
 }
+
+func TestASubmittedVerificationIsAPushWithoutSMS(t *testing.T) {
+	provider := uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}, phones: map[uuid.UUID]string{provider: "+244944444444"}}
+	push, sms := &fakePush{}, &fakeSMS{sent: map[string]string{}}
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, sms, "", "")
+	event := events.ProviderReviewV1{Type: events.ProviderApplicationSubmitted, ProviderID: provider, OccurredAt: time.Now()}
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
+
+	require.Len(t, push.sent, 1)
+	assert.Equal(t, "Verificação enviada", push.sent[0].Title)
+	assert.Empty(t, sms.sent)
+}
+
+func TestExpiryReminderNamesTheDocumentAndTheDay(t *testing.T) {
+	provider := uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}}
+	push := &fakePush{}
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, &fakeSMS{sent: map[string]string{}}, "", "")
+	expires := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+	event := events.ProviderVerificationReminderV1{ReminderID: uuid.New(), ProviderID: provider, Kind: "document_expiry", DocumentType: "vehicle_insurance", ExpiresOn: &expires, OccurredAt: time.Now()}
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
+
+	require.Len(t, push.sent, 1)
+	assert.Equal(t, "Documento a expirar", push.sent[0].Title)
+	assert.Contains(t, push.sent[0].Body, "Seguro")
+	assert.Contains(t, push.sent[0].Body, "01/12/2026")
+	assert.Equal(t, "vehicle_insurance", push.sent[0].Data["document_type"])
+}
+
+func TestCriminalRecordReminderAsksForTheCertificate(t *testing.T) {
+	provider := uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}}
+	push := &fakePush{}
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, &fakeSMS{sent: map[string]string{}}, "", "")
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, events.ProviderVerificationReminderV1{ProviderID: provider, Kind: "criminal_record", OccurredAt: time.Now()})))
+
+	require.Len(t, push.sent, 1)
+	assert.Contains(t, push.sent[0].Body, "registo criminal")
+}
