@@ -52,6 +52,7 @@ jobs:
         env:
           IMAGE_REF: ${{ inputs.image }}@${{ inputs.digest }}
           ENV_FILE_BASE64: ${{ secrets.ENV_PRODUCTION_BASE64 }}
+          FCM_CREDENTIALS_BASE64: ${{ secrets.FCM_CREDENTIALS_BASE64 }}
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         with:
@@ -61,7 +62,7 @@ jobs:
           port: ${{ vars.SERVER_SSH_PORT || '22' }}
           fingerprint: ${{ secrets.SERVER_FINGERPRINT }}
           command_timeout: 15m
-          envs: IMAGE_REF,ENV_FILE_BASE64,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          envs: IMAGE_REF,ENV_FILE_BASE64,FCM_CREDENTIALS_BASE64,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
           script: |
             set -eu
             CONTAINER=atlas-api
@@ -77,6 +78,20 @@ jobs:
               exit 1
             fi
             (umask 077 && printf '%s' "$ENV_FILE_BASE64" | base64 --decode > .env)
+
+            echo "🔑 Credencial do Firebase"
+            mkdir -p secrets && chmod 700 secrets
+            if [ -n "${FCM_CREDENTIALS_BASE64:-}" ]; then
+              printf '%s' "$FCM_CREDENTIALS_BASE64" | base64 --decode > secrets/firebase.json.new
+              chmod 444 secrets/firebase.json.new
+              mv secrets/firebase.json.new secrets/firebase.json
+            fi
+            FCM_ARGS=""
+            if [ -s secrets/firebase.json ]; then
+              FCM_ARGS="-v $HOME/atlas/secrets/firebase.json:/run/secrets/firebase.json:ro -e FCM_CREDENTIALS_FILE=/run/secrets/firebase.json"
+            else
+              echo "⚠️ secrets/firebase.json não existe: o push fica desligado se FCM_CREDENTIALS_JSON também estiver vazio"
+            fi
 
             echo "🌐 Garantindo redes docker"
             if ! docker network inspect atlas >/dev/null 2>&1; then
@@ -95,6 +110,7 @@ jobs:
                 --name "$CONTAINER" \
                 --restart unless-stopped \
                 --env-file .env \
+                $FCM_ARGS \
                 -e HTTP_PORT=8700 \
                 -e LOG_OUTPUT=stdout \
                 -e TRUSTED_PROXIES=172.30.3.1 \
