@@ -36,23 +36,34 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" -o /out/healthcheck ./cmd/healthcheck && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags="-s -w" -o /out/bootstrap-admin ./cmd/bootstrap-admin
+    go build -trimpath -ldflags="-s -w" -o /out/bootstrap-admin ./cmd/bootstrap-admin && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed
 
-FROM gcr.io/distroless/static-debian13:nonroot
+# Alpine em vez de distroless: o arranque é um script de shell (entrypoint.sh) que espera pelo
+# Postgres com o pg_isready. O tzdata é preciso para os fusos das zonas (Africa/Luanda).
+FROM alpine:3.23
+
+RUN apk add --no-cache ca-certificates=20261020-r0 tzdata=2026f-r0 postgresql18-client=18.6-r0
 
 COPY --from=build /out/atlas /atlas
 COPY --from=build /out/migrate /migrate
 COPY --from=build /out/healthcheck /healthcheck
 COPY --from=build /out/bootstrap-admin /bootstrap-admin
+COPY --from=build /out/seed /seed
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
+# As migrations correm no entrypoint, antes da API; a API não as repete.
 ENV APP_ENV=production \
-    HTTP_PORT=8700
+    HTTP_PORT=8700 \
+    DB_MIGRATE_ON_START=false
 
-# 65532 is the "nonroot" user of distroless images.
+# Utilizador sem privilégios, o mesmo uid do "nonroot" do distroless que usávamos.
 USER 65532:65532
 EXPOSE 8700
 
-HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 \
     CMD ["/healthcheck"]
 
-ENTRYPOINT ["/atlas"]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/atlas"]
