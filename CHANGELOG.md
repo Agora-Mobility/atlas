@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.1.0](https://github.com/Agora-Mobility/atlas/compare/v3.0.0...v3.1.0) (2026-11-08)
+
+
+### Features
+
+* **dispatch:** give the quote route once for the list ([9aa2241](https://github.com/Agora-Mobility/atlas/commit/9aa2241f395aa0a6283a6deb9ec72d058f6ba32f))
+* **dispatch:** return the road route geometry in quotes and requests ([80ee238](https://github.com/Agora-Mobility/atlas/commit/80ee238bacd5f08a39cb5c38141f24a8b3659d7a))
+* **zones:** serve the whole Luanda province and seed workshops in Futungo ([c39b91f](https://github.com/Agora-Mobility/atlas/commit/c39b91f1e74e6e7754b4ece1aaebb441f1380048))
+
+
+### Bug Fixes
+
+* **deps:** bump golang.org/x/net to v0.62.0 for CVE-2026-78661 ([f54f64f](https://github.com/Agora-Mobility/atlas/commit/f54f64fa073f45cc81959095334f48b2f1ae1255))
+
 ## [3.0.0](https://github.com/Agora-Mobility/atlas/compare/v2.0.0...v3.0.0) (2026-11-06)
 
 
