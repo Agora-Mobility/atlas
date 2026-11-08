@@ -68,12 +68,14 @@ func TestTaxiFullFlowWithFixedPriceTrackingAndHonoredFare(t *testing.T) {
 	option := estimate.body["items"].([]any)[0].(map[string]any)
 	assert.EqualValues(t, 171_500, option["total_cents"], "the 8 km and 25 min example of the proposal")
 	assert.Equal(t, "google", option["route_source"])
+	assert.Equal(t, "polyline", option["route_geometry"], "the quote carries the road route so the app does not draw a straight line")
 
 	key := uuid.NewString()
 	payload := map[string]any{"service_id": option["service_id"], "fare_estimate_id": option["fare_estimate_id"], "pickup": pickup, "destination": target}
 	created := customer.do(t, http.MethodPost, "/api/v1/requests", payload, map[string]string{"Idempotency-Key": key})
 	require.Equal(t, http.StatusCreated, created.status, created.text)
 	assert.EqualValues(t, 171_500, created.num("fare_cents"))
+	assert.Equal(t, "polyline", created.str("route_geometry"), "the request keeps the route of its quote")
 	requestID := created.str("id")
 
 	again := customer.do(t, http.MethodPost, "/api/v1/requests", payload, map[string]string{"Idempotency-Key": key})
@@ -360,6 +362,7 @@ func TestCriterion8TaxiCompletesWithGoogleMapsDown(t *testing.T) {
 	require.Equal(t, http.StatusCreated, estimate.status, estimate.text)
 	option := estimate.body["items"].([]any)[0].(map[string]any)
 	assert.Equal(t, "fallback", option["route_source"], "the quote is marked to measure the deviation")
+	assert.NotContains(t, option, "route_geometry", "without Google there is no road route to draw")
 
 	created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": option["service_id"], "fare_estimate_id": option["fare_estimate_id"], "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	require.Equal(t, http.StatusCreated, created.status, created.text)
@@ -609,6 +612,7 @@ func TestTowingParallelOffersWithLateAcceptAndOperatorAlert(t *testing.T) {
 	estimateID, serviceID := estimateFor(t, customer, "towing")
 	created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"towing": towingDetails(t, customer), "service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	require.Equal(t, http.StatusCreated, created.status, created.text)
+	assert.Equal(t, "polyline", created.str("route_geometry"), "towing also returns the road route")
 
 	offerA, offerB := firstStream.waitFor(t, "request.offer", nil), secondStream.waitFor(t, "request.offer", nil)
 	require.Equal(t, http.StatusOK, acceptOffer(t, second, offerB).status)

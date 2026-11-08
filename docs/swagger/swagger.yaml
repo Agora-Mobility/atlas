@@ -1654,6 +1654,9 @@ definitions:
         type: integer
       removal:
         $ref: '#/definitions/entities.RemovalQuote'
+      route_geometry:
+        example: zmrv@cbdpA...
+        type: string
       route_source:
         type: string
       service_id:
@@ -3955,6 +3958,9 @@ definitions:
         type: array
       rating:
         $ref: '#/definitions/dtos.GivenRating'
+      route_geometry:
+        example: zmrv@cbdpA...
+        type: string
       scheduled_for:
         type: string
       service_id:

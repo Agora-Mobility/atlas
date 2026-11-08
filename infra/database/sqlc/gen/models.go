@@ -668,6 +668,7 @@ type FareEstimate struct {
 	UsedAt          *time.Time      `json:"used_at"`
 	VehicleTypeID   *uuid.UUID      `json:"vehicle_type_id"`
 	Details         json.RawMessage `json:"details"`
+	RouteGeometry   string          `json:"route_geometry"`
 }
 
 type InboxItem struct {
@@ -1159,6 +1160,7 @@ type ServiceRequest struct {
 	ExtraDueCents        int64           `json:"extra_due_cents"`
 	RemovalDay           *time.Time      `json:"removal_day"`
 	RemovalWindowID      *uuid.UUID      `json:"removal_window_id"`
+	RouteGeometry        string          `json:"route_geometry"`
 }
 
 type ServiceRequestEvent struct {

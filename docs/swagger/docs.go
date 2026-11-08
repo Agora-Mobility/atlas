@@ -18419,6 +18419,10 @@ const docTemplate = `{
                 "removal": {
                     "$ref": "#/definitions/entities.RemovalQuote"
                 },
+                "route_geometry": {
+                    "type": "string",
+                    "example": "zmrv@cbdpA..."
+                },
                 "route_source": {
                     "type": "string"
                 },
@@ -21750,6 +21754,10 @@ const docTemplate = `{
                 },
                 "rating": {
                     "$ref": "#/definitions/dtos.GivenRating"
+                },
+                "route_geometry": {
+                    "type": "string",
+                    "example": "zmrv@cbdpA..."
                 },
                 "scheduled_for": {
                     "type": "string"
