@@ -1,8 +1,8 @@
 -- name: InsertServiceRequest :exec
 INSERT INTO service_requests (id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone,
     pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended,
-    search_deadline_at, next_action_at, reminder_at, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, idempotency_key, created_at, updated_at, payment_method, public_code, vehicle_type_id, completion_code, workshop_id, prepay, removal_day, removal_window_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39);
+    search_deadline_at, next_action_at, reminder_at, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, idempotency_key, created_at, updated_at, payment_method, public_code, vehicle_type_id, completion_code, workshop_id, prepay, removal_day, removal_window_id, route_geometry)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40);
 
 -- name: DeleteServiceRequestStops :exec
 DELETE FROM service_request_stops WHERE request_id = $1;
@@ -42,7 +42,7 @@ SET status = sqlc.arg(status), version = sqlc.arg(version), destination_address_
     search_round = sqlc.arg(search_round), search_extended = sqlc.arg(search_extended), search_deadline_at = sqlc.arg(search_deadline_at),
     next_action_at = sqlc.arg(next_action_at), reminder_at = sqlc.arg(reminder_at), provider_id = sqlc.arg(provider_id),
     organization_id = CASE WHEN provider_id IS NOT DISTINCT FROM sqlc.arg(provider_id) THEN organization_id ELSE (SELECT p.organization_id FROM providers p WHERE p.user_id = sqlc.arg(provider_id)) END, fare_cents = sqlc.arg(fare_cents),
-    commission_cents = sqlc.arg(commission_cents), boost_bps = sqlc.arg(boost_bps), needs_operator = sqlc.arg(needs_operator), operator_reason = sqlc.arg(operator_reason),
+    commission_cents = sqlc.arg(commission_cents), route_geometry = sqlc.arg(route_geometry), boost_bps = sqlc.arg(boost_bps), needs_operator = sqlc.arg(needs_operator), operator_reason = sqlc.arg(operator_reason),
     cancel_reason = sqlc.arg(cancel_reason), cancelled_by = sqlc.arg(cancelled_by), cancel_reason_id = sqlc.arg(cancel_reason_id), cancel_fee_cents = sqlc.arg(cancel_fee_cents), completion_attempts = sqlc.arg(completion_attempts), extra_due_cents = sqlc.arg(extra_due_cents), voucher_id = sqlc.arg(voucher_id), voucher_code = sqlc.arg(voucher_code), discount_cents = sqlc.arg(discount_cents), accepted_at = sqlc.arg(accepted_at), arrived_at = sqlc.arg(arrived_at),
     started_at = sqlc.arg(started_at), completed_at = sqlc.arg(completed_at), updated_at = sqlc.arg(updated_at)
 WHERE id = sqlc.arg(id) AND version = sqlc.arg(expected_version);

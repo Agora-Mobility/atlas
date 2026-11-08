@@ -382,3 +382,17 @@ func TestScheduleFollowsTheSlotsOfThePolicy(t *testing.T) {
 	policy.ScheduleSlotMin = 1
 	assert.NoError(t, policy.ValidateSchedule(now.Add(37*time.Minute), now), "the slot is configurable")
 }
+
+func TestRequestKeepsTheRouteOfItsQuoteAndReplacesItOnRouteChange(t *testing.T) {
+	input := newInput()
+	input.Fare = entities.RequestFare{RouteGeometry: "quoted"}
+	request, err := entities.NewServiceRequest(input)
+	require.NoError(t, err)
+	assert.Equal(t, "quoted", request.Fare.RouteGeometry)
+
+	destination := entities.RequestPlace{Point: entities.GeoPoint{Lat: -8.90, Lng: 13.17}}
+	stops := []entities.RequestPlace{{Point: entities.GeoPoint{Lat: -8.86, Lng: 13.20}}}
+	require.NoError(t, request.ChangeRoute(destination, stops, taxiPolicy(), 200_000, 20_000, "rerouted"))
+	assert.Equal(t, "rerouted", request.Fare.RouteGeometry)
+	assert.True(t, request.RouteChanged)
+}

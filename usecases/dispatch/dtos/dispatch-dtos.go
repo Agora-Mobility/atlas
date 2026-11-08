@@ -167,6 +167,9 @@ type FareEstimateView struct {
 
 type FareEstimateList struct {
 	Items []FareEstimateView `json:"items"`
+	// Route is the trip through the stops, the same for every quoted service. Absent without a destination;
+	// without Google (source fallback) it has no geometry and the app keeps the straight line.
+	Route *RouteView `json:"route,omitempty"`
 }
 
 type ProviderSummary struct {
@@ -239,6 +242,7 @@ type RequestView struct {
 	Pickup          PlaceView        `json:"pickup"`
 	Destination     *PlaceView       `json:"destination,omitempty"`
 	Stops           []PlaceView      `json:"stops"`
+	RouteGeometry   string           `json:"route_geometry,omitempty" example:"zmrv@cbdpA..."`
 	ContactPhone    string           `json:"contact_phone,omitempty"`
 	PassengerName   string           `json:"passenger_name,omitempty"`
 	Details         json.RawMessage  `json:"details,omitempty" swaggertype:"object"`
@@ -450,7 +454,7 @@ type AcceptResult struct {
 type RouteView struct {
 	DistanceM int    `json:"distance_m"`
 	DurationS int    `json:"duration_s"`
-	Geometry  string `json:"geometry,omitempty"`
+	Geometry  string `json:"geometry,omitempty" example:"zmrv@cbdpA..."` // Google encoded polyline, precision 5
 	Source    string `json:"source"`
 }
 
