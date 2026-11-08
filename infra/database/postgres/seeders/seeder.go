@@ -19,6 +19,7 @@ var all = []seeder{
 	{name: "partners", run: seedPartners},
 	{name: "memberships", run: seedMemberships},
 	{name: "dispatch", run: seedDispatch},
+	{name: "workshops", run: seedWorkshops},
 }
 
 const partnerOrganizationID = "00000000-0000-0000-0000-0000000000b1"
@@ -34,16 +35,12 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-const luandaApproximateArea = "MULTIPOLYGON(((12.9 -9.4,13.8 -9.4,13.8 -8.5,12.9 -8.5,12.9 -9.4)))"
-
+// A zona Luanda vem da migration 000043 (é dado real, também de produção); o seed só põe dados de teste.
 func seedDispatch(ctx context.Context, pool *pgxpool.Pool) error {
 	statements := []struct {
 		sql  string
 		args []any
 	}{
-		{`INSERT INTO service_zones (id, country_code, name, geom, timezone, currency)
-		  VALUES ('00000000-0000-0000-0000-0000000000c1', 'AO', 'Luanda', ST_GeogFromText($1), 'Africa/Luanda', 'AOA')
-		  ON CONFLICT (id) DO NOTHING`, []any{luandaApproximateArea}},
 		{`INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps)
 		  SELECT s.id, 'AOA',
 		         CASE s.slug WHEN 'taxi-comfort' THEN 45000 WHEN 'taxi-xl' THEN 60000 ELSE 30000 END,
@@ -129,6 +126,62 @@ func seedMemberships(ctx context.Context, pool *pgxpool.Pool) error {
 	for _, r := range rows {
 		if _, err := pool.Exec(ctx, q, r.id, r.userID, r.scope, r.organizationID, r.role); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+type seedWorkshop struct {
+	id, addressID, name, line, phone string
+	lat, lng                         float64
+	homeService                      bool
+}
+
+// Oficinas de teste à volta do Futungo de Belas, dentro da zona Luanda do seed, para o fluxo de manutenção.
+var futungoWorkshops = []seedWorkshop{
+	{"00000000-0000-0000-0000-0000000000e1", "00000000-0000-0000-0000-0000000000f1", "Oficina Futungo Auto", "Estrada do Futungo, Belas", "+244923000201", -8.8990, 13.1780, true},
+	{"00000000-0000-0000-0000-0000000000e2", "00000000-0000-0000-0000-0000000000f2", "Mussulo Motors", "Via Expressa, Futungo de Belas", "+244923000202", -8.9060, 13.1850, false},
+	{"00000000-0000-0000-0000-0000000000e3", "00000000-0000-0000-0000-0000000000f3", "Belas Pneus & Travões", "Rua do Futungo, Belas", "+244923000203", -8.9130, 13.1920, true},
+}
+
+var workshopSeedServices = []struct {
+	category, name string
+	priceCents     int64
+	minutes        int
+}{
+	{"review", "Revisão geral", 3_500_000, 120},
+	{"oil", "Mudança de óleo e filtro", 1_800_000, 45},
+	{"tires", "Troca de pneus", 1_200_000, 40},
+	{"brakes", "Pastilhas de travão", 2_500_000, 90},
+}
+
+func seedWorkshops(ctx context.Context, pool *pgxpool.Pool) error {
+	for _, w := range futungoWorkshops {
+		if _, err := pool.Exec(ctx, `INSERT INTO addresses (id, lat, lng, line, neighborhood, city, province, country_code)
+			VALUES ($1, $2, $3, $4, 'Futungo de Belas', 'Luanda', 'Luanda', 'AO') ON CONFLICT (id) DO NOTHING`, w.addressID, w.lat, w.lng, w.line); err != nil {
+			return err
+		}
+		var homeFee int64
+		if w.homeService {
+			homeFee = 300_000
+		}
+		if _, err := pool.Exec(ctx, `INSERT INTO workshops (id, organization_id, address_id, name, phone, opening_hours, offers_home_service, home_service_fee_cents, currency, capacity, about, warranty)
+			VALUES ($1, $2, $3, $4, $5, 'Todos os dias 07:00-19:00', $6, $7, 'AOA', 2, 'Oficina de teste do seed', '3 meses') ON CONFLICT (id) DO NOTHING`,
+			w.id, partnerOrganizationID, w.addressID, w.name, w.phone, w.homeService, homeFee); err != nil {
+			return err
+		}
+		if _, err := pool.Exec(ctx, `INSERT INTO workshop_hours (workshop_id, weekday, open_minute, close_minute)
+			SELECT $1, d, 420, 1140 FROM generate_series(0, 6) AS d ON CONFLICT DO NOTHING`, w.id); err != nil {
+			return err
+		}
+		for _, service := range workshopSeedServices {
+			if _, err := pool.Exec(ctx, `INSERT INTO workshop_services (id, workshop_id, name, price_cents, duration_minutes, category_id)
+				SELECT gen_random_uuid(), $1, $2, $3, $4, c.id FROM catalog_items c
+				WHERE c.kind = 'workshop_category' AND c.code = $5
+				  AND NOT EXISTS (SELECT 1 FROM workshop_services s WHERE s.workshop_id = $1 AND s.name = $2)`,
+				w.id, service.name, service.priceCents, service.minutes, service.category); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

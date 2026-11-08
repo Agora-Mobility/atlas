@@ -46,7 +46,11 @@ func TestDispatchBackofficeFlow(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, bad.status)
 
 		list := a.call(http.MethodGet, "/api/v1/admin/zones", backofficeApp, adminToken, nil)
-		assert.Len(t, list.body["items"], 1)
+		names := []string{}
+		for _, item := range list.body["items"].([]any) {
+			names = append(names, item.(map[string]any)["name"].(string))
+		}
+		assert.ElementsMatch(t, []string{"Luanda", "Benguela"}, names, "the Luanda province comes from the migrations")
 
 		updated := a.call(http.MethodPut, "/api/v1/admin/zones/"+zoneID, backofficeApp, adminToken, map[string]any{
 			"country_code": "AO", "name": "Benguela Cidade", "timezone": "Africa/Luanda", "currency": "AOA", "is_active": true, "geometry": rawJSON(benguelaGeometry),

@@ -348,13 +348,19 @@ func TestZonesAndPolicyResolution(t *testing.T) {
 	app, _ := setupDBs(t)
 	ctx := context.Background()
 	config := repository.NewDispatchConfigRepository(app)
-	zone := &entities.ServiceZone{ID: uuid.New(), CountryCode: "AO", Name: "Luanda", GeoJSON: luandaGeoJSON, Timezone: "Africa/Luanda", Currency: "AOA", IsActive: true}
+	// The Luanda province already comes from the migrations; a smaller zone inside it is more specific and wins.
+	center := `{"type":"MultiPolygon","coordinates":[[[[13.1,-9.0],[13.4,-9.0],[13.4,-8.7],[13.1,-8.7],[13.1,-9.0]]]]}`
+	zone := &entities.ServiceZone{ID: uuid.New(), CountryCode: "AO", Name: "Luanda Centro", GeoJSON: center, Timezone: "Africa/Luanda", Currency: "AOA", IsActive: true}
 	require.NoError(t, config.CreateZone(ctx, zone))
 
 	covering, err := config.ZoneCoveringPoint(ctx, entities.GeoPoint{Lat: -8.84, Lng: 13.23})
 	require.NoError(t, err)
 	require.NotNil(t, covering)
 	assert.Equal(t, zone.ID, *covering)
+	province, err := config.ZoneCoveringPoint(ctx, entities.GeoPoint{Lat: -9.04, Lng: 13.50})
+	require.NoError(t, err)
+	require.NotNil(t, province, "the new airport is served by the province zone")
+	assert.NotEqual(t, zone.ID, *province)
 	outside, err := config.ZoneCoveringPoint(ctx, entities.GeoPoint{Lat: -14.9, Lng: 13.5})
 	require.NoError(t, err)
 	assert.Nil(t, outside)
