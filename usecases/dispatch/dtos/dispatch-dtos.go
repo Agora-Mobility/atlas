@@ -158,7 +158,6 @@ type FareEstimateView struct {
 	DistanceM      int                    `json:"distance_m"`
 	DurationS      int                    `json:"duration_s"`
 	RouteSource    string                 `json:"route_source"`
-	RouteGeometry  string                 `json:"route_geometry,omitempty" example:"zmrv@cbdpA..."`
 	ExpiresInS     int                    `json:"expires_in_s"`
 	VehicleTypeID  *uuid.UUID             `json:"vehicle_type_id,omitempty"`
 	VehicleType    string                 `json:"vehicle_type,omitempty"`
@@ -168,6 +167,9 @@ type FareEstimateView struct {
 
 type FareEstimateList struct {
 	Items []FareEstimateView `json:"items"`
+	// Route is the trip through the stops, the same for every quoted service. Absent without a destination;
+	// without Google (source fallback) it has no geometry and the app keeps the straight line.
+	Route *RouteView `json:"route,omitempty"`
 }
 
 type ProviderSummary struct {
@@ -452,7 +454,7 @@ type AcceptResult struct {
 type RouteView struct {
 	DistanceM int    `json:"distance_m"`
 	DurationS int    `json:"duration_s"`
-	Geometry  string `json:"geometry,omitempty"`
+	Geometry  string `json:"geometry,omitempty" example:"zmrv@cbdpA..."` // Google encoded polyline, precision 5
 	Source    string `json:"source"`
 }
 

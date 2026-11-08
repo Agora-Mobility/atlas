@@ -78,6 +78,9 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 	}
 
 	list := &dtos.FareEstimateList{Items: make([]dtos.FareEstimateView, 0, len(offered))}
+	if destination != nil {
+		list.Route = &dtos.RouteView{DistanceM: route.DistanceMeters, DurationS: int(route.Duration.Seconds()), Geometry: route.Geometry, Source: string(route.Source)}
+	}
 	expiresAt := now.Add(u.settings.FareEstimateTTL)
 	vehicleTypes, err := u.Reference.Items(ctx, entities.CatalogTowingVehicle, in.Category, false)
 	if err != nil {
@@ -124,7 +127,7 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 		businessmetrics.FareQuotes.WithLabelValues(in.Category, string(route.Source), "estimate").Inc()
 		list.Items = append(list.Items, dtos.FareEstimateView{
 			FareEstimateID: id, ServiceID: service.ID, ServiceName: service.Name, ServiceSlug: service.Slug, TotalCents: total, Currency: tariff.Currency,
-			DistanceM: route.DistanceMeters, DurationS: int(route.Duration.Seconds()), RouteSource: string(route.Source), RouteGeometry: route.Geometry, ExpiresInS: int(u.settings.FareEstimateTTL.Seconds()),
+			DistanceM: route.DistanceMeters, DurationS: int(route.Duration.Seconds()), RouteSource: string(route.Source), ExpiresInS: int(u.settings.FareEstimateTTL.Seconds()),
 		})
 	}
 	if len(list.Items) == 0 {
@@ -153,7 +156,7 @@ func (u *Usecase) towingEstimates(ctx context.Context, list *dtos.FareEstimateLi
 		included := vehicleType.AttrInt(entities.AttrIncludedKm)
 		list.Items = append(list.Items, dtos.FareEstimateView{
 			FareEstimateID: id, ServiceID: service.ID, ServiceName: service.Name, ServiceSlug: service.Slug, TotalCents: total, Currency: tariff.Currency, DistanceM: route.DistanceMeters,
-			DurationS: int(route.Duration.Seconds()), RouteSource: string(route.Source), RouteGeometry: route.Geometry, ExpiresInS: int(u.settings.FareEstimateTTL.Seconds()), VehicleTypeID: &typeID, VehicleType: vehicleType.Label, IncludedKm: &included,
+			DurationS: int(route.Duration.Seconds()), RouteSource: string(route.Source), ExpiresInS: int(u.settings.FareEstimateTTL.Seconds()), VehicleTypeID: &typeID, VehicleType: vehicleType.Label, IncludedKm: &included,
 		})
 	}
 	return nil

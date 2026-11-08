@@ -18392,6 +18392,14 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dtos.FareEstimateView"
                     }
+                },
+                "route": {
+                    "description": "Route is the trip through the stops, the same for every quoted service. Absent without a destination;\nwithout Google (source fallback) it has no geometry and the app keeps the straight line.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dtos.RouteView"
+                        }
+                    ]
                 }
             }
         },
@@ -18418,10 +18426,6 @@ const docTemplate = `{
                 },
                 "removal": {
                     "$ref": "#/definitions/entities.RemovalQuote"
-                },
-                "route_geometry": {
-                    "type": "string",
-                    "example": "zmrv@cbdpA..."
                 },
                 "route_source": {
                     "type": "string"
@@ -22014,7 +22018,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "geometry": {
-                    "type": "string"
+                    "description": "Google encoded polyline, precision 5",
+                    "type": "string",
+                    "example": "zmrv@cbdpA..."
                 },
                 "source": {
                     "type": "string"
