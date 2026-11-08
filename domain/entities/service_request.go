@@ -133,6 +133,7 @@ type RequestFare struct {
 	Currency        string
 	VehicleTypeID   *uuid.UUID
 	EstimateDetails json.RawMessage
+	RouteGeometry   string
 }
 
 func (f RequestFare) ProviderNetCents() *int64 {
@@ -465,7 +466,7 @@ func (r *ServiceRequest) FollowBooking(to RequestStatus, actor RequestActor, rea
 	return change
 }
 
-func (r *ServiceRequest) ChangeRoute(destination RequestPlace, stops []RequestPlace, policy *DispatchPolicy, fareCents, commissionCents int64) error {
+func (r *ServiceRequest) ChangeRoute(destination RequestPlace, stops []RequestPlace, policy *DispatchPolicy, fareCents, commissionCents int64, routeGeometry string) error {
 	normalized, err := destination.normalized("destination")
 	if err != nil {
 		return err
@@ -479,6 +480,7 @@ func (r *ServiceRequest) ChangeRoute(destination RequestPlace, stops []RequestPl
 	r.RouteChanged = true
 	r.Fare.Cents = &fareCents
 	r.Fare.CommissionCents = &commissionCents
+	r.Fare.RouteGeometry = routeGeometry
 	return nil
 }
 

@@ -78,6 +78,9 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 	}
 
 	list := &dtos.FareEstimateList{Items: make([]dtos.FareEstimateView, 0, len(offered))}
+	if destination != nil {
+		list.Route = &dtos.RouteView{DistanceM: route.DistanceMeters, DurationS: int(route.Duration.Seconds()), Geometry: route.Geometry, Source: string(route.Source)}
+	}
 	expiresAt := now.Add(u.settings.FareEstimateTTL)
 	vehicleTypes, err := u.Reference.Items(ctx, entities.CatalogTowingVehicle, in.Category, false)
 	if err != nil {
@@ -115,7 +118,7 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 		}
 		estimate := &entities.FareEstimate{
 			ID: id, CustomerID: customerID, TariffID: tariff.ID, ServiceID: service.ID, Origin: pickup, Destination: destination, Stops: stops, ScheduledFor: in.ScheduledFor,
-			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source),
+			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source), RouteGeometry: route.Geometry,
 			TotalCents: total, CommissionCents: tariff.CommissionFor(total), Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
 		}
 		if err := u.Pricing.CreateEstimate(ctx, estimate); err != nil {
@@ -144,7 +147,7 @@ func (u *Usecase) towingEstimates(ctx context.Context, list *dtos.FareEstimateLi
 		typeID := vehicleType.ID
 		estimate := &entities.FareEstimate{
 			ID: id, CustomerID: customerID, TariffID: tariff.ID, ServiceID: service.ID, Origin: pickup, Destination: destination, Stops: stops, ScheduledFor: in.ScheduledFor, VehicleTypeID: &typeID,
-			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source),
+			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source), RouteGeometry: route.Geometry,
 			TotalCents: total, CommissionCents: tariff.CommissionFor(total), Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
 		}
 		if err := u.Pricing.CreateEstimate(ctx, estimate); err != nil {

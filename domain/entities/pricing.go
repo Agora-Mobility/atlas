@@ -126,6 +126,7 @@ type FareEstimate struct {
 	DistanceMeters  int
 	DurationSeconds int
 	RouteSource     string
+	RouteGeometry   string
 	TotalCents      int64
 	CommissionCents int64
 	Currency        string

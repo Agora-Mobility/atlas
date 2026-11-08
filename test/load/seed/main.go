@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	luanda        = "MULTIPOLYGON(((12.9 -9.4,13.8 -9.4,13.8 -8.5,12.9 -8.5,12.9 -9.4)))"
 	centerLat     = -8.84
 	centerLng     = 13.25
 	spreadDegrees = 0.03
@@ -66,9 +65,6 @@ func run() error {
 	}
 	defer pool.Close()
 
-	if _, err := pool.Exec(ctx, `INSERT INTO service_zones (country_code, name, geom, timezone, currency) VALUES ('AO', 'Luanda', ST_GeogFromText($1), 'Africa/Luanda', 'AOA')`, luanda); err != nil {
-		return err
-	}
 	if _, err := pool.Exec(ctx, `INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps) SELECT id, 'AOA', 30000, 13000, 1500, 45000, 1000 FROM services WHERE slug = 'taxi'`); err != nil {
 		return err
 	}

@@ -297,7 +297,7 @@ func (u *Usecase) resolveFare(ctx context.Context, customerID uuid.UUID, service
 	}
 	id := estimate.ID
 	total, commission := estimate.TotalCents, estimate.CommissionCents
-	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency, VehicleTypeID: estimate.VehicleTypeID, EstimateDetails: estimate.Details}, nil
+	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency, VehicleTypeID: estimate.VehicleTypeID, EstimateDetails: estimate.Details, RouteGeometry: estimate.RouteGeometry}, nil
 }
 
 func (u *Usecase) GetRequest(ctx context.Context, userID, requestID uuid.UUID) (*dtos.RequestView, error) {
@@ -622,7 +622,7 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 		if err != nil {
 			return err
 		}
-		if err := request.ChangeRoute(destination, stops, policy, boosted, tariff.CommissionFor(base)); err != nil {
+		if err := request.ChangeRoute(destination, stops, policy, boosted, tariff.CommissionFor(base), route.Geometry); err != nil {
 			return err
 		}
 		cell, err := u.Geo.Cell(destination.Point, analyticsResolution)
@@ -749,7 +749,7 @@ func baseRequestView(r *entities.ServiceRequest) dtos.RequestView {
 		stops = append(stops, dtos.ToPlaceView(stop))
 	}
 	view := dtos.RequestView{
-		ID: r.ID, Code: r.PublicCode, Status: string(r.Status), Version: r.Version, Category: r.CategorySlug, ServiceID: r.ServiceID, Pickup: dtos.ToPlaceView(r.Pickup), Stops: stops,
+		ID: r.ID, Code: r.PublicCode, Status: string(r.Status), Version: r.Version, Category: r.CategorySlug, ServiceID: r.ServiceID, Pickup: dtos.ToPlaceView(r.Pickup), Stops: stops, RouteGeometry: r.Fare.RouteGeometry,
 		ScheduledFor: r.ScheduledFor, FareCents: r.Fare.Cents, BoostBps: r.Fare.BoostBps, Currency: r.Fare.Currency, PaymentMethod: string(r.PaymentMethod), PaymentStatus: string(r.PaymentStatus), DiscountCents: r.DiscountCents, VoucherCode: r.VoucherCode, AmountDueCents: r.ExpectedDueCents(), NeedsOperator: r.NeedsOperator, OperatorReason: r.OperatorReason,
 		CancelReason: r.CancelReason, CancelledBy: r.CancelledBy, CancelReasonID: r.CancelReasonID, CancelFeeCents: r.CancelFeeCents, AcceptedAt: r.AcceptedAt, ArrivedAt: r.ArrivedAt, StartedAt: r.StartedAt, CompletedAt: r.CompletedAt, CreatedAt: r.CreatedAt,
 	}

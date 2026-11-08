@@ -109,7 +109,7 @@ func (u *Usecase) removalEstimates(ctx context.Context, list *dtos.FareEstimateL
 		typeID := vehicle.ID
 		estimate := &entities.FareEstimate{
 			ID: id, CustomerID: customerID, TariffID: tariff.ID, ServiceID: service.ID, Origin: pickup, Destination: destination, Stops: stops, ScheduledFor: in.ScheduledFor, VehicleTypeID: &typeID, Details: details,
-			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source), TotalCents: total, CommissionCents: tariff.CommissionFor(total), Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
+			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source), RouteGeometry: route.Geometry, TotalCents: total, CommissionCents: tariff.CommissionFor(total), Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
 		}
 		if err := u.Pricing.CreateEstimate(ctx, estimate); err != nil {
 			return err

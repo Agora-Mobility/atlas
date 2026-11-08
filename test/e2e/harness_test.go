@@ -47,7 +47,6 @@ import (
 const (
 	customerClient = "agora-customer-app"
 	providerClient = "agora-provider-app"
-	luandaWKT      = "MULTIPOLYGON(((12.9 -9.4,13.8 -9.4,13.8 -8.5,12.9 -8.5,12.9 -9.4)))"
 )
 
 var (
@@ -390,9 +389,7 @@ func (i *instance) shutdown() {
 }
 
 func seedPlatform(ctx context.Context, owner *pgxpool.Pool) error {
-	if _, err := owner.Exec(ctx, `INSERT INTO service_zones (country_code, name, geom, timezone, currency) VALUES ('AO', 'Luanda', ST_GeogFromText($1), 'Africa/Luanda', 'AOA')`, luandaWKT); err != nil {
-		return err
-	}
+	// A zona Luanda vem da migration 000043.
 	_, err := owner.Exec(ctx, `
 		INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps, free_wait_seconds)
 		SELECT s.id, 'AOA', t.base, t.km, t.minute, t.minimum, 1000, 2

@@ -1637,6 +1637,12 @@ definitions:
         items:
           $ref: '#/definitions/dtos.FareEstimateView'
         type: array
+      route:
+        allOf:
+        - $ref: '#/definitions/dtos.RouteView'
+        description: |-
+          Route is the trip through the stops, the same for every quoted service. Absent without a destination;
+          without Google (source fallback) it has no geometry and the app keeps the straight line.
     type: object
   dtos.FareEstimateView:
     properties:
@@ -3955,6 +3961,9 @@ definitions:
         type: array
       rating:
         $ref: '#/definitions/dtos.GivenRating'
+      route_geometry:
+        example: zmrv@cbdpA...
+        type: string
       scheduled_for:
         type: string
       service_id:
@@ -4127,6 +4136,8 @@ definitions:
       duration_s:
         type: integer
       geometry:
+        description: Google encoded polyline, precision 5
+        example: zmrv@cbdpA...
         type: string
       source:
         type: string
