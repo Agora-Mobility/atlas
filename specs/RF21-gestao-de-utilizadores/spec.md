@@ -197,6 +197,7 @@ O prefixo segue a decisão de Q5 (`/v1` pedido ou `/api/v1` em uso).
 | GET | `/v1/roles` | `roles:read` | Papéis do âmbito da organização do actor |
 | GET | `/v1/permissions` | `roles:read` | Catálogo de permissões do âmbito do actor |
 | POST | `/v1/invitations/accept` | público | Aceitar o convite (token, palavra-passe, OTP) |
+| GET | `/v1/partners/{orgId}` | `partners:read` (PLATFORM) | Um parceiro (404 `ORGANIZATION_NOT_FOUND` se não for parceiro) |
 | GET | `/v1/partners/{orgId}/members` | `partners:read` (PLATFORM) | Membros de um parceiro |
 | POST | `/v1/partners/{orgId}/members/invitations` | `partners:manage` (PLATFORM) | Convidar membros de um parceiro |
 

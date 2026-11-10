@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -89,5 +90,42 @@ func TestUpdatePartner_Rejections(t *testing.T) {
 		_, err = f.organizations.UpdatePartner(context.Background(), actorWith(r.platform, r.superAdmin), partner.ID, dtos.UpdatePartnerInput{NIF: ptr("5417123456")})
 
 		require.ErrorIs(t, err, usecases.ErrNIFAlreadyExists)
+	})
+}
+
+func TestGetPartner_ReturnsThePartner(t *testing.T) {
+	f := newFixture(t)
+	partner, err := entities.NewPartnerOrganization("Transportes Kianda", "5417123456")
+	require.NoError(t, err)
+	f.orgs.EXPECT().FindByID(gomock.Any(), partner.ID).Return(partner, nil)
+
+	out, err := f.organizations.GetPartner(context.Background(), partner.ID)
+
+	require.NoError(t, err)
+	assert.Equal(t, partner.ID, out.ID)
+	assert.Equal(t, "Transportes Kianda", out.Name)
+	assert.Equal(t, "5417123456", out.NIF)
+}
+
+func TestGetPartner_OnlyPartners(t *testing.T) {
+	r := newRBAC()
+
+	t.Run("platform organization", func(t *testing.T) {
+		f := newFixture(t)
+		f.orgs.EXPECT().FindByID(gomock.Any(), r.platform.ID).Return(r.platform, nil)
+
+		_, err := f.organizations.GetPartner(context.Background(), r.platform.ID)
+
+		require.ErrorIs(t, err, usecases.ErrOrganizationNotFound)
+	})
+
+	t.Run("unknown id", func(t *testing.T) {
+		f := newFixture(t)
+		id := uuid.New()
+		f.orgs.EXPECT().FindByID(gomock.Any(), id).Return(nil, nil)
+
+		_, err := f.organizations.GetPartner(context.Background(), id)
+
+		require.ErrorIs(t, err, usecases.ErrOrganizationNotFound)
 	})
 }

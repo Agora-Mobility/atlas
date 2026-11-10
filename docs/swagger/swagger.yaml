@@ -11449,6 +11449,39 @@ paths:
       tags:
       - Partners
   /api/v1/partners/{orgId}:
+    get:
+      description: Requires partners:read (AGORA only).
+      parameters:
+      - description: Partner organization id
+        in: path
+        name: orgId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OrganizationView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Partner not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a partner organization
+      tags:
+      - Partners
     patch:
       consumes:
       - application/json
