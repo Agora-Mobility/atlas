@@ -117,6 +117,7 @@ func (u *Usecase) removalEstimates(ctx context.Context, list *dtos.FareEstimateL
 		list.Items = append(list.Items, dtos.FareEstimateView{
 			FareEstimateID: id, ServiceID: service.ID, ServiceName: service.Name, ServiceSlug: service.Slug, TotalCents: total, Currency: tariff.Currency, DistanceM: route.DistanceMeters, DurationS: int(route.Duration.Seconds()),
 			RouteSource: string(route.Source), ExpiresInS: int(u.settings.FareEstimateTTL.Seconds()), VehicleTypeID: &typeID, VehicleType: vehicle.Label, Removal: &quote,
+			DemandFactorBps: entities.NeutralDemandFactorBps,
 		})
 	}
 	return nil

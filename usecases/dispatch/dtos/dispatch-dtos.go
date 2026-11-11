@@ -149,20 +149,22 @@ type RemovalInput struct {
 }
 
 type FareEstimateView struct {
-	FareEstimateID uuid.UUID              `json:"fare_estimate_id"`
-	ServiceID      uuid.UUID              `json:"service_id"`
-	ServiceName    string                 `json:"service_name"`
-	ServiceSlug    string                 `json:"service_slug"`
-	TotalCents     int64                  `json:"total_cents"`
-	Currency       string                 `json:"currency"`
-	DistanceM      int                    `json:"distance_m"`
-	DurationS      int                    `json:"duration_s"`
-	RouteSource    string                 `json:"route_source"`
-	ExpiresInS     int                    `json:"expires_in_s"`
-	VehicleTypeID  *uuid.UUID             `json:"vehicle_type_id,omitempty"`
-	VehicleType    string                 `json:"vehicle_type,omitempty"`
-	IncludedKm     *int64                 `json:"included_km,omitempty"`
-	Removal        *entities.RemovalQuote `json:"removal,omitempty"`
+	FareEstimateID  uuid.UUID              `json:"fare_estimate_id"`
+	ServiceID       uuid.UUID              `json:"service_id"`
+	ServiceName     string                 `json:"service_name"`
+	ServiceSlug     string                 `json:"service_slug"`
+	TotalCents      int64                  `json:"total_cents"`
+	Currency        string                 `json:"currency"`
+	DistanceM       int                    `json:"distance_m"`
+	DurationS       int                    `json:"duration_s"`
+	RouteSource     string                 `json:"route_source"`
+	ExpiresInS      int                    `json:"expires_in_s"`
+	VehicleTypeID   *uuid.UUID             `json:"vehicle_type_id,omitempty"`
+	VehicleType     string                 `json:"vehicle_type,omitempty"`
+	IncludedKm      *int64                 `json:"included_km,omitempty"`
+	Removal         *entities.RemovalQuote `json:"removal,omitempty"`
+	DemandFactorBps int                    `json:"demand_factor_bps" example:"10000"`
+	HighDemand      bool                   `json:"high_demand"`
 }
 
 type FareEstimateList struct {
@@ -678,6 +680,56 @@ type TariffInput struct {
 	CommissionBps     int        `json:"commission_bps" binding:"min=0,max=10000"`
 }
 
+type DemandTierInput struct {
+	AboveRatioBps int `json:"above_ratio_bps" binding:"min=0" example:"15000"`
+	FactorBps     int `json:"factor_bps" binding:"min=10000,max=30000" example:"12000"`
+}
+
+type DemandPricingInput struct {
+	ZoneID            uuid.UUID         `json:"zone_id" binding:"required"`
+	Category          string            `json:"category" binding:"required" example:"taxi"`
+	Mode              string            `json:"mode" binding:"required,oneof=off observe on" example:"observe"`
+	Tiers             []DemandTierInput `json:"tiers" binding:"max=10,dive"`
+	MaxFactorBps      int               `json:"max_factor_bps" binding:"min=10000,max=30000" example:"13000"`
+	CommissionOnSurge bool              `json:"commission_on_surge"`
+}
+
+type DemandPricingView struct {
+	ID         uuid.UUID `json:"id"`
+	CategoryID uuid.UUID `json:"category_id"`
+	DemandPricingInput
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type DemandPricingList struct {
+	Items []DemandPricingView `json:"items"`
+}
+
+type DemandAreaView struct {
+	Cell      string  `json:"cell"`
+	Lat       float64 `json:"lat"`
+	Lng       float64 `json:"lng"`
+	RatioBps  int     `json:"ratio_bps" example:"17000"`
+	FactorBps int     `json:"factor_bps" example:"12000"`
+}
+
+type DemandAreaList struct {
+	Resolution int              `json:"resolution"`
+	Items      []DemandAreaView `json:"items"`
+}
+
+type DemandSnapshotView struct {
+	DemandAreaView
+	Pending    int       `json:"pending"`
+	Free       int       `json:"free"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
+type DemandHistory struct {
+	Resolution int                  `json:"resolution"`
+	Items      []DemandSnapshotView `json:"items"`
+}
+
 type TariffView struct {
 	ID uuid.UUID `json:"id"`
 	TariffInput
@@ -702,5 +754,60 @@ type HeatCell struct {
 
 type HeatMap struct {
 	Resolution int        `json:"resolution"`
+	From       time.Time  `json:"from"`
+	To         time.Time  `json:"to"`
 	Cells      []HeatCell `json:"cells"`
+}
+
+type DemandQuery struct {
+	Position *entities.GeoPoint
+}
+
+type DemandCell struct {
+	Cell     string       `json:"cell" example:"88754e64d3fffff"`
+	Level    int          `json:"level" example:"3" enums:"1,2,3"`
+	Boundary [][2]float64 `json:"boundary" swaggertype:"array,array,number"`
+}
+
+type DemandView struct {
+	Category      string       `json:"category" example:"taxi"`
+	WindowMinutes int          `json:"window_minutes" example:"60"`
+	RadiusKm      float64      `json:"radius_km" example:"10"`
+	ExpiresAt     time.Time    `json:"expires_at"`
+	Cells         []DemandCell `json:"cells"`
+}
+
+type HeatQuery struct {
+	From     *time.Time
+	To       *time.Time
+	ZoneID   *uuid.UUID
+	Category string
+}
+
+type FlowQuery struct {
+	HeatQuery
+	MinRequests int
+	Limit       int
+}
+
+type HeatPoint struct {
+	Cell string  `json:"cell"`
+	Lat  float64 `json:"lat"`
+	Lng  float64 `json:"lng"`
+}
+
+type CellFlow struct {
+	Origin      HeatPoint `json:"origin"`
+	Destination HeatPoint `json:"destination"`
+	Requests    int64     `json:"requests"`
+}
+
+type FlowMap struct {
+	Resolution  int        `json:"resolution"`
+	From        time.Time  `json:"from"`
+	To          time.Time  `json:"to"`
+	MinRequests int        `json:"min_requests"`
+	Total       int64      `json:"total"`
+	Hidden      int64      `json:"hidden"`
+	Flows       []CellFlow `json:"flows"`
 }

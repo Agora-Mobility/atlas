@@ -465,6 +465,9 @@ func (u *Usecase) recordCompletion(ctx context.Context, request *entities.Servic
 	if err := u.Providers.TouchJobCompleted(ctx, providerID, now); err != nil {
 		return err
 	}
+	if err := u.recordTripMetrics(ctx, request, now); err != nil {
+		return err
+	}
 	if request.StartedAt == nil || request.DestinationH3 == nil {
 		return nil
 	}
@@ -477,6 +480,32 @@ func (u *Usecase) recordCompletion(ctx context.Context, request *entities.Servic
 		location = zone.Location()
 	}
 	return u.Pricing.RecordETA(ctx, request.PickupH3R8, *request.DestinationH3, now.In(location).Hour(), now.Sub(*request.StartedAt))
+}
+
+func (u *Usecase) recordTripMetrics(ctx context.Context, request *entities.ServiceRequest, now time.Time) error {
+	if request.StartedAt == nil || request.Fare.EstimateID == nil {
+		return nil
+	}
+	estimate, err := u.Pricing.FindEstimate(ctx, *request.Fare.EstimateID)
+	if err != nil || estimate == nil || estimate.Destination == nil {
+		return err
+	}
+	distance, samples, err := u.Pricing.TrackedDistance(ctx, request.ID, *request.StartedAt)
+	if err != nil {
+		return err
+	}
+	adjustments, err := u.Requests.ListFareAdjustments(ctx, request.ID)
+	if err != nil {
+		return err
+	}
+	routeChanged := false
+	for i := range adjustments {
+		routeChanged = routeChanged || adjustments[i].Reason == entities.AdjustmentRouteChange
+	}
+	return u.Pricing.SaveTripMetrics(ctx, entities.NewTripMetrics(entities.TripMetricsInput{
+		RequestID: request.ID, EstimatedDistanceM: estimate.DistanceMeters, EstimatedDurationS: estimate.DurationSeconds, ActualDistanceM: distance,
+		ActualDuration: now.Sub(*request.StartedAt), Samples: samples, SampleEvery: sampleEvery, RouteChanged: routeChanged, ReviewAboveBps: u.settings.RouteReviewAboveBps, RecordedAt: now,
+	}))
 }
 
 func (u *Usecase) syncTrip(ctx context.Context, request *entities.ServiceRequest, policy *entities.DispatchPolicy) {

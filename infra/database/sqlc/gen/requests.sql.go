@@ -161,6 +161,7 @@ func (q *Queries) ActiveRequestOfProvider(ctx context.Context, providerID *uuid.
 
 const countAdminRequests = `-- name: CountAdminRequests :one
 SELECT count(*) FROM service_requests r
+LEFT JOIN request_trip_metrics tm ON tm.request_id = r.id
 WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($2::text = '' OR r.category_slug = $2::text)
   AND ($3::uuid IS NULL OR r.service_id = $3)
@@ -169,6 +170,7 @@ WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($6::uuid IS NULL OR r.provider_id = $6)
   AND ($7::timestamptz IS NULL OR r.created_at >= $7)
   AND ($8::timestamptz IS NULL OR r.created_at < $8)
+  AND (NOT $9::boolean OR tm.needs_review)
 `
 
 type CountAdminRequestsParams struct {
@@ -180,6 +182,7 @@ type CountAdminRequestsParams struct {
 	ProviderID     *uuid.UUID `json:"provider_id"`
 	CreatedFrom    *time.Time `json:"created_from"`
 	CreatedTo      *time.Time `json:"created_to"`
+	RouteReview    bool       `json:"route_review"`
 }
 
 func (q *Queries) CountAdminRequests(ctx context.Context, arg CountAdminRequestsParams) (int64, error) {
@@ -192,6 +195,7 @@ func (q *Queries) CountAdminRequests(ctx context.Context, arg CountAdminRequests
 		arg.ProviderID,
 		arg.CreatedFrom,
 		arg.CreatedTo,
+		arg.RouteReview,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -230,13 +234,17 @@ func (q *Queries) DeleteServiceRequestStops(ctx context.Context, requestID uuid.
 const demandByCell = `-- name: DemandByCell :many
 SELECT pickup_h3_r8, count(*) AS requests
 FROM service_requests
-WHERE created_at >= $1::timestamptz AND ($2::uuid IS NULL OR zone_id = $2)
+WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz
+  AND ($3::uuid IS NULL OR zone_id = $3)
+  AND ($4::text = '' OR category_slug = $4)
 GROUP BY pickup_h3_r8
 `
 
 type DemandByCellParams struct {
-	Since  time.Time  `json:"since"`
-	ZoneID *uuid.UUID `json:"zone_id"`
+	FromAt   time.Time  `json:"from_at"`
+	ToAt     time.Time  `json:"to_at"`
+	ZoneID   *uuid.UUID `json:"zone_id"`
+	Category string     `json:"category"`
 }
 
 type DemandByCellRow struct {
@@ -245,7 +253,12 @@ type DemandByCellRow struct {
 }
 
 func (q *Queries) DemandByCell(ctx context.Context, arg DemandByCellParams) ([]DemandByCellRow, error) {
-	rows, err := q.db.Query(ctx, demandByCell, arg.Since, arg.ZoneID)
+	rows, err := q.db.Query(ctx, demandByCell,
+		arg.FromAt,
+		arg.ToAt,
+		arg.ZoneID,
+		arg.Category,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -436,6 +449,54 @@ func (q *Queries) FindServiceRequestByIdempotencyKey(ctx context.Context, arg Fi
 		&i.RouteGeometry,
 	)
 	return i, err
+}
+
+const flowsByCell = `-- name: FlowsByCell :many
+SELECT pickup_h3_r8, destination_h3_r8::bigint AS destination_h3_r8, count(*) AS requests
+FROM service_requests
+WHERE destination_h3_r8 IS NOT NULL
+  AND created_at >= $1::timestamptz AND created_at < $2::timestamptz
+  AND ($3::uuid IS NULL OR zone_id = $3)
+  AND ($4::text = '' OR category_slug = $4)
+GROUP BY pickup_h3_r8, destination_h3_r8
+`
+
+type FlowsByCellParams struct {
+	FromAt   time.Time  `json:"from_at"`
+	ToAt     time.Time  `json:"to_at"`
+	ZoneID   *uuid.UUID `json:"zone_id"`
+	Category string     `json:"category"`
+}
+
+type FlowsByCellRow struct {
+	PickupH3R8      int64 `json:"pickup_h3_r8"`
+	DestinationH3R8 int64 `json:"destination_h3_r8"`
+	Requests        int64 `json:"requests"`
+}
+
+func (q *Queries) FlowsByCell(ctx context.Context, arg FlowsByCellParams) ([]FlowsByCellRow, error) {
+	rows, err := q.db.Query(ctx, flowsByCell,
+		arg.FromAt,
+		arg.ToAt,
+		arg.ZoneID,
+		arg.Category,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FlowsByCellRow{}
+	for rows.Next() {
+		var i FlowsByCellRow
+		if err := rows.Scan(&i.PickupH3R8, &i.DestinationH3R8, &i.Requests); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPassengerNotice = `-- name: GetPassengerNotice :one
@@ -950,7 +1011,8 @@ func (q *Queries) ListActiveRequestsOfCustomerService(ctx context.Context, arg L
 const listAdminRequests = `-- name: ListAdminRequests :many
 SELECT r.id, r.status, r.version, r.category_slug, c.name AS category_name, r.service_id, s.name AS service_name, r.customer_id, cu.name AS customer_name,
        r.provider_id, pu.name AS provider_name, r.organization_id, o.name AS organization_name, r.zone_id, z.name AS zone_name, r.fare_cents, r.currency,
-       r.needs_operator, r.scheduled_for, r.created_at, r.completed_at, pa.line AS pickup_line, pa.lat AS pickup_lat, pa.lng AS pickup_lng, da.line AS destination_line
+       r.needs_operator, r.scheduled_for, r.created_at, r.completed_at, pa.line AS pickup_line, pa.lat AS pickup_lat, pa.lng AS pickup_lng, da.line AS destination_line,
+       tm.distance_deviation_bps, COALESCE(tm.needs_review, false)::boolean AS route_review
 FROM service_requests r
 JOIN service_categories c ON c.id = r.category_id
 JOIN services s ON s.id = r.service_id
@@ -960,6 +1022,7 @@ JOIN addresses pa ON pa.id = r.pickup_address_id
 LEFT JOIN addresses da ON da.id = r.destination_address_id
 LEFT JOIN users pu ON pu.id = r.provider_id
 LEFT JOIN organizations o ON o.id = r.organization_id
+LEFT JOIN request_trip_metrics tm ON tm.request_id = r.id
 WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($2::text = '' OR r.category_slug = $2::text)
   AND ($3::uuid IS NULL OR r.service_id = $3)
@@ -968,8 +1031,9 @@ WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($6::uuid IS NULL OR r.provider_id = $6)
   AND ($7::timestamptz IS NULL OR r.created_at >= $7)
   AND ($8::timestamptz IS NULL OR r.created_at < $8)
+  AND (NOT $9::boolean OR tm.needs_review)
 ORDER BY r.created_at DESC
-LIMIT $10 OFFSET $9
+LIMIT $11 OFFSET $10
 `
 
 type ListAdminRequestsParams struct {
@@ -981,36 +1045,39 @@ type ListAdminRequestsParams struct {
 	ProviderID     *uuid.UUID `json:"provider_id"`
 	CreatedFrom    *time.Time `json:"created_from"`
 	CreatedTo      *time.Time `json:"created_to"`
+	RouteReview    bool       `json:"route_review"`
 	PageOffset     int32      `json:"page_offset"`
 	PageLimit      int32      `json:"page_limit"`
 }
 
 type ListAdminRequestsRow struct {
-	ID               uuid.UUID  `json:"id"`
-	Status           string     `json:"status"`
-	Version          int32      `json:"version"`
-	CategorySlug     string     `json:"category_slug"`
-	CategoryName     string     `json:"category_name"`
-	ServiceID        uuid.UUID  `json:"service_id"`
-	ServiceName      string     `json:"service_name"`
-	CustomerID       uuid.UUID  `json:"customer_id"`
-	CustomerName     string     `json:"customer_name"`
-	ProviderID       *uuid.UUID `json:"provider_id"`
-	ProviderName     *string    `json:"provider_name"`
-	OrganizationID   *uuid.UUID `json:"organization_id"`
-	OrganizationName *string    `json:"organization_name"`
-	ZoneID           uuid.UUID  `json:"zone_id"`
-	ZoneName         string     `json:"zone_name"`
-	FareCents        *int64     `json:"fare_cents"`
-	Currency         string     `json:"currency"`
-	NeedsOperator    bool       `json:"needs_operator"`
-	ScheduledFor     *time.Time `json:"scheduled_for"`
-	CreatedAt        time.Time  `json:"created_at"`
-	CompletedAt      *time.Time `json:"completed_at"`
-	PickupLine       string     `json:"pickup_line"`
-	PickupLat        float64    `json:"pickup_lat"`
-	PickupLng        float64    `json:"pickup_lng"`
-	DestinationLine  *string    `json:"destination_line"`
+	ID                   uuid.UUID  `json:"id"`
+	Status               string     `json:"status"`
+	Version              int32      `json:"version"`
+	CategorySlug         string     `json:"category_slug"`
+	CategoryName         string     `json:"category_name"`
+	ServiceID            uuid.UUID  `json:"service_id"`
+	ServiceName          string     `json:"service_name"`
+	CustomerID           uuid.UUID  `json:"customer_id"`
+	CustomerName         string     `json:"customer_name"`
+	ProviderID           *uuid.UUID `json:"provider_id"`
+	ProviderName         *string    `json:"provider_name"`
+	OrganizationID       *uuid.UUID `json:"organization_id"`
+	OrganizationName     *string    `json:"organization_name"`
+	ZoneID               uuid.UUID  `json:"zone_id"`
+	ZoneName             string     `json:"zone_name"`
+	FareCents            *int64     `json:"fare_cents"`
+	Currency             string     `json:"currency"`
+	NeedsOperator        bool       `json:"needs_operator"`
+	ScheduledFor         *time.Time `json:"scheduled_for"`
+	CreatedAt            time.Time  `json:"created_at"`
+	CompletedAt          *time.Time `json:"completed_at"`
+	PickupLine           string     `json:"pickup_line"`
+	PickupLat            float64    `json:"pickup_lat"`
+	PickupLng            float64    `json:"pickup_lng"`
+	DestinationLine      *string    `json:"destination_line"`
+	DistanceDeviationBps *int32     `json:"distance_deviation_bps"`
+	RouteReview          bool       `json:"route_review"`
 }
 
 func (q *Queries) ListAdminRequests(ctx context.Context, arg ListAdminRequestsParams) ([]ListAdminRequestsRow, error) {
@@ -1023,6 +1090,7 @@ func (q *Queries) ListAdminRequests(ctx context.Context, arg ListAdminRequestsPa
 		arg.ProviderID,
 		arg.CreatedFrom,
 		arg.CreatedTo,
+		arg.RouteReview,
 		arg.PageOffset,
 		arg.PageLimit,
 	)
@@ -1059,6 +1127,8 @@ func (q *Queries) ListAdminRequests(ctx context.Context, arg ListAdminRequestsPa
 			&i.PickupLat,
 			&i.PickupLng,
 			&i.DestinationLine,
+			&i.DistanceDeviationBps,
+			&i.RouteReview,
 		); err != nil {
 			return nil, err
 		}

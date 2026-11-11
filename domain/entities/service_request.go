@@ -134,6 +134,7 @@ type RequestFare struct {
 	VehicleTypeID   *uuid.UUID
 	EstimateDetails json.RawMessage
 	RouteGeometry   string
+	DemandCents     int64
 }
 
 func (f RequestFare) ProviderNetCents() *int64 {

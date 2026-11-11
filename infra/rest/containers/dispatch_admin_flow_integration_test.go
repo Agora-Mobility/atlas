@@ -138,6 +138,14 @@ func TestDispatchBackofficeFlow(t *testing.T) {
 		require.Equal(t, http.StatusOK, heat.status, heat.body)
 		assert.EqualValues(t, 8, heat.body["resolution"])
 
+		flows := a.call(http.MethodGet, "/api/v1/admin/dispatch/flows?category=taxi&min_requests=1", backofficeApp, adminToken, nil)
+		require.Equal(t, http.StatusOK, flows.status, flows.body)
+		assert.EqualValues(t, 1, flows.body["min_requests"])
+		assert.Empty(t, flows.body["flows"])
+
+		badPeriod := a.call(http.MethodGet, "/api/v1/admin/dispatch/heatmap?from=2026-01-02T00:00:00Z&to=2026-01-01T00:00:00Z", backofficeApp, adminToken, nil)
+		assert.Equal(t, "INVALID_PERIOD", badPeriod.code())
+
 		missing := a.call(http.MethodGet, "/api/v1/admin/dispatch/requests/0192f1d2-7c3a-7b4e-9a10-2f3c4d5e6f70", backofficeApp, adminToken, nil)
 		assert.Equal(t, "REQUEST_NOT_FOUND", missing.code())
 	})

@@ -83,6 +83,22 @@ func (Index) Center(cell int64) (entities.GeoPoint, error) {
 	return entities.GeoPoint{Lat: center.Lat, Lng: center.Lng}, nil
 }
 
+func (Index) Parent(cell int64, resolution int) (int64, error) {
+	parent, err := h3.Cell(cell).Parent(resolution)
+	if err != nil {
+		return 0, fmt.Errorf("h3 parent: %w", err)
+	}
+	return int64(parent), nil
+}
+
+func (Index) Children(cell int64, resolution int) ([]int64, error) {
+	children, err := h3.Cell(cell).Children(resolution)
+	if err != nil {
+		return nil, fmt.Errorf("h3 children: %w", err)
+	}
+	return toInt64s(children), nil
+}
+
 func (Index) Format(cell int64) string {
 	return h3.Cell(cell).String()
 }
@@ -155,4 +171,16 @@ func toInt64s(cells []h3.Cell) []int64 {
 		}
 	}
 	return out
+}
+
+func (Index) Boundary(cell int64) ([]entities.GeoPoint, error) {
+	boundary, err := h3.Cell(cell).Boundary()
+	if err != nil {
+		return nil, fmt.Errorf("h3 boundary: %w", err)
+	}
+	out := make([]entities.GeoPoint, 0, len(boundary))
+	for _, vertex := range boundary {
+		out = append(out, entities.GeoPoint{Lat: vertex.Lat, Lng: vertex.Lng})
+	}
+	return out, nil
 }

@@ -122,6 +122,20 @@ func (uc *OrganizationUsecase) UpdatePartner(ctx context.Context, actor StaffAct
 	return &after, nil
 }
 
+// GetPartner returns one partner organization. Any other organization, such as
+// the platform one, is not found.
+func (uc *OrganizationUsecase) GetPartner(ctx context.Context, organizationID uuid.UUID) (*dtos.OrganizationView, error) {
+	org, err := uc.orgRepo.FindByID(ctx, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	if org == nil || !org.IsPartner() {
+		return nil, ErrOrganizationNotFound
+	}
+	view := dtos.ToOrganizationView(org)
+	return &view, nil
+}
+
 func (uc *OrganizationUsecase) ListPartners(ctx context.Context, query dtos.PartnerListQuery) (*dtos.OrganizationPage, error) {
 	params := pagination.Params{Page: query.Page, Size: query.Size}
 	orgs, total, err := uc.orgRepo.ListPartners(ctx, query.Search, params)

@@ -84,6 +84,10 @@ func (t *ServiceTariff) FareForRoute(distanceMeters int, duration time.Duration,
 	return t.FareFor(distanceMeters, duration, localTime) + int64(stops)*t.StopFeeCents
 }
 
+func (t *ServiceTariff) Quote(baseCents int64, demand DemandQuote) QuotedFare {
+	return QuoteFare(baseCents, t.CommissionBps, demand)
+}
+
 func (t *ServiceTariff) CommissionFor(fareCents int64) int64 {
 	return roundedDivide(fareCents*int64(t.CommissionBps), bpsDenominator)
 }
@@ -112,26 +116,41 @@ func roundedDivide(value, divisor int64) int64 {
 }
 
 type FareEstimate struct {
-	ID              uuid.UUID
-	CustomerID      uuid.UUID
-	TariffID        uuid.UUID
-	ServiceID       uuid.UUID
-	Origin          GeoPoint
-	Destination     *GeoPoint
-	Stops           []GeoPoint
-	ScheduledFor    *time.Time
-	UsedAt          *time.Time
-	VehicleTypeID   *uuid.UUID
-	Details         json.RawMessage
-	DistanceMeters  int
-	DurationSeconds int
-	RouteSource     string
-	RouteGeometry   string
-	TotalCents      int64
-	CommissionCents int64
-	Currency        string
-	ExpiresAt       time.Time
-	CreatedAt       time.Time
+	ID                 uuid.UUID
+	CustomerID         uuid.UUID
+	TariffID           uuid.UUID
+	ServiceID          uuid.UUID
+	Origin             GeoPoint
+	Destination        *GeoPoint
+	Stops              []GeoPoint
+	ScheduledFor       *time.Time
+	UsedAt             *time.Time
+	VehicleTypeID      *uuid.UUID
+	Details            json.RawMessage
+	DistanceMeters     int
+	DurationSeconds    int
+	RouteSource        string
+	RouteGeometry      string
+	TotalCents         int64
+	CommissionCents    int64
+	DemandFactorBps    int
+	DemandCents        int64
+	DemandCommissioned bool
+	Currency           string
+	ExpiresAt          time.Time
+	CreatedAt          time.Time
+}
+
+func (e *FareEstimate) Demand() DemandQuote {
+	if e.DemandFactorBps < NeutralDemandFactorBps {
+		return NeutralDemand()
+	}
+	return DemandQuote{FactorBps: e.DemandFactorBps, Commissions: e.DemandCommissioned}
+}
+
+func (e *FareEstimate) Apply(quote QuotedFare) {
+	e.TotalCents, e.CommissionCents = quote.TotalCents, quote.CommissionCents
+	e.DemandFactorBps, e.DemandCents, e.DemandCommissioned = quote.DemandFactorBps, quote.DemandCents, quote.DemandCommissioned
 }
 
 func (e *FareEstimate) IsExpired(now time.Time) bool {
@@ -169,6 +188,7 @@ const (
 	AdjustmentBoost       FareAdjustmentReason = "boost"
 	AdjustmentWaiting     FareAdjustmentReason = "waiting"
 	AdjustmentRouteChange FareAdjustmentReason = "route_change"
+	AdjustmentDemand      FareAdjustmentReason = "demand"
 )
 
 type FareAdjustment struct {

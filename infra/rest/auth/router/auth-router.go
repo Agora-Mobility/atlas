@@ -126,6 +126,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	partners := staff.Group("/partners")
 	partners.GET("", can(entities.PermPartnersRead), r.partners.List)
 	partners.POST("", can(entities.PermPartnersManage), r.partners.Create)
+	partners.GET("/:orgId", can(entities.PermPartnersRead), r.partners.Get)
 	partners.PATCH("/:orgId", can(entities.PermPartnersManage), r.partners.Update)
 	partners.GET("/:orgId/roles", can(entities.PermPartnersRead), r.partners.ListRoles)
 	partners.GET("/:orgId/members", can(entities.PermPartnersRead), r.partners.ListMembers)

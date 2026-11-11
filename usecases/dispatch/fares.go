@@ -90,6 +90,7 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 	if err != nil {
 		return nil, err
 	}
+	demand := u.demandFor(ctx, customerID, zone, &offered[0], pickup, in.ScheduledFor != nil, now)
 	for i := range offered {
 		service := &offered[i]
 		tariff, err := u.Pricing.CurrentTariff(ctx, service.ID, zone.ID)
@@ -106,12 +107,12 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 			continue
 		}
 		if len(vehicleTypes) > 0 {
-			if err := u.towingEstimates(ctx, list, vehicleTypes, service, tariff, customerID, pickup, destination, stops, in, route, now, expiresAt); err != nil {
+			if err := u.towingEstimates(ctx, list, vehicleTypes, service, tariff, demand, customerID, pickup, destination, stops, in, route, now, expiresAt); err != nil {
 				return nil, err
 			}
 			continue
 		}
-		total := tariff.FareForRoute(route.DistanceMeters, route.Duration, local, len(stops))
+		quote := tariff.Quote(tariff.FareForRoute(route.DistanceMeters, route.Duration, local, len(stops)), demand)
 		id, err := newUUID()
 		if err != nil {
 			return nil, err
@@ -119,15 +120,17 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 		estimate := &entities.FareEstimate{
 			ID: id, CustomerID: customerID, TariffID: tariff.ID, ServiceID: service.ID, Origin: pickup, Destination: destination, Stops: stops, ScheduledFor: in.ScheduledFor,
 			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source), RouteGeometry: route.Geometry,
-			TotalCents: total, CommissionCents: tariff.CommissionFor(total), Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
+			Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
 		}
+		estimate.Apply(quote)
 		if err := u.Pricing.CreateEstimate(ctx, estimate); err != nil {
 			return nil, err
 		}
 		businessmetrics.FareQuotes.WithLabelValues(in.Category, string(route.Source), "estimate").Inc()
 		list.Items = append(list.Items, dtos.FareEstimateView{
-			FareEstimateID: id, ServiceID: service.ID, ServiceName: service.Name, ServiceSlug: service.Slug, TotalCents: total, Currency: tariff.Currency,
+			FareEstimateID: id, ServiceID: service.ID, ServiceName: service.Name, ServiceSlug: service.Slug, TotalCents: quote.TotalCents, Currency: tariff.Currency,
 			DistanceM: route.DistanceMeters, DurationS: int(route.Duration.Seconds()), RouteSource: string(route.Source), ExpiresInS: int(u.settings.FareEstimateTTL.Seconds()),
+			DemandFactorBps: quote.DemandFactorBps, HighDemand: demand.IsHigh(),
 		})
 	}
 	if len(list.Items) == 0 {
@@ -136,10 +139,10 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 	return list, nil
 }
 
-func (u *Usecase) towingEstimates(ctx context.Context, list *dtos.FareEstimateList, vehicleTypes []entities.CatalogItem, service *entities.DispatchService, tariff *entities.ServiceTariff, customerID uuid.UUID, pickup entities.GeoPoint, destination *entities.GeoPoint, stops []entities.GeoPoint, in dtos.FareEstimateInput, route services.Route, now, expiresAt time.Time) error {
+func (u *Usecase) towingEstimates(ctx context.Context, list *dtos.FareEstimateList, vehicleTypes []entities.CatalogItem, service *entities.DispatchService, tariff *entities.ServiceTariff, demand entities.DemandQuote, customerID uuid.UUID, pickup entities.GeoPoint, destination *entities.GeoPoint, stops []entities.GeoPoint, in dtos.FareEstimateInput, route services.Route, now, expiresAt time.Time) error {
 	for i := range vehicleTypes {
 		vehicleType := &vehicleTypes[i]
-		total := entities.TowingFare(vehicleType, vehicleType.PriceAt(now), route.DistanceMeters)
+		quote := tariff.Quote(entities.TowingFare(vehicleType, vehicleType.PriceAt(now), route.DistanceMeters), demand)
 		id, err := newUUID()
 		if err != nil {
 			return err
@@ -148,15 +151,17 @@ func (u *Usecase) towingEstimates(ctx context.Context, list *dtos.FareEstimateLi
 		estimate := &entities.FareEstimate{
 			ID: id, CustomerID: customerID, TariffID: tariff.ID, ServiceID: service.ID, Origin: pickup, Destination: destination, Stops: stops, ScheduledFor: in.ScheduledFor, VehicleTypeID: &typeID,
 			DistanceMeters: route.DistanceMeters, DurationSeconds: int(route.Duration.Seconds()), RouteSource: string(route.Source), RouteGeometry: route.Geometry,
-			TotalCents: total, CommissionCents: tariff.CommissionFor(total), Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
+			Currency: tariff.Currency, ExpiresAt: expiresAt, CreatedAt: now,
 		}
+		estimate.Apply(quote)
 		if err := u.Pricing.CreateEstimate(ctx, estimate); err != nil {
 			return err
 		}
 		included := vehicleType.AttrInt(entities.AttrIncludedKm)
 		list.Items = append(list.Items, dtos.FareEstimateView{
-			FareEstimateID: id, ServiceID: service.ID, ServiceName: service.Name, ServiceSlug: service.Slug, TotalCents: total, Currency: tariff.Currency, DistanceM: route.DistanceMeters,
+			FareEstimateID: id, ServiceID: service.ID, ServiceName: service.Name, ServiceSlug: service.Slug, TotalCents: quote.TotalCents, Currency: tariff.Currency, DistanceM: route.DistanceMeters,
 			DurationS: int(route.Duration.Seconds()), RouteSource: string(route.Source), ExpiresInS: int(u.settings.FareEstimateTTL.Seconds()), VehicleTypeID: &typeID, VehicleType: vehicleType.Label, IncludedKm: &included,
+			DemandFactorBps: quote.DemandFactorBps, HighDemand: demand.IsHigh(),
 		})
 	}
 	return nil
