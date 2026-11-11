@@ -143,6 +143,11 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 				return ErrFareEstimateUsed
 			}
 		}
+		if request.Fare.DemandCents > 0 {
+			if err := u.Requests.AddFareAdjustment(ctx, entities.FareAdjustment{RequestID: request.ID, Reason: entities.AdjustmentDemand, AmountCents: request.Fare.DemandCents, CreatedAt: now}); err != nil {
+				return err
+			}
+		}
 		created := &entities.RequestStatusChange{To: entities.RequestCreated, Version: request.Version, Actor: entities.RequestActor{Type: entities.RequestActorCustomer, ID: &customerID}, At: now}
 		if err := u.announceTransition(ctx, request, created, policy); err != nil {
 			return err
@@ -297,7 +302,7 @@ func (u *Usecase) resolveFare(ctx context.Context, customerID uuid.UUID, service
 	}
 	id := estimate.ID
 	total, commission := estimate.TotalCents, estimate.CommissionCents
-	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency, VehicleTypeID: estimate.VehicleTypeID, EstimateDetails: estimate.Details, RouteGeometry: estimate.RouteGeometry}, nil
+	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency, VehicleTypeID: estimate.VehicleTypeID, EstimateDetails: estimate.Details, RouteGeometry: estimate.RouteGeometry, DemandCents: estimate.DemandCents}, nil
 }
 
 func (u *Usecase) GetRequest(ctx context.Context, userID, requestID uuid.UUID) (*dtos.RequestView, error) {
@@ -613,7 +618,8 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 				base = entities.TowingFare(vehicleType, vehicleType.PriceAt(estimate.CreatedAt), route.DistanceMeters)
 			}
 		}
-		boosted := base + base*int64(request.Fare.BoostBps)/10_000
+		quote := tariff.Quote(base, estimate.Demand())
+		boosted := quote.TotalCents + quote.TotalCents*int64(request.Fare.BoostBps)/10_000
 		difference := boosted - *request.Fare.Cents
 		if err := u.repriceVoucher(ctx, request, boosted); err != nil {
 			return err
@@ -622,7 +628,7 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 		if err != nil {
 			return err
 		}
-		if err := request.ChangeRoute(destination, stops, policy, boosted, tariff.CommissionFor(base), route.Geometry); err != nil {
+		if err := request.ChangeRoute(destination, stops, policy, boosted, quote.CommissionCents, route.Geometry); err != nil {
 			return err
 		}
 		cell, err := u.Geo.Cell(destination.Point, analyticsResolution)

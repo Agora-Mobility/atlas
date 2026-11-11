@@ -36,7 +36,7 @@ var summaryKeys = map[string]summaryKey{
 func toRepositoryFilter(filter *dtos.AdminRequestFilter) repository.AdminRequestFilter {
 	return repository.AdminRequestFilter{
 		Statuses: filter.Statuses, Category: filter.Category, ServiceID: filter.ServiceID, ZoneID: filter.ZoneID, OrganizationID: filter.OrganizationID,
-		ProviderID: filter.ProviderID, From: filter.From, To: filter.To,
+		ProviderID: filter.ProviderID, From: filter.From, To: filter.To, RouteReview: filter.RouteReview,
 	}
 }
 
@@ -56,7 +56,7 @@ func (u *Usecase) ListAdminRequests(ctx context.Context, filter *dtos.AdminReque
 			CustomerID: row.CustomerID, CustomerName: row.CustomerName, ProviderID: row.ProviderID, ProviderName: row.ProviderName, OrganizationID: row.OrganizationID,
 			OrganizationName: row.OrganizationName, ZoneID: row.ZoneID, ZoneName: row.ZoneName, FareCents: row.FareCents, Currency: row.Currency, NeedsOperator: row.NeedsOperator,
 			ScheduledFor: row.ScheduledFor, CreatedAt: row.CreatedAt, CompletedAt: row.CompletedAt, PickupLine: row.PickupLine, PickupLat: row.PickupLat, PickupLng: row.PickupLng,
-			DestinationLine: row.DestinationLine,
+			DestinationLine: row.DestinationLine, DeviationBps: row.DeviationBps, RouteReview: row.RouteReview,
 		})
 	}
 	return list, nil
@@ -113,6 +113,17 @@ func (u *Usecase) GetAdminRequest(ctx context.Context, requestID uuid.UUID) (*dt
 		return nil, err
 	}
 	detail := &dtos.AdminRequestDetail{Request: *view, History: make([]dtos.RequestHistoryEntry, 0, len(entries))}
+	metrics, err := u.Pricing.FindTripMetrics(ctx, requestID)
+	if err != nil {
+		return nil, err
+	}
+	if metrics != nil {
+		detail.Trip = &dtos.TripMetricsView{
+			EstimatedDistanceM: metrics.EstimatedDistanceM, EstimatedDurationS: metrics.EstimatedDurationS, ActualDistanceM: metrics.ActualDistanceM,
+			ActualDurationS: metrics.ActualDurationS, DistanceDeviationBps: metrics.DistanceDeviationBps, DurationDeviationBps: metrics.DurationDeviationBps,
+			Samples: metrics.Samples, RouteChanged: metrics.RouteChanged, NeedsReview: metrics.NeedsReview, RecordedAt: metrics.RecordedAt,
+		}
+	}
 	for i := range entries {
 		entry := &entries[i]
 		detail.History = append(detail.History, dtos.RequestHistoryEntry{

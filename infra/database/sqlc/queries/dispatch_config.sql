@@ -87,8 +87,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
 
 -- name: CreateFareEstimate :exec
 INSERT INTO fare_estimates (id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops,
-    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, vehicle_type_id, details, route_geometry)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
+    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, vehicle_type_id, details, route_geometry,
+    demand_factor_bps, demand_cents, demand_commissioned)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24);
 
 -- name: GetFareEstimate :one
 SELECT * FROM fare_estimates WHERE id = $1;
@@ -119,3 +120,26 @@ ORDER BY s.display_order;
 
 -- name: GetCategoryBySlug :one
 SELECT * FROM service_categories WHERE slug = $1;
+
+-- name: TrackedDistanceMeters :one
+SELECT COALESCE(sum(ST_Distance(ST_SetSRID(ST_MakePoint(s.lng, s.lat), 4326)::geography, ST_SetSRID(ST_MakePoint(s.previous_lng, s.previous_lat), 4326)::geography)
+           ) FILTER (WHERE s.previous_lat IS NOT NULL), 0)::bigint AS meters,
+       count(*)::integer AS samples
+FROM (
+    SELECT lat, lng, lag(lat) OVER (ORDER BY recorded_at) AS previous_lat, lag(lng) OVER (ORDER BY recorded_at) AS previous_lng
+    FROM provider_location_samples
+    WHERE request_id = sqlc.arg(request_id) AND recorded_at >= sqlc.arg(since)::timestamptz
+) s;
+
+-- name: UpsertTripMetrics :exec
+INSERT INTO request_trip_metrics (request_id, estimated_distance_m, estimated_duration_s, actual_distance_m, actual_duration_s,
+    distance_deviation_bps, duration_deviation_bps, samples, route_changed, needs_review, recorded_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+ON CONFLICT (request_id) DO UPDATE SET
+    estimated_distance_m = EXCLUDED.estimated_distance_m, estimated_duration_s = EXCLUDED.estimated_duration_s,
+    actual_distance_m = EXCLUDED.actual_distance_m, actual_duration_s = EXCLUDED.actual_duration_s,
+    distance_deviation_bps = EXCLUDED.distance_deviation_bps, duration_deviation_bps = EXCLUDED.duration_deviation_bps, samples = EXCLUDED.samples,
+    route_changed = EXCLUDED.route_changed, needs_review = EXCLUDED.needs_review, recorded_at = EXCLUDED.recorded_at;
+
+-- name: GetTripMetrics :one
+SELECT * FROM request_trip_metrics WHERE request_id = $1;

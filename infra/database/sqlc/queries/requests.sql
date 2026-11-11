@@ -163,7 +163,8 @@ LIMIT $1;
 -- name: ListAdminRequests :many
 SELECT r.id, r.status, r.version, r.category_slug, c.name AS category_name, r.service_id, s.name AS service_name, r.customer_id, cu.name AS customer_name,
        r.provider_id, pu.name AS provider_name, r.organization_id, o.name AS organization_name, r.zone_id, z.name AS zone_name, r.fare_cents, r.currency,
-       r.needs_operator, r.scheduled_for, r.created_at, r.completed_at, pa.line AS pickup_line, pa.lat AS pickup_lat, pa.lng AS pickup_lng, da.line AS destination_line
+       r.needs_operator, r.scheduled_for, r.created_at, r.completed_at, pa.line AS pickup_line, pa.lat AS pickup_lat, pa.lng AS pickup_lng, da.line AS destination_line,
+       tm.distance_deviation_bps, COALESCE(tm.needs_review, false)::boolean AS route_review
 FROM service_requests r
 JOIN service_categories c ON c.id = r.category_id
 JOIN services s ON s.id = r.service_id
@@ -173,6 +174,7 @@ JOIN addresses pa ON pa.id = r.pickup_address_id
 LEFT JOIN addresses da ON da.id = r.destination_address_id
 LEFT JOIN users pu ON pu.id = r.provider_id
 LEFT JOIN organizations o ON o.id = r.organization_id
+LEFT JOIN request_trip_metrics tm ON tm.request_id = r.id
 WHERE (sqlc.arg(statuses)::text[] = '{}' OR r.status = ANY(sqlc.arg(statuses)::text[]))
   AND (sqlc.arg(category)::text = '' OR r.category_slug = sqlc.arg(category)::text)
   AND (sqlc.narg(service_id)::uuid IS NULL OR r.service_id = sqlc.narg(service_id))
@@ -181,11 +183,13 @@ WHERE (sqlc.arg(statuses)::text[] = '{}' OR r.status = ANY(sqlc.arg(statuses)::t
   AND (sqlc.narg(provider_id)::uuid IS NULL OR r.provider_id = sqlc.narg(provider_id))
   AND (sqlc.narg(created_from)::timestamptz IS NULL OR r.created_at >= sqlc.narg(created_from))
   AND (sqlc.narg(created_to)::timestamptz IS NULL OR r.created_at < sqlc.narg(created_to))
+  AND (NOT sqlc.arg(route_review)::boolean OR tm.needs_review)
 ORDER BY r.created_at DESC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: CountAdminRequests :one
 SELECT count(*) FROM service_requests r
+LEFT JOIN request_trip_metrics tm ON tm.request_id = r.id
 WHERE (sqlc.arg(statuses)::text[] = '{}' OR r.status = ANY(sqlc.arg(statuses)::text[]))
   AND (sqlc.arg(category)::text = '' OR r.category_slug = sqlc.arg(category)::text)
   AND (sqlc.narg(service_id)::uuid IS NULL OR r.service_id = sqlc.narg(service_id))
@@ -193,7 +197,8 @@ WHERE (sqlc.arg(statuses)::text[] = '{}' OR r.status = ANY(sqlc.arg(statuses)::t
   AND (sqlc.narg(organization_id)::uuid IS NULL OR r.organization_id = sqlc.narg(organization_id))
   AND (sqlc.narg(provider_id)::uuid IS NULL OR r.provider_id = sqlc.narg(provider_id))
   AND (sqlc.narg(created_from)::timestamptz IS NULL OR r.created_at >= sqlc.narg(created_from))
-  AND (sqlc.narg(created_to)::timestamptz IS NULL OR r.created_at < sqlc.narg(created_to));
+  AND (sqlc.narg(created_to)::timestamptz IS NULL OR r.created_at < sqlc.narg(created_to))
+  AND (NOT sqlc.arg(route_review)::boolean OR tm.needs_review);
 
 -- name: SummarizeRequests :many
 SELECT r.category_slug, c.name AS category_name, r.service_id, s.name AS service_name, r.status, r.zone_id, z.name AS zone_name, r.organization_id, o.name AS organization_name,

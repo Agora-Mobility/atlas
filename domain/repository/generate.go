@@ -25,3 +25,4 @@ package repository
 //go:generate go tool mockgen -source=bookings.go -destination=mocks/bookings_mock.go -package=mocks
 //go:generate go tool mockgen -source=workshops.go -destination=mocks/workshops_mock.go -package=mocks
 //go:generate go tool mockgen -source=ledger.go -destination=mocks/ledger_mock.go -package=mocks
+//go:generate go tool mockgen -source=demand.go -destination=mocks/demand_mock.go -package=mocks

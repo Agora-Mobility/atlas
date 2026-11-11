@@ -127,6 +127,7 @@ var errorTable = []struct {
 	{dispatch.ErrOfferNotFound, http.StatusNotFound, "OFFER_NOT_FOUND", "Offer not found."},
 	{dispatch.ErrZoneNotFound, http.StatusNotFound, "ZONE_NOT_FOUND", "Zone not found."},
 	{dispatch.ErrPolicyNotFound, http.StatusNotFound, "POLICY_NOT_FOUND", "Policy not found."},
+	{dispatch.ErrDemandNotLive, http.StatusUnprocessableEntity, "DEMAND_PRICING_NOT_LIVE", "Demand pricing only applies to categories dispatched to online providers."},
 	{dispatch.ErrServiceNotOffered, http.StatusUnprocessableEntity, "SERVICE_NOT_OFFERED", "This service is not available."},
 	{dispatch.ErrOutsideServiceArea, http.StatusUnprocessableEntity, "OUTSIDE_SERVICE_AREA", "The service is not available at this location yet."},
 	{dispatch.ErrFareEstimateRequired, http.StatusUnprocessableEntity, "FARE_ESTIMATE_REQUIRED", "This service needs a fare estimate."},
