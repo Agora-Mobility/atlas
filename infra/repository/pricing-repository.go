@@ -156,6 +156,43 @@ func (r *PricingRepository) LearnedETA(ctx context.Context, originCell, destinat
 	return time.Duration(row.TotalSeconds/int64(row.Samples)) * time.Second, int(row.Samples), nil
 }
 
+func (r *PricingRepository) TrackedDistance(ctx context.Context, requestID uuid.UUID, since time.Time) (meters, samples int, err error) {
+	row, err := postgres.Queries(ctx, r.pool).TrackedDistanceMeters(ctx, gen.TrackedDistanceMetersParams{RequestID: requestID, Since: since})
+	if err != nil {
+		return 0, 0, fmt.Errorf("tracked distance: %w", err)
+	}
+	return int(row.Meters), int(row.Samples), nil
+}
+
+func (r *PricingRepository) SaveTripMetrics(ctx context.Context, m entities.TripMetrics) error {
+	err := postgres.Queries(ctx, r.pool).UpsertTripMetrics(ctx, gen.UpsertTripMetricsParams{
+		RequestID: m.RequestID, EstimatedDistanceM: int32(m.EstimatedDistanceM), EstimatedDurationS: int32(m.EstimatedDurationS), // #nosec G115 -- a route fits in int32
+		ActualDistanceM: int32(m.ActualDistanceM), ActualDurationS: int32(m.ActualDurationS), // #nosec G115 -- a trip fits in int32
+		DistanceDeviationBps: int32(m.DistanceDeviationBps), DurationDeviationBps: int32(m.DurationDeviationBps), // #nosec G115 -- a ratio of two int32 values
+		Samples:      int32(m.Samples), // #nosec G115 -- one sample every 30 s
+		RouteChanged: m.RouteChanged, NeedsReview: m.NeedsReview, RecordedAt: m.RecordedAt,
+	})
+	if err != nil {
+		return fmt.Errorf("save trip metrics: %w", err)
+	}
+	return nil
+}
+
+func (r *PricingRepository) FindTripMetrics(ctx context.Context, requestID uuid.UUID) (*entities.TripMetrics, error) {
+	row, err := postgres.Queries(ctx, r.pool).GetTripMetrics(ctx, requestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get trip metrics: %w", err)
+	}
+	return &entities.TripMetrics{
+		RequestID: row.RequestID, EstimatedDistanceM: int(row.EstimatedDistanceM), EstimatedDurationS: int(row.EstimatedDurationS),
+		ActualDistanceM: int(row.ActualDistanceM), ActualDurationS: int(row.ActualDurationS), DistanceDeviationBps: int(row.DistanceDeviationBps),
+		DurationDeviationBps: int(row.DurationDeviationBps), Samples: int(row.Samples), RouteChanged: row.RouteChanged, NeedsReview: row.NeedsReview, RecordedAt: row.RecordedAt,
+	}, nil
+}
+
 func toTariff(row *gen.ServiceTariff) *entities.ServiceTariff {
 	return &entities.ServiceTariff{
 		ID: row.ID, ServiceID: row.ServiceID, ZoneID: row.ZoneID, Currency: row.Currency, BaseFeeCents: row.BaseFeeCents, PerKmFeeCents: row.PerKmFeeCents,

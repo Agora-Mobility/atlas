@@ -45,6 +45,9 @@ type IPricingRepository interface {
 	UseEstimate(ctx context.Context, id uuid.UUID, now time.Time) (bool, error)
 	RecordETA(ctx context.Context, originCell, destinationCell int64, hourBand int, duration time.Duration) error
 	LearnedETA(ctx context.Context, originCell, destinationCell int64, hourBand int) (time.Duration, int, error)
+	TrackedDistance(ctx context.Context, requestID uuid.UUID, since time.Time) (meters, samples int, err error)
+	SaveTripMetrics(ctx context.Context, metrics entities.TripMetrics) error
+	FindTripMetrics(ctx context.Context, requestID uuid.UUID) (*entities.TripMetrics, error)
 }
 
 type IProviderRepository interface {
@@ -115,6 +118,7 @@ type AdminRequestFilter struct {
 	ProviderID     *uuid.UUID
 	From           *time.Time
 	To             *time.Time
+	RouteReview    bool
 	Limit          int
 	Offset         int
 }
@@ -145,6 +149,8 @@ type AdminRequest struct {
 	PickupLat        float64
 	PickupLng        float64
 	DestinationLine  string
+	DeviationBps     *int
+	RouteReview      bool
 }
 
 type RequestSummaryRow struct {

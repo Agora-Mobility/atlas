@@ -43,7 +43,7 @@ func queryTime(ctx *gin.Context, name string) (*time.Time, bool) {
 }
 
 func requestFilter(ctx *gin.Context) (*dtos.AdminRequestFilter, bool) {
-	filter := &dtos.AdminRequestFilter{Category: ctx.Query("category")}
+	filter := &dtos.AdminRequestFilter{Category: ctx.Query("category"), RouteReview: ctx.Query("route_review") == "true"}
 	if statuses := ctx.Query("status"); statuses != "" {
 		filter.Statuses = strings.Split(statuses, ",")
 	}
@@ -97,6 +97,7 @@ func (c *DispatchController) listRequests(ctx *gin.Context, filter *dtos.AdminRe
 //	@Param			provider_id		query		string	false	"Provider"
 //	@Param			from			query		string	false	"Created at or after, YYYY-MM-DD or RFC 3339"
 //	@Param			to				query		string	false	"Created before, YYYY-MM-DD or RFC 3339"
+//	@Param			route_review	query		bool	false	"Only completed rides whose real distance strayed from the quote beyond ROUTE_REVIEW_ABOVE_PERCENT"
 //	@Param			page			query		int		false	"Page"
 //	@Param			size			query		int		false	"Page size"
 //	@Success		200				{object}	dtos.AdminRequestList

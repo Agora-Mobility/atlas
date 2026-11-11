@@ -165,6 +165,7 @@ type DispatchConfig struct {
 	DemandQuoteWindow      time.Duration `mapstructure:"DEMAND_QUOTE_WINDOW"`
 	DemandFactorTTL        time.Duration `mapstructure:"DEMAND_FACTOR_TTL"`
 	DemandHistoryRetention time.Duration `mapstructure:"DEMAND_HISTORY_RETENTION"`
+	RouteReviewAbovePct    int           `mapstructure:"ROUTE_REVIEW_ABOVE_PERCENT"`
 }
 
 type RealtimeConfig struct {
@@ -375,6 +376,7 @@ var defaults = map[string]any{
 	"DEMAND_QUOTE_WINDOW":                   "3m",
 	"DEMAND_FACTOR_TTL":                     "3m",
 	"DEMAND_HISTORY_RETENTION":              "720h",
+	"ROUTE_REVIEW_ABOVE_PERCENT":            30,
 	"REALTIME_PROJECTOR_WORKERS":            16,
 	"SSE_HEARTBEAT_INTERVAL":                "15s",
 	"SSE_POLL_INTERVAL":                     "30s",
@@ -446,7 +448,12 @@ const cloudflareIdleLimit = 100 * time.Second
 const (
 	minDemandAreaResolution = 5
 	maxDemandAreaResolution = 8
+	percentToBps            = 100
 )
+
+func (d DispatchConfig) RouteReviewAboveBps() int {
+	return d.RouteReviewAbovePct * percentToBps
+}
 
 var required = []string{"DATABASE_URL", "REDIS_ADDR", "RABBITMQ_URL", "JWT_SECRET"}
 
@@ -591,6 +598,9 @@ func (c *Config) validateDispatch() []error {
 	}
 	if c.Dispatch.DemandQuoteWindow <= 0 || c.Dispatch.DemandFactorTTL <= 0 || c.Dispatch.DemandHistoryRetention < 0 {
 		errs = append(errs, errors.New("DEMAND_QUOTE_WINDOW and DEMAND_FACTOR_TTL must be positive and DEMAND_HISTORY_RETENTION cannot be negative"))
+	}
+	if c.Dispatch.RouteReviewAbovePct < 0 {
+		errs = append(errs, errors.New("ROUTE_REVIEW_ABOVE_PERCENT cannot be negative"))
 	}
 	if c.Realtime.Heartbeat <= 0 || c.Realtime.Heartbeat >= cloudflareIdleLimit {
 		errs = append(errs, errors.New("SSE_HEARTBEAT_INTERVAL must be positive and below the 100s Cloudflare idle limit"))

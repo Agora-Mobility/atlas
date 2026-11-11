@@ -83,7 +83,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Limits:     entities.PlausibilityLimits{MaxAccuracyM: cfg.Dispatch.MaxAccuracyM, MaxSpeedMps: cfg.Dispatch.MaxSpeedKmh * kmhToMps},
 		RoadFactor: cfg.GoogleMaps.RoadFactor, AverageSpeedKmh: cfg.GoogleMaps.AverageSpeedKmh,
 		DemandAreaResolution: cfg.Dispatch.DemandAreaResolution, DemandQuoteWindow: cfg.Dispatch.DemandQuoteWindow, DemandFactorTTL: cfg.Dispatch.DemandFactorTTL,
-		DemandHistoryRetention: cfg.Dispatch.DemandHistoryRetention,
+		DemandHistoryRetention: cfg.Dispatch.DemandHistoryRetention, RouteReviewAboveBps: cfg.Dispatch.RouteReviewAboveBps(),
 	})
 	notifier.UseSharer(uc)
 	notifier.UseAccount(repository.NewAccountRepository(c.Pool))

@@ -244,6 +244,8 @@ definitions:
         type: array
       request:
         $ref: '#/definitions/dtos.RequestView'
+      trip:
+        $ref: '#/definitions/dtos.TripMetricsView'
     type: object
   dtos.AdminRequestList:
     properties:
@@ -276,6 +278,8 @@ definitions:
         type: string
       destination_line:
         type: string
+      distance_deviation_bps:
+        type: integer
       fare_cents:
         type: integer
       id:
@@ -296,6 +300,8 @@ definitions:
         type: string
       provider_name:
         type: string
+      route_review:
+        type: boolean
       scheduled_for:
         type: string
       service_id:
@@ -4940,6 +4946,31 @@ definitions:
           $ref: '#/definitions/dtos.CatalogItemView'
         type: array
     type: object
+  dtos.TripMetricsView:
+    properties:
+      actual_distance_m:
+        type: integer
+      actual_duration_s:
+        type: integer
+      distance_deviation_bps:
+        example: 3500
+        type: integer
+      duration_deviation_bps:
+        example: -1200
+        type: integer
+      estimated_distance_m:
+        type: integer
+      estimated_duration_s:
+        type: integer
+      gps_samples:
+        type: integer
+      needs_review:
+        type: boolean
+      recorded_at:
+        type: string
+      route_changed:
+        type: boolean
+    type: object
   dtos.UnblockUserInput:
     properties:
       reason:
@@ -7631,6 +7662,11 @@ paths:
         in: query
         name: to
         type: string
+      - description: Only completed rides whose real distance strayed from the quote
+          beyond ROUTE_REVIEW_ABOVE_PERCENT
+        in: query
+        name: route_review
+        type: boolean
       - description: Page
         in: query
         name: page

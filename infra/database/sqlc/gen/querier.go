@@ -171,6 +171,7 @@ type Querier interface {
 	GetServiceZone(ctx context.Context, id uuid.UUID) (GetServiceZoneRow, error)
 	GetSystemRoleByCode(ctx context.Context, arg GetSystemRoleByCodeParams) (Role, error)
 	GetTicket(ctx context.Context, id uuid.UUID) (SupportTicket, error)
+	GetTripMetrics(ctx context.Context, requestID uuid.UUID) (RequestTripMetric, error)
 	GetUserAddress(ctx context.Context, arg GetUserAddressParams) (GetUserAddressRow, error)
 	GetUserAvatar(ctx context.Context, id uuid.UUID) (GetUserAvatarRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
@@ -373,6 +374,7 @@ type Querier interface {
 	SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error)
 	SupersedeDocumentFiles(ctx context.Context, arg SupersedeDocumentFilesParams) error
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
+	TrackedDistanceMeters(ctx context.Context, arg TrackedDistanceMetersParams) (TrackedDistanceMetersRow, error)
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	UnbalancedLedgerTransactions(ctx context.Context) (int64, error)
 	UnpaidPrepaidRequests(ctx context.Context, arg UnpaidPrepaidRequestsParams) ([]uuid.UUID, error)
@@ -404,6 +406,7 @@ type Querier interface {
 	UpsertPlatformSetting(ctx context.Context, arg UpsertPlatformSettingParams) error
 	UpsertProvider(ctx context.Context, arg UpsertProviderParams) error
 	UpsertRequestOffer(ctx context.Context, arg UpsertRequestOfferParams) (int64, error)
+	UpsertTripMetrics(ctx context.Context, arg UpsertTripMetricsParams) error
 	UpsertVehicle(ctx context.Context, arg UpsertVehicleParams) error
 	UpsertWorkshopClosure(ctx context.Context, arg UpsertWorkshopClosureParams) error
 	UseFareEstimate(ctx context.Context, arg UseFareEstimateParams) (int64, error)

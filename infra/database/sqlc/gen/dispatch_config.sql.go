@@ -519,6 +519,29 @@ func (q *Queries) GetServiceZone(ctx context.Context, id uuid.UUID) (GetServiceZ
 	return i, err
 }
 
+const getTripMetrics = `-- name: GetTripMetrics :one
+SELECT request_id, estimated_distance_m, estimated_duration_s, actual_distance_m, actual_duration_s, distance_deviation_bps, duration_deviation_bps, samples, route_changed, needs_review, recorded_at FROM request_trip_metrics WHERE request_id = $1
+`
+
+func (q *Queries) GetTripMetrics(ctx context.Context, requestID uuid.UUID) (RequestTripMetric, error) {
+	row := q.db.QueryRow(ctx, getTripMetrics, requestID)
+	var i RequestTripMetric
+	err := row.Scan(
+		&i.RequestID,
+		&i.EstimatedDistanceM,
+		&i.EstimatedDurationS,
+		&i.ActualDistanceM,
+		&i.ActualDurationS,
+		&i.DistanceDeviationBps,
+		&i.DurationDeviationBps,
+		&i.Samples,
+		&i.RouteChanged,
+		&i.NeedsReview,
+		&i.RecordedAt,
+	)
+	return i, err
+}
+
 const isValidZoneGeometry = `-- name: IsValidZoneGeometry :one
 SELECT ST_IsValid(ST_GeomFromGeoJSON($1::text))::boolean
 `
@@ -828,6 +851,34 @@ func (q *Queries) ResolveDispatchPolicy(ctx context.Context, arg ResolveDispatch
 	return i, err
 }
 
+const trackedDistanceMeters = `-- name: TrackedDistanceMeters :one
+SELECT COALESCE(sum(ST_Distance(ST_SetSRID(ST_MakePoint(s.lng, s.lat), 4326)::geography, ST_SetSRID(ST_MakePoint(s.previous_lng, s.previous_lat), 4326)::geography)
+           ) FILTER (WHERE s.previous_lat IS NOT NULL), 0)::bigint AS meters,
+       count(*)::integer AS samples
+FROM (
+    SELECT lat, lng, lag(lat) OVER (ORDER BY recorded_at) AS previous_lat, lag(lng) OVER (ORDER BY recorded_at) AS previous_lng
+    FROM provider_location_samples
+    WHERE request_id = $1 AND recorded_at >= $2::timestamptz
+) s
+`
+
+type TrackedDistanceMetersParams struct {
+	RequestID uuid.UUID `json:"request_id"`
+	Since     time.Time `json:"since"`
+}
+
+type TrackedDistanceMetersRow struct {
+	Meters  int64 `json:"meters"`
+	Samples int32 `json:"samples"`
+}
+
+func (q *Queries) TrackedDistanceMeters(ctx context.Context, arg TrackedDistanceMetersParams) (TrackedDistanceMetersRow, error) {
+	row := q.db.QueryRow(ctx, trackedDistanceMeters, arg.RequestID, arg.Since)
+	var i TrackedDistanceMetersRow
+	err := row.Scan(&i.Meters, &i.Samples)
+	return i, err
+}
+
 const updateDispatchPolicy = `-- name: UpdateDispatchPolicy :execrows
 UPDATE dispatch_policies
 SET candidate_source = $2, h3_resolution = $3, radii_km = $4, offer_mode = $5, batch_size = $6, offer_ttl_seconds = $7,
@@ -926,6 +977,48 @@ func (q *Queries) UpdateServiceZone(ctx context.Context, arg UpdateServiceZonePa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const upsertTripMetrics = `-- name: UpsertTripMetrics :exec
+INSERT INTO request_trip_metrics (request_id, estimated_distance_m, estimated_duration_s, actual_distance_m, actual_duration_s,
+    distance_deviation_bps, duration_deviation_bps, samples, route_changed, needs_review, recorded_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+ON CONFLICT (request_id) DO UPDATE SET
+    estimated_distance_m = EXCLUDED.estimated_distance_m, estimated_duration_s = EXCLUDED.estimated_duration_s,
+    actual_distance_m = EXCLUDED.actual_distance_m, actual_duration_s = EXCLUDED.actual_duration_s,
+    distance_deviation_bps = EXCLUDED.distance_deviation_bps, duration_deviation_bps = EXCLUDED.duration_deviation_bps, samples = EXCLUDED.samples,
+    route_changed = EXCLUDED.route_changed, needs_review = EXCLUDED.needs_review, recorded_at = EXCLUDED.recorded_at
+`
+
+type UpsertTripMetricsParams struct {
+	RequestID            uuid.UUID `json:"request_id"`
+	EstimatedDistanceM   int32     `json:"estimated_distance_m"`
+	EstimatedDurationS   int32     `json:"estimated_duration_s"`
+	ActualDistanceM      int32     `json:"actual_distance_m"`
+	ActualDurationS      int32     `json:"actual_duration_s"`
+	DistanceDeviationBps int32     `json:"distance_deviation_bps"`
+	DurationDeviationBps int32     `json:"duration_deviation_bps"`
+	Samples              int32     `json:"samples"`
+	RouteChanged         bool      `json:"route_changed"`
+	NeedsReview          bool      `json:"needs_review"`
+	RecordedAt           time.Time `json:"recorded_at"`
+}
+
+func (q *Queries) UpsertTripMetrics(ctx context.Context, arg UpsertTripMetricsParams) error {
+	_, err := q.db.Exec(ctx, upsertTripMetrics,
+		arg.RequestID,
+		arg.EstimatedDistanceM,
+		arg.EstimatedDurationS,
+		arg.ActualDistanceM,
+		arg.ActualDurationS,
+		arg.DistanceDeviationBps,
+		arg.DurationDeviationBps,
+		arg.Samples,
+		arg.RouteChanged,
+		arg.NeedsReview,
+		arg.RecordedAt,
+	)
+	return err
 }
 
 const useFareEstimate = `-- name: UseFareEstimate :execrows

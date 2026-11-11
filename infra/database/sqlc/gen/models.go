@@ -1071,6 +1071,20 @@ type RequestTeamMember struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type RequestTripMetric struct {
+	RequestID            uuid.UUID `json:"request_id"`
+	EstimatedDistanceM   int32     `json:"estimated_distance_m"`
+	EstimatedDurationS   int32     `json:"estimated_duration_s"`
+	ActualDistanceM      int32     `json:"actual_distance_m"`
+	ActualDurationS      int32     `json:"actual_duration_s"`
+	DistanceDeviationBps int32     `json:"distance_deviation_bps"`
+	DurationDeviationBps int32     `json:"duration_deviation_bps"`
+	Samples              int32     `json:"samples"`
+	RouteChanged         bool      `json:"route_changed"`
+	NeedsReview          bool      `json:"needs_review"`
+	RecordedAt           time.Time `json:"recorded_at"`
+}
+
 type Role struct {
 	ID             uuid.UUID              `json:"id"`
 	OrganizationID *uuid.UUID             `json:"organization_id"`

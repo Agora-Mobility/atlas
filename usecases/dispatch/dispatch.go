@@ -82,6 +82,7 @@ type Settings struct {
 	DemandQuoteWindow      time.Duration
 	DemandFactorTTL        time.Duration
 	DemandHistoryRetention time.Duration
+	RouteReviewAboveBps    int
 }
 
 type OfferChannels interface {

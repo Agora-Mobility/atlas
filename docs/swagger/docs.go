@@ -2151,6 +2151,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "description": "Only completed rides whose real distance strayed from the quote beyond ROUTE_REVIEW_ABOVE_PERCENT",
+                        "name": "route_review",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page",
                         "name": "page",
@@ -16545,6 +16551,9 @@ const docTemplate = `{
                 },
                 "request": {
                     "$ref": "#/definitions/dtos.RequestView"
+                },
+                "trip": {
+                    "$ref": "#/definitions/dtos.TripMetricsView"
                 }
             }
         },
@@ -16595,6 +16604,9 @@ const docTemplate = `{
                 "destination_line": {
                     "type": "string"
                 },
+                "distance_deviation_bps": {
+                    "type": "integer"
+                },
                 "fare_cents": {
                     "type": "integer"
                 },
@@ -16624,6 +16636,9 @@ const docTemplate = `{
                 },
                 "provider_name": {
                     "type": "string"
+                },
+                "route_review": {
+                    "type": "boolean"
                 },
                 "scheduled_for": {
                     "type": "string"
@@ -23334,6 +23349,43 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dtos.CatalogItemView"
                     }
+                }
+            }
+        },
+        "dtos.TripMetricsView": {
+            "type": "object",
+            "properties": {
+                "actual_distance_m": {
+                    "type": "integer"
+                },
+                "actual_duration_s": {
+                    "type": "integer"
+                },
+                "distance_deviation_bps": {
+                    "type": "integer",
+                    "example": 3500
+                },
+                "duration_deviation_bps": {
+                    "type": "integer",
+                    "example": -1200
+                },
+                "estimated_distance_m": {
+                    "type": "integer"
+                },
+                "estimated_duration_s": {
+                    "type": "integer"
+                },
+                "gps_samples": {
+                    "type": "integer"
+                },
+                "needs_review": {
+                    "type": "boolean"
+                },
+                "recorded_at": {
+                    "type": "string"
+                },
+                "route_changed": {
+                    "type": "boolean"
                 }
             }
         },
