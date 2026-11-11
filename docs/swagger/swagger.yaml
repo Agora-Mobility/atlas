@@ -2341,6 +2341,10 @@ definitions:
     type: object
   dtos.LoginInput:
     properties:
+      email:
+        example: admin@agora.ao
+        maxLength: 254
+        type: string
       password:
         example: S3gredo!forte
         maxLength: 128
@@ -2351,7 +2355,6 @@ definitions:
         type: string
     required:
     - password
-    - phone
     type: object
   dtos.MarkedView:
     properties:
@@ -8867,13 +8870,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'Every account signs in with its phone number and password; the
-        X-Client-Id header decides which accounts are accepted. Customers sign in
-        through agora-customer-app and providers through agora-provider-app. Staff
-        sign in through agora-backoffice (AGORA membership) or agora-partner-panel
-        (partner membership) and the session enters the oldest active membership of
-        that scope. The organization is never sent: it comes from the membership and
-        travels in the token.'
+      description: 'The X-Client-Id header decides which accounts are accepted and
+        how they sign in. Customers (agora-customer-app) and providers (agora-provider-app)
+        send phone and password. Staff send email and password, through agora-backoffice
+        (AGORA membership) or agora-partner-panel (partner membership), and the session
+        enters the oldest active membership of that scope. The organization is never
+        sent: it comes from the membership and travels in the token.'
       parameters:
       - description: Login payload
         in: body

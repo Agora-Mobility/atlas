@@ -92,7 +92,7 @@ func (c *AuthController) handleRegisterError(ctx *gin.Context, err error) {
 // Login godoc
 //
 //	@Summary		Authenticate a user
-//	@Description	Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership) and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.
+//	@Description	The X-Client-Id header decides which accounts are accepted and how they sign in. Customers (agora-customer-app) and providers (agora-provider-app) send phone and password. Staff send email and password, through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership), and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.
 //	@Tags			Auth
 //	@Accept			json
 //	@Produce		json
@@ -129,7 +129,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 func (c *AuthController) handleLoginError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, usecases.ErrInvalidCredentials):
-		shared.Unauthorized(ctx, "INVALID_CREDENTIALS", "Invalid phone or password.")
+		shared.Unauthorized(ctx, "INVALID_CREDENTIALS", "Invalid credentials.")
 	case errors.Is(err, usecases.ErrPhoneNotVerified):
 		shared.Forbidden(ctx, "PHONE_NOT_VERIFIED", "Phone number not verified.")
 	default:

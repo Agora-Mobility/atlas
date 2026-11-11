@@ -15,6 +15,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/shared/customerrors"
 	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/shared/phone"
 	"github.com/Agora-Mobility/atlas/usecases/auth/dtos"
@@ -145,7 +146,7 @@ func (uc *AuthUsecase) sendVerificationCode(ctx context.Context, user *entities.
 }
 
 func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *entities.Client, ip, userAgent string) (*dtos.SessionOutput, error) {
-	user, err := uc.userRepo.FindByPhone(ctx, phone.Normalize(req.Phone))
+	user, err := uc.findForLogin(ctx, req, client)
 	if err != nil {
 		return nil, err
 	}
@@ -176,6 +177,21 @@ func (uc *AuthUsecase) Login(ctx context.Context, req dtos.LoginInput, client *e
 		return uc.staff.Begin(ctx, user, client, ip, userAgent)
 	}
 	return uc.sessions.Start(ctx, user, client, nil, ip, userAgent)
+}
+
+// findForLogin looks staff up by e-mail and customers and providers by phone, as the client decides.
+func (uc *AuthUsecase) findForLogin(ctx context.Context, req dtos.LoginInput, client *entities.Client) (*entities.User, error) {
+	if _, staff := client.StaffScope(); staff {
+		email := normalizeEmail(req.Email)
+		if email == "" {
+			return nil, customerrors.FieldError("email", "O e-mail é obrigatório.")
+		}
+		return uc.userRepo.FindByEmail(ctx, email)
+	}
+	if strings.TrimSpace(req.Phone) == "" {
+		return nil, customerrors.FieldError("phone", "O telefone é obrigatório.")
+	}
+	return uc.userRepo.FindByPhone(ctx, phone.Normalize(req.Phone))
 }
 
 func (uc *AuthUsecase) Logout(ctx context.Context, sessionID uuid.UUID) error {

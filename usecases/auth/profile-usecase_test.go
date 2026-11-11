@@ -88,6 +88,18 @@ func TestUpdateProfile_RemovesEmailWhenThePhoneRemains(t *testing.T) {
 	assert.Empty(t, out.Email)
 }
 
+func TestUpdateProfile_StaffKeepsTheEmailTheySignInWith(t *testing.T) {
+	f := newFixture(t)
+	staff := newUser(t, enums.RoleStaff, true)
+	f.users.EXPECT().FindByID(gomock.Any(), staff.ID).Return(staff, nil)
+
+	_, err := f.profile.UpdateProfile(context.Background(), staff.ID, dtos.UpdateProfileInput{Email: ptr("  "), CurrentPassword: strongPass})
+
+	validation, ok := customerrors.AsValidation(err)
+	require.True(t, ok, "%v", err)
+	assert.Contains(t, validation.Fields, "email")
+}
+
 func TestUpdateProfile_SetsTheNameOfANewAccount(t *testing.T) {
 	f := newFixture(t)
 	user := newSignUpUser(t, enums.RoleCustomer)

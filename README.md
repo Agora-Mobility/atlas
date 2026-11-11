@@ -106,18 +106,20 @@ which roles can sign in and which role a self-registration creates:
 
 Staff access is permission based (ADR 0015): each membership has roles, each
 role a set of permissions, and every staff endpoint checks one permission.
-Every account signs in with the phone number and the password alone.
+Customers and providers sign in with the phone number and the password; staff,
+in the backoffice and the partner panel, with the e-mail and the password
+(ADR 0021).
 
 Protected routes also need `Authorization: Bearer <access_token>` from
-`POST /api/v1/auth/login`, which takes the phone and the password. `make seed`
-creates a customer, a provider, a Super Admin (`+244923000101`), an Operações
-member (`+244923000102`) and the owner of a test partner
-(`+244923000105`), all with password `Agora@2026`:
+`POST /api/v1/auth/login`. `make seed` creates a customer, a provider, a Super
+Admin (`admin@agora.ao`), an Operações member (`operador@agora.ao`) and the
+owner of a test partner (`parceiro@agora.ao`, partner panel), all with
+password `Agora@2026`:
 
 ```bash
 curl -s localhost:8700/api/v1/auth/login \
   -H 'X-Client-Id: agora-backoffice' -H 'Content-Type: application/json' \
-  -d '{"phone":"+244923000102","password":"Agora@2026"}'
+  -d '{"email":"admin@agora.ao","password":"Agora@2026"}'
 ```
 
 The API runs every query as the `atlas_app` role, which the migrations create

@@ -71,7 +71,7 @@ func staffToken(t *testing.T) *person {
 	require.NoError(t, err)
 
 	staff := &person{client: backofficeClient, api: env.api.baseURL}
-	login := staff.post(t, "/api/v1/auth/login", map[string]string{"phone": phone, "password": secret})
+	login := staff.post(t, "/api/v1/auth/login", map[string]string{"email": email, "password": secret})
 	require.Equal(t, http.StatusOK, login.status, login.text)
 	staff.token = login.str("access_token")
 	cachedStaff = staff

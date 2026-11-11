@@ -13,8 +13,10 @@ type RegisterInput struct {
 	Phone string `json:"phone" binding:"required,max=32" example:"+244923000000"`
 }
 
+// LoginInput takes the phone in the customer and provider apps and the e-mail in the backoffice and the partner panel.
 type LoginInput struct {
-	Phone    string `json:"phone" binding:"required,max=32" example:"+244923000000"`
+	Phone    string `json:"phone" binding:"omitempty,max=32" example:"+244923000000"`
+	Email    string `json:"email" binding:"omitempty,email,max=254" example:"admin@agora.ao"`
 	Password string `json:"password" binding:"required,max=128" example:"S3gredo!forte"`
 }
 
