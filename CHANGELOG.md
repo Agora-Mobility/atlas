@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.2.0](https://github.com/Agora-Mobility/atlas/compare/v3.1.0...v3.2.0) (2026-11-11)
+
+
+### Features
+
+* **dispatch:** heatmap filters, origin-destination flows and provider demand ([10eb25a](https://github.com/Agora-Mobility/atlas/commit/10eb25a89d18f4268cfd47a046cb71d841d854b1))
+* **dispatch:** heatmap filters, origin-destination flows and provider demand ([a173afc](https://github.com/Agora-Mobility/atlas/commit/a173afc5250053a01eef3c9c75dfe61a82354c2b))
+* **dispatch:** record trip deviation against the quote ([2dc68fd](https://github.com/Agora-Mobility/atlas/commit/2dc68fd4f7b738acaccc73bd7a84fc16d652bcaf))
+* **geo:** look up H3 parent and children cells ([69ef837](https://github.com/Agora-Mobility/atlas/commit/69ef837fe4911460b87c58b2a5d311ec6ed58451))
+* **partners:** get one partner by id ([f654880](https://github.com/Agora-Mobility/atlas/commit/f6548802093f03b60d06d714c03ae2848978e4f4)), closes [#42](https://github.com/Agora-Mobility/atlas/issues/42)
+* **partners:** get one partner by id. ([88492ae](https://github.com/Agora-Mobility/atlas/commit/88492aecc61cd0e479c58b7bb7a36dced5311bf8))
+* **pricing:** demand pricing and trip deviation (proposal 0002) ([5c92e37](https://github.com/Agora-Mobility/atlas/commit/5c92e37802f526161b7c9832dd43059dd369d5e4))
+* **pricing:** raise closed fares by zone demand ([80a930e](https://github.com/Agora-Mobility/atlas/commit/80a930e69460ea23d2c1a99a06b2fb2bc50f5e11))
+
 ## [3.1.0](https://github.com/Agora-Mobility/atlas/compare/v3.0.0...v3.1.0) (2026-11-08)
 
 
