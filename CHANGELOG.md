@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/Agora-Mobility/atlas/compare/v3.2.0...v3.2.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dispatch:** build the tests again after merging demand pricing and heatmap ([6a930c4](https://github.com/Agora-Mobility/atlas/commit/6a930c470ca587cc0792e40083c31dd652e8db16))
+
 ## [3.2.0](https://github.com/Agora-Mobility/atlas/compare/v3.1.0...v3.2.0) (2026-11-11)
 
 
