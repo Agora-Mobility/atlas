@@ -3997,7 +3997,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership) and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.",
+                "description": "The X-Client-Id header decides which accounts are accepted and how they sign in. Customers (agora-customer-app) and providers (agora-provider-app) send phone and password. Staff send email and password, through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership), and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18411,6 +18411,33 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.DemandCell": {
+            "type": "object",
+            "properties": {
+                "boundary": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        }
+                    }
+                },
+                "cell": {
+                    "type": "string",
+                    "example": "88754e64d3fffff"
+                },
+                "level": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "example": 3
+                }
+            }
+        },
         "dtos.DemandHistory": {
             "type": "object",
             "properties": {
@@ -18573,6 +18600,32 @@ const docTemplate = `{
                     "maximum": 30000,
                     "minimum": 10000,
                     "example": 12000
+                }
+            }
+        },
+        "dtos.DemandView": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "cells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandCell"
+                    }
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "radius_km": {
+                    "type": "number",
+                    "example": 10
+                },
+                "window_minutes": {
+                    "type": "integer",
+                    "example": 60
                 }
             }
         },
@@ -19793,10 +19846,14 @@ const docTemplate = `{
         "dtos.LoginInput": {
             "type": "object",
             "required": [
-                "password",
-                "phone"
+                "password"
             ],
             "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "admin@agora.ao"
+                },
                 "password": {
                     "type": "string",
                     "maxLength": 128,

@@ -7,8 +7,9 @@
 
 ## Decision
 
-- Every account signs in with the phone number and the password alone. There is
-  no second factor, no authenticator app and no recovery codes.
+- Every account signs in with an identifier and the password alone (the phone
+  number; for staff the e-mail since ADR 0021). There is no second factor, no
+  authenticator app and no recovery codes.
 - Migration `000036_remove_mfa` drops the storage (`user_mfa`,
   `mfa_recovery_codes`), the `members:mfa-reset` permission and the
   `roles.requires_mfa` column. Roles no longer require MFA.

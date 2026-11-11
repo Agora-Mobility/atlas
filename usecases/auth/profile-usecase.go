@@ -66,6 +66,9 @@ func (uc *ProfileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, r
 	email := user.Email
 	if req.Email != nil {
 		email = normalizeEmail(*req.Email)
+		if email == "" && user.IsStaff() {
+			return nil, customerrors.FieldError("email", "O e-mail é obrigatório para iniciar sessão.")
+		}
 	}
 
 	if email != user.Email {
