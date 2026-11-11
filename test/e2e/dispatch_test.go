@@ -1143,3 +1143,35 @@ func TestProviderAddressesLiveInTheAddressTable(t *testing.T) {
 	assert.InDelta(t, -8.86, lat, 1e-9, "the base is updated in place")
 
 }
+
+func TestProviderSeesWhereItsCategoryIsAskedFor(t *testing.T) {
+	clearOnlineProviders(t)
+	driver := newProvider(t, "taxi", point{-8.8391, 13.2341})
+	for range 2 {
+		customer := newCustomer(t)
+		estimateID, serviceID := estimateFor(t, customer, "taxi")
+		created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
+		require.Contains(t, []int{http.StatusCreated, http.StatusOK}, created.status, created.text)
+	}
+
+	demand := driver.get(t, "/api/v1/providers/me/demand")
+	require.Equal(t, http.StatusOK, demand.status, demand.text)
+	assert.Equal(t, "taxi", demand.str("category"))
+	cells := demand.body["cells"].([]any)
+	require.NotEmpty(t, cells, "two requests at the same pickup make a hot cell")
+	for _, raw := range cells {
+		cell := raw.(map[string]any)
+		assert.Contains(t, []any{1.0, 2.0, 3.0}, cell["level"])
+		assert.Len(t, cell["boundary"], 6)
+		assert.NotContains(t, cell, "requests", "the app never sees counts")
+	}
+
+	far := driver.get(t, "/api/v1/providers/me/demand?lat=-14.9177&lng=13.4925")
+	require.Equal(t, http.StatusOK, far.status, far.text)
+	assert.Empty(t, far.body["cells"])
+
+	assert.Equal(t, http.StatusBadRequest, driver.get(t, "/api/v1/providers/me/demand?lat=-8.8").status)
+
+	stranger := newPerson(t, "provider")
+	assert.Equal(t, "PROVIDER_NOT_APPROVED", stranger.get(t, "/api/v1/providers/me/demand?lat=-8.8&lng=13.2").code())
+}

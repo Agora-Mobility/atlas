@@ -170,3 +170,18 @@ func destination(origin entities.GeoPoint, bearingDeg, distanceKm float64) entit
 	lng2 := lng1 + math.Atan2(math.Sin(bearing)*math.Sin(angular)*math.Cos(lat1), math.Cos(angular)-math.Sin(lat1)*math.Sin(lat2))
 	return entities.GeoPoint{Lat: lat2 * 180 / math.Pi, Lng: lng2 * 180 / math.Pi}
 }
+
+func TestBoundaryWrapsTheCell(t *testing.T) {
+	index := h3index.New()
+	luanda := entities.GeoPoint{Lat: -8.8390, Lng: 13.2894}
+	cell, err := index.Cell(luanda, h3index.Analytics)
+	require.NoError(t, err)
+
+	boundary, err := index.Boundary(cell)
+	require.NoError(t, err)
+
+	require.Len(t, boundary, 6)
+	for _, vertex := range boundary {
+		assert.Less(t, entities.DistanceMeters(luanda, vertex), 1500.0, "every vertex sits next to the point")
+	}
+}

@@ -221,8 +221,8 @@ func (r *RequestRepository) ListFareAdjustments(ctx context.Context, requestID u
 	return out, nil
 }
 
-func (r *RequestRepository) DemandByCell(ctx context.Context, since time.Time, zoneID *uuid.UUID) (map[int64]int64, error) {
-	rows, err := postgres.Queries(ctx, r.pool).DemandByCell(ctx, gen.DemandByCellParams{Since: since, ZoneID: zoneID})
+func (r *RequestRepository) DemandByCell(ctx context.Context, filter repository.HeatFilter) (map[int64]int64, error) {
+	rows, err := postgres.Queries(ctx, r.pool).DemandByCell(ctx, gen.DemandByCellParams{FromAt: filter.From, ToAt: filter.To, ZoneID: filter.ZoneID, Category: filter.Category})
 	if err != nil {
 		return nil, fmt.Errorf("demand by cell: %w", err)
 	}
@@ -231,6 +231,18 @@ func (r *RequestRepository) DemandByCell(ctx context.Context, since time.Time, z
 		demand[row.PickupH3R8] = row.Requests
 	}
 	return demand, nil
+}
+
+func (r *RequestRepository) FlowsByCell(ctx context.Context, filter repository.HeatFilter) ([]repository.CellFlow, error) {
+	rows, err := postgres.Queries(ctx, r.pool).FlowsByCell(ctx, gen.FlowsByCellParams{FromAt: filter.From, ToAt: filter.To, ZoneID: filter.ZoneID, Category: filter.Category})
+	if err != nil {
+		return nil, fmt.Errorf("flows by cell: %w", err)
+	}
+	flows := make([]repository.CellFlow, 0, len(rows))
+	for _, row := range rows {
+		flows = append(flows, repository.CellFlow{Origin: row.PickupH3R8, Destination: row.DestinationH3R8, Requests: row.Requests})
+	}
+	return flows, nil
 }
 
 func (r *RequestRepository) ListWithProviderOnTheWay(ctx context.Context, limit int) ([]*entities.ServiceRequest, error) {

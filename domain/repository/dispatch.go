@@ -82,7 +82,8 @@ type IRequestRepository interface {
 	OperatorQueue(ctx context.Context, limit, offset int) ([]*entities.ServiceRequest, error)
 	AddFareAdjustment(ctx context.Context, adjustment entities.FareAdjustment) error
 	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]entities.FareAdjustment, error)
-	DemandByCell(ctx context.Context, since time.Time, zoneID *uuid.UUID) (map[int64]int64, error)
+	DemandByCell(ctx context.Context, filter HeatFilter) (map[int64]int64, error)
+	FlowsByCell(ctx context.Context, filter HeatFilter) ([]CellFlow, error)
 	ListWithProviderOnTheWay(ctx context.Context, limit int) ([]*entities.ServiceRequest, error)
 	AdminList(ctx context.Context, filter AdminRequestFilter) ([]AdminRequest, int64, error)
 	Summary(ctx context.Context, filter AdminRequestFilter) ([]RequestSummaryRow, error)
@@ -107,6 +108,19 @@ type PassengerNotice struct {
 	Template     string
 	ProviderName string
 	VehiclePlate string
+}
+
+type HeatFilter struct {
+	From     time.Time
+	To       time.Time
+	ZoneID   *uuid.UUID
+	Category string
+}
+
+type CellFlow struct {
+	Origin      int64
+	Destination int64
+	Requests    int64
 }
 
 type AdminRequestFilter struct {
@@ -219,6 +233,7 @@ type LiveCandidate struct {
 	ProviderID uuid.UUID
 	Point      entities.GeoPoint
 	RecordedAt time.Time
+	Categories []string
 }
 
 type IProviderLocator interface {
