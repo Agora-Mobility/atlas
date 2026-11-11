@@ -406,6 +406,29 @@ func (c *PartnerController) Update(ctx *gin.Context) {
 	respond(ctx, http.StatusOK, resp, err)
 }
 
+// Get godoc
+//
+//	@Summary		Get a partner organization
+//	@Description	Requires partners:read (AGORA only).
+//	@Tags			Partners
+//	@Produce		json
+//	@Param			orgId	path		string	true	"Partner organization id"
+//	@Success		200		{object}	dtos.OrganizationView
+//	@Failure		401		{object}	shared.ErrorResponse	"Unauthorized or session ended"
+//	@Failure		403		{object}	shared.ErrorResponse	"Missing permission"
+//	@Failure		404		{object}	shared.ErrorResponse	"Partner not found"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/partners/{orgId} [get]
+func (c *PartnerController) Get(ctx *gin.Context) {
+	orgID, ok := organizationIDParam(ctx)
+	if !ok {
+		return
+	}
+	resp, err := c.organizations.GetPartner(ctx.Request.Context(), orgID)
+	respond(ctx, http.StatusOK, resp, err)
+}
+
 // List godoc
 //
 //	@Summary		List partner organizations

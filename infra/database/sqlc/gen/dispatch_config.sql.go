@@ -99,32 +99,36 @@ func (q *Queries) CreateDispatchPolicy(ctx context.Context, arg CreateDispatchPo
 
 const createFareEstimate = `-- name: CreateFareEstimate :exec
 INSERT INTO fare_estimates (id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops,
-    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, vehicle_type_id, details, route_geometry)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, vehicle_type_id, details, route_geometry,
+    demand_factor_bps, demand_cents, demand_commissioned)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
 `
 
 type CreateFareEstimateParams struct {
-	ID              uuid.UUID       `json:"id"`
-	CustomerID      uuid.UUID       `json:"customer_id"`
-	TariffID        uuid.UUID       `json:"tariff_id"`
-	ServiceID       uuid.UUID       `json:"service_id"`
-	OriginLat       float64         `json:"origin_lat"`
-	OriginLng       float64         `json:"origin_lng"`
-	DestinationLat  *float64        `json:"destination_lat"`
-	DestinationLng  *float64        `json:"destination_lng"`
-	Stops           json.RawMessage `json:"stops"`
-	DistanceM       int32           `json:"distance_m"`
-	DurationS       int32           `json:"duration_s"`
-	RouteSource     string          `json:"route_source"`
-	TotalCents      int64           `json:"total_cents"`
-	CommissionCents int64           `json:"commission_cents"`
-	Currency        string          `json:"currency"`
-	ExpiresAt       time.Time       `json:"expires_at"`
-	CreatedAt       time.Time       `json:"created_at"`
-	ScheduledFor    *time.Time      `json:"scheduled_for"`
-	VehicleTypeID   *uuid.UUID      `json:"vehicle_type_id"`
-	Details         json.RawMessage `json:"details"`
-	RouteGeometry   string          `json:"route_geometry"`
+	ID                 uuid.UUID       `json:"id"`
+	CustomerID         uuid.UUID       `json:"customer_id"`
+	TariffID           uuid.UUID       `json:"tariff_id"`
+	ServiceID          uuid.UUID       `json:"service_id"`
+	OriginLat          float64         `json:"origin_lat"`
+	OriginLng          float64         `json:"origin_lng"`
+	DestinationLat     *float64        `json:"destination_lat"`
+	DestinationLng     *float64        `json:"destination_lng"`
+	Stops              json.RawMessage `json:"stops"`
+	DistanceM          int32           `json:"distance_m"`
+	DurationS          int32           `json:"duration_s"`
+	RouteSource        string          `json:"route_source"`
+	TotalCents         int64           `json:"total_cents"`
+	CommissionCents    int64           `json:"commission_cents"`
+	Currency           string          `json:"currency"`
+	ExpiresAt          time.Time       `json:"expires_at"`
+	CreatedAt          time.Time       `json:"created_at"`
+	ScheduledFor       *time.Time      `json:"scheduled_for"`
+	VehicleTypeID      *uuid.UUID      `json:"vehicle_type_id"`
+	Details            json.RawMessage `json:"details"`
+	RouteGeometry      string          `json:"route_geometry"`
+	DemandFactorBps    int32           `json:"demand_factor_bps"`
+	DemandCents        int64           `json:"demand_cents"`
+	DemandCommissioned bool            `json:"demand_commissioned"`
 }
 
 func (q *Queries) CreateFareEstimate(ctx context.Context, arg CreateFareEstimateParams) error {
@@ -150,6 +154,9 @@ func (q *Queries) CreateFareEstimate(ctx context.Context, arg CreateFareEstimate
 		arg.VehicleTypeID,
 		arg.Details,
 		arg.RouteGeometry,
+		arg.DemandFactorBps,
+		arg.DemandCents,
+		arg.DemandCommissioned,
 	)
 	return err
 }
@@ -377,7 +384,7 @@ func (q *Queries) GetETAObservation(ctx context.Context, arg GetETAObservationPa
 }
 
 const getFareEstimate = `-- name: GetFareEstimate :one
-SELECT id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops, distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, used_at, vehicle_type_id, details, route_geometry FROM fare_estimates WHERE id = $1
+SELECT id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops, distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, used_at, vehicle_type_id, details, route_geometry, demand_factor_bps, demand_cents, demand_commissioned FROM fare_estimates WHERE id = $1
 `
 
 func (q *Queries) GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstimate, error) {
@@ -406,6 +413,9 @@ func (q *Queries) GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstima
 		&i.VehicleTypeID,
 		&i.Details,
 		&i.RouteGeometry,
+		&i.DemandFactorBps,
+		&i.DemandCents,
+		&i.DemandCommissioned,
 	)
 	return i, err
 }
@@ -505,6 +515,29 @@ func (q *Queries) GetServiceZone(ctx context.Context, id uuid.UUID) (GetServiceZ
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Geojson,
+	)
+	return i, err
+}
+
+const getTripMetrics = `-- name: GetTripMetrics :one
+SELECT request_id, estimated_distance_m, estimated_duration_s, actual_distance_m, actual_duration_s, distance_deviation_bps, duration_deviation_bps, samples, route_changed, needs_review, recorded_at FROM request_trip_metrics WHERE request_id = $1
+`
+
+func (q *Queries) GetTripMetrics(ctx context.Context, requestID uuid.UUID) (RequestTripMetric, error) {
+	row := q.db.QueryRow(ctx, getTripMetrics, requestID)
+	var i RequestTripMetric
+	err := row.Scan(
+		&i.RequestID,
+		&i.EstimatedDistanceM,
+		&i.EstimatedDurationS,
+		&i.ActualDistanceM,
+		&i.ActualDurationS,
+		&i.DistanceDeviationBps,
+		&i.DurationDeviationBps,
+		&i.Samples,
+		&i.RouteChanged,
+		&i.NeedsReview,
+		&i.RecordedAt,
 	)
 	return i, err
 }
@@ -818,6 +851,34 @@ func (q *Queries) ResolveDispatchPolicy(ctx context.Context, arg ResolveDispatch
 	return i, err
 }
 
+const trackedDistanceMeters = `-- name: TrackedDistanceMeters :one
+SELECT COALESCE(sum(ST_Distance(ST_SetSRID(ST_MakePoint(s.lng, s.lat), 4326)::geography, ST_SetSRID(ST_MakePoint(s.previous_lng, s.previous_lat), 4326)::geography)
+           ) FILTER (WHERE s.previous_lat IS NOT NULL), 0)::bigint AS meters,
+       count(*)::integer AS samples
+FROM (
+    SELECT lat, lng, lag(lat) OVER (ORDER BY recorded_at) AS previous_lat, lag(lng) OVER (ORDER BY recorded_at) AS previous_lng
+    FROM provider_location_samples
+    WHERE request_id = $1 AND recorded_at >= $2::timestamptz
+) s
+`
+
+type TrackedDistanceMetersParams struct {
+	RequestID uuid.UUID `json:"request_id"`
+	Since     time.Time `json:"since"`
+}
+
+type TrackedDistanceMetersRow struct {
+	Meters  int64 `json:"meters"`
+	Samples int32 `json:"samples"`
+}
+
+func (q *Queries) TrackedDistanceMeters(ctx context.Context, arg TrackedDistanceMetersParams) (TrackedDistanceMetersRow, error) {
+	row := q.db.QueryRow(ctx, trackedDistanceMeters, arg.RequestID, arg.Since)
+	var i TrackedDistanceMetersRow
+	err := row.Scan(&i.Meters, &i.Samples)
+	return i, err
+}
+
 const updateDispatchPolicy = `-- name: UpdateDispatchPolicy :execrows
 UPDATE dispatch_policies
 SET candidate_source = $2, h3_resolution = $3, radii_km = $4, offer_mode = $5, batch_size = $6, offer_ttl_seconds = $7,
@@ -916,6 +977,48 @@ func (q *Queries) UpdateServiceZone(ctx context.Context, arg UpdateServiceZonePa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const upsertTripMetrics = `-- name: UpsertTripMetrics :exec
+INSERT INTO request_trip_metrics (request_id, estimated_distance_m, estimated_duration_s, actual_distance_m, actual_duration_s,
+    distance_deviation_bps, duration_deviation_bps, samples, route_changed, needs_review, recorded_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+ON CONFLICT (request_id) DO UPDATE SET
+    estimated_distance_m = EXCLUDED.estimated_distance_m, estimated_duration_s = EXCLUDED.estimated_duration_s,
+    actual_distance_m = EXCLUDED.actual_distance_m, actual_duration_s = EXCLUDED.actual_duration_s,
+    distance_deviation_bps = EXCLUDED.distance_deviation_bps, duration_deviation_bps = EXCLUDED.duration_deviation_bps, samples = EXCLUDED.samples,
+    route_changed = EXCLUDED.route_changed, needs_review = EXCLUDED.needs_review, recorded_at = EXCLUDED.recorded_at
+`
+
+type UpsertTripMetricsParams struct {
+	RequestID            uuid.UUID `json:"request_id"`
+	EstimatedDistanceM   int32     `json:"estimated_distance_m"`
+	EstimatedDurationS   int32     `json:"estimated_duration_s"`
+	ActualDistanceM      int32     `json:"actual_distance_m"`
+	ActualDurationS      int32     `json:"actual_duration_s"`
+	DistanceDeviationBps int32     `json:"distance_deviation_bps"`
+	DurationDeviationBps int32     `json:"duration_deviation_bps"`
+	Samples              int32     `json:"samples"`
+	RouteChanged         bool      `json:"route_changed"`
+	NeedsReview          bool      `json:"needs_review"`
+	RecordedAt           time.Time `json:"recorded_at"`
+}
+
+func (q *Queries) UpsertTripMetrics(ctx context.Context, arg UpsertTripMetricsParams) error {
+	_, err := q.db.Exec(ctx, upsertTripMetrics,
+		arg.RequestID,
+		arg.EstimatedDistanceM,
+		arg.EstimatedDurationS,
+		arg.ActualDistanceM,
+		arg.ActualDurationS,
+		arg.DistanceDeviationBps,
+		arg.DurationDeviationBps,
+		arg.Samples,
+		arg.RouteChanged,
+		arg.NeedsReview,
+		arg.RecordedAt,
+	)
+	return err
 }
 
 const useFareEstimate = `-- name: UseFareEstimate :execrows

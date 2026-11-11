@@ -39,6 +39,9 @@ func (u *Usecase) RunWatcher(ctx context.Context) {
 			if err := u.Housekeep(ctx); err != nil && ctx.Err() == nil {
 				log.Warn("dispatch housekeeping failed", zap.Error(err))
 			}
+			if err := u.RefreshDemand(ctx); err != nil && ctx.Err() == nil {
+				log.Warn("demand refresh failed", zap.Error(err))
+			}
 		}
 	}
 }

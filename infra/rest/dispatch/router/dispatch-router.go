@@ -110,6 +110,12 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	tariffs.GET("", r.controller.ListTariffs)
 	tariffs.POST("", r.controller.PublishTariff)
 
+	demand := admin.Group("/demand-pricing", can(entities.PermServicesManage))
+	demand.GET("", r.controller.ListDemandPricing)
+	demand.PUT("", r.controller.SaveDemandPricing)
+	demand.GET("/areas", r.controller.DemandAreas)
+	demand.GET("/history", r.controller.DemandHistory)
+
 	admin.GET("/sos", can(entities.PermRequestsRead), r.controller.ListSOS)
 	admin.POST("/sos/:id/resolve", can(entities.PermRequestsManage), r.controller.ResolveSOS)
 	admin.GET("/cancellation-rules", can(entities.PermServicesManage), r.controller.ListCancellationRules)

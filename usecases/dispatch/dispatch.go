@@ -79,6 +79,12 @@ type Settings struct {
 	ChannelTimeout   time.Duration
 	ShareBaseURL     string
 	Currency         string
+
+	DemandAreaResolution   int
+	DemandQuoteWindow      time.Duration
+	DemandFactorTTL        time.Duration
+	DemandHistoryRetention time.Duration
+	RouteReviewAboveBps    int
 }
 
 type OfferChannels interface {
@@ -98,6 +104,8 @@ type OfferNotice struct {
 type Deps struct {
 	Config    repository.IDispatchConfigRepository
 	Pricing   repository.IPricingRepository
+	Demand    repository.IDemandRepository
+	Signals   repository.IDemandSignals
 	Providers repository.IProviderRepository
 	Requests  repository.IRequestRepository
 	Offers    repository.IOfferRepository

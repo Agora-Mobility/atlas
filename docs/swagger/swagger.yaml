@@ -244,6 +244,8 @@ definitions:
         type: array
       request:
         $ref: '#/definitions/dtos.RequestView'
+      trip:
+        $ref: '#/definitions/dtos.TripMetricsView'
     type: object
   dtos.AdminRequestList:
     properties:
@@ -276,6 +278,8 @@ definitions:
         type: string
       destination_line:
         type: string
+      distance_deviation_bps:
+        type: integer
       fare_cents:
         type: integer
       id:
@@ -296,6 +300,8 @@ definitions:
         type: string
       provider_name:
         type: string
+      route_review:
+        type: boolean
       scheduled_for:
         type: string
       service_id:
@@ -1350,41 +1356,145 @@ definitions:
     required:
     - channel
     type: object
-  dtos.DemandCell:
+  dtos.DemandAreaList:
     properties:
-      boundary:
+      items:
         items:
-          items:
-            type: number
-          type: array
+          $ref: '#/definitions/dtos.DemandAreaView'
         type: array
-      cell:
-        example: 88754e64d3fffff
-        type: string
-      level:
-        enum:
-        - 1
-        - 2
-        - 3
-        example: 3
+      resolution:
         type: integer
     type: object
-  dtos.DemandView:
+  dtos.DemandAreaView:
+    properties:
+      cell:
+        type: string
+      factor_bps:
+        example: 12000
+        type: integer
+      lat:
+        type: number
+      lng:
+        type: number
+      ratio_bps:
+        example: 17000
+        type: integer
+    type: object
+  dtos.DemandHistory:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.DemandSnapshotView'
+        type: array
+      resolution:
+        type: integer
+    type: object
+  dtos.DemandPricingInput:
     properties:
       category:
         example: taxi
         type: string
-      cells:
-        items:
-          $ref: '#/definitions/dtos.DemandCell'
-        type: array
-      expires_at:
+      commission_on_surge:
+        type: boolean
+      max_factor_bps:
+        example: 13000
+        maximum: 30000
+        minimum: 10000
+        type: integer
+      mode:
+        enum:
+        - "off"
+        - observe
+        - "on"
+        example: observe
         type: string
-      radius_km:
-        example: 10
+      tiers:
+        items:
+          $ref: '#/definitions/dtos.DemandTierInput'
+        maxItems: 10
+        type: array
+      zone_id:
+        type: string
+    required:
+    - category
+    - mode
+    - zone_id
+    type: object
+  dtos.DemandPricingList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.DemandPricingView'
+        type: array
+    type: object
+  dtos.DemandPricingView:
+    properties:
+      category:
+        example: taxi
+        type: string
+      category_id:
+        type: string
+      commission_on_surge:
+        type: boolean
+      id:
+        type: string
+      max_factor_bps:
+        example: 13000
+        maximum: 30000
+        minimum: 10000
+        type: integer
+      mode:
+        enum:
+        - "off"
+        - observe
+        - "on"
+        example: observe
+        type: string
+      tiers:
+        items:
+          $ref: '#/definitions/dtos.DemandTierInput'
+        maxItems: 10
+        type: array
+      updated_at:
+        type: string
+      zone_id:
+        type: string
+    required:
+    - category
+    - mode
+    - zone_id
+    type: object
+  dtos.DemandSnapshotView:
+    properties:
+      cell:
+        type: string
+      factor_bps:
+        example: 12000
+        type: integer
+      free:
+        type: integer
+      lat:
         type: number
-      window_minutes:
-        example: 60
+      lng:
+        type: number
+      pending:
+        type: integer
+      ratio_bps:
+        example: 17000
+        type: integer
+      recorded_at:
+        type: string
+    type: object
+  dtos.DemandTierInput:
+    properties:
+      above_ratio_bps:
+        example: 15000
+        minimum: 0
+        type: integer
+      factor_bps:
+        example: 12000
+        maximum: 30000
+        minimum: 10000
         type: integer
     type: object
   dtos.DeviceInput:
@@ -1694,6 +1804,9 @@ definitions:
     properties:
       currency:
         type: string
+      demand_factor_bps:
+        example: 10000
+        type: integer
       distance_m:
         type: integer
       duration_s:
@@ -1702,6 +1815,8 @@ definitions:
         type: integer
       fare_estimate_id:
         type: string
+      high_demand:
+        type: boolean
       included_km:
         type: integer
       removal:
@@ -4872,6 +4987,31 @@ definitions:
           $ref: '#/definitions/dtos.CatalogItemView'
         type: array
     type: object
+  dtos.TripMetricsView:
+    properties:
+      actual_distance_m:
+        type: integer
+      actual_duration_s:
+        type: integer
+      distance_deviation_bps:
+        example: 3500
+        type: integer
+      duration_deviation_bps:
+        example: -1200
+        type: integer
+      estimated_distance_m:
+        type: integer
+      estimated_duration_s:
+        type: integer
+      gps_samples:
+        type: integer
+      needs_review:
+        type: boolean
+      recorded_at:
+        type: string
+      route_changed:
+        type: boolean
+    type: object
   dtos.UnblockUserInput:
     properties:
       reason:
@@ -6558,6 +6698,117 @@ paths:
       summary: Change a service category
       tags:
       - Backoffice catalog
+  /api/v1/admin/demand-pricing:
+    get:
+      description: 'The price rises in an area of the zone when more customers wait
+        than providers are free, by tiers of the ratio (customers + 1) / (free providers
+        + 1), up to the cap. Each customer counts once, whether they quoted, requested
+        or both. Ratios and factors are basis points: 10000 is 1.0.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandPricingList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the demand pricing of each zone and category
+      tags:
+      - Backoffice dispatch
+    put:
+      consumes:
+      - application/json
+      description: A tier applies when the smoothed ratio is above above_ratio_bps.
+        Mode off stops measuring and brings every price of the zone back to normal
+        at once; observe measures and records the factor that would apply, without
+        changing prices, to calibrate the tiers; on charges it. Estimates already
+        given keep their price.
+      parameters:
+      - description: Demand pricing
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.DemandPricingInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandPricingView'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set the demand tiers, cap and switch of a zone and category
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/demand-pricing/areas:
+    get:
+      description: Areas of the zone where demand is above normal now, with the smoothed
+        ratio and the factor quotes use. Areas not listed price at 1.0.
+      parameters:
+      - description: Zone
+        in: query
+        name: zone_id
+        required: true
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandAreaList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Current demand factor by area
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/demand-pricing/history:
+    get:
+      description: One row per area and minute while demand was above normal. Defaults
+        to the last 24 hours.
+      parameters:
+      - description: Zone
+        in: query
+        name: zone_id
+        required: true
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        required: true
+        type: string
+      - description: From, YYYY-MM-DD or RFC 3339
+        in: query
+        name: from
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandHistory'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Demand factor history
+      tags:
+      - Backoffice dispatch
   /api/v1/admin/dispatch-policies:
     get:
       produces:
@@ -7527,6 +7778,11 @@ paths:
         in: query
         name: to
         type: string
+      - description: Only completed rides whose real distance strayed from the quote
+          beyond ROUTE_REVIEW_ABOVE_PERCENT
+        in: query
+        name: route_review
+        type: boolean
       - description: Page
         in: query
         name: page
@@ -11602,6 +11858,39 @@ paths:
       tags:
       - Partners
   /api/v1/partners/{orgId}:
+    get:
+      description: Requires partners:read (AGORA only).
+      parameters:
+      - description: Partner organization id
+        in: path
+        name: orgId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OrganizationView'
+        "401":
+          description: Unauthorized or session ended
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing permission
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Partner not found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get a partner organization
+      tags:
+      - Partners
     patch:
       consumes:
       - application/json

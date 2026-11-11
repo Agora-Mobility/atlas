@@ -266,14 +266,14 @@ func (r *RequestRepository) AdminList(ctx context.Context, f repository.AdminReq
 	statuses := emptyStatuses(f.Statuses)
 	rows, err := queries.ListAdminRequests(ctx, gen.ListAdminRequestsParams{
 		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
-		CreatedFrom: f.From, CreatedTo: f.To, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
+		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list admin requests: %w", err)
 	}
 	total, err := queries.CountAdminRequests(ctx, gen.CountAdminRequestsParams{
 		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
-		CreatedFrom: f.From, CreatedTo: f.To,
+		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count admin requests: %w", err)
@@ -285,7 +285,11 @@ func (r *RequestRepository) AdminList(ctx context.Context, f repository.AdminReq
 			ID: row.ID, Status: row.Status, Version: int(row.Version), Category: row.CategorySlug, CategoryName: row.CategoryName, ServiceID: row.ServiceID, ServiceName: row.ServiceName,
 			CustomerID: row.CustomerID, CustomerName: row.CustomerName, ProviderID: row.ProviderID, OrganizationID: row.OrganizationID, ZoneID: row.ZoneID, ZoneName: row.ZoneName,
 			FareCents: row.FareCents, Currency: row.Currency, NeedsOperator: row.NeedsOperator, ScheduledFor: row.ScheduledFor, CreatedAt: row.CreatedAt, CompletedAt: row.CompletedAt,
-			PickupLine: row.PickupLine, PickupLat: row.PickupLat, PickupLng: row.PickupLng,
+			PickupLine: row.PickupLine, PickupLat: row.PickupLat, PickupLng: row.PickupLng, RouteReview: row.RouteReview,
+		}
+		if row.DistanceDeviationBps != nil {
+			deviation := int(*row.DistanceDeviationBps)
+			item.DeviationBps = &deviation
 		}
 		if row.ProviderName != nil {
 			item.ProviderName = *row.ProviderName
