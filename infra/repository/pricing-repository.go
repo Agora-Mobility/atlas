@@ -93,6 +93,7 @@ func (r *PricingRepository) CreateEstimate(ctx context.Context, e *entities.Fare
 		DestinationLat: destinationLat, DestinationLng: destinationLng, Stops: stops, DistanceM: int32(e.DistanceMeters), // #nosec G115 -- a route fits in int32
 		DurationS: int32(e.DurationSeconds), RouteSource: e.RouteSource, TotalCents: e.TotalCents, CommissionCents: e.CommissionCents, // #nosec G115 -- a route fits in int32
 		Currency: e.Currency, ExpiresAt: e.ExpiresAt, CreatedAt: e.CreatedAt, ScheduledFor: e.ScheduledFor, VehicleTypeID: e.VehicleTypeID, Details: detailsOrEmpty(e.Details), RouteGeometry: e.RouteGeometry,
+		DemandFactorBps: int32(e.Demand().FactorBps), DemandCents: e.DemandCents, DemandCommissioned: e.DemandCommissioned, // #nosec G115 -- capped by the entity
 	})
 	if err != nil {
 		return fmt.Errorf("create estimate: %w", err)
@@ -113,6 +114,7 @@ func (r *PricingRepository) FindEstimate(ctx context.Context, id uuid.UUID) (*en
 		Origin: entities.GeoPoint{Lat: row.OriginLat, Lng: row.OriginLng}, DistanceMeters: int(row.DistanceM), DurationSeconds: int(row.DurationS),
 		RouteSource: row.RouteSource, RouteGeometry: row.RouteGeometry, TotalCents: row.TotalCents, CommissionCents: row.CommissionCents, Currency: row.Currency,
 		ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt, ScheduledFor: row.ScheduledFor, UsedAt: row.UsedAt, VehicleTypeID: row.VehicleTypeID, Details: row.Details,
+		DemandFactorBps: int(row.DemandFactorBps), DemandCents: row.DemandCents, DemandCommissioned: row.DemandCommissioned,
 	}
 	if row.DestinationLat != nil && row.DestinationLng != nil {
 		estimate.Destination = &entities.GeoPoint{Lat: *row.DestinationLat, Lng: *row.DestinationLng}

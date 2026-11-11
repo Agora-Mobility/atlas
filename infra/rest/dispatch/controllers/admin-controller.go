@@ -217,6 +217,108 @@ func (c *DispatchController) PublishTariff(ctx *gin.Context) {
 	respond(ctx, http.StatusCreated, view, err)
 }
 
+// ListDemandPricing godoc
+//
+//	@Summary		List the demand pricing of each zone and category
+//	@Description	The price rises in an area of the zone when more customers wait than providers are free, by tiers of the ratio (customers + 1) / (free providers + 1), up to the cap. Each customer counts once, whether they quoted, requested or both. Ratios and factors are basis points: 10000 is 1.0.
+//	@Tags			Backoffice dispatch
+//	@Produce		json
+//	@Success		200	{object}	dtos.DemandPricingList
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/demand-pricing [get]
+func (c *DispatchController) ListDemandPricing(ctx *gin.Context) {
+	list, err := c.dispatch.ListDemandPricing(ctx.Request.Context())
+	respond(ctx, http.StatusOK, list, err)
+}
+
+// SaveDemandPricing godoc
+//
+//	@Summary		Set the demand tiers, cap and switch of a zone and category
+//	@Description	A tier applies when the smoothed ratio is above above_ratio_bps. Mode off stops measuring and brings every price of the zone back to normal at once; observe measures and records the factor that would apply, without changing prices, to calibrate the tiers; on charges it. Estimates already given keep their price.
+//	@Tags			Backoffice dispatch
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dtos.DemandPricingInput	true	"Demand pricing"
+//	@Success		200		{object}	dtos.DemandPricingView
+//	@Failure		422		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/demand-pricing [put]
+func (c *DispatchController) SaveDemandPricing(ctx *gin.Context) {
+	actor, ok := staffActor(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.DemandPricingInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	view, err := c.dispatch.SaveDemandPricing(ctx.Request.Context(), actor, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// DemandAreas godoc
+//
+//	@Summary		Current demand factor by area
+//	@Description	Areas of the zone where demand is above normal now, with the smoothed ratio and the factor quotes use. Areas not listed price at 1.0.
+//	@Tags			Backoffice dispatch
+//	@Produce		json
+//	@Param			zone_id		query		string	true	"Zone"
+//	@Param			category	query		string	true	"Category slug"
+//	@Success		200			{object}	dtos.DemandAreaList
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/demand-pricing/areas [get]
+func (c *DispatchController) DemandAreas(ctx *gin.Context) {
+	zoneID, category, ok := demandScope(ctx)
+	if !ok {
+		return
+	}
+	list, err := c.dispatch.DemandAreas(ctx.Request.Context(), zoneID, category)
+	respond(ctx, http.StatusOK, list, err)
+}
+
+// DemandHistory godoc
+//
+//	@Summary		Demand factor history
+//	@Description	One row per area and minute while demand was above normal. Defaults to the last 24 hours.
+//	@Tags			Backoffice dispatch
+//	@Produce		json
+//	@Param			zone_id		query		string	true	"Zone"
+//	@Param			category	query		string	true	"Category slug"
+//	@Param			from		query		string	false	"From, YYYY-MM-DD or RFC 3339"
+//	@Success		200			{object}	dtos.DemandHistory
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/demand-pricing/history [get]
+func (c *DispatchController) DemandHistory(ctx *gin.Context) {
+	zoneID, category, ok := demandScope(ctx)
+	if !ok {
+		return
+	}
+	from, ok := queryTime(ctx, "from")
+	if !ok {
+		return
+	}
+	history, err := c.dispatch.DemandHistory(ctx.Request.Context(), zoneID, category, from)
+	respond(ctx, http.StatusOK, history, err)
+}
+
+func demandScope(ctx *gin.Context) (uuid.UUID, string, bool) {
+	zoneID, ok := queryUUID(ctx, "zone_id")
+	if !ok {
+		return uuid.Nil, "", false
+	}
+	category := ctx.Query("category")
+	if zoneID == nil || category == "" {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "zone_id and category are required.")
+		return uuid.Nil, "", false
+	}
+	return *zoneID, category, true
+}
+
 // OperatorQueue godoc
 //
 //	@Summary	Requests waiting for an operator

@@ -547,6 +547,174 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/demand-pricing": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The price rises in an area of the zone when more customers wait than providers are free, by tiers of the ratio (customers + 1) / (free providers + 1), up to the cap. Each customer counts once, whether they quoted, requested or both. Ratios and factors are basis points: 10000 is 1.0.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "List the demand pricing of each zone and category",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandPricingList"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "A tier applies when the smoothed ratio is above above_ratio_bps. Mode off stops measuring and brings every price of the zone back to normal at once; observe measures and records the factor that would apply, without changing prices, to calibrate the tiers; on charges it. Estimates already given keep their price.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Set the demand tiers, cap and switch of a zone and category",
+                "parameters": [
+                    {
+                        "description": "Demand pricing",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandPricingInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandPricingView"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/demand-pricing/areas": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Areas of the zone where demand is above normal now, with the smoothed ratio and the factor quotes use. Areas not listed price at 1.0.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Current demand factor by area",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Zone",
+                        "name": "zone_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandAreaList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/demand-pricing/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "One row per area and minute while demand was above normal. Defaults to the last 24 hours.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Demand factor history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Zone",
+                        "name": "zone_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "From, YYYY-MM-DD or RFC 3339",
+                        "name": "from",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandHistory"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/dispatch-policies": {
             "get": {
                 "security": [
@@ -17957,6 +18125,207 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.DemandAreaList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandAreaView"
+                    }
+                },
+                "resolution": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.DemandAreaView": {
+            "type": "object",
+            "properties": {
+                "cell": {
+                    "type": "string"
+                },
+                "factor_bps": {
+                    "type": "integer",
+                    "example": 12000
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "ratio_bps": {
+                    "type": "integer",
+                    "example": 17000
+                }
+            }
+        },
+        "dtos.DemandHistory": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandSnapshotView"
+                    }
+                },
+                "resolution": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.DemandPricingInput": {
+            "type": "object",
+            "required": [
+                "category",
+                "mode",
+                "zone_id"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "commission_on_surge": {
+                    "type": "boolean"
+                },
+                "max_factor_bps": {
+                    "type": "integer",
+                    "maximum": 30000,
+                    "minimum": 10000,
+                    "example": 13000
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "observe",
+                        "on"
+                    ],
+                    "example": "observe"
+                },
+                "tiers": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandTierInput"
+                    }
+                },
+                "zone_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.DemandPricingList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandPricingView"
+                    }
+                }
+            }
+        },
+        "dtos.DemandPricingView": {
+            "type": "object",
+            "required": [
+                "category",
+                "mode",
+                "zone_id"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "commission_on_surge": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "max_factor_bps": {
+                    "type": "integer",
+                    "maximum": 30000,
+                    "minimum": 10000,
+                    "example": 13000
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "observe",
+                        "on"
+                    ],
+                    "example": "observe"
+                },
+                "tiers": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandTierInput"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "zone_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.DemandSnapshotView": {
+            "type": "object",
+            "properties": {
+                "cell": {
+                    "type": "string"
+                },
+                "factor_bps": {
+                    "type": "integer",
+                    "example": 12000
+                },
+                "free": {
+                    "type": "integer"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "pending": {
+                    "type": "integer"
+                },
+                "ratio_bps": {
+                    "type": "integer",
+                    "example": 17000
+                },
+                "recorded_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.DemandTierInput": {
+            "type": "object",
+            "properties": {
+                "above_ratio_bps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 15000
+                },
+                "factor_bps": {
+                    "type": "integer",
+                    "maximum": 30000,
+                    "minimum": 10000,
+                    "example": 12000
+                }
+            }
+        },
         "dtos.DeviceInput": {
             "type": "object",
             "required": [
@@ -18409,6 +18778,10 @@ const docTemplate = `{
                 "currency": {
                     "type": "string"
                 },
+                "demand_factor_bps": {
+                    "type": "integer",
+                    "example": 10000
+                },
                 "distance_m": {
                     "type": "integer"
                 },
@@ -18420,6 +18793,9 @@ const docTemplate = `{
                 },
                 "fare_estimate_id": {
                     "type": "string"
+                },
+                "high_demand": {
+                    "type": "boolean"
                 },
                 "included_km": {
                     "type": "integer"

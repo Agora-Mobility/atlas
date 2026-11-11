@@ -587,6 +587,30 @@ type CustomerVehicle struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+type DemandPricing struct {
+	ID                uuid.UUID       `json:"id"`
+	ZoneID            uuid.UUID       `json:"zone_id"`
+	CategoryID        uuid.UUID       `json:"category_id"`
+	Mode              string          `json:"mode"`
+	Tiers             json.RawMessage `json:"tiers"`
+	MaxFactorBps      int32           `json:"max_factor_bps"`
+	CommissionOnSurge bool            `json:"commission_on_surge"`
+	UpdatedBy         *uuid.UUID      `json:"updated_by"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+}
+
+type DemandSnapshot struct {
+	ID         int64     `json:"id"`
+	ZoneID     uuid.UUID `json:"zone_id"`
+	CategoryID uuid.UUID `json:"category_id"`
+	AreaH3     int64     `json:"area_h3"`
+	Pending    int32     `json:"pending"`
+	Free       int32     `json:"free"`
+	RatioBps   int32     `json:"ratio_bps"`
+	FactorBps  int32     `json:"factor_bps"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
 type DeviceToken struct {
 	Token     string    `json:"token"`
 	UserID    uuid.UUID `json:"user_id"`
@@ -647,28 +671,31 @@ type FareAdjustment struct {
 }
 
 type FareEstimate struct {
-	ID              uuid.UUID       `json:"id"`
-	CustomerID      uuid.UUID       `json:"customer_id"`
-	TariffID        uuid.UUID       `json:"tariff_id"`
-	ServiceID       uuid.UUID       `json:"service_id"`
-	OriginLat       float64         `json:"origin_lat"`
-	OriginLng       float64         `json:"origin_lng"`
-	DestinationLat  *float64        `json:"destination_lat"`
-	DestinationLng  *float64        `json:"destination_lng"`
-	Stops           json.RawMessage `json:"stops"`
-	DistanceM       int32           `json:"distance_m"`
-	DurationS       int32           `json:"duration_s"`
-	RouteSource     string          `json:"route_source"`
-	TotalCents      int64           `json:"total_cents"`
-	CommissionCents int64           `json:"commission_cents"`
-	Currency        string          `json:"currency"`
-	ExpiresAt       time.Time       `json:"expires_at"`
-	CreatedAt       time.Time       `json:"created_at"`
-	ScheduledFor    *time.Time      `json:"scheduled_for"`
-	UsedAt          *time.Time      `json:"used_at"`
-	VehicleTypeID   *uuid.UUID      `json:"vehicle_type_id"`
-	Details         json.RawMessage `json:"details"`
-	RouteGeometry   string          `json:"route_geometry"`
+	ID                 uuid.UUID       `json:"id"`
+	CustomerID         uuid.UUID       `json:"customer_id"`
+	TariffID           uuid.UUID       `json:"tariff_id"`
+	ServiceID          uuid.UUID       `json:"service_id"`
+	OriginLat          float64         `json:"origin_lat"`
+	OriginLng          float64         `json:"origin_lng"`
+	DestinationLat     *float64        `json:"destination_lat"`
+	DestinationLng     *float64        `json:"destination_lng"`
+	Stops              json.RawMessage `json:"stops"`
+	DistanceM          int32           `json:"distance_m"`
+	DurationS          int32           `json:"duration_s"`
+	RouteSource        string          `json:"route_source"`
+	TotalCents         int64           `json:"total_cents"`
+	CommissionCents    int64           `json:"commission_cents"`
+	Currency           string          `json:"currency"`
+	ExpiresAt          time.Time       `json:"expires_at"`
+	CreatedAt          time.Time       `json:"created_at"`
+	ScheduledFor       *time.Time      `json:"scheduled_for"`
+	UsedAt             *time.Time      `json:"used_at"`
+	VehicleTypeID      *uuid.UUID      `json:"vehicle_type_id"`
+	Details            json.RawMessage `json:"details"`
+	RouteGeometry      string          `json:"route_geometry"`
+	DemandFactorBps    int32           `json:"demand_factor_bps"`
+	DemandCents        int64           `json:"demand_cents"`
+	DemandCommissioned bool            `json:"demand_commissioned"`
 }
 
 type InboxItem struct {

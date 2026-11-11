@@ -55,6 +55,8 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 	uc := dispatch.NewUsecase(dispatch.Deps{
 		Config:    repository.NewDispatchConfigRepository(c.Pool),
 		Pricing:   repository.NewPricingRepository(c.Pool),
+		Demand:    repository.NewDemandRepository(c.Pool),
+		Signals:   repository.NewDemandSignals(c.Redis),
 		Providers: repository.NewProviderRepository(c.Pool),
 		Requests:  repository.NewRequestRepository(c.Pool),
 		Offers:    repository.NewOfferRepository(c.Pool),
@@ -80,6 +82,8 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout, ShareBaseURL: cfg.Dispatch.ShareBaseURL, Currency: cfg.AppyPay.LedgerCurrency,
 		Limits:     entities.PlausibilityLimits{MaxAccuracyM: cfg.Dispatch.MaxAccuracyM, MaxSpeedMps: cfg.Dispatch.MaxSpeedKmh * kmhToMps},
 		RoadFactor: cfg.GoogleMaps.RoadFactor, AverageSpeedKmh: cfg.GoogleMaps.AverageSpeedKmh,
+		DemandAreaResolution: cfg.Dispatch.DemandAreaResolution, DemandQuoteWindow: cfg.Dispatch.DemandQuoteWindow, DemandFactorTTL: cfg.Dispatch.DemandFactorTTL,
+		DemandHistoryRetention: cfg.Dispatch.DemandHistoryRetention,
 	})
 	notifier.UseSharer(uc)
 	notifier.UseAccount(repository.NewAccountRepository(c.Pool))

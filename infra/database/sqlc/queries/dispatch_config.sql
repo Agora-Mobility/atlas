@@ -87,8 +87,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
 
 -- name: CreateFareEstimate :exec
 INSERT INTO fare_estimates (id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops,
-    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, vehicle_type_id, details, route_geometry)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
+    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, vehicle_type_id, details, route_geometry,
+    demand_factor_bps, demand_cents, demand_commissioned)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24);
 
 -- name: GetFareEstimate :one
 SELECT * FROM fare_estimates WHERE id = $1;

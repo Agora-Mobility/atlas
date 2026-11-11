@@ -118,6 +118,7 @@ type Querier interface {
 	GetCatalogItems(ctx context.Context, ids []uuid.UUID) ([]GetCatalogItemsRow, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error)
 	GetCustomerVehicle(ctx context.Context, arg GetCustomerVehicleParams) (CustomerVehicle, error)
+	GetDemandPricing(ctx context.Context, arg GetDemandPricingParams) (DemandPricing, error)
 	GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error)
 	GetDocumentFile(ctx context.Context, id uuid.UUID) (ProviderDocumentFile, error)
 	GetETAObservation(ctx context.Context, arg GetETAObservationParams) (GetETAObservationRow, error)
@@ -195,6 +196,7 @@ type Querier interface {
 	InsertBookingItem(ctx context.Context, arg InsertBookingItemParams) error
 	InsertCatalogItem(ctx context.Context, arg InsertCatalogItemParams) error
 	InsertCustomerVehicle(ctx context.Context, arg InsertCustomerVehicleParams) error
+	InsertDemandSnapshot(ctx context.Context, arg InsertDemandSnapshotParams) error
 	InsertFareAdjustment(ctx context.Context, arg InsertFareAdjustmentParams) error
 	InsertInboxItem(ctx context.Context, arg InsertInboxItemParams) error
 	InsertLedgerEntry(ctx context.Context, arg InsertLedgerEntryParams) error
@@ -245,6 +247,8 @@ type Querier interface {
 	ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error)
 	ListCustomerBookings(ctx context.Context, arg ListCustomerBookingsParams) ([]uuid.UUID, error)
 	ListCustomerVehicles(ctx context.Context, customerID uuid.UUID) ([]CustomerVehicle, error)
+	ListDemandPricing(ctx context.Context) ([]DemandPricing, error)
+	ListDemandSnapshots(ctx context.Context, arg ListDemandSnapshotsParams) ([]DemandSnapshot, error)
 	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
 	ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error)
 	ListDocumentFiles(ctx context.Context, documentID uuid.UUID) ([]ProviderDocumentFile, error)
@@ -330,8 +334,10 @@ type Querier interface {
 	NextRequestCode(ctx context.Context, id uuid.UUID) (string, error)
 	NextTicketCode(ctx context.Context) (string, error)
 	OfferRejectionReport(ctx context.Context, arg OfferRejectionReportParams) ([]OfferRejectionReportRow, error)
+	PendingCustomersByCell(ctx context.Context, arg PendingCustomersByCellParams) ([]PendingCustomersByCellRow, error)
 	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)
 	ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithActiveJobParams) ([]uuid.UUID, error)
+	PurgeDemandSnapshots(ctx context.Context, recordedAt time.Time) (int64, error)
 	PurgeLocationSamples(ctx context.Context, recordedAt time.Time) (int64, error)
 	RecentRequestOfUser(ctx context.Context, customerID uuid.UUID) (RecentRequestOfUserRow, error)
 	RecordETAObservation(ctx context.Context, arg RecordETAObservationParams) error
@@ -393,6 +399,7 @@ type Querier interface {
 	UpdateVoucher(ctx context.Context, arg UpdateVoucherParams) error
 	UpdateWorkshopSchedule(ctx context.Context, arg UpdateWorkshopScheduleParams) (int64, error)
 	UpsertCancellationRule(ctx context.Context, arg UpsertCancellationRuleParams) error
+	UpsertDemandPricing(ctx context.Context, arg UpsertDemandPricingParams) error
 	UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) error
 	UpsertPlatformSetting(ctx context.Context, arg UpsertPlatformSettingParams) error
 	UpsertProvider(ctx context.Context, arg UpsertProviderParams) error

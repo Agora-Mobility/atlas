@@ -99,32 +99,36 @@ func (q *Queries) CreateDispatchPolicy(ctx context.Context, arg CreateDispatchPo
 
 const createFareEstimate = `-- name: CreateFareEstimate :exec
 INSERT INTO fare_estimates (id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops,
-    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, vehicle_type_id, details, route_geometry)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+    distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, vehicle_type_id, details, route_geometry,
+    demand_factor_bps, demand_cents, demand_commissioned)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
 `
 
 type CreateFareEstimateParams struct {
-	ID              uuid.UUID       `json:"id"`
-	CustomerID      uuid.UUID       `json:"customer_id"`
-	TariffID        uuid.UUID       `json:"tariff_id"`
-	ServiceID       uuid.UUID       `json:"service_id"`
-	OriginLat       float64         `json:"origin_lat"`
-	OriginLng       float64         `json:"origin_lng"`
-	DestinationLat  *float64        `json:"destination_lat"`
-	DestinationLng  *float64        `json:"destination_lng"`
-	Stops           json.RawMessage `json:"stops"`
-	DistanceM       int32           `json:"distance_m"`
-	DurationS       int32           `json:"duration_s"`
-	RouteSource     string          `json:"route_source"`
-	TotalCents      int64           `json:"total_cents"`
-	CommissionCents int64           `json:"commission_cents"`
-	Currency        string          `json:"currency"`
-	ExpiresAt       time.Time       `json:"expires_at"`
-	CreatedAt       time.Time       `json:"created_at"`
-	ScheduledFor    *time.Time      `json:"scheduled_for"`
-	VehicleTypeID   *uuid.UUID      `json:"vehicle_type_id"`
-	Details         json.RawMessage `json:"details"`
-	RouteGeometry   string          `json:"route_geometry"`
+	ID                 uuid.UUID       `json:"id"`
+	CustomerID         uuid.UUID       `json:"customer_id"`
+	TariffID           uuid.UUID       `json:"tariff_id"`
+	ServiceID          uuid.UUID       `json:"service_id"`
+	OriginLat          float64         `json:"origin_lat"`
+	OriginLng          float64         `json:"origin_lng"`
+	DestinationLat     *float64        `json:"destination_lat"`
+	DestinationLng     *float64        `json:"destination_lng"`
+	Stops              json.RawMessage `json:"stops"`
+	DistanceM          int32           `json:"distance_m"`
+	DurationS          int32           `json:"duration_s"`
+	RouteSource        string          `json:"route_source"`
+	TotalCents         int64           `json:"total_cents"`
+	CommissionCents    int64           `json:"commission_cents"`
+	Currency           string          `json:"currency"`
+	ExpiresAt          time.Time       `json:"expires_at"`
+	CreatedAt          time.Time       `json:"created_at"`
+	ScheduledFor       *time.Time      `json:"scheduled_for"`
+	VehicleTypeID      *uuid.UUID      `json:"vehicle_type_id"`
+	Details            json.RawMessage `json:"details"`
+	RouteGeometry      string          `json:"route_geometry"`
+	DemandFactorBps    int32           `json:"demand_factor_bps"`
+	DemandCents        int64           `json:"demand_cents"`
+	DemandCommissioned bool            `json:"demand_commissioned"`
 }
 
 func (q *Queries) CreateFareEstimate(ctx context.Context, arg CreateFareEstimateParams) error {
@@ -150,6 +154,9 @@ func (q *Queries) CreateFareEstimate(ctx context.Context, arg CreateFareEstimate
 		arg.VehicleTypeID,
 		arg.Details,
 		arg.RouteGeometry,
+		arg.DemandFactorBps,
+		arg.DemandCents,
+		arg.DemandCommissioned,
 	)
 	return err
 }
@@ -377,7 +384,7 @@ func (q *Queries) GetETAObservation(ctx context.Context, arg GetETAObservationPa
 }
 
 const getFareEstimate = `-- name: GetFareEstimate :one
-SELECT id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops, distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, used_at, vehicle_type_id, details, route_geometry FROM fare_estimates WHERE id = $1
+SELECT id, customer_id, tariff_id, service_id, origin_lat, origin_lng, destination_lat, destination_lng, stops, distance_m, duration_s, route_source, total_cents, commission_cents, currency, expires_at, created_at, scheduled_for, used_at, vehicle_type_id, details, route_geometry, demand_factor_bps, demand_cents, demand_commissioned FROM fare_estimates WHERE id = $1
 `
 
 func (q *Queries) GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstimate, error) {
@@ -406,6 +413,9 @@ func (q *Queries) GetFareEstimate(ctx context.Context, id uuid.UUID) (FareEstima
 		&i.VehicleTypeID,
 		&i.Details,
 		&i.RouteGeometry,
+		&i.DemandFactorBps,
+		&i.DemandCents,
+		&i.DemandCommissioned,
 	)
 	return i, err
 }
