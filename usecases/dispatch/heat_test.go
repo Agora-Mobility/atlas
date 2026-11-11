@@ -248,7 +248,7 @@ func approvedProvider() *entities.Provider {
 	return &entities.Provider{Status: entities.ProviderApproved, ServiceID: &service}
 }
 
-func newDemandWorld(profile *entities.Provider, last *entities.ProviderPosition) *heatWorld {
+func newProviderDemandWorld(profile *entities.Provider, last *entities.ProviderPosition) *heatWorld {
 	w := newHeatWorld()
 	w.usecase.Providers = demandProviders{profile: profile, slug: "taxi"}
 	w.usecase.Locator = demandLocator{last: last}
@@ -256,7 +256,7 @@ func newDemandWorld(profile *entities.Provider, last *entities.ProviderPosition)
 }
 
 func TestProviderDemandShowsLevelsAroundTheProvider(t *testing.T) {
-	w := newDemandWorld(approvedProvider(), nil)
+	w := newProviderDemandWorld(approvedProvider(), nil)
 	w.requests.demand = map[int64]int64{
 		cellOf(-8.8, 13.2): 9, // peak, level 3
 		cellOf(-8.9, 13.2): 4, // level 2
@@ -285,7 +285,7 @@ func TestProviderDemandShowsLevelsAroundTheProvider(t *testing.T) {
 }
 
 func TestProviderDemandUsesTheLastPositionAndTheCache(t *testing.T) {
-	w := newDemandWorld(approvedProvider(), &entities.ProviderPosition{Point: entities.GeoPoint{Lat: -8.8, Lng: 13.2}})
+	w := newProviderDemandWorld(approvedProvider(), &entities.ProviderPosition{Point: entities.GeoPoint{Lat: -8.8, Lng: 13.2}})
 	w.requests.demand = map[int64]int64{cellOf(-8.8, 13.2): 3}
 
 	view, err := w.usecase.ProviderDemand(context.Background(), uuid.New(), dtos.DemandQuery{})
@@ -308,10 +308,10 @@ func TestProviderDemandNeedsAnApprovedProviderWithAPosition(t *testing.T) {
 	pending := approvedProvider()
 	pending.Status = entities.ProviderPending
 
-	_, err := newDemandWorld(pending, nil).usecase.ProviderDemand(context.Background(), uuid.New(), dtos.DemandQuery{})
+	_, err := newProviderDemandWorld(pending, nil).usecase.ProviderDemand(context.Background(), uuid.New(), dtos.DemandQuery{})
 	require.ErrorIs(t, err, ErrProviderNotApproved)
 
-	_, err = newDemandWorld(approvedProvider(), nil).usecase.ProviderDemand(context.Background(), uuid.New(), dtos.DemandQuery{})
+	_, err = newProviderDemandWorld(approvedProvider(), nil).usecase.ProviderDemand(context.Background(), uuid.New(), dtos.DemandQuery{})
 	require.ErrorIs(t, err, ErrPositionUnknown)
 }
 
