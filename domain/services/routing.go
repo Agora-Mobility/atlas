@@ -37,5 +37,7 @@ type IGeoIndex interface {
 	Covering(center entities.GeoPoint, radiusKm float64, resolution int) ([]int64, error)
 	Center(cell int64) (entities.GeoPoint, error)
 	Format(cell int64) string
+	Parent(cell int64, resolution int) (int64, error)
+	Children(cell int64, resolution int) ([]int64, error)
 	InteriorCells(polygons []entities.GeoPolygon, resolution int) ([]int64, error)
 }
