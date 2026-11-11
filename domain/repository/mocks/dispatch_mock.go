@@ -750,18 +750,18 @@ func (mr *MockIRequestRepositoryMockRecorder) Create(ctx, request any) *gomock.C
 }
 
 // DemandByCell mocks base method.
-func (m *MockIRequestRepository) DemandByCell(ctx context.Context, since time.Time, zoneID *uuid.UUID) (map[int64]int64, error) {
+func (m *MockIRequestRepository) DemandByCell(ctx context.Context, filter repository.HeatFilter) (map[int64]int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DemandByCell", ctx, since, zoneID)
+	ret := m.ctrl.Call(m, "DemandByCell", ctx, filter)
 	ret0, _ := ret[0].(map[int64]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DemandByCell indicates an expected call of DemandByCell.
-func (mr *MockIRequestRepositoryMockRecorder) DemandByCell(ctx, since, zoneID any) *gomock.Call {
+func (mr *MockIRequestRepositoryMockRecorder) DemandByCell(ctx, filter any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DemandByCell", reflect.TypeOf((*MockIRequestRepository)(nil).DemandByCell), ctx, since, zoneID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DemandByCell", reflect.TypeOf((*MockIRequestRepository)(nil).DemandByCell), ctx, filter)
 }
 
 // DueReminders mocks base method.
@@ -837,6 +837,21 @@ func (m *MockIRequestRepository) FindForUpdate(ctx context.Context, id uuid.UUID
 func (mr *MockIRequestRepositoryMockRecorder) FindForUpdate(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindForUpdate", reflect.TypeOf((*MockIRequestRepository)(nil).FindForUpdate), ctx, id)
+}
+
+// FlowsByCell mocks base method.
+func (m *MockIRequestRepository) FlowsByCell(ctx context.Context, filter repository.HeatFilter) ([]repository.CellFlow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FlowsByCell", ctx, filter)
+	ret0, _ := ret[0].([]repository.CellFlow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FlowsByCell indicates an expected call of FlowsByCell.
+func (mr *MockIRequestRepositoryMockRecorder) FlowsByCell(ctx, filter any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FlowsByCell", reflect.TypeOf((*MockIRequestRepository)(nil).FlowsByCell), ctx, filter)
 }
 
 // History mocks base method.

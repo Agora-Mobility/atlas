@@ -106,8 +106,19 @@ SELECT reason, amount_cents, created_at FROM fare_adjustments WHERE request_id =
 -- name: DemandByCell :many
 SELECT pickup_h3_r8, count(*) AS requests
 FROM service_requests
-WHERE created_at >= sqlc.arg(since)::timestamptz AND (sqlc.narg(zone_id)::uuid IS NULL OR zone_id = sqlc.narg(zone_id))
+WHERE created_at >= sqlc.arg(from_at)::timestamptz AND created_at < sqlc.arg(to_at)::timestamptz
+  AND (sqlc.narg(zone_id)::uuid IS NULL OR zone_id = sqlc.narg(zone_id))
+  AND (sqlc.arg(category)::text = '' OR category_slug = sqlc.arg(category))
 GROUP BY pickup_h3_r8;
+
+-- name: FlowsByCell :many
+SELECT pickup_h3_r8, destination_h3_r8::bigint AS destination_h3_r8, count(*) AS requests
+FROM service_requests
+WHERE destination_h3_r8 IS NOT NULL
+  AND created_at >= sqlc.arg(from_at)::timestamptz AND created_at < sqlc.arg(to_at)::timestamptz
+  AND (sqlc.narg(zone_id)::uuid IS NULL OR zone_id = sqlc.narg(zone_id))
+  AND (sqlc.arg(category)::text = '' OR category_slug = sqlc.arg(category))
+GROUP BY pickup_h3_r8, destination_h3_r8;
 
 -- name: UpsertRequestOffer :execrows
 INSERT INTO request_offers (id, request_id, provider_id, status, sent_at, expires_at, next_action_at, fallback_step, distance_m, net_cents, boost_bps)

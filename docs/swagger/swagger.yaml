@@ -919,6 +919,15 @@ definitions:
       updated_at:
         type: string
     type: object
+  dtos.CellFlow:
+    properties:
+      destination:
+        $ref: '#/definitions/dtos.HeatPoint'
+      origin:
+        $ref: '#/definitions/dtos.HeatPoint'
+      requests:
+        type: integer
+    type: object
   dtos.ChangeMethodInput:
     properties:
       method:
@@ -1341,6 +1350,43 @@ definitions:
     required:
     - channel
     type: object
+  dtos.DemandCell:
+    properties:
+      boundary:
+        items:
+          items:
+            type: number
+          type: array
+        type: array
+      cell:
+        example: 88754e64d3fffff
+        type: string
+      level:
+        enum:
+        - 1
+        - 2
+        - 3
+        example: 3
+        type: integer
+    type: object
+  dtos.DemandView:
+    properties:
+      category:
+        example: taxi
+        type: string
+      cells:
+        items:
+          $ref: '#/definitions/dtos.DemandCell'
+        type: array
+      expires_at:
+        type: string
+      radius_km:
+        example: 10
+        type: number
+      window_minutes:
+        example: 60
+        type: integer
+    type: object
   dtos.DeviceInput:
     properties:
       platform:
@@ -1757,6 +1803,25 @@ definitions:
       year:
         type: integer
     type: object
+  dtos.FlowMap:
+    properties:
+      flows:
+        items:
+          $ref: '#/definitions/dtos.CellFlow'
+        type: array
+      from:
+        type: string
+      hidden:
+        type: integer
+      min_requests:
+        type: integer
+      resolution:
+        type: integer
+      to:
+        type: string
+      total:
+        type: integer
+    type: object
   dtos.GatewayFeeInput:
     properties:
       fee_cents:
@@ -1816,8 +1881,21 @@ definitions:
         items:
           $ref: '#/definitions/dtos.HeatCell'
         type: array
+      from:
+        type: string
       resolution:
         type: integer
+      to:
+        type: string
+    type: object
+  dtos.HeatPoint:
+    properties:
+      cell:
+        type: string
+      lat:
+        type: number
+      lng:
+        type: number
     type: object
   dtos.HelpTopicView:
     properties:
@@ -6557,14 +6635,81 @@ paths:
       summary: Change a policy
       tags:
       - Backoffice dispatch
-  /api/v1/admin/dispatch/heatmap:
+  /api/v1/admin/dispatch/flows:
     get:
-      description: Resolution 8 hexagons for the Google Maps map of the backoffice.
-        Demand covers the last 24 hours.
+      description: Requests with a destination created in the period, grouped by pickup
+        and destination resolution 8 cells and sorted by volume. Pairs below min_requests
+        (default 3) and pairs beyond limit (default 500) are left out and counted
+        in hidden, so a single trip is not shown. The period defaults to the last
+        24 hours and spans at most 31 days.
       parameters:
       - description: Zone id
         in: query
         name: zone_id
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Start of the period (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: End of the period (RFC 3339), default now
+        in: query
+        name: to
+        type: string
+      - description: Smallest pair shown, 1 to 1000
+        in: query
+        name: min_requests
+        type: integer
+      - description: Most pairs returned, 1 to 2000
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.FlowMap'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Origin to destination flows by H3 cell
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/heatmap:
+    get:
+      description: Resolution 8 hexagons for the Google Maps map of the backoffice.
+        Demand counts the requests created in the period, by pickup cell; the period
+        defaults to the last 24 hours and spans at most 31 days. Supply is always
+        the providers online right now, whatever the period.
+      parameters:
+      - description: Zone id
+        in: query
+        name: zone_id
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Start of the period (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: End of the period (RFC 3339), default now
+        in: query
+        name: to
         type: string
       produces:
       - application/json
@@ -6573,6 +6718,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dtos.HeatMap'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
       security:
       - BearerAuth: []
       - ClientId: []
@@ -12457,6 +12610,47 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Set the base and service radius
+      tags:
+      - Provider work
+  /api/v1/providers/me/demand:
+    get:
+      description: Resolution 8 hexagons within 10 km of the provider with requests
+        of its category in the last hour, as levels 1 to 3 against the busiest cell
+        of the city. Cells with a single request are left out. The position comes
+        from lat and lng, or else from the last one reported. boundary lists the vertices
+        as [lat, lng]. Ask again after expires_at.
+      parameters:
+      - description: Latitude, with lng
+        in: query
+        name: lat
+        type: number
+      - description: Longitude, with lat
+        in: query
+        name: lng
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Not approved
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: No position
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Where the category of the provider is asked for
       tags:
       - Provider work
   /api/v1/providers/me/documents:

@@ -667,6 +667,84 @@
                 }
             }
         },
+        "/api/v1/admin/dispatch/flows": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requests with a destination created in the period, grouped by pickup and destination resolution 8 cells and sorted by volume. Pairs below min_requests (default 3) and pairs beyond limit (default 500) are left out and counted in hidden, so a single trip is not shown. The period defaults to the last 24 hours and spans at most 31 days.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Origin to destination flows by H3 cell",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Zone id",
+                        "name": "zone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start of the period (RFC 3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End of the period (RFC 3339), default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Smallest pair shown, 1 to 1000",
+                        "name": "min_requests",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Most pairs returned, 1 to 2000",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FlowMap"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/dispatch/heatmap": {
             "get": {
                 "security": [
@@ -677,7 +755,7 @@
                         "ClientId": []
                     }
                 ],
-                "description": "Resolution 8 hexagons for the Google Maps map of the backoffice. Demand covers the last 24 hours.",
+                "description": "Resolution 8 hexagons for the Google Maps map of the backoffice. Demand counts the requests created in the period, by pickup cell; the period defaults to the last 24 hours and spans at most 31 days. Supply is always the providers online right now, whatever the period.",
                 "produces": [
                     "application/json"
                 ],
@@ -691,6 +769,24 @@
                         "description": "Zone id",
                         "name": "zone_id",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start of the period (RFC 3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End of the period (RFC 3339), default now",
+                        "name": "to",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -698,6 +794,18 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.HeatMap"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -9972,6 +10080,66 @@
                 }
             }
         },
+        "/api/v1/providers/me/demand": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Resolution 8 hexagons within 10 km of the provider with requests of its category in the last hour, as levels 1 to 3 against the busiest cell of the city. Cells with a single request are left out. The position comes from lat and lng, or else from the last one reported. boundary lists the vertices as [lat, lng]. Ask again after expires_at.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider work"
+                ],
+                "summary": "Where the category of the provider is asked for",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude, with lng",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude, with lat",
+                        "name": "lng",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Not approved",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "No position",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/providers/me/documents": {
             "post": {
                 "security": [
@@ -17367,6 +17535,20 @@
                 }
             }
         },
+        "dtos.CellFlow": {
+            "type": "object",
+            "properties": {
+                "destination": {
+                    "$ref": "#/definitions/dtos.HeatPoint"
+                },
+                "origin": {
+                    "$ref": "#/definitions/dtos.HeatPoint"
+                },
+                "requests": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.ChangeMethodInput": {
             "type": "object",
             "required": [
@@ -17947,6 +18129,59 @@
                         "fcm",
                         "sms"
                     ]
+                }
+            }
+        },
+        "dtos.DemandCell": {
+            "type": "object",
+            "properties": {
+                "boundary": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        }
+                    }
+                },
+                "cell": {
+                    "type": "string",
+                    "example": "88754e64d3fffff"
+                },
+                "level": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "example": 3
+                }
+            }
+        },
+        "dtos.DemandView": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "cells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandCell"
+                    }
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "radius_km": {
+                    "type": "number",
+                    "example": 10
+                },
+                "window_minutes": {
+                    "type": "integer",
+                    "example": 60
                 }
             }
         },
@@ -18553,6 +18788,35 @@
                 }
             }
         },
+        "dtos.FlowMap": {
+            "type": "object",
+            "properties": {
+                "flows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CellFlow"
+                    }
+                },
+                "from": {
+                    "type": "string"
+                },
+                "hidden": {
+                    "type": "integer"
+                },
+                "min_requests": {
+                    "type": "integer"
+                },
+                "resolution": {
+                    "type": "integer"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.GatewayFeeInput": {
             "type": "object",
             "properties": {
@@ -18640,8 +18904,28 @@
                         "$ref": "#/definitions/dtos.HeatCell"
                     }
                 },
+                "from": {
+                    "type": "string"
+                },
                 "resolution": {
                     "type": "integer"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.HeatPoint": {
+            "type": "object",
+            "properties": {
+                "cell": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
                 }
             }
         },

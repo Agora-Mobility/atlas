@@ -230,13 +230,17 @@ func (q *Queries) DeleteServiceRequestStops(ctx context.Context, requestID uuid.
 const demandByCell = `-- name: DemandByCell :many
 SELECT pickup_h3_r8, count(*) AS requests
 FROM service_requests
-WHERE created_at >= $1::timestamptz AND ($2::uuid IS NULL OR zone_id = $2)
+WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz
+  AND ($3::uuid IS NULL OR zone_id = $3)
+  AND ($4::text = '' OR category_slug = $4)
 GROUP BY pickup_h3_r8
 `
 
 type DemandByCellParams struct {
-	Since  time.Time  `json:"since"`
-	ZoneID *uuid.UUID `json:"zone_id"`
+	FromAt   time.Time  `json:"from_at"`
+	ToAt     time.Time  `json:"to_at"`
+	ZoneID   *uuid.UUID `json:"zone_id"`
+	Category string     `json:"category"`
 }
 
 type DemandByCellRow struct {
@@ -245,7 +249,12 @@ type DemandByCellRow struct {
 }
 
 func (q *Queries) DemandByCell(ctx context.Context, arg DemandByCellParams) ([]DemandByCellRow, error) {
-	rows, err := q.db.Query(ctx, demandByCell, arg.Since, arg.ZoneID)
+	rows, err := q.db.Query(ctx, demandByCell,
+		arg.FromAt,
+		arg.ToAt,
+		arg.ZoneID,
+		arg.Category,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -436,6 +445,54 @@ func (q *Queries) FindServiceRequestByIdempotencyKey(ctx context.Context, arg Fi
 		&i.RouteGeometry,
 	)
 	return i, err
+}
+
+const flowsByCell = `-- name: FlowsByCell :many
+SELECT pickup_h3_r8, destination_h3_r8::bigint AS destination_h3_r8, count(*) AS requests
+FROM service_requests
+WHERE destination_h3_r8 IS NOT NULL
+  AND created_at >= $1::timestamptz AND created_at < $2::timestamptz
+  AND ($3::uuid IS NULL OR zone_id = $3)
+  AND ($4::text = '' OR category_slug = $4)
+GROUP BY pickup_h3_r8, destination_h3_r8
+`
+
+type FlowsByCellParams struct {
+	FromAt   time.Time  `json:"from_at"`
+	ToAt     time.Time  `json:"to_at"`
+	ZoneID   *uuid.UUID `json:"zone_id"`
+	Category string     `json:"category"`
+}
+
+type FlowsByCellRow struct {
+	PickupH3R8      int64 `json:"pickup_h3_r8"`
+	DestinationH3R8 int64 `json:"destination_h3_r8"`
+	Requests        int64 `json:"requests"`
+}
+
+func (q *Queries) FlowsByCell(ctx context.Context, arg FlowsByCellParams) ([]FlowsByCellRow, error) {
+	rows, err := q.db.Query(ctx, flowsByCell,
+		arg.FromAt,
+		arg.ToAt,
+		arg.ZoneID,
+		arg.Category,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FlowsByCellRow{}
+	for rows.Next() {
+		var i FlowsByCellRow
+		if err := rows.Scan(&i.PickupH3R8, &i.DestinationH3R8, &i.Requests); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPassengerNotice = `-- name: GetPassengerNotice :one

@@ -30,6 +30,7 @@ type IRoutingProvider interface {
 }
 
 type IGeoIndex interface {
+	Boundary(cell int64) ([]entities.GeoPoint, error)
 	Cell(point entities.GeoPoint, resolution int) (int64, error)
 	Disk(cell int64, rings int) ([]int64, error)
 	RingsFor(radiusKm float64, resolution int) int

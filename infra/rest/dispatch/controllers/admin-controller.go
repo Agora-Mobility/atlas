@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -241,26 +242,84 @@ func (c *DispatchController) OperatorQueue(ctx *gin.Context) {
 // HeatMap godoc
 //
 //	@Summary		Supply and demand by H3 cell
-//	@Description	Resolution 8 hexagons for the Google Maps map of the backoffice. Demand covers the last 24 hours.
+//	@Description	Resolution 8 hexagons for the Google Maps map of the backoffice. Demand counts the requests created in the period, by pickup cell; the period defaults to the last 24 hours and spans at most 31 days. Supply is always the providers online right now, whatever the period.
 //	@Tags			Backoffice dispatch
 //	@Produce		json
-//	@Param			zone_id	query		string	false	"Zone id"
-//	@Success		200		{object}	dtos.HeatMap
+//	@Param			zone_id		query		string	false	"Zone id"
+//	@Param			category	query		string	false	"Category slug"
+//	@Param			from		query		string	false	"Start of the period (RFC 3339)"
+//	@Param			to			query		string	false	"End of the period (RFC 3339), default now"
+//	@Success		200			{object}	dtos.HeatMap
+//	@Failure		400			{object}	shared.ErrorResponse
+//	@Failure		422			{object}	shared.ErrorResponse
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/dispatch/heatmap [get]
 func (c *DispatchController) HeatMap(ctx *gin.Context) {
-	var zoneID *uuid.UUID
+	query, ok := heatQuery(ctx)
+	if !ok {
+		return
+	}
+	heat, err := c.dispatch.HeatMap(ctx.Request.Context(), query)
+	respond(ctx, http.StatusOK, heat, err)
+}
+
+// Flows godoc
+//
+//	@Summary		Origin to destination flows by H3 cell
+//	@Description	Requests with a destination created in the period, grouped by pickup and destination resolution 8 cells and sorted by volume. Pairs below min_requests (default 3) and pairs beyond limit (default 500) are left out and counted in hidden, so a single trip is not shown. The period defaults to the last 24 hours and spans at most 31 days.
+//	@Tags			Backoffice dispatch
+//	@Produce		json
+//	@Param			zone_id			query		string	false	"Zone id"
+//	@Param			category		query		string	false	"Category slug"
+//	@Param			from			query		string	false	"Start of the period (RFC 3339)"
+//	@Param			to				query		string	false	"End of the period (RFC 3339), default now"
+//	@Param			min_requests	query		int		false	"Smallest pair shown, 1 to 1000"
+//	@Param			limit			query		int		false	"Most pairs returned, 1 to 2000"
+//	@Success		200				{object}	dtos.FlowMap
+//	@Failure		400				{object}	shared.ErrorResponse
+//	@Failure		422				{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/dispatch/flows [get]
+func (c *DispatchController) Flows(ctx *gin.Context) {
+	query, ok := heatQuery(ctx)
+	if !ok {
+		return
+	}
+	flows := dtos.FlowQuery{HeatQuery: query}
+	for _, item := range []struct {
+		name string
+		into *int
+	}{{"min_requests", &flows.MinRequests}, {"limit", &flows.Limit}} {
+		raw := ctx.Query(item.name)
+		if raw == "" {
+			continue
+		}
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 {
+			shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid "+item.name+".")
+			return
+		}
+		*item.into = parsed
+	}
+	view, err := c.dispatch.Flows(ctx.Request.Context(), flows)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+func heatQuery(ctx *gin.Context) (dtos.HeatQuery, bool) {
+	query := dtos.HeatQuery{Category: ctx.Query("category")}
 	if raw := ctx.Query("zone_id"); raw != "" {
 		parsed, err := uuid.Parse(raw)
 		if err != nil {
 			shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid zone_id.")
-			return
+			return query, false
 		}
-		zoneID = &parsed
+		query.ZoneID = &parsed
 	}
-	heat, err := c.dispatch.HeatMap(ctx.Request.Context(), zoneID)
-	respond(ctx, http.StatusOK, heat, err)
+	from, to, ok := reportPeriod(ctx)
+	query.From, query.To = from, to
+	return query, ok
 }
 
 // OperatorGetRequest godoc

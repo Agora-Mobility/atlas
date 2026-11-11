@@ -106,6 +106,7 @@ type Querier interface {
 	FindServiceRequestByIdempotencyKey(ctx context.Context, arg FindServiceRequestByIdempotencyKeyParams) (ServiceRequest, error)
 	FindUserByReferralCode(ctx context.Context, referralCode *string) (uuid.UUID, error)
 	FindZoneCoveringPoint(ctx context.Context, arg FindZoneCoveringPointParams) (uuid.UUID, error)
+	FlowsByCell(ctx context.Context, arg FlowsByCellParams) ([]FlowsByCellRow, error)
 	GetActiveClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetActiveReason(ctx context.Context, arg GetActiveReasonParams) (RejectionReason, error)
 	GetAddress(ctx context.Context, id uuid.UUID) (GetAddressRow, error)

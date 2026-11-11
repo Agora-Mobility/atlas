@@ -167,6 +167,17 @@ func (l *ProviderLocator) Touch(ctx context.Context, providerID uuid.UUID, ttl t
 	return nil
 }
 
+func indexSlugs(indexes string) []string {
+	entries := splitList(indexes)
+	slugs := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if slug, _, ok := strings.Cut(entry, partSeparator); ok && slug != "" {
+			slugs = append(slugs, slug)
+		}
+	}
+	return slugs
+}
+
 func (l *ProviderLocator) indexKeys(indexes string, point entities.GeoPoint) ([]string, error) {
 	keys := make([]string, 0, 2)
 	for _, entry := range splitList(indexes) {
@@ -267,7 +278,7 @@ func (l *ProviderLocator) AllPositions(ctx context.Context) ([]repository.LiveCa
 	var out []repository.LiveCandidate
 	iterator := l.rdb.Scan(ctx, 0, "live:pos:*", 500).Iterator()
 	for iterator.Next(ctx) {
-		values, err := l.rdb.HMGet(ctx, iterator.Val(), fieldLat, fieldLng, fieldTimestamp).Result()
+		values, err := l.rdb.HMGet(ctx, iterator.Val(), fieldLat, fieldLng, fieldTimestamp, fieldIndexes).Result()
 		if err != nil {
 			return nil, fmt.Errorf("read position: %w", err)
 		}
@@ -279,7 +290,8 @@ func (l *ProviderLocator) AllPositions(ctx context.Context) ([]repository.LiveCa
 		if err != nil {
 			continue
 		}
-		out = append(out, repository.LiveCandidate{ProviderID: id, Point: point, RecordedAt: recordedAt})
+		indexes, _ := values[3].(string)
+		out = append(out, repository.LiveCandidate{ProviderID: id, Point: point, RecordedAt: recordedAt, Categories: indexSlugs(indexes)})
 	}
 	if err := iterator.Err(); err != nil {
 		return nil, fmt.Errorf("scan positions: %w", err)

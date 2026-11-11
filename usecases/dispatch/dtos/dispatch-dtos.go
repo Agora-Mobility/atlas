@@ -702,5 +702,60 @@ type HeatCell struct {
 
 type HeatMap struct {
 	Resolution int        `json:"resolution"`
+	From       time.Time  `json:"from"`
+	To         time.Time  `json:"to"`
 	Cells      []HeatCell `json:"cells"`
+}
+
+type DemandQuery struct {
+	Position *entities.GeoPoint
+}
+
+type DemandCell struct {
+	Cell     string       `json:"cell" example:"88754e64d3fffff"`
+	Level    int          `json:"level" example:"3" enums:"1,2,3"`
+	Boundary [][2]float64 `json:"boundary" swaggertype:"array,array,number"`
+}
+
+type DemandView struct {
+	Category      string       `json:"category" example:"taxi"`
+	WindowMinutes int          `json:"window_minutes" example:"60"`
+	RadiusKm      float64      `json:"radius_km" example:"10"`
+	ExpiresAt     time.Time    `json:"expires_at"`
+	Cells         []DemandCell `json:"cells"`
+}
+
+type HeatQuery struct {
+	From     *time.Time
+	To       *time.Time
+	ZoneID   *uuid.UUID
+	Category string
+}
+
+type FlowQuery struct {
+	HeatQuery
+	MinRequests int
+	Limit       int
+}
+
+type HeatPoint struct {
+	Cell string  `json:"cell"`
+	Lat  float64 `json:"lat"`
+	Lng  float64 `json:"lng"`
+}
+
+type CellFlow struct {
+	Origin      HeatPoint `json:"origin"`
+	Destination HeatPoint `json:"destination"`
+	Requests    int64     `json:"requests"`
+}
+
+type FlowMap struct {
+	Resolution  int        `json:"resolution"`
+	From        time.Time  `json:"from"`
+	To          time.Time  `json:"to"`
+	MinRequests int        `json:"min_requests"`
+	Total       int64      `json:"total"`
+	Hidden      int64      `json:"hidden"`
+	Flows       []CellFlow `json:"flows"`
 }

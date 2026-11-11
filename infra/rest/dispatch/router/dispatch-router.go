@@ -51,6 +51,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	providers.POST("/offline", retryable, r.controller.GoOffline)
 	providers.POST("/locations", r.controller.ReportLocations)
 	providers.PUT("/coverage", retryable, r.controller.SetCoverage)
+	providers.GET("/demand", r.controller.ProviderDemand)
 
 	requests := signedIn.Group("/requests")
 	signedIn.GET("/cancellation-reasons", r.controller.CancellationReasons)
@@ -126,6 +127,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	dispatchOps := admin.Group("/dispatch", can(entities.PermRequestsManage))
 	dispatchOps.GET("/queue", r.controller.OperatorQueue)
 	dispatchOps.GET("/heatmap", r.controller.HeatMap)
+	dispatchOps.GET("/flows", r.controller.Flows)
 	dispatchOps.GET("/requests/:id", r.controller.OperatorGetRequest)
 	dispatchOps.POST("/requests/:id/assign", r.controller.AssignManually)
 	dispatchOps.POST("/requests/:id/retry", r.controller.RetrySearch)
