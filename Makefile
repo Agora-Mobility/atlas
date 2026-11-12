@@ -144,6 +144,10 @@ seed: ## Insert development seed data
 bootstrap-admin: ## Create the first admin if none exists (BOOTSTRAP_ADMIN_EMAIL/PHONE/PASSWORD)
 	go run ./cmd/bootstrap-admin
 
+.PHONY: backfill-h3
+backfill-h3: ## Set the r9 pickup cell on old requests; rebuild=168h also rebuilds heatmap_cells
+	go run ./cmd/backfill-h3 -batch $(or $(batch),1000) -rebuild $(or $(rebuild),0s)
+
 ##@ API docs
 
 .PHONY: swag

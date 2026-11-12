@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/Agora-Mobility/atlas/config/logger"
@@ -201,4 +202,31 @@ func (u *Usecase) smoothedValue(cell int64, counts map[int64]int64) (float64, er
 		mean = sum / float64(neighbors)
 	}
 	return u.settings.Heatmap.SelfWeight*float64(counts[cell]) + u.settings.Heatmap.NeighborWeight*mean, nil
+}
+
+func (u *Usecase) BackfillPickupCells(ctx context.Context, batch int) (int64, error) {
+	var after uuid.UUID
+	var total int64
+	for {
+		pickups, err := u.Heatmap.PickupsWithoutCell(ctx, after, batch)
+		if err != nil || len(pickups) == 0 {
+			return total, err
+		}
+		cells := make(map[uuid.UUID]int64, len(pickups))
+		for _, pickup := range pickups {
+			after = pickup.ID
+			cell, err := u.Geo.Cell(pickup.Pickup, entities.HeatmapResolution)
+			if err != nil {
+				logger.FromContext(ctx).Warn("pickup without a heat cell", zap.String("request_id", pickup.ID.String()), zap.Error(err))
+				continue
+			}
+			cells[pickup.ID] = cell
+		}
+		updated, err := u.Heatmap.SetPickupCells(ctx, cells)
+		if err != nil {
+			return total, err
+		}
+		total += updated
+		logger.FromContext(ctx).Info("pickup heat cells backfilled", zap.Int("batch", len(pickups)), zap.Int64("updated", total))
+	}
 }

@@ -3,6 +3,10 @@ package repository
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/Agora-Mobility/atlas/domain/entities"
 )
 
 type HeatmapCount struct {
@@ -33,10 +37,17 @@ type HeatmapSum struct {
 	Value float64
 }
 
+type RequestPickup struct {
+	ID     uuid.UUID
+	Pickup entities.GeoPoint
+}
+
 type IHeatmapRepository interface {
 	TryLock(ctx context.Context) (bool, error)
 	CountRequests(ctx context.Context, from, to time.Time) ([]HeatmapCount, error)
 	SaveWindow(ctx context.Context, windowStart time.Time, cells []HeatmapCell, at time.Time) error
 	Purge(ctx context.Context, before time.Time) (int64, error)
 	Sum(ctx context.Context, query HeatmapRange) ([]HeatmapSum, error)
+	PickupsWithoutCell(ctx context.Context, after uuid.UUID, limit int) ([]RequestPickup, error)
+	SetPickupCells(ctx context.Context, cells map[uuid.UUID]int64) (int64, error)
 }

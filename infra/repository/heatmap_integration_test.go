@@ -7,11 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
+	domain "github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/geo/h3index"
 	"github.com/Agora-Mobility/atlas/infra/repository"
@@ -52,21 +54,30 @@ func storedHeatCells(t *testing.T, owner *pgxpool.Pool) []storedHeatCell {
 	return cells
 }
 
-func TestHeatmapAggregationIsIdempotent(t *testing.T) {
+func TestHeatmapBackfillAndAggregationAreIdempotent(t *testing.T) {
 	app, owner := setupDBs(t)
 	ctx := context.Background()
 	uc := heatmapUsecase(app)
 	const requests = 3
+	var ids []uuid.UUID
 	for range requests {
 		request, _ := seedRequest(t, app, owner)
 		_, err := owner.Exec(ctx, `UPDATE service_requests SET public_code = id::text WHERE id = $1`, request.ID)
 		require.NoError(t, err)
+		ids = append(ids, request.ID)
 	}
 	pickupCell, err := h3index.New().Cell(entities.GeoPoint{Lat: -8.84, Lng: 13.23}, entities.HeatmapResolution)
 	require.NoError(t, err)
 
-	_, err = owner.Exec(ctx, `UPDATE service_requests SET pickup_h3_r9 = $1`, pickupCell)
+	updated, err := uc.BackfillPickupCells(ctx, 2)
 	require.NoError(t, err)
+	assert.EqualValues(t, requests, updated, "two batches of at most two")
+	again, err := uc.BackfillPickupCells(ctx, 2)
+	require.NoError(t, err)
+	assert.Zero(t, again)
+	var stored int64
+	require.NoError(t, owner.QueryRow(ctx, `SELECT pickup_h3_r9 FROM service_requests WHERE id = $1`, ids[0]).Scan(&stored))
+	assert.Equal(t, pickupCell, stored)
 
 	now := time.Now().UTC()
 	from, to := now.Add(-time.Hour), now.Add(15*time.Minute)
@@ -84,19 +95,19 @@ func TestHeatmapAggregationIsIdempotent(t *testing.T) {
 		assert.Len(t, cells, 7, "the busy cell and its six neighbors at resolution %d", resolution)
 	}
 	window := now.Truncate(15 * time.Minute)
-	for _, cell := range byResolution[entities.HeatmapResolution] {
-		if cell.Cell == pickupCell {
-			assert.Equal(t, window, cell.WindowStart)
-			assert.EqualValues(t, requests, cell.Count)
-			assert.InDelta(t, 0.6*requests, cell.Value, 1e-9)
-		}
-	}
+	heat := repository.NewHeatmapRepository(app)
+	sums, err := heat.Sum(ctx, domain.HeatmapRange{Resolution: 9, From: window, To: window.Add(15 * time.Minute), Cells: []int64{pickupCell}})
+	require.NoError(t, err)
+	require.Len(t, sums, 1)
+	assert.EqualValues(t, requests, sums[0].Count)
+	assert.InDelta(t, 0.6*requests, sums[0].Value, 1e-9)
+
 	_, err = owner.Exec(ctx, `INSERT INTO heatmap_cells (window_start, resolution, category_slug, h3, count, value, updated_at) VALUES ($1, 9, 'taxi', 1, 50, 50, $2)`, window, now.Add(-time.Hour))
 	require.NoError(t, err)
 	require.NoError(t, uc.AggregateHeatmapBetween(ctx, from, to))
 	assert.Equal(t, first, storedHeatCells(t, owner), "a cell no longer in the window is removed")
 
-	removed, err := repository.NewHeatmapRepository(app).Purge(ctx, to.Add(time.Hour))
+	removed, err := heat.Purge(ctx, to.Add(time.Hour))
 	require.NoError(t, err)
 	assert.EqualValues(t, len(first), removed)
 }

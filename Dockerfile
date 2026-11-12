@@ -38,7 +38,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" -o /out/bootstrap-admin ./cmd/bootstrap-admin && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed
+    go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed && \
+    CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -tags netgo,osusergo -ldflags="-s -w -linkmode external -extldflags -static" -o /out/backfill-h3 ./cmd/backfill-h3
 
 # Alpine em vez de distroless: o arranque é um script de shell (entrypoint.sh) que espera pelo
 # Postgres com o pg_isready. O tzdata é preciso para os fusos das zonas (Africa/Luanda).
@@ -51,6 +53,7 @@ COPY --from=build /out/migrate /migrate
 COPY --from=build /out/healthcheck /healthcheck
 COPY --from=build /out/bootstrap-admin /bootstrap-admin
 COPY --from=build /out/seed /seed
+COPY --from=build /out/backfill-h3 /backfill-h3
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 # As migrations correm no entrypoint, antes da API; a API não as repete.

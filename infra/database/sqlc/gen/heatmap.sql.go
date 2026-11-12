@@ -8,6 +8,8 @@ package gen
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const countRequestsByHeatCell = `-- name: CountRequestsByHeatCell :many
@@ -72,6 +74,66 @@ DELETE FROM heatmap_cells WHERE window_start < $1::timestamptz
 
 func (q *Queries) PurgeHeatmapCells(ctx context.Context, before time.Time) (int64, error) {
 	result, err := q.db.Exec(ctx, purgeHeatmapCells, before)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const requestsWithoutHeatCell = `-- name: RequestsWithoutHeatCell :many
+SELECT r.id, a.lat, a.lng
+FROM service_requests r
+JOIN addresses a ON a.id = r.pickup_address_id
+WHERE r.pickup_h3_r9 IS NULL AND r.id > $1::uuid
+ORDER BY r.id
+LIMIT $2::integer
+`
+
+type RequestsWithoutHeatCellParams struct {
+	After uuid.UUID `json:"after"`
+	Batch int32     `json:"batch"`
+}
+
+type RequestsWithoutHeatCellRow struct {
+	ID  uuid.UUID `json:"id"`
+	Lat float64   `json:"lat"`
+	Lng float64   `json:"lng"`
+}
+
+func (q *Queries) RequestsWithoutHeatCell(ctx context.Context, arg RequestsWithoutHeatCellParams) ([]RequestsWithoutHeatCellRow, error) {
+	rows, err := q.db.Query(ctx, requestsWithoutHeatCell, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RequestsWithoutHeatCellRow{}
+	for rows.Next() {
+		var i RequestsWithoutHeatCellRow
+		if err := rows.Scan(&i.ID, &i.Lat, &i.Lng); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setRequestHeatCells = `-- name: SetRequestHeatCells :execrows
+UPDATE service_requests r
+SET pickup_h3_r9 = cell.h3
+FROM (SELECT unnest($1::uuid[]) AS id, unnest($2::bigint[]) AS h3) AS cell
+WHERE r.id = cell.id AND r.pickup_h3_r9 IS NULL
+`
+
+type SetRequestHeatCellsParams struct {
+	Ids   []uuid.UUID `json:"ids"`
+	Cells []int64     `json:"cells"`
+}
+
+func (q *Queries) SetRequestHeatCells(ctx context.Context, arg SetRequestHeatCellsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setRequestHeatCells, arg.Ids, arg.Cells)
 	if err != nil {
 		return 0, err
 	}

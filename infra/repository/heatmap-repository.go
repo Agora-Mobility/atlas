@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/database/sqlc/gen"
@@ -87,4 +89,29 @@ func (r *HeatmapRepository) Sum(ctx context.Context, query repository.HeatmapRan
 		out = append(out, repository.HeatmapSum{Cell: row.H3, Count: row.Count, Value: row.Value})
 	}
 	return out, nil
+}
+
+func (r *HeatmapRepository) PickupsWithoutCell(ctx context.Context, after uuid.UUID, limit int) ([]repository.RequestPickup, error) {
+	rows, err := postgres.Queries(ctx, r.pool).RequestsWithoutHeatCell(ctx, gen.RequestsWithoutHeatCellParams{After: after, Batch: int32(limit)}) // #nosec G115 -- batch size
+	if err != nil {
+		return nil, fmt.Errorf("requests without heat cell: %w", err)
+	}
+	out := make([]repository.RequestPickup, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, repository.RequestPickup{ID: row.ID, Pickup: entities.GeoPoint{Lat: row.Lat, Lng: row.Lng}})
+	}
+	return out, nil
+}
+
+func (r *HeatmapRepository) SetPickupCells(ctx context.Context, cells map[uuid.UUID]int64) (int64, error) {
+	params := gen.SetRequestHeatCellsParams{Ids: make([]uuid.UUID, 0, len(cells)), Cells: make([]int64, 0, len(cells))}
+	for id, cell := range cells {
+		params.Ids = append(params.Ids, id)
+		params.Cells = append(params.Cells, cell)
+	}
+	updated, err := postgres.Queries(ctx, r.pool).SetRequestHeatCells(ctx, params)
+	if err != nil {
+		return 0, fmt.Errorf("set request heat cells: %w", err)
+	}
+	return updated, nil
 }

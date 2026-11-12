@@ -350,6 +350,7 @@ type Querier interface {
 	ReleaseVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) error
 	ReleaseVoucherRedemption(ctx context.Context, requestID *uuid.UUID) error
 	RemoveWorkshopFavorite(ctx context.Context, arg RemoveWorkshopFavoriteParams) error
+	RequestsWithoutHeatCell(ctx context.Context, arg RequestsWithoutHeatCellParams) ([]RequestsWithoutHeatCellRow, error)
 	ResolveDispatchPolicy(ctx context.Context, arg ResolveDispatchPolicyParams) (DispatchPolicy, error)
 	ResolveSOSAlert(ctx context.Context, arg ResolveSOSAlertParams) (int64, error)
 	RevokePendingInvitations(ctx context.Context, arg RevokePendingInvitationsParams) error
@@ -371,6 +372,7 @@ type Querier interface {
 	SetCategoryPaymentMethod(ctx context.Context, arg SetCategoryPaymentMethodParams) (int64, error)
 	SetPaymentGatewayFee(ctx context.Context, arg SetPaymentGatewayFeeParams) (int64, error)
 	SetReferralCode(ctx context.Context, arg SetReferralCodeParams) error
+	SetRequestHeatCells(ctx context.Context, arg SetRequestHeatCellsParams) (int64, error)
 	SetRequestPayment(ctx context.Context, arg SetRequestPaymentParams) error
 	SetTicketStatus(ctx context.Context, arg SetTicketStatusParams) (int64, error)
 	SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) error

@@ -29,3 +29,17 @@ WHERE resolution = sqlc.arg(resolution)::smallint
   AND h3 = ANY(sqlc.arg(cells)::bigint[])
   AND (sqlc.arg(category)::text = '' OR category_slug = sqlc.arg(category)::text)
 GROUP BY h3;
+
+-- name: RequestsWithoutHeatCell :many
+SELECT r.id, a.lat, a.lng
+FROM service_requests r
+JOIN addresses a ON a.id = r.pickup_address_id
+WHERE r.pickup_h3_r9 IS NULL AND r.id > sqlc.arg(after)::uuid
+ORDER BY r.id
+LIMIT sqlc.arg(batch)::integer;
+
+-- name: SetRequestHeatCells :execrows
+UPDATE service_requests r
+SET pickup_h3_r9 = cell.h3
+FROM (SELECT unnest(sqlc.arg(ids)::uuid[]) AS id, unnest(sqlc.arg(cells)::bigint[]) AS h3) AS cell
+WHERE r.id = cell.id AND r.pickup_h3_r9 IS NULL;
