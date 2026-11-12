@@ -13,7 +13,7 @@ Decisões tomadas sem te perguntar, para rever. Os valores ficam na BD e mudam-s
 | Gorjeta | 100% para o motorista, sem comissão, por método digital, registada no ledger. Possível em corrida paga a dinheiro |
 | Cancelamento | Sem motorista, custo 0. Com motorista, grátis nos primeiros 2 min, depois taxa por serviço. Se o motorista cancelar, o cliente não paga e o cancelamento conta para o motorista. Taxa por pagar entra na dívida do cliente |
 | Marcadas | Grátis até ao despacho (30 min antes). Mudanças: grátis até 24 h antes, depois taxa |
-| Chamadas | O número não é partilhado. Interface de chamada mascarada por env; sem fornecedor, 503 `CALLS_UNAVAILABLE`. Chat só durante o pedido, com respostas rápidas, por SSE |
+| Chamadas | O número não é partilhado. Interface de chamada mascarada por env; sem fornecedor, 503 `CALLS_UNAVAILABLE`. Chat só durante o pedido, com respostas rápidas, por SSE e por push FCM para quem recebe |
 | Manutenção | Aposenta o técnico ao local (C2). Modelo próprio de marcações. O mecânico é um registo da oficina, sem conta. Capacidade por oficina, com dias bloqueáveis |
 | Mudanças | Aposenta as propostas (C3). Preço fixo por viatura, ajudantes e extras, fechado na marcação. Equipa como registo informativo |
 | Reboque | Um serviço `towing` com tipos de viatura e preços (C1). Km incluídos por tipo, default 10, com preço por km a mais |
