@@ -34,6 +34,7 @@ const (
 	templatePayment        = "payment_status"
 	templateBooking        = "booking_status"
 	templateBookingExtra   = "booking_extra"
+	templateMessage        = "request_message"
 	statusSent             = "sent"
 	statusFailed           = "failed"
 	statusSkipped          = "skipped"
@@ -85,7 +86,7 @@ func RequestBindingKeys() []string {
 	slices.Sort(types)
 	types = append(types, events.PaymentChanged, events.OfferCreated, events.OfferCancelled, events.QuoteSubmitted, events.ReminderDue, events.OperatorAlerted,
 		events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended, events.BookingChanged, events.BookingExtra,
-		events.ProviderApplicationSubmitted, events.ProviderVerificationReminder)
+		events.ProviderApplicationSubmitted, events.ProviderVerificationReminder, events.RequestMessage)
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
 		keys = append(keys, events.RoutingKey(eventType, 1))
@@ -118,6 +119,8 @@ func (n *RequestNotifier) OnEvent(ctx context.Context, env events.Envelope) erro
 		return n.onBooking(ctx, env)
 	case events.BookingExtra:
 		return n.onBookingExtra(ctx, env)
+	case events.RequestMessage:
+		return n.onMessage(ctx, env)
 	default:
 		return n.onTransition(ctx, env)
 	}
@@ -464,6 +467,45 @@ func (n *RequestNotifier) onBookingExtra(ctx context.Context, env events.Envelop
 		Title: "Orçamento extra", Body: event.Description,
 		Data: map[string]string{"type": "booking.extra", "booking_id": event.BookingID.String(), "extra_id": event.ExtraID.String(), "event_id": env.EventID.String()},
 	})
+}
+
+const (
+	messagePreviewRunes = 120
+	messageTTLSeconds   = 600
+)
+
+var messageTitles = map[string]string{
+	"customer": "Mensagem do cliente",
+	"provider": "Mensagem do prestador",
+	"workshop": "Mensagem da oficina",
+}
+
+// onMessage reaches the other side of the chat when the app is in the background
+// and the SSE stream is closed. The app hides it while that chat is on screen.
+func (n *RequestNotifier) onMessage(ctx context.Context, env events.Envelope) error {
+	var event events.RequestMessageV1
+	if err := env.DecodePayload(&event); err != nil {
+		return err
+	}
+	title, known := messageTitles[event.SenderType]
+	if !known {
+		title = "Nova mensagem"
+	}
+	return n.pushTo(ctx, event.RecipientID, templateMessage, services.PushMessage{
+		Title: title, Body: messagePreview(event.Body), HighPriority: true, TTLSeconds: messageTTLSeconds,
+		Data: map[string]string{
+			"type": "request.message", "request_id": event.RequestID.String(), "message_id": event.MessageID.String(),
+			"sender": event.SenderType, "event_id": env.EventID.String(),
+		},
+	})
+}
+
+func messagePreview(body string) string {
+	runes := []rune(body)
+	if len(runes) <= messagePreviewRunes {
+		return body
+	}
+	return strings.TrimSpace(string(runes[:messagePreviewRunes-1])) + "…"
 }
 
 var bookingZone = time.FixedZone("WAT", 3600)
