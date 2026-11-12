@@ -1202,6 +1202,7 @@ type ServiceRequest struct {
 	RemovalDay           *time.Time      `json:"removal_day"`
 	RemovalWindowID      *uuid.UUID      `json:"removal_window_id"`
 	RouteGeometry        string          `json:"route_geometry"`
+	PickupH3R9           *int64          `json:"pickup_h3_r9"`
 }
 
 type ServiceRequestEvent struct {
