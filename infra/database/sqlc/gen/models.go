@@ -698,6 +698,16 @@ type FareEstimate struct {
 	DemandCommissioned bool            `json:"demand_commissioned"`
 }
 
+type HeatmapCell struct {
+	WindowStart  time.Time `json:"window_start"`
+	Resolution   int16     `json:"resolution"`
+	CategorySlug string    `json:"category_slug"`
+	H3           int64     `json:"h3"`
+	Count        int32     `json:"count"`
+	Value        float64   `json:"value"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type InboxItem struct {
 	ID        uuid.UUID  `json:"id"`
 	UserID    uuid.UUID  `json:"user_id"`

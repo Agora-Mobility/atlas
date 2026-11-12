@@ -187,3 +187,33 @@ func TestLoadFailsWhenTheFCMCredentialsFileIsMissing(t *testing.T) {
 	_, err := config.Load()
 	require.ErrorContains(t, err, "FCM_CREDENTIALS_FILE")
 }
+
+func TestLoadHeatmapDefaults(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+
+	cfg, err := config.Load()
+
+	require.NoError(t, err)
+	assert.Equal(t, 5*time.Minute, cfg.Heatmap.Interval)
+	assert.Equal(t, 15*time.Minute, cfg.Heatmap.Window)
+	assert.Equal(t, []int{8, 7, 6}, cfg.Heatmap.Rollups)
+	assert.Equal(t, []config.HeatmapZoom{{MinZoom: 0, Resolution: 6}, {MinZoom: 11, Resolution: 7}, {MinZoom: 13, Resolution: 8}, {MinZoom: 15, Resolution: 9}}, cfg.Heatmap.Zooms)
+	assert.InDelta(t, 0.6, cfg.Heatmap.SelfWeight, 1e-9)
+	assert.InDelta(t, 0.4, cfg.Heatmap.NeighborWeight, 1e-9)
+	assert.Equal(t, 20_000, cfg.Heatmap.MaxCells)
+	assert.Equal(t, 7*24*time.Hour, cfg.Heatmap.MaxPeriod)
+}
+
+func TestLoadRejectsAHeatmapZoomOnAResolutionNotStored(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("HEATMAP_ROLLUP_RESOLUTIONS", "8,7")
+	t.Setenv("HEATMAP_WINDOW", "7m")
+
+	_, err := config.Load()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "HEATMAP_ZOOM_RESOLUTIONS")
+	assert.Contains(t, err.Error(), "HEATMAP_WINDOW must divide a day")
+}
