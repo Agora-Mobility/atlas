@@ -133,6 +133,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	dispatchOps := admin.Group("/dispatch", can(entities.PermRequestsManage))
 	dispatchOps.GET("/queue", r.controller.OperatorQueue)
 	dispatchOps.GET("/heatmap", r.controller.HeatMap)
+	dispatchOps.GET("/heatmap/cells", r.controller.HeatCells)
 	dispatchOps.GET("/flows", r.controller.Flows)
 	dispatchOps.GET("/requests/:id", r.controller.OperatorGetRequest)
 	dispatchOps.POST("/requests/:id/assign", r.controller.AssignManually)

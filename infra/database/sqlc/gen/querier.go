@@ -375,6 +375,7 @@ type Querier interface {
 	SetTicketStatus(ctx context.Context, arg SetTicketStatusParams) (int64, error)
 	SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
+	SumHeatmapCells(ctx context.Context, arg SumHeatmapCellsParams) ([]SumHeatmapCellsRow, error)
 	SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error)
 	SupersedeDocumentFiles(ctx context.Context, arg SupersedeDocumentFilesParams) error
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error

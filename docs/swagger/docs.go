@@ -986,6 +986,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/dispatch/heatmap/cells": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requests per H3 cell for a hexagon layer such as deck.gl H3HexagonLayer, read from the cells the heatmap job aggregates every few minutes in 15 minute windows. The zoom picks the resolution (by default up to 10 is 6, 11 and 12 are 7, 13 and 14 are 8, from 15 is 9). When the view holds more than 20000 cells the next coarser resolution is used, and resolution tells which one answered; only when even resolution 6 does not fit the answer is 400 AREA_TOO_LARGE. value is the smoothed heat (0.6 of the cell plus 0.4 of the mean of its six neighbors); count is the raw number of requests. Windows of the period are summed. The period defaults to the last complete window and spans at most 7 days. h3 is always the hexadecimal index, since 64 bit integers lose precision in JavaScript.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Heat of the H3 cells inside the map view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "13.15,-8.95,13.35,-8.75",
+                        "description": "minLng,minLat,maxLng,maxLat",
+                        "name": "bbox",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Map zoom, 0 to 24",
+                        "name": "zoom",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start of the period (RFC 3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End of the period (RFC 3339)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "count",
+                            "value"
+                        ],
+                        "type": "string",
+                        "description": "count or value, default value",
+                        "name": "metric",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug, default all",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.HeatCellsView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/dispatch/queue": {
             "get": {
                 "security": [
@@ -19346,6 +19425,36 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.HeatCellsView": {
+            "type": "object",
+            "properties": {
+                "cells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.HeatValue"
+                    }
+                },
+                "max": {
+                    "type": "number",
+                    "example": 42.5
+                },
+                "metric": {
+                    "type": "string",
+                    "enum": [
+                        "count",
+                        "value"
+                    ],
+                    "example": "value"
+                },
+                "resolution": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "window": {
+                    "$ref": "#/definitions/dtos.HeatWindow"
+                }
+            }
+        },
         "dtos.HeatMap": {
             "type": "object",
             "properties": {
@@ -19377,6 +19486,30 @@ const docTemplate = `{
                 },
                 "lng": {
                     "type": "number"
+                }
+            }
+        },
+        "dtos.HeatValue": {
+            "type": "object",
+            "properties": {
+                "h3": {
+                    "type": "string",
+                    "example": "8975a5a6a8bffff"
+                },
+                "value": {
+                    "type": "number",
+                    "example": 12.3
+                }
+            }
+        },
+        "dtos.HeatWindow": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
                 }
             }
         },

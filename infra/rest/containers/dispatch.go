@@ -78,6 +78,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Feed:      mailbox,
 		Channels:  notifier,
 		Heatmap:   repository.NewHeatmapRepository(c.Pool),
+		Cache:     c.Cache,
 	}, dispatch.Settings{
 		WatcherInterval: cfg.Dispatch.WatcherInterval, WatcherBatch: cfg.Dispatch.WatcherBatch, FareEstimateTTL: cfg.Dispatch.FareEstimateTTL,
 		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout, ShareBaseURL: cfg.Dispatch.ShareBaseURL, Currency: cfg.AppyPay.LedgerCurrency,

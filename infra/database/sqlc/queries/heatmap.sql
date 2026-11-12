@@ -20,3 +20,12 @@ DELETE FROM heatmap_cells WHERE window_start = sqlc.arg(window_start)::timestamp
 
 -- name: PurgeHeatmapCells :execrows
 DELETE FROM heatmap_cells WHERE window_start < sqlc.arg(before)::timestamptz;
+
+-- name: SumHeatmapCells :many
+SELECT h3, sum(count)::bigint AS count, sum(value)::double precision AS value
+FROM heatmap_cells
+WHERE resolution = sqlc.arg(resolution)::smallint
+  AND window_start >= sqlc.arg(from_at)::timestamptz AND window_start < sqlc.arg(to_at)::timestamptz
+  AND h3 = ANY(sqlc.arg(cells)::bigint[])
+  AND (sqlc.arg(category)::text = '' OR category_slug = sqlc.arg(category)::text)
+GROUP BY h3;

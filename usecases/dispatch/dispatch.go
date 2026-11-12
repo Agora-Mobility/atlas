@@ -130,6 +130,12 @@ type Deps struct {
 	Feed      services.IPositionFeed
 	Channels  OfferChannels
 	Heatmap   repository.IHeatmapRepository
+	Cache     Cache
+}
+
+type Cache interface {
+	Get(ctx context.Context, key string, dest any) (bool, error)
+	Set(ctx context.Context, key string, value any, ttl time.Duration) error
 }
 
 type PrepaidRefunder interface {

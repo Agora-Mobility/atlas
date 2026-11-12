@@ -74,3 +74,17 @@ func (r *HeatmapRepository) Purge(ctx context.Context, before time.Time) (int64,
 	}
 	return removed, nil
 }
+
+func (r *HeatmapRepository) Sum(ctx context.Context, query repository.HeatmapRange) ([]repository.HeatmapSum, error) {
+	rows, err := postgres.Queries(ctx, r.pool).SumHeatmapCells(ctx, gen.SumHeatmapCellsParams{
+		Resolution: int16(query.Resolution), FromAt: query.From, ToAt: query.To, Cells: query.Cells, Category: query.Category, // #nosec G115 -- H3 resolutions are 0 to 15
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sum heatmap cells: %w", err)
+	}
+	out := make([]repository.HeatmapSum, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, repository.HeatmapSum{Cell: row.H3, Count: row.Count, Value: row.Value})
+	}
+	return out, nil
+}

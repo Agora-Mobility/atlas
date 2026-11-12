@@ -78,6 +78,56 @@ func (q *Queries) PurgeHeatmapCells(ctx context.Context, before time.Time) (int6
 	return result.RowsAffected(), nil
 }
 
+const sumHeatmapCells = `-- name: SumHeatmapCells :many
+SELECT h3, sum(count)::bigint AS count, sum(value)::double precision AS value
+FROM heatmap_cells
+WHERE resolution = $1::smallint
+  AND window_start >= $2::timestamptz AND window_start < $3::timestamptz
+  AND h3 = ANY($4::bigint[])
+  AND ($5::text = '' OR category_slug = $5::text)
+GROUP BY h3
+`
+
+type SumHeatmapCellsParams struct {
+	Resolution int16     `json:"resolution"`
+	FromAt     time.Time `json:"from_at"`
+	ToAt       time.Time `json:"to_at"`
+	Cells      []int64   `json:"cells"`
+	Category   string    `json:"category"`
+}
+
+type SumHeatmapCellsRow struct {
+	H3    int64   `json:"h3"`
+	Count int64   `json:"count"`
+	Value float64 `json:"value"`
+}
+
+func (q *Queries) SumHeatmapCells(ctx context.Context, arg SumHeatmapCellsParams) ([]SumHeatmapCellsRow, error) {
+	rows, err := q.db.Query(ctx, sumHeatmapCells,
+		arg.Resolution,
+		arg.FromAt,
+		arg.ToAt,
+		arg.Cells,
+		arg.Category,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SumHeatmapCellsRow{}
+	for rows.Next() {
+		var i SumHeatmapCellsRow
+		if err := rows.Scan(&i.H3, &i.Count, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const tryLockHeatmap = `-- name: TryLockHeatmap :one
 SELECT pg_try_advisory_xact_lock(hashtextextended('heatmap_cells', 0)) AS acquired
 `
