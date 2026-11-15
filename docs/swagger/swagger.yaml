@@ -1264,6 +1264,15 @@ definitions:
     - certificate_number
     - issued_at
     type: object
+  dtos.CustomSize:
+    properties:
+      code:
+        example: medium
+        type: string
+      volume_dm3:
+        example: 600
+        type: integer
+    type: object
   dtos.CustomerVehicleInput:
     properties:
       brand:
@@ -3940,6 +3949,29 @@ definitions:
           $ref: '#/definitions/dtos.RemovalDayView'
         type: array
     type: object
+  dtos.RemovalCustomItemInput:
+    properties:
+      name:
+        example: Aquário
+        maxLength: 120
+        type: string
+      qty:
+        example: 1
+        maximum: 500
+        minimum: 1
+        type: integer
+      size:
+        enum:
+        - small
+        - medium
+        - large
+        example: medium
+        type: string
+    required:
+    - name
+    - qty
+    - size
+    type: object
   dtos.RemovalDayView:
     properties:
       date:
@@ -3956,6 +3988,11 @@ definitions:
     type: object
   dtos.RemovalInput:
     properties:
+      custom_items:
+        items:
+          $ref: '#/definitions/dtos.RemovalCustomItemInput'
+        maxItems: 50
+        type: array
       extras:
         example:
         - packing
@@ -4019,6 +4056,10 @@ definitions:
     properties:
       currency:
         type: string
+      custom_sizes:
+        items:
+          $ref: '#/definitions/dtos.CustomSize'
+        type: array
       extras:
         items:
           $ref: '#/definitions/dtos.RemovalOption'
@@ -5997,10 +6038,14 @@ definitions:
         type: integer
       code:
         type: string
+      custom:
+        type: boolean
       label:
         type: string
       qty:
         type: integer
+      size:
+        type: string
       volume_dm3:
         type: integer
     type: object
@@ -14313,7 +14358,8 @@ paths:
       description: Items by room with volume, vehicles, extras, arrival windows, property
         types, helper price and informative insurance. Everything is managed in the
         backoffice. With property, only the items of that type of property come back;
-        an item without properties fits every type.
+        an item without properties fits every type. custom_sizes holds the volume
+        of each size of an item the customer adds by hand.
       parameters:
       - description: Code of a removal_property, such as home or office
         in: query

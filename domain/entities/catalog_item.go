@@ -221,6 +221,9 @@ const (
 	SettingTowingCompletionCode = "towing_code_digits"
 	SettingCompletionAttempts   = "completion_code_attempts"
 	SettingPrepayHoldMinutes    = "prepay_hold_minutes"
+	SettingCustomSmallDm3       = "removal_custom_small_dm3"
+	SettingCustomMediumDm3      = "removal_custom_medium_dm3"
+	SettingCustomLargeDm3       = "removal_custom_large_dm3"
 )
 
 var settingRules = map[string]settingRule{
@@ -241,6 +244,9 @@ var settingRules = map[string]settingRule{
 	SettingTowingCompletionCode: {SettingCount, 4, 8},
 	SettingCompletionAttempts:   {SettingCount, 1, 100},
 	SettingPrepayHoldMinutes:    {SettingCount, 1, 10_080},
+	SettingCustomSmallDm3:       {SettingCount, 1, 100_000},
+	SettingCustomMediumDm3:      {SettingCount, 1, 100_000},
+	SettingCustomLargeDm3:       {SettingCount, 1, 100_000},
 }
 
 func ValidateSetting(key, value string) error {

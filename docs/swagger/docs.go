@@ -12373,7 +12373,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type.",
+                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type. custom_sizes holds the volume of each size of an item the customer adds by hand.",
                 "produces": [
                     "application/json"
                 ],
@@ -18345,6 +18345,19 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CustomSize": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "medium"
+                },
+                "volume_dm3": {
+                    "type": "integer",
+                    "example": 600
+                }
+            }
+        },
         "dtos.CustomerVehicleInput": {
             "type": "object",
             "required": [
@@ -22212,6 +22225,36 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RemovalCustomItemInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "qty",
+                "size"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Aquário"
+                },
+                "qty": {
+                    "type": "integer",
+                    "maximum": 500,
+                    "minimum": 1,
+                    "example": 1
+                },
+                "size": {
+                    "type": "string",
+                    "enum": [
+                        "small",
+                        "medium",
+                        "large"
+                    ],
+                    "example": "medium"
+                }
+            }
+        },
         "dtos.RemovalDayView": {
             "type": "object",
             "properties": {
@@ -22236,6 +22279,13 @@ const docTemplate = `{
         "dtos.RemovalInput": {
             "type": "object",
             "properties": {
+                "custom_items": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalCustomItemInput"
+                    }
+                },
                 "extras": {
                     "type": "array",
                     "maxItems": 20,
@@ -22326,6 +22376,12 @@ const docTemplate = `{
             "properties": {
                 "currency": {
                     "type": "string"
+                },
+                "custom_sizes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CustomSize"
+                    }
                 },
                 "extras": {
                     "type": "array",
@@ -25191,11 +25247,17 @@ const docTemplate = `{
                 "code": {
                     "type": "string"
                 },
+                "custom": {
+                    "type": "boolean"
+                },
                 "label": {
                     "type": "string"
                 },
                 "qty": {
                     "type": "integer"
+                },
+                "size": {
+                    "type": "string"
                 },
                 "volume_dm3": {
                     "type": "integer"

@@ -309,7 +309,7 @@ func (c *DispatchController) ResolveSOS(ctx *gin.Context) {
 // RemovalOptions godoc
 //
 //	@Summary		Catalog of a removal
-//	@Description	Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type.
+//	@Description	Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type. custom_sizes holds the volume of each size of an item the customer adds by hand.
 //	@Tags			Removals
 //	@Produce		json
 //	@Param			property	query		string	false	"Code of a removal_property, such as home or office"
