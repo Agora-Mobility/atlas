@@ -47,6 +47,9 @@ var errorTable = []struct {
 	{entities.ErrBookingNotCancellable, http.StatusConflict, "BOOKING_NOT_CANCELLABLE", "The vehicle is already at the workshop."},
 	{entities.ErrHomeServiceUnavailable, http.StatusUnprocessableEntity, "HOME_SERVICE_UNAVAILABLE", "This workshop does not offer home service."},
 	{entities.ErrMechanicNotFound, http.StatusNotFound, "MECHANIC_NOT_FOUND", "Mechanic not found."},
+	{entities.ErrPhotoLimit, http.StatusUnprocessableEntity, "PHOTO_LIMIT", "Too many photos."},
+	{entities.ErrPhotoNotFound, http.StatusNotFound, "PHOTO_NOT_FOUND", "Photo not found."},
+	{entities.ErrPhotoNotUploaded, http.StatusUnprocessableEntity, "PHOTO_NOT_UPLOADED", "The photo was not uploaded or does not match what was announced."},
 	{entities.ErrPaymentOutstanding, http.StatusConflict, "PAYMENT_OUTSTANDING", "There is a request waiting to be paid."},
 	{entities.ErrPaymentMethodUnavailable, http.StatusUnprocessableEntity, "PAYMENT_METHOD_UNAVAILABLE", "This payment method is not available."},
 	{entities.ErrCallNotAvailable, http.StatusConflict, "CALL_NOT_AVAILABLE", "A call is not available now."},
@@ -753,6 +756,63 @@ func (c *Controller) RemoveClosure(ctx *gin.Context) {
 		return
 	}
 	respond(ctx, http.StatusNoContent, nil, c.bookings.RemoveClosure(ctx.Request.Context(), actor, org, id, ctx.Param("date")))
+}
+
+// WorkshopPhotos godoc
+//
+//	@Summary	List the photos of a workshop
+//	@Tags		Workshop operations
+//	@Produce	json
+//	@Param		id	path		string	true	"Workshop id"
+//	@Success	200	{object}	dtos.WorkshopPhotoList
+//	@Failure	404	{object}	shared.ErrorResponse
+//	@Security	BearerAuth
+//	@Security	ClientId
+//	@Router		/api/v1/fleet/workshops/{id}/photos [get]
+func (c *Controller) WorkshopPhotos(ctx *gin.Context) {
+	_, org, ok := staff(ctx)
+	if !ok {
+		return
+	}
+	id, ok := workshopParam(ctx)
+	if !ok {
+		return
+	}
+	list, err := c.bookings.WorkshopPhotos(ctx.Request.Context(), org, id)
+	respond(ctx, http.StatusOK, list, err)
+}
+
+// SetWorkshopPhotos godoc
+//
+//	@Summary		Set the photos of a workshop
+//	@Description	Upload each photo with POST /api/v1/media/photos, then send the full gallery in order: the first photo is the cover shown in GET /api/v1/workshops. Photos left out are removed from the gallery and photos already in it may stay. At most max_workshop_photos photos.
+//	@Tags			Workshop operations
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string						true	"Workshop id"
+//	@Param			body	body		dtos.WorkshopPhotosInput	true	"Body"
+//	@Success		200		{object}	dtos.WorkshopPhotoList
+//	@Failure		404		{object}	shared.ErrorResponse
+//	@Failure		422		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/fleet/workshops/{id}/photos [put]
+func (c *Controller) SetWorkshopPhotos(ctx *gin.Context) {
+	actor, org, ok := staff(ctx)
+	if !ok {
+		return
+	}
+	id, ok := workshopParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.WorkshopPhotosInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	list, err := c.bookings.SetWorkshopPhotos(ctx.Request.Context(), actor, org, id, in)
+	respond(ctx, http.StatusOK, list, err)
 }
 
 // ListMechanics godoc
