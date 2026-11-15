@@ -47,7 +47,6 @@ var errorTable = []struct {
 	{entities.ErrBookingNotCancellable, http.StatusConflict, "BOOKING_NOT_CANCELLABLE", "The vehicle is already at the workshop."},
 	{entities.ErrHomeServiceUnavailable, http.StatusUnprocessableEntity, "HOME_SERVICE_UNAVAILABLE", "This workshop does not offer home service."},
 	{entities.ErrMechanicNotFound, http.StatusNotFound, "MECHANIC_NOT_FOUND", "Mechanic not found."},
-	{entities.ErrPaymentOutstanding, http.StatusConflict, "PAYMENT_OUTSTANDING", "There is a request waiting to be paid."},
 	{entities.ErrPaymentMethodUnavailable, http.StatusUnprocessableEntity, "PAYMENT_METHOD_UNAVAILABLE", "This payment method is not available."},
 	{entities.ErrCallNotAvailable, http.StatusConflict, "CALL_NOT_AVAILABLE", "A call is not available now."},
 	{services.ErrCallsUnavailable, http.StatusServiceUnavailable, "CALLS_UNAVAILABLE", "Calls are not available."},
@@ -63,6 +62,11 @@ var errorTable = []struct {
 
 func respond(ctx *gin.Context, status int, body any, err error) {
 	if err != nil {
+		var outstanding *entities.OutstandingPaymentError
+		if errors.As(err, &outstanding) {
+			shared.PaymentOutstanding(ctx, outstanding)
+			return
+		}
 		for _, mapped := range errorTable {
 			if errors.Is(err, mapped.target) {
 				shared.RespondError(ctx, mapped.status, mapped.code, mapped.message)

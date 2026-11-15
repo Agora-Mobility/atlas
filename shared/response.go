@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Agora-Mobility/atlas/config/logger"
+	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/shared/customerrors"
 )
 
@@ -77,6 +78,18 @@ func UnprocessableWithDetails(ctx *gin.Context, code, message string, details ma
 
 func UnprocessableWithData(ctx *gin.Context, code, message string, details map[string]string, data map[string]any) {
 	respond(ctx, http.StatusUnprocessableEntity, ErrorBody{Code: code, Message: message, Details: details, Data: data})
+}
+
+func PaymentOutstanding(ctx *gin.Context, outstanding *entities.OutstandingPaymentError) {
+	message := "Pay the completed request before asking for another."
+	if outstanding.Reason == entities.OutstandingCancellationFee {
+		message = "Pay the cancellation fee of a previous request before asking for another."
+	}
+	respond(ctx, http.StatusConflict, ErrorBody{
+		Code:    "PAYMENT_OUTSTANDING",
+		Message: message,
+		Data:    map[string]any{"request_id": outstanding.RequestID, "reason": outstanding.Reason},
+	})
 }
 
 func InvalidRequest(ctx *gin.Context, err error) {

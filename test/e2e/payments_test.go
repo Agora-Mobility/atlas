@@ -224,6 +224,7 @@ func TestGPOIsPaidOnlyWhenTheGatewayConfirms(t *testing.T) {
 	estimateID, serviceID := estimateFor(t, customer, "taxi")
 	blocked := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	assert.Equal(t, "PAYMENT_OUTSTANDING", blocked.code(), "a completed request stays to pay first")
+	assert.Equal(t, map[string]any{"request_id": requestID, "reason": "completed_request"}, blocked.errorData())
 
 	chargeID := env.appypay.settle(code, "Pending", 0)
 	assert.Equal(t, http.StatusNoContent, webhook(t, map[string]any{"id": chargeID, "merchantTransactionId": code, "amount": fare, "responseStatus": map[string]any{"successful": true, "status": "Success"}}))
