@@ -77,12 +77,15 @@ func (r *PaymentRepository) SetMethod(ctx context.Context, categoryID uuid.UUID,
 	return rows > 0, nil
 }
 
-func (r *PaymentRepository) HasOutstanding(ctx context.Context, customerID uuid.UUID) (bool, error) {
-	outstanding, err := postgres.Queries(ctx, r.pool).HasOutstandingPayment(ctx, customerID)
-	if err != nil {
-		return false, fmt.Errorf("check outstanding payment: %w", err)
+func (r *PaymentRepository) FindOutstanding(ctx context.Context, customerID uuid.UUID) (*entities.OutstandingPaymentError, error) {
+	row, err := postgres.Queries(ctx, r.pool).FindOutstandingPayment(ctx, customerID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
 	}
-	return outstanding, nil
+	if err != nil {
+		return nil, fmt.Errorf("find outstanding payment: %w", err)
+	}
+	return entities.NewOutstandingPayment(row.ID, entities.RequestStatus(row.Status)), nil
 }
 
 func (r *PaymentRepository) SetRequestPayment(ctx context.Context, requestID uuid.UUID, method entities.PaymentMethod, status entities.RequestPaymentStatus) error {

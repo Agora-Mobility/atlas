@@ -236,12 +236,12 @@ func withoutServerFields(details json.RawMessage) json.RawMessage {
 }
 
 func (u *Usecase) checkPayment(ctx context.Context, customerID, categoryID uuid.UUID, requested string) (entities.PaymentMethod, error) {
-	outstanding, err := u.Payments.HasOutstanding(ctx, customerID)
+	outstanding, err := u.Payments.FindOutstanding(ctx, customerID)
 	if err != nil {
 		return "", err
 	}
-	if outstanding {
-		return "", entities.ErrPaymentOutstanding
+	if outstanding != nil {
+		return "", outstanding
 	}
 	method := entities.PaymentMethod(requested)
 	if method == "" {
