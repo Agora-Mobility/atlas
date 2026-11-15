@@ -309,15 +309,17 @@ func (c *DispatchController) ResolveSOS(ctx *gin.Context) {
 // RemovalOptions godoc
 //
 //	@Summary		Catalog of a removal
-//	@Description	Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice.
+//	@Description	Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type.
 //	@Tags			Removals
 //	@Produce		json
-//	@Success		200	{object}	dtos.RemovalOptions
+//	@Param			property	query		string	false	"Code of a removal_property, such as home or office"
+//	@Success		200			{object}	dtos.RemovalOptions
+//	@Failure		422			{object}	shared.ErrorResponse	"The property does not exist"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/removals/options [get]
 func (c *DispatchController) RemovalOptions(ctx *gin.Context) {
-	view, err := c.dispatch.RemovalOptions(ctx.Request.Context())
+	view, err := c.dispatch.RemovalOptions(ctx.Request.Context(), ctx.Query("property"))
 	respond(ctx, http.StatusOK, view, err)
 }
 

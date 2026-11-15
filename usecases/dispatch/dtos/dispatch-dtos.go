@@ -69,6 +69,7 @@ type RemovalOption struct {
 	PromoUntil  *time.Time `json:"promo_until,omitempty"`
 	VolumeDm3   int64      `json:"volume_dm3,omitempty"`
 	MaxVolumeM3 float64    `json:"max_volume_m3,omitempty"`
+	Properties  []string   `json:"properties,omitempty" example:"home,office"`
 }
 
 type RemovalDayView struct {

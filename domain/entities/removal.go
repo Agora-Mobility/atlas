@@ -27,16 +27,17 @@ const (
 )
 
 var (
-	ErrRemovalItemUnknown  = errors.New("an item does not exist in the catalog")
-	ErrRemovalExtraUnknown = errors.New("an extra does not exist in the catalog")
-	ErrRemovalHelpers      = errors.New("too many helpers")
-	ErrRemovalTooLarge     = errors.New("no vehicle carries this volume")
-	ErrRemovalVehicle      = errors.New("this vehicle does not exist in the catalog")
-	ErrRemovalDetails      = errors.New("a removal needs the day, the window and the type of property")
-	ErrRemovalWindow       = errors.New("the time does not match the window")
-	ErrRemovalDayFull      = errors.New("this day is full")
-	ErrRemovalTooFar       = errors.New("this day is too far ahead")
-	ErrTeamNotAllowed      = errors.New("the team cannot be set on this request")
+	ErrRemovalItemUnknown     = errors.New("an item does not exist in the catalog")
+	ErrRemovalPropertyUnknown = errors.New("this type of property does not exist in the catalog")
+	ErrRemovalExtraUnknown    = errors.New("an extra does not exist in the catalog")
+	ErrRemovalHelpers         = errors.New("too many helpers")
+	ErrRemovalTooLarge        = errors.New("no vehicle carries this volume")
+	ErrRemovalVehicle         = errors.New("this vehicle does not exist in the catalog")
+	ErrRemovalDetails         = errors.New("a removal needs the day, the window and the type of property")
+	ErrRemovalWindow          = errors.New("the time does not match the window")
+	ErrRemovalDayFull         = errors.New("this day is full")
+	ErrRemovalTooFar          = errors.New("this day is too far ahead")
+	ErrTeamNotAllowed         = errors.New("the team cannot be set on this request")
 )
 
 type RemovalLine struct {

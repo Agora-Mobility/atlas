@@ -3,6 +3,7 @@ package entities
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,9 @@ const (
 	maxCatalogLabel       = 200
 	maxCatalogDescription = 4000
 	maxCatalogAttrsBytes  = 4096
+	maxAttrCodes          = 20
+
+	AttrProperties = "properties"
 )
 
 var ErrCatalogItemNotFound = errors.New("catalog item not found")
@@ -98,37 +102,85 @@ func (i *CatalogItem) validateAttrs() error {
 		CatalogRemovalVehicle: {"max_volume_dm3": {1, 1_000_000}, "base_minutes": {1, 10_080}, "minutes_per_m3": {0, 1_000}, "daily_capacity": {0, 10_000}},
 		CatalogRemovalWindow:  {"start_minute": {0, 1439}, "end_minute": {1, 1440}},
 	}
-	wanted, known := limits[i.Kind]
-	if !known {
-		return nil
+	values, err := i.attrValues()
+	if err != nil {
+		return validationError("attrs", "Os atributos têm de ser um objeto.")
 	}
-	var values map[string]json.Number
-	if err := json.Unmarshal(i.Attrs, &values); err != nil {
-		return validationError("attrs", "Os atributos têm de ser números.")
-	}
-	for name, limit := range wanted {
+	for name, limit := range limits[i.Kind] {
 		raw, present := values[name]
 		if !present {
 			return validationError("attrs."+name, "Este atributo é obrigatório.")
 		}
-		value, err := raw.Int64()
-		if err != nil || value < limit[0] || value > limit[1] {
+		var value json.Number
+		if json.Unmarshal(raw, &value) != nil {
+			return validationError("attrs."+name, "Este atributo tem de ser um número.")
+		}
+		number, err := value.Int64()
+		if err != nil || number < limit[0] || number > limit[1] {
 			return validationError("attrs."+name, "O valor tem de estar entre "+strconv.FormatInt(limit[0], 10)+" e "+strconv.FormatInt(limit[1], 10)+".")
+		}
+	}
+	if i.Kind == CatalogRemovalItem {
+		return validateCodeList(values[AttrProperties], "attrs."+AttrProperties)
+	}
+	return nil
+}
+
+func validateCodeList(raw json.RawMessage, field string) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	var codes []string
+	if json.Unmarshal(raw, &codes) != nil || len(codes) > maxAttrCodes {
+		return validationError(field, "Indica uma lista com até 20 códigos.")
+	}
+	for _, code := range codes {
+		if !reasonCodePattern.MatchString(code) {
+			return validationError(field, "O código usa letras minúsculas, números e _.")
 		}
 	}
 	return nil
 }
 
-func (i *CatalogItem) AttrInt(name string) int64 {
-	var values map[string]json.Number
+func (i *CatalogItem) attrValues() (map[string]json.RawMessage, error) {
+	var values map[string]json.RawMessage
 	if err := json.Unmarshal(i.Attrs, &values); err != nil {
-		return 0
+		return nil, err
 	}
-	value, err := values[name].Int64()
+	return values, nil
+}
+
+func (i *CatalogItem) AttrCodes(name string) []string {
+	values, err := i.attrValues()
+	if err != nil {
+		return nil
+	}
+	var codes []string
+	if json.Unmarshal(values[name], &codes) != nil {
+		return nil
+	}
+	return codes
+}
+
+func (i *CatalogItem) AppliesToProperty(code string) bool {
+	properties := i.AttrCodes(AttrProperties)
+	return len(properties) == 0 || slices.Contains(properties, code)
+}
+
+func (i *CatalogItem) AttrInt(name string) int64 {
+	values, err := i.attrValues()
 	if err != nil {
 		return 0
 	}
-	return value
+	var value json.Number
+	if json.Unmarshal(values[name], &value) != nil {
+		return 0
+	}
+	number, err := value.Int64()
+	if err != nil {
+		return 0
+	}
+	return number
 }
 
 func (i *CatalogItem) PriceAt(now time.Time) int64 {

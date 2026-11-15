@@ -4005,6 +4005,13 @@ definitions:
         type: integer
       promo_until:
         type: string
+      properties:
+        example:
+        - home
+        - office
+        items:
+          type: string
+        type: array
       volume_dm3:
         type: integer
     type: object
@@ -6532,6 +6539,11 @@ paths:
         in: query
         name: category
         type: string
+      - description: Only the removal items of this removal_property code; an item
+          without properties fits every type
+        in: query
+        name: property
+        type: string
       produces:
       - application/json
       responses:
@@ -6553,7 +6565,9 @@ paths:
       consumes:
       - application/json
       description: Prices are integer cents. attrs holds the numbers of each kind,
-        such as included_km on towing_vehicle, and they are validated.
+        such as included_km on towing_vehicle, and they are validated. A removal_item
+        may list in attrs.properties the removal_property codes it belongs to, such
+        as ["home", "office"]; without the list it fits every type.
       parameters:
       - description: Catalog
         in: path
@@ -14298,7 +14312,13 @@ paths:
     get:
       description: Items by room with volume, vehicles, extras, arrival windows, property
         types, helper price and informative insurance. Everything is managed in the
-        backoffice.
+        backoffice. With property, only the items of that type of property come back;
+        an item without properties fits every type.
+      parameters:
+      - description: Code of a removal_property, such as home or office
+        in: query
+        name: property
+        type: string
       produces:
       - application/json
       responses:
@@ -14306,6 +14326,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dtos.RemovalOptions'
+        "422":
+          description: The property does not exist
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
       security:
       - BearerAuth: []
       - ClientId: []

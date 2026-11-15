@@ -147,3 +147,33 @@ func TestATeamIsVerifiedOnlyByThePartner(t *testing.T) {
 	assert.Equal(t, true, theirs.body["items"].([]any)[0].(map[string]any)["verified"])
 	assert.Len(t, customer.get(t, "/api/v1/requests/"+id).body["team"], 1)
 }
+
+func removalItemCodes(t *testing.T, res result) []string {
+	t.Helper()
+	require.Equal(t, http.StatusOK, res.status, res.text)
+	codes := []string{}
+	for _, raw := range res.body["items"].([]any) {
+		codes = append(codes, raw.(map[string]any)["code"].(string))
+	}
+	return codes
+}
+
+func TestRemovalItemsAreFilteredByTheTypeOfProperty(t *testing.T) {
+	customer := newCustomer(t)
+	every := removalItemCodes(t, customer.get(t, "/api/v1/removals/options"))
+	home := removalItemCodes(t, customer.get(t, "/api/v1/removals/options?property=home"))
+	office := removalItemCodes(t, customer.get(t, "/api/v1/removals/options?property=office"))
+	assert.ElementsMatch(t, every, home, "every item fits a home")
+	assert.Contains(t, office, "desk")
+	assert.Contains(t, office, "box", "an item without properties fits every type")
+	assert.NotContains(t, office, "bed", "a bed belongs to a home")
+	assert.Equal(t, "REMOVAL_PROPERTY_NOT_FOUND", customer.get(t, "/api/v1/removals/options?property=castelo").code())
+
+	admin := staffToken(t)
+	backoffice := removalItemCodes(t, admin.get(t, "/api/v1/admin/catalog/removal_item?property=office"))
+	assert.NotContains(t, backoffice, "bed", "the backoffice filters on the server too")
+	assert.Contains(t, backoffice, "desk")
+
+	refused := admin.post(t, "/api/v1/admin/catalog/removal_item", map[string]any{"code": "piano", "label": "Piano", "attrs": map[string]any{"volume_dm3": 2000, "properties": []string{"Casa Grande"}}})
+	assert.Equal(t, http.StatusUnprocessableEntity, refused.status, refused.text)
+}
