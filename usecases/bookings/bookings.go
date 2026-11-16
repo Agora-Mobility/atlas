@@ -518,7 +518,7 @@ func (u *Usecase) Create(ctx context.Context, customerID uuid.UUID, idempotencyK
 	}
 	method := entities.PaymentMethod(in.PaymentMethod)
 	if method == "" {
-		method = entities.PaymentGPO
+		method = entities.PaymentCash
 	}
 	enabled, err := u.Payments.IsMethodEnabled(ctx, service.CategoryID, method)
 	if err != nil {
