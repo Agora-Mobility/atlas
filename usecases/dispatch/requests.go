@@ -110,6 +110,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	if request.PickupH3R8, err = u.Geo.Cell(request.Pickup.Point, analyticsResolution); err != nil {
 		return nil, false, err
 	}
+	if request.PickupH3R9, err = u.Geo.Cell(request.Pickup.Point, entities.HeatmapResolution); err != nil {
+		return nil, false, err
+	}
 	if request.Destination != nil {
 		cell, err := u.Geo.Cell(request.Destination.Point, analyticsResolution)
 		if err != nil {

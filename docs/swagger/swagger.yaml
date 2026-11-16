@@ -2027,6 +2027,27 @@ definitions:
       supply:
         type: integer
     type: object
+  dtos.HeatCellsView:
+    properties:
+      cells:
+        items:
+          $ref: '#/definitions/dtos.HeatValue'
+        type: array
+      max:
+        example: 42.5
+        type: number
+      metric:
+        enum:
+        - count
+        - value
+        example: value
+        type: string
+      resolution:
+        example: 8
+        type: integer
+      window:
+        $ref: '#/definitions/dtos.HeatWindow'
+    type: object
   dtos.HeatMap:
     properties:
       cells:
@@ -2048,6 +2069,22 @@ definitions:
         type: number
       lng:
         type: number
+    type: object
+  dtos.HeatValue:
+    properties:
+      h3:
+        example: 8975a5a6a8bffff
+        type: string
+      value:
+        example: 12.3
+        type: number
+    type: object
+  dtos.HeatWindow:
+    properties:
+      from:
+        type: string
+      to:
+        type: string
     type: object
   dtos.HelpTopicView:
     properties:
@@ -7021,6 +7058,67 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Supply and demand by H3 cell
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/heatmap/cells:
+    get:
+      description: Requests per H3 cell for a hexagon layer such as deck.gl H3HexagonLayer,
+        read from the cells the heatmap job aggregates every few minutes in 15 minute
+        windows. The zoom picks the resolution (by default up to 10 is 6, 11 and 12
+        are 7, 13 and 14 are 8, from 15 is 9). When the view holds more than 20000
+        cells the next coarser resolution is used, and resolution tells which one
+        answered; only when even resolution 6 does not fit the answer is 400 AREA_TOO_LARGE.
+        value is the smoothed heat (0.6 of the cell plus 0.4 of the mean of its six
+        neighbors); count is the raw number of requests. Windows of the period are
+        summed. The period defaults to the last complete window and spans at most
+        7 days. h3 is always the hexadecimal index, since 64 bit integers lose precision
+        in JavaScript.
+      parameters:
+      - description: minLng,minLat,maxLng,maxLat
+        example: 13.15,-8.95,13.35,-8.75
+        in: query
+        name: bbox
+        required: true
+        type: string
+      - description: Map zoom, 0 to 24
+        in: query
+        name: zoom
+        required: true
+        type: integer
+      - description: Start of the period (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: End of the period (RFC 3339)
+        in: query
+        name: to
+        type: string
+      - description: count or value, default value
+        enum:
+        - count
+        - value
+        in: query
+        name: metric
+        type: string
+      - description: Category slug, default all
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.HeatCellsView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Heat of the H3 cells inside the map view
       tags:
       - Backoffice dispatch
   /api/v1/admin/dispatch/queue:

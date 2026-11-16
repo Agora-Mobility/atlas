@@ -811,3 +811,30 @@ type FlowMap struct {
 	Hidden      int64      `json:"hidden"`
 	Flows       []CellFlow `json:"flows"`
 }
+
+type HeatCellsQuery struct {
+	Box      entities.GeoBox
+	Zoom     int
+	From     *time.Time
+	To       *time.Time
+	Metric   string
+	Category string
+}
+
+type HeatWindow struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+type HeatValue struct {
+	H3    string  `json:"h3" example:"8975a5a6a8bffff"`
+	Value float64 `json:"value" example:"12.3"`
+}
+
+type HeatCellsView struct {
+	Resolution int         `json:"resolution" example:"8"`
+	Window     HeatWindow  `json:"window"`
+	Metric     string      `json:"metric" example:"value" enums:"count,value"`
+	Max        float64     `json:"max" example:"42.5"`
+	Cells      []HeatValue `json:"cells"`
+}

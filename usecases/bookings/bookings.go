@@ -575,6 +575,9 @@ func (u *Usecase) Create(ctx context.Context, customerID uuid.UUID, idempotencyK
 	if request.PickupH3R8, err = u.Geo.Cell(request.Pickup.Point, entities.AnalyticsResolution); err != nil {
 		return nil, false, err
 	}
+	if request.PickupH3R9, err = u.Geo.Cell(request.Pickup.Point, entities.HeatmapResolution); err != nil {
+		return nil, false, err
+	}
 	status := entities.BookingConfirmed
 	if request.Prepay {
 		status = entities.BookingAwaitingPayment

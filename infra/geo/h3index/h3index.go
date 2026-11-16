@@ -7,6 +7,7 @@ import (
 	"github.com/uber/h3-go/v4"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
+	"github.com/Agora-Mobility/atlas/domain/services"
 )
 
 const (
@@ -19,6 +20,7 @@ const (
 	ringSafetyMargin       = 1
 	ringWidthInEdges       = 1.5
 	worstCaseEdgeRatio     = 0.74
+	cellCountSlack         = 2
 )
 
 var measuredMinEdgeKm = map[int]float64{
@@ -183,4 +185,22 @@ func (Index) Boundary(cell int64) ([]entities.GeoPoint, error) {
 		out = append(out, entities.GeoPoint{Lat: vertex.Lat, Lng: vertex.Lng})
 	}
 	return out, nil
+}
+
+func (Index) BoxCells(box entities.GeoBox, resolution, limit int) ([]int64, error) {
+	average, err := h3.HexagonAreaAvgKm2(resolution)
+	if err != nil {
+		return nil, fmt.Errorf("h3 area: %w", err)
+	}
+	if box.AreaKm2()/average > float64(limit*cellCountSlack) {
+		return nil, services.ErrTooManyCells
+	}
+	cells, err := h3.PolygonToCells(toH3Polygon(box.Polygon()), resolution)
+	if err != nil {
+		return nil, fmt.Errorf("h3 polygon: %w", err)
+	}
+	if len(cells) > limit {
+		return nil, services.ErrTooManyCells
+	}
+	return toInt64s(cells), nil
 }
