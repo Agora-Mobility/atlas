@@ -389,6 +389,9 @@ func (i *instance) shutdown() {
 }
 
 func seedPlatform(ctx context.Context, owner *pgxpool.Pool) error {
+	if err := applySQL(ctx, owner, digitalPaymentsSQL); err != nil {
+		return err
+	}
 	// A zona Luanda vem da migration 000043.
 	_, err := owner.Exec(ctx, `
 		INSERT INTO service_tariffs (service_id, currency, base_fee_cents, per_km_fee_cents, per_minute_fee_cents, minimum_fee_cents, commission_bps, free_wait_seconds)
