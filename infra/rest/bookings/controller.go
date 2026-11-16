@@ -66,6 +66,11 @@ var errorTable = []struct {
 
 func respond(ctx *gin.Context, status int, body any, err error) {
 	if err != nil {
+		var outstanding *entities.OutstandingPaymentError
+		if errors.As(err, &outstanding) {
+			shared.PaymentOutstanding(ctx, outstanding)
+			return
+		}
 		for _, mapped := range errorTable {
 			if errors.Is(err, mapped.target) {
 				shared.RespondError(ctx, mapped.status, mapped.code, mapped.message)

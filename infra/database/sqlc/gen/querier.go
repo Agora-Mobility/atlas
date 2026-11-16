@@ -106,6 +106,7 @@ type Querier interface {
 	// concurrently without publishing the same event twice.
 	FetchPendingOutboxEvents(ctx context.Context, batchSize int32) ([]FetchPendingOutboxEventsRow, error)
 	FilterEligibleProviders(ctx context.Context, arg FilterEligibleProvidersParams) ([]FilterEligibleProvidersRow, error)
+	FindOutstandingPayment(ctx context.Context, customerID uuid.UUID) (FindOutstandingPaymentRow, error)
 	FindServiceRequestByIdempotencyKey(ctx context.Context, arg FindServiceRequestByIdempotencyKeyParams) (ServiceRequest, error)
 	FindUserByReferralCode(ctx context.Context, referralCode *string) (uuid.UUID, error)
 	FindZoneCoveringPoint(ctx context.Context, arg FindZoneCoveringPointParams) (uuid.UUID, error)
@@ -192,7 +193,6 @@ type Querier interface {
 	GetWorkshopMechanic(ctx context.Context, id uuid.UUID) (WorkshopMechanic, error)
 	GetWorkshopProfile(ctx context.Context, id uuid.UUID) (GetWorkshopProfileRow, error)
 	GetWorkshopService(ctx context.Context, id uuid.UUID) (WorkshopService, error)
-	HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error)
 	HasPaidRequest(ctx context.Context, customerID uuid.UUID) (bool, error)
 	IncrementProviderCancellations(ctx context.Context, userID uuid.UUID) error
 	InsertBooking(ctx context.Context, arg InsertBookingParams) error

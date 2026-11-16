@@ -650,6 +650,12 @@ func (r result) code() string {
 	return ""
 }
 
+func (r result) errorData() map[string]any {
+	failure, _ := r.body["error"].(map[string]any)
+	data, _ := failure["data"].(map[string]any)
+	return data
+}
+
 func (r result) str(key string) string {
 	value, _ := r.body[key].(string)
 	return value

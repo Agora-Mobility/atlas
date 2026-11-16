@@ -97,7 +97,9 @@ func TestCancellingFollowsTheCatalogueAndTheFeeRule(t *testing.T) {
 		next := customer.post(t, "/api/v1/fare-estimates", map[string]any{"category": "taxi", "pickup": pickup, "destination": target})
 		require.Equal(t, http.StatusCreated, next.status)
 		option := next.body["items"].([]any)[0].(map[string]any)
-		assert.Equal(t, "PAYMENT_OUTSTANDING", askFor(t, customer, option, nil).code(), "an unpaid fee is a debt")
+		debt := askFor(t, customer, option, nil)
+		assert.Equal(t, "PAYMENT_OUTSTANDING", debt.code(), "an unpaid fee is a debt")
+		assert.Equal(t, map[string]any{"request_id": id, "reason": "cancellation_fee"}, debt.errorData(), "the app knows which request to pay and why")
 
 		paid := customer.post(t, "/api/v1/requests/"+id+"/payments", map[string]any{"method": "gpo", "phone_number": "900000000"})
 		require.Equal(t, http.StatusCreated, paid.status, paid.text)

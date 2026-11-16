@@ -11,12 +11,12 @@ SELECT EXISTS (SELECT 1 FROM category_payment_methods WHERE category_id = $1 AND
 -- name: SetCategoryPaymentMethod :execrows
 UPDATE category_payment_methods SET is_enabled = $3, updated_at = now() WHERE category_id = $1 AND method = $2;
 
--- name: HasOutstandingPayment :one
-SELECT EXISTS (
-    SELECT 1 FROM service_requests
-    WHERE customer_id = $1 AND payment_status IN ('unpaid', 'pending')
-      AND ((status = 'completed' AND payment_method <> 'cash') OR (status = 'cancelled' AND cancel_fee_cents > 0))
-);
+-- name: FindOutstandingPayment :one
+SELECT id, status FROM service_requests
+WHERE customer_id = $1 AND payment_status IN ('unpaid', 'pending')
+  AND ((status = 'completed' AND payment_method <> 'cash') OR (status = 'cancelled' AND cancel_fee_cents > 0))
+ORDER BY updated_at
+LIMIT 1;
 
 -- name: SetRequestPayment :exec
 UPDATE service_requests SET payment_method = $2, payment_status = $3, updated_at = now() WHERE id = $1;
