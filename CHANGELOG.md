@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.3.0](https://github.com/Agora-Mobility/atlas/compare/v3.2.1...v3.3.0) (2026-11-16)
+
+
+### Features
+
+* **dispatch:** aggregate requests into H3 heatmap cells ([c8293f6](https://github.com/Agora-Mobility/atlas/commit/c8293f6d486a2162f3a8a1398a58f4e88687a670))
+* **dispatch:** backfill the pickup cells of older requests ([da5be77](https://github.com/Agora-Mobility/atlas/commit/da5be777c4754c821a302298e7c1fbabe968336d))
+* **dispatch:** H3 heatmap cells for the backoffice map ([9d87b7f](https://github.com/Agora-Mobility/atlas/commit/9d87b7feac44acfe02f766d864f1842e00e13be4))
+* **dispatch:** keep the resolution 9 pickup cell on each request ([49dddc0](https://github.com/Agora-Mobility/atlas/commit/49dddc0221fed696f34902213953cf23652353a1))
+* **dispatch:** serve the heatmap cells of a map view ([05ffcbc](https://github.com/Agora-Mobility/atlas/commit/05ffcbcb3a788aaba6b2b9d23aa3ce1f465a4554))
+* **geo:** list the H3 cells of a map view ([c910072](https://github.com/Agora-Mobility/atlas/commit/c910072822806478f4172caa2dcbdc4257818e23))
+* **notifications:** push chat messages to the recipient ([822bc43](https://github.com/Agora-Mobility/atlas/commit/822bc43ad932d34b8bd3c055234bee98f03d15c8))
+* **payments:** find the request a customer still has to pay ([d724634](https://github.com/Agora-Mobility/atlas/commit/d72463402b2ad2bc95751d1ba177aade34243deb))
+* **providers:** open towing to provider sign-up ([123de3a](https://github.com/Agora-Mobility/atlas/commit/123de3aadd36818a0f9727cdfb86eaa6cee2c900))
+* **providers:** open towing to provider sign-up ([2c4e21d](https://github.com/Agora-Mobility/atlas/commit/2c4e21d47549b58b9b221085aa866d7e668189a8))
+* **removals:** filter items by property and price items added by hand ([5690ffb](https://github.com/Agora-Mobility/atlas/commit/5690ffb67d2ece4c795e90374c8dce919970f4aa))
+* **removals:** filter the items by type of property ([9635c9e](https://github.com/Agora-Mobility/atlas/commit/9635c9ec3365141127cdb62bc6bfa04a7a038c49))
+* **removals:** price items the customer adds by hand ([4b6353c](https://github.com/Agora-Mobility/atlas/commit/4b6353c1b93f10d88af77d536badfaf1008fa81e))
+* **workshops:** partners set the gallery and the app shows it ([b41855d](https://github.com/Agora-Mobility/atlas/commit/b41855df09d4d88d74f62fbc850fb75ffe68ace9))
+* **workshops:** photo gallery with a cover ([353c2c7](https://github.com/Agora-Mobility/atlas/commit/353c2c77a1340e85611c935c2cc9bb5a91ac65ee))
+* **workshops:** store an ordered gallery of photos per workshop ([f1b3318](https://github.com/Agora-Mobility/atlas/commit/f1b33180a1c42d3cafa86481e24910ad3328a63e))
+
+
+### Bug Fixes
+
+* **payments:** tell the app which request blocks a new one ([9633e80](https://github.com/Agora-Mobility/atlas/commit/9633e80beb70a6a40a7be42abd890f4acc443be4))
+* **payments:** tell the app which request blocks a new one ([c256140](https://github.com/Agora-Mobility/atlas/commit/c256140fbd5397c00af449dbb6a77e9bf5b5149d))
+
 ## [3.2.1](https://github.com/Agora-Mobility/atlas/compare/v3.2.0...v3.2.1) (2026-11-11)
 
 
