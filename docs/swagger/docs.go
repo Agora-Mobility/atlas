@@ -173,6 +173,12 @@ const docTemplate = `{
                         "description": "Category slug",
                         "name": "category",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only the removal items of this removal_property code; an item without properties fits every type",
+                        "name": "property",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -199,7 +205,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated.",
+                "description": "Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated. A removal_item may list in attrs.properties the removal_property codes it belongs to, such as [\"home\", \"office\"]; without the list it fits every type.",
                 "consumes": [
                     "application/json"
                 ],
@@ -12468,7 +12474,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice.",
+                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type. custom_sizes holds the volume of each size of an item the customer adds by hand.",
                 "produces": [
                     "application/json"
                 ],
@@ -12476,11 +12482,25 @@ const docTemplate = `{
                     "Removals"
                 ],
                 "summary": "Catalog of a removal",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Code of a removal_property, such as home or office",
+                        "name": "property",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.RemovalOptions"
+                        }
+                    },
+                    "422": {
+                        "description": "The property does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -18426,6 +18446,19 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CustomSize": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "medium"
+                },
+                "volume_dm3": {
+                    "type": "integer",
+                    "example": 600
+                }
+            }
+        },
         "dtos.CustomerVehicleInput": {
             "type": "object",
             "required": [
@@ -22293,6 +22326,36 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RemovalCustomItemInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "qty",
+                "size"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Aquário"
+                },
+                "qty": {
+                    "type": "integer",
+                    "maximum": 500,
+                    "minimum": 1,
+                    "example": 1
+                },
+                "size": {
+                    "type": "string",
+                    "enum": [
+                        "small",
+                        "medium",
+                        "large"
+                    ],
+                    "example": "medium"
+                }
+            }
+        },
         "dtos.RemovalDayView": {
             "type": "object",
             "properties": {
@@ -22317,6 +22380,13 @@ const docTemplate = `{
         "dtos.RemovalInput": {
             "type": "object",
             "properties": {
+                "custom_items": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalCustomItemInput"
+                    }
+                },
                 "extras": {
                     "type": "array",
                     "maxItems": 20,
@@ -22387,6 +22457,16 @@ const docTemplate = `{
                 "promo_until": {
                     "type": "string"
                 },
+                "properties": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "home",
+                        "office"
+                    ]
+                },
                 "volume_dm3": {
                     "type": "integer"
                 }
@@ -22397,6 +22477,12 @@ const docTemplate = `{
             "properties": {
                 "currency": {
                     "type": "string"
+                },
+                "custom_sizes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CustomSize"
+                    }
                 },
                 "extras": {
                     "type": "array",
@@ -25309,11 +25395,17 @@ const docTemplate = `{
                 "code": {
                     "type": "string"
                 },
+                "custom": {
+                    "type": "boolean"
+                },
                 "label": {
                     "type": "string"
                 },
                 "qty": {
                     "type": "integer"
+                },
+                "size": {
+                    "type": "string"
                 },
                 "volume_dm3": {
                     "type": "integer"

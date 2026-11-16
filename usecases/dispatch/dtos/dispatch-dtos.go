@@ -53,10 +53,16 @@ type RemovalOptions struct {
 	Extras         []RemovalOption `json:"extras"`
 	Windows        []RemovalOption `json:"windows"`
 	Properties     []RemovalOption `json:"properties"`
+	CustomSizes    []CustomSize    `json:"custom_sizes"`
 	HelperCents    int64           `json:"helper_cents"`
 	MaxHelpers     int             `json:"max_helpers"`
 	InsuranceCents int64           `json:"insurance_cents"`
 	Currency       string          `json:"currency"`
+}
+
+type CustomSize struct {
+	Code      string `json:"code" example:"medium"`
+	VolumeDm3 int64  `json:"volume_dm3" example:"600"`
 }
 
 type RemovalOption struct {
@@ -69,6 +75,7 @@ type RemovalOption struct {
 	PromoUntil  *time.Time `json:"promo_until,omitempty"`
 	VolumeDm3   int64      `json:"volume_dm3,omitempty"`
 	MaxVolumeM3 float64    `json:"max_volume_m3,omitempty"`
+	Properties  []string   `json:"properties,omitempty" example:"home,office"`
 }
 
 type RemovalDayView struct {
@@ -142,10 +149,17 @@ type RemovalItemInput struct {
 	Qty    int       `json:"qty" binding:"required,min=1,max=500" example:"2"`
 }
 
+type RemovalCustomItemInput struct {
+	Name string `json:"name" binding:"required,max=120" example:"Aquário"`
+	Qty  int    `json:"qty" binding:"required,min=1,max=500" example:"1"`
+	Size string `json:"size" binding:"required,oneof=small medium large" example:"medium"`
+}
+
 type RemovalInput struct {
-	Items   []RemovalItemInput `json:"items" binding:"max=200,dive"`
-	Helpers int                `json:"helpers" binding:"min=0,max=50" example:"2"`
-	Extras  []string           `json:"extras" binding:"max=20,dive,max=60" example:"packing"`
+	Items       []RemovalItemInput       `json:"items" binding:"max=200,dive"`
+	CustomItems []RemovalCustomItemInput `json:"custom_items" binding:"max=50,dive"`
+	Helpers     int                      `json:"helpers" binding:"min=0,max=50" example:"2"`
+	Extras      []string                 `json:"extras" binding:"max=20,dive,max=60" example:"packing"`
 }
 
 type FareEstimateView struct {

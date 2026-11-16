@@ -134,6 +134,7 @@ var errorTable = []struct {
 	{dispatch.ErrFareEstimateInvalid, http.StatusConflict, "FARE_ESTIMATE_INVALID", "The price does not match this route. Ask for a new one."},
 	{dispatch.ErrFareEstimateUsed, http.StatusConflict, "FARE_ESTIMATE_USED", "This price was already used. Ask for a new one."},
 	{entities.ErrRemovalItemUnknown, http.StatusUnprocessableEntity, "REMOVAL_ITEM_NOT_FOUND", "An item does not exist in the catalog."},
+	{entities.ErrRemovalPropertyUnknown, http.StatusUnprocessableEntity, "REMOVAL_PROPERTY_NOT_FOUND", "This type of property does not exist in the catalog."},
 	{entities.ErrRemovalExtraUnknown, http.StatusUnprocessableEntity, "REMOVAL_EXTRA_NOT_FOUND", "An extra does not exist in the catalog."},
 	{entities.ErrRemovalHelpers, http.StatusUnprocessableEntity, "REMOVAL_TOO_MANY_HELPERS", "Too many helpers."},
 	{entities.ErrRemovalTooLarge, http.StatusUnprocessableEntity, "REMOVAL_TOO_LARGE", "No vehicle carries this volume."},
