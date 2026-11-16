@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.4.0](https://github.com/Agora-Mobility/atlas/compare/v3.3.0...v3.4.0) (2026-11-16)
+
+
+### Features
+
+* **dispatch:** cancel a trip in progress (customer, driver and operator) ([b414326](https://github.com/Agora-Mobility/atlas/commit/b4143265082e31ac73f7adadb2fa1a8e5984f135))
+* **dispatch:** customer and driver can cancel a trip in progress too ([1d4a37c](https://github.com/Agora-Mobility/atlas/commit/1d4a37c80f3cb2484583df609248eeb14d890da3))
+* **dispatch:** let an operator cancel a trip in progress ([ac2280d](https://github.com/Agora-Mobility/atlas/commit/ac2280dd3324e0d7ad1e5f0d6a8faa6f5d066245))
+
 ## [3.3.0](https://github.com/Agora-Mobility/atlas/compare/v3.2.1...v3.3.0) (2026-11-16)
 
 
