@@ -520,13 +520,6 @@ func (u *Usecase) Create(ctx context.Context, customerID uuid.UUID, idempotencyK
 	if method == "" {
 		method = entities.PaymentGPO
 	}
-	outstanding, err := u.Payments.FindOutstanding(ctx, customerID)
-	if err != nil {
-		return nil, false, err
-	}
-	if outstanding != nil {
-		return nil, false, outstanding
-	}
 	enabled, err := u.Payments.IsMethodEnabled(ctx, service.CategoryID, method)
 	if err != nil {
 		return nil, false, err
