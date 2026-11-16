@@ -85,6 +85,8 @@ type Settings struct {
 	DemandFactorTTL        time.Duration
 	DemandHistoryRetention time.Duration
 	RouteReviewAboveBps    int
+
+	Heatmap HeatmapSettings
 }
 
 type OfferChannels interface {
@@ -127,6 +129,13 @@ type Deps struct {
 	Routing   services.IRoutingProvider
 	Feed      services.IPositionFeed
 	Channels  OfferChannels
+	Heatmap   repository.IHeatmapRepository
+	Cache     Cache
+}
+
+type Cache interface {
+	Get(ctx context.Context, key string, dest any) (bool, error)
+	Set(ctx context.Context, key string, value any, ttl time.Duration) error
 }
 
 type PrepaidRefunder interface {

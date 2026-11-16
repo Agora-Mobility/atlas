@@ -70,6 +70,8 @@ type Deps struct {
 	Geo      services.IGeoIndex
 	Zones    ZoneResolver
 	Refunds  Refunder
+	Storage  services.IObjectStorage
+	Photos   PhotoChecker
 }
 
 type Usecase struct {
@@ -177,9 +179,13 @@ func (u *Usecase) cardOf(ctx context.Context, card *repository.WorkshopCard, cus
 	if profile == nil {
 		return nil, nil, entities.ErrWorkshopUnavailable
 	}
+	cover, err := u.photoURL(ctx, card.CoverKey)
+	if err != nil {
+		return nil, nil, err
+	}
 	view := &dtos.WorkshopCardView{
 		ID: card.ID, Name: card.Name, Address: card.Line, Lat: card.Point.Lat, Lng: card.Point.Lng, DistanceM: int(card.DistanceM + metersDecimal), Rating: entities.AverageRating(card.RatingSum, card.RatingCount), RatingCount: card.RatingCount,
-		OffersHomeService: card.OffersHomeService, HomeServiceFeeCents: card.HomeServiceFeeCents, Currency: card.Currency, IsFavorite: card.IsFavorite, Promotions: []dtos.PromotionView{},
+		OffersHomeService: card.OffersHomeService, HomeServiceFeeCents: card.HomeServiceFeeCents, Currency: card.Currency, IsFavorite: card.IsFavorite, CoverURL: cover, Promotions: []dtos.PromotionView{},
 	}
 	zone, err := u.Zones.Resolve(ctx, card.Point)
 	if err != nil {
@@ -257,11 +263,22 @@ func (u *Usecase) Detail(ctx context.Context, customerID, workshopID uuid.UUID, 
 			card.IsFavorite = true
 		}
 	}
+	photos, err := u.Bookings.WorkshopPhotos(ctx, workshopID)
+	if err != nil {
+		return nil, err
+	}
+	if len(photos) > 0 {
+		card.CoverKey = photos[0].ObjectKey
+	}
+	gallery, err := u.photoViews(ctx, photos)
+	if err != nil {
+		return nil, err
+	}
 	base, _, err := u.cardOf(ctx, &card, customerID, u.now())
 	if err != nil {
 		return nil, err
 	}
-	view := &dtos.WorkshopDetailView{WorkshopCardView: *base, About: profile.Schedule.About, Warranty: profile.Schedule.Warranty, Capacity: profile.Schedule.Capacity, Hours: make([]dtos.HoursInput, 0, len(profile.Schedule.Hours)), Services: []dtos.WorkshopServiceView{}}
+	view := &dtos.WorkshopDetailView{WorkshopCardView: *base, About: profile.Schedule.About, Warranty: profile.Schedule.Warranty, Capacity: profile.Schedule.Capacity, Hours: make([]dtos.HoursInput, 0, len(profile.Schedule.Hours)), Services: []dtos.WorkshopServiceView{}, Photos: gallery}
 	for _, day := range profile.Schedule.Hours {
 		view.Hours = append(view.Hours, dtos.HoursInput{Weekday: day.Weekday, OpenMinute: day.OpenMinute, CloseMinute: day.CloseMinute})
 	}
@@ -503,12 +520,12 @@ func (u *Usecase) Create(ctx context.Context, customerID uuid.UUID, idempotencyK
 	if method == "" {
 		method = entities.PaymentGPO
 	}
-	outstanding, err := u.Payments.HasOutstanding(ctx, customerID)
+	outstanding, err := u.Payments.FindOutstanding(ctx, customerID)
 	if err != nil {
 		return nil, false, err
 	}
-	if outstanding {
-		return nil, false, entities.ErrPaymentOutstanding
+	if outstanding != nil {
+		return nil, false, outstanding
 	}
 	enabled, err := u.Payments.IsMethodEnabled(ctx, service.CategoryID, method)
 	if err != nil {
@@ -573,6 +590,9 @@ func (u *Usecase) Create(ctx context.Context, customerID uuid.UUID, idempotencyK
 		return nil, false, err
 	}
 	if request.PickupH3R8, err = u.Geo.Cell(request.Pickup.Point, entities.AnalyticsResolution); err != nil {
+		return nil, false, err
+	}
+	if request.PickupH3R9, err = u.Geo.Cell(request.Pickup.Point, entities.HeatmapResolution); err != nil {
 		return nil, false, err
 	}
 	status := entities.BookingConfirmed

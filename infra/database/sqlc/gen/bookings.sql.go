@@ -146,6 +146,15 @@ func (q *Queries) DeleteWorkshopHours(ctx context.Context, workshopID uuid.UUID)
 	return err
 }
 
+const deleteWorkshopPhotos = `-- name: DeleteWorkshopPhotos :exec
+DELETE FROM workshop_photos WHERE workshop_id = $1
+`
+
+func (q *Queries) DeleteWorkshopPhotos(ctx context.Context, workshopID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteWorkshopPhotos, workshopID)
+	return err
+}
+
 const getBookingDetail = `-- name: GetBookingDetail :one
 SELECT b.id, b.request_id, b.workshop_id, b.customer_id, b.vehicle_id, b.mechanic_id, b.status, b.at_home, b.home_fee_cents, b.services_cents, b.starts_at, b.ends_at, b.expected_ready_at, b.description, b.mileage_km, b.created_at, b.updated_at, r.public_code, w.name AS workshop_name, w.organization_id, COALESCE(m.name, '')::text AS mechanic_name
 FROM bookings b JOIN service_requests r ON r.id = b.request_id JOIN workshops w ON w.id = b.workshop_id LEFT JOIN workshop_mechanics m ON m.id = b.mechanic_id
@@ -419,6 +428,27 @@ func (q *Queries) InsertWorkshopMechanic(ctx context.Context, arg InsertWorkshop
 	return err
 }
 
+const insertWorkshopPhoto = `-- name: InsertWorkshopPhoto :exec
+INSERT INTO workshop_photos (upload_id, workshop_id, position, created_at) VALUES ($1, $2, $3, $4)
+`
+
+type InsertWorkshopPhotoParams struct {
+	UploadID   uuid.UUID `json:"upload_id"`
+	WorkshopID uuid.UUID `json:"workshop_id"`
+	Position   int32     `json:"position"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+func (q *Queries) InsertWorkshopPhoto(ctx context.Context, arg InsertWorkshopPhotoParams) error {
+	_, err := q.db.Exec(ctx, insertWorkshopPhoto,
+		arg.UploadID,
+		arg.WorkshopID,
+		arg.Position,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const listBookedSlots = `-- name: ListBookedSlots :many
 SELECT starts_at, ends_at FROM bookings
 WHERE workshop_id = $1 AND status <> 'cancelled' AND status <> 'completed' AND starts_at < $2::timestamptz AND ends_at > $3::timestamptz
@@ -679,6 +709,40 @@ func (q *Queries) ListWorkshopMechanics(ctx context.Context, workshopID uuid.UUI
 	return items, nil
 }
 
+const listWorkshopPhotos = `-- name: ListWorkshopPhotos :many
+SELECT m.id, m.owner_id, m.object_key, m.content_type, m.size_bytes, m.request_id, m.created_at FROM workshop_photos p JOIN media_uploads m ON m.id = p.upload_id
+WHERE p.workshop_id = $1
+ORDER BY p.position
+`
+
+func (q *Queries) ListWorkshopPhotos(ctx context.Context, workshopID uuid.UUID) ([]MediaUpload, error) {
+	rows, err := q.db.Query(ctx, listWorkshopPhotos, workshopID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MediaUpload{}
+	for rows.Next() {
+		var i MediaUpload
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.ObjectKey,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.RequestID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockBooking = `-- name: LockBooking :one
 SELECT id FROM bookings WHERE id = $1 FOR UPDATE
 `
@@ -750,7 +814,9 @@ func (q *Queries) RemoveWorkshopFavorite(ctx context.Context, arg RemoveWorkshop
 const searchWorkshops = `-- name: SearchWorkshops :many
 SELECT w.id, w.name, w.offers_home_service, w.home_service_fee_cents, w.currency, w.rating_sum, w.rating_count, a.lat, a.lng, a.line,
        ST_Distance(a.geom, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography)::float8 AS distance_m,
-       EXISTS (SELECT 1 FROM workshop_favorites f WHERE f.workshop_id = w.id AND f.customer_id = $3) AS is_favorite
+       EXISTS (SELECT 1 FROM workshop_favorites f WHERE f.workshop_id = w.id AND f.customer_id = $3) AS is_favorite,
+       COALESCE((SELECT m.object_key FROM workshop_photos p JOIN media_uploads m ON m.id = p.upload_id
+                 WHERE p.workshop_id = w.id ORDER BY p.position LIMIT 1), '')::text AS cover_key
 FROM workshops w JOIN addresses a ON a.id = w.address_id
 WHERE w.is_active
   AND ($4::text = '' OR w.name ILIKE '%' || $4::text || '%')
@@ -793,6 +859,7 @@ type SearchWorkshopsRow struct {
 	Line                string    `json:"line"`
 	DistanceM           float64   `json:"distance_m"`
 	IsFavorite          bool      `json:"is_favorite"`
+	CoverKey            string    `json:"cover_key"`
 }
 
 func (q *Queries) SearchWorkshops(ctx context.Context, arg SearchWorkshopsParams) ([]SearchWorkshopsRow, error) {
@@ -830,6 +897,7 @@ func (q *Queries) SearchWorkshops(ctx context.Context, arg SearchWorkshopsParams
 			&i.Line,
 			&i.DistanceM,
 			&i.IsFavorite,
+			&i.CoverKey,
 		); err != nil {
 			return nil, err
 		}

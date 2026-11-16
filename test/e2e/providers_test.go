@@ -152,12 +152,15 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 		assert.Equal(t, "INVALID_PROVIDER_TRANSITION", admin.do(t, http.MethodPut, "/api/v1/admin/providers/"+pedro.id.String(), map[string]any{"status": "approved", "service_id": comfortID}, nil).code(), "a draft cannot skip the review")
 	})
 
-	t.Run("the catalog offers Económico, Conforto and XL under Táxi", func(t *testing.T) {
+	t.Run("the catalog offers Táxi, Manutenção and Reboque", func(t *testing.T) {
 		open := (&person{client: providerClient, api: env.api.baseURL}).get(t, "/api/v1/providers/services")
 		require.Equal(t, http.StatusOK, open.status, open.text)
 		categories := open.body["categories"].([]any)
-		require.Len(t, categories, 2, "only services with configured requirements are open: taxi and the partner workshops")
+		require.Len(t, categories, 3, "only services open to sign-up are listed: taxi, the partner workshops and towing")
 		assert.Equal(t, "maintenance", categories[1].(map[string]any)["slug"])
+		towing := categories[2].(map[string]any)
+		assert.Equal(t, "towing", towing["slug"])
+		assert.Equal(t, true, towing["services"].([]any)[0].(map[string]any)["requires_vehicle"])
 		taxi := categories[0].(map[string]any)
 		assert.Equal(t, "taxi", taxi["slug"])
 		names := []string{}
@@ -167,7 +170,7 @@ func TestPedroCungaBecomesAComfortDriver(t *testing.T) {
 		assert.Equal(t, []string{"Económico", "Conforto", "XL"}, names)
 		xl := taxi["services"].([]any)[2].(map[string]any)
 		assert.EqualValues(t, 7, xl["min_vehicle_seats"])
-		assert.Equal(t, "SERVICE_NOT_OPEN", pedro.do(t, http.MethodPut, "/api/v1/providers/me/profile", profileOf(serviceBySlug(t, "towing"), "Pedro Cunga"), nil).code())
+		assert.Equal(t, "SERVICE_NOT_OPEN", pedro.do(t, http.MethodPut, "/api/v1/providers/me/profile", profileOf(serviceBySlug(t, "removals"), "Pedro Cunga"), nil).code())
 	})
 
 	t.Run("an incomplete submission lists what is missing", func(t *testing.T) {
@@ -393,7 +396,7 @@ func TestProviderChoosesTheServiceAndFillsThePersonalDataInOneStep(t *testing.T)
 	} {
 		assert.Equal(t, http.StatusUnprocessableEntity, put(with(refused)).status, refused)
 	}
-	assert.Equal(t, "SERVICE_NOT_OPEN", put(with(map[string]any{"service_id": serviceBySlug(t, "towing")})).code())
+	assert.Equal(t, "SERVICE_NOT_OPEN", put(with(map[string]any{"service_id": serviceBySlug(t, "removals")})).code())
 	assert.Equal(t, "SERVICE_NOT_OPEN", put(with(map[string]any{"service_id": uuid.NewString()})).code())
 	taken := signUpProvider(t, "Outro")
 	takenEmail := fmt.Sprintf("ocupado-%s@exemplo.ao", uuid.NewString()[:8])

@@ -56,6 +56,13 @@ func (u *Usecase) removalQuote(ctx context.Context, in *dtos.RemovalInput) (*ent
 	if err != nil {
 		return nil, err
 	}
+	if len(in.CustomItems) > 0 {
+		customLines, customVolume, err := u.customItemsQuote(ctx, in.CustomItems)
+		if err != nil {
+			return nil, err
+		}
+		lines, volume = append(lines, customLines...), volume+customVolume
+	}
 	available, err := u.Reference.Items(ctx, entities.CatalogRemovalExtra, removalsSlug, false)
 	if err != nil {
 		return nil, err
@@ -72,6 +79,34 @@ func (u *Usecase) removalQuote(ctx context.Context, in *dtos.RemovalInput) (*ent
 		extrasCents += cents
 	}
 	return &entities.RemovalQuote{Items: lines, VolumeDm3: volume, Helpers: in.Helpers, HelpersCents: int64(in.Helpers) * helperCents, Extras: extras, ExtrasCents: extrasCents}, nil
+}
+
+func (u *Usecase) customSizes(ctx context.Context) ([]dtos.CustomSize, error) {
+	sizes := make([]dtos.CustomSize, 0, len(entities.CustomSizeSettings))
+	for _, size := range entities.CustomSizeSettings {
+		volume, err := u.settingNumber(ctx, size.Setting)
+		if err != nil {
+			return nil, err
+		}
+		sizes = append(sizes, dtos.CustomSize{Code: size.Size, VolumeDm3: int64(volume)})
+	}
+	return sizes, nil
+}
+
+func (u *Usecase) customItemsQuote(ctx context.Context, in []dtos.RemovalCustomItemInput) ([]entities.RemovalLine, int64, error) {
+	sizes, err := u.customSizes(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	volumeOf := make(map[string]int64, len(sizes))
+	for _, size := range sizes {
+		volumeOf[size.Code] = size.VolumeDm3
+	}
+	items := make([]entities.RemovalCustomItem, 0, len(in))
+	for _, item := range in {
+		items = append(items, entities.RemovalCustomItem{Name: item.Name, Qty: item.Qty, Size: item.Size})
+	}
+	return entities.RemovalCustomVolume(items, volumeOf)
 }
 
 func (u *Usecase) removalEstimates(ctx context.Context, list *dtos.FareEstimateList, vehicles []entities.CatalogItem, service *entities.DispatchService, tariff *entities.ServiceTariff, customerID uuid.UUID, pickup entities.GeoPoint, destination *entities.GeoPoint, stops []entities.GeoPoint, in dtos.FareEstimateInput, route services.Route, now, expiresAt time.Time) error {
@@ -205,7 +240,23 @@ func (u *Usecase) holdRemovalDay(ctx context.Context, request *entities.ServiceR
 }
 
 func toRemovalOption(item *entities.CatalogItem) dtos.RemovalOption {
-	return dtos.RemovalOption{ID: item.ID, Code: item.Code, Label: item.Label, Group: item.Description, AmountCents: item.AmountCents, PromoCents: item.PromoCents, PromoUntil: item.PromoUntil, VolumeDm3: item.AttrInt(entities.AttrVolumeDm3), MaxVolumeM3: float64(item.AttrInt(entities.AttrMaxVolume)) / dm3PerM3}
+	return dtos.RemovalOption{ID: item.ID, Code: item.Code, Label: item.Label, Group: item.Description, AmountCents: item.AmountCents, PromoCents: item.PromoCents, PromoUntil: item.PromoUntil, VolumeDm3: item.AttrInt(entities.AttrVolumeDm3), MaxVolumeM3: float64(item.AttrInt(entities.AttrMaxVolume)) / dm3PerM3, Properties: item.AttrCodes(entities.AttrProperties)}
+}
+
+func itemsForProperty(items, properties []dtos.RemovalOption, property string) ([]dtos.RemovalOption, error) {
+	if property == "" {
+		return items, nil
+	}
+	if !slices.ContainsFunc(properties, func(option dtos.RemovalOption) bool { return option.Code == property }) {
+		return nil, entities.ErrRemovalPropertyUnknown
+	}
+	out := make([]dtos.RemovalOption, 0, len(items))
+	for i := range items {
+		if len(items[i].Properties) == 0 || slices.Contains(items[i].Properties, property) {
+			out = append(out, items[i])
+		}
+	}
+	return out, nil
 }
 
 func (u *Usecase) removalList(ctx context.Context, kind entities.CatalogKind) ([]dtos.RemovalOption, error) {
@@ -220,7 +271,7 @@ func (u *Usecase) removalList(ctx context.Context, kind entities.CatalogKind) ([
 	return out, nil
 }
 
-func (u *Usecase) RemovalOptions(ctx context.Context) (*dtos.RemovalOptions, error) {
+func (u *Usecase) RemovalOptions(ctx context.Context, property string) (*dtos.RemovalOptions, error) {
 	view := &dtos.RemovalOptions{}
 	var err error
 	if view.Items, err = u.removalList(ctx, entities.CatalogRemovalItem); err != nil {
@@ -236,6 +287,12 @@ func (u *Usecase) RemovalOptions(ctx context.Context) (*dtos.RemovalOptions, err
 		return nil, err
 	}
 	if view.Properties, err = u.removalList(ctx, entities.CatalogRemovalProperty); err != nil {
+		return nil, err
+	}
+	if view.Items, err = itemsForProperty(view.Items, view.Properties, property); err != nil {
+		return nil, err
+	}
+	if view.CustomSizes, err = u.customSizes(ctx); err != nil {
 		return nil, err
 	}
 	if view.HelperCents, err = u.settingCents(ctx, entities.SettingHelpersPriceCents); err != nil {

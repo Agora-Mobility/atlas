@@ -10,6 +10,8 @@ import (
 
 var ErrRoutingUnavailable = errors.New("routing provider unavailable")
 
+var ErrTooManyCells = errors.New("the area holds more cells than allowed")
+
 type RouteSource string
 
 const (
@@ -41,4 +43,5 @@ type IGeoIndex interface {
 	Parent(cell int64, resolution int) (int64, error)
 	Children(cell int64, resolution int) ([]int64, error)
 	InteriorCells(polygons []entities.GeoPolygon, resolution int) ([]int64, error)
+	BoxCells(box entities.GeoBox, resolution, limit int) ([]int64, error)
 }

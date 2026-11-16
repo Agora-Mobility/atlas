@@ -436,6 +436,8 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 
 O SMS ao passageiro leva agora a ligação de seguimento. SSE novo: `request.message`.
 
+**Adicionado em 2026-11-12:** cada mensagem do chat também segue por push FCM (`type: request.message`, com `request_id` e `message_id`) para quem a recebe. Assim, o aviso chega com a app em segundo plano e sem SSE. A app esconde-o quando esse chat está aberto. As mensagens não entram na caixa de entrada.
+
 **Env novas:** `CALLS_BASE_URL`, `CALLS_API_KEY`, `CALLS_TIMEOUT`, `SHARE_BASE_URL`.
 
 ### Fase 9: viaturas do cliente e fotos no R2

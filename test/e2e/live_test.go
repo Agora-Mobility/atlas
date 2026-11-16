@@ -16,6 +16,7 @@ import (
 func TestChatOnlyWorksDuringTheRequestAndArrivesBySSE(t *testing.T) {
 	clearOnlineProviders(t)
 	driver := newProvider(t, "taxi", point{-8.84, 13.235})
+	require.Equal(t, http.StatusNoContent, driver.do(t, http.MethodPut, "/api/v1/devices", map[string]string{"token": "driver-" + uuid.NewString(), "platform": "android"}, nil).status)
 	driverStream := driver.listen(t, "")
 	customer := newCustomer(t)
 	customerStream := customer.listen(t, "")
@@ -36,6 +37,8 @@ func TestChatOnlyWorksDuringTheRequestAndArrivesBySSE(t *testing.T) {
 	assert.Equal(t, "customer", sent.str("sender"))
 	event := driverStream.waitFor(t, "request.message", nil)
 	assert.Equal(t, "Estou junto à farmácia", event.Data["body"])
+	require.Eventually(t, func() bool { return len(env.fcm.forMessage(sent.str("id"))) == 1 }, 5*time.Second, 20*time.Millisecond, "a push for the app in the background")
+	assert.Equal(t, "request.message", env.fcm.forMessage(sent.str("id"))[0].Type)
 
 	replies := driver.get(t, "/api/v1/quick-replies")
 	require.Equal(t, http.StatusOK, replies.status, replies.text)

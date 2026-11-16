@@ -698,6 +698,16 @@ type FareEstimate struct {
 	DemandCommissioned bool            `json:"demand_commissioned"`
 }
 
+type HeatmapCell struct {
+	WindowStart  time.Time `json:"window_start"`
+	Resolution   int16     `json:"resolution"`
+	CategorySlug string    `json:"category_slug"`
+	H3           int64     `json:"h3"`
+	Count        int32     `json:"count"`
+	Value        float64   `json:"value"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type InboxItem struct {
 	ID        uuid.UUID  `json:"id"`
 	UserID    uuid.UUID  `json:"user_id"`
@@ -1202,6 +1212,7 @@ type ServiceRequest struct {
 	RemovalDay           *time.Time      `json:"removal_day"`
 	RemovalWindowID      *uuid.UUID      `json:"removal_window_id"`
 	RouteGeometry        string          `json:"route_geometry"`
+	PickupH3R9           *int64          `json:"pickup_h3_r9"`
 }
 
 type ServiceRequestEvent struct {
@@ -1449,6 +1460,13 @@ type WorkshopMechanic struct {
 	WorkshopID uuid.UUID `json:"workshop_id"`
 	Name       string    `json:"name"`
 	IsActive   bool      `json:"is_active"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type WorkshopPhoto struct {
+	UploadID   uuid.UUID `json:"upload_id"`
+	WorkshopID uuid.UUID `json:"workshop_id"`
+	Position   int32     `json:"position"`
 	CreatedAt  time.Time `json:"created_at"`
 }
 

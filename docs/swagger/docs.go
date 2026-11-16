@@ -173,6 +173,12 @@ const docTemplate = `{
                         "description": "Category slug",
                         "name": "category",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only the removal items of this removal_property code; an item without properties fits every type",
+                        "name": "property",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -199,7 +205,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated.",
+                "description": "Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated. A removal_item may list in attrs.properties the removal_property codes it belongs to, such as [\"home\", \"office\"]; without the list it fits every type.",
                 "consumes": [
                     "application/json"
                 ],
@@ -979,6 +985,85 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/dispatch/heatmap/cells": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requests per H3 cell for a hexagon layer such as deck.gl H3HexagonLayer, read from the cells the heatmap job aggregates every few minutes in 15 minute windows. The zoom picks the resolution (by default up to 10 is 6, 11 and 12 are 7, 13 and 14 are 8, from 15 is 9). When the view holds more than 20000 cells the next coarser resolution is used, and resolution tells which one answered; only when even resolution 6 does not fit the answer is 400 AREA_TOO_LARGE. value is the smoothed heat (0.6 of the cell plus 0.4 of the mean of its six neighbors); count is the raw number of requests. Windows of the period are summed. The period defaults to the last complete window and spans at most 7 days. h3 is always the hexadecimal index, since 64 bit integers lose precision in JavaScript.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Heat of the H3 cells inside the map view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "13.15,-8.95,13.35,-8.75",
+                        "description": "minLng,minLat,maxLng,maxLat",
+                        "name": "bbox",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Map zoom, 0 to 24",
+                        "name": "zoom",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start of the period (RFC 3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End of the period (RFC 3339)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "count",
+                            "value"
+                        ],
+                        "type": "string",
+                        "description": "count or value, default value",
+                        "name": "metric",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug, default all",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.HeatCellsView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -7152,6 +7237,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/fleet/workshops/{id}/photos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "List the photos of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopPhotoList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Upload each photo with POST /api/v1/media/photos, then send the full gallery in order: the first photo is the cover shown in GET /api/v1/workshops. Photos left out are removed from the gallery and photos already in it may stay. At most max_workshop_photos photos.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Set the photos of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopPhotosInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopPhotoList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/fleet/workshops/{id}/schedule": {
             "put": {
                 "security": [
@@ -12288,7 +12474,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice.",
+                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type. custom_sizes holds the volume of each size of an item the customer adds by hand.",
                 "produces": [
                     "application/json"
                 ],
@@ -12296,11 +12482,25 @@ const docTemplate = `{
                     "Removals"
                 ],
                 "summary": "Catalog of a removal",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Code of a removal_property, such as home or office",
+                        "name": "property",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.RemovalOptions"
+                        }
+                    },
+                    "422": {
+                        "description": "The property does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -18246,6 +18446,19 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CustomSize": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "medium"
+                },
+                "volume_dm3": {
+                    "type": "integer",
+                    "example": 600
+                }
+            }
+        },
         "dtos.CustomerVehicleInput": {
             "type": "object",
             "required": [
@@ -19346,6 +19559,36 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.HeatCellsView": {
+            "type": "object",
+            "properties": {
+                "cells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.HeatValue"
+                    }
+                },
+                "max": {
+                    "type": "number",
+                    "example": 42.5
+                },
+                "metric": {
+                    "type": "string",
+                    "enum": [
+                        "count",
+                        "value"
+                    ],
+                    "example": "value"
+                },
+                "resolution": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "window": {
+                    "$ref": "#/definitions/dtos.HeatWindow"
+                }
+            }
+        },
         "dtos.HeatMap": {
             "type": "object",
             "properties": {
@@ -19377,6 +19620,30 @@ const docTemplate = `{
                 },
                 "lng": {
                     "type": "number"
+                }
+            }
+        },
+        "dtos.HeatValue": {
+            "type": "object",
+            "properties": {
+                "h3": {
+                    "type": "string",
+                    "example": "8975a5a6a8bffff"
+                },
+                "value": {
+                    "type": "number",
+                    "example": 12.3
+                }
+            }
+        },
+        "dtos.HeatWindow": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
                 }
             }
         },
@@ -22059,6 +22326,36 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RemovalCustomItemInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "qty",
+                "size"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Aquário"
+                },
+                "qty": {
+                    "type": "integer",
+                    "maximum": 500,
+                    "minimum": 1,
+                    "example": 1
+                },
+                "size": {
+                    "type": "string",
+                    "enum": [
+                        "small",
+                        "medium",
+                        "large"
+                    ],
+                    "example": "medium"
+                }
+            }
+        },
         "dtos.RemovalDayView": {
             "type": "object",
             "properties": {
@@ -22083,6 +22380,13 @@ const docTemplate = `{
         "dtos.RemovalInput": {
             "type": "object",
             "properties": {
+                "custom_items": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalCustomItemInput"
+                    }
+                },
                 "extras": {
                     "type": "array",
                     "maxItems": 20,
@@ -22153,6 +22457,16 @@ const docTemplate = `{
                 "promo_until": {
                     "type": "string"
                 },
+                "properties": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "home",
+                        "office"
+                    ]
+                },
                 "volume_dm3": {
                     "type": "integer"
                 }
@@ -22163,6 +22477,12 @@ const docTemplate = `{
             "properties": {
                 "currency": {
                     "type": "string"
+                },
+                "custom_sizes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CustomSize"
+                    }
                 },
                 "extras": {
                     "type": "array",
@@ -24575,6 +24895,9 @@ const docTemplate = `{
                 "address": {
                     "type": "string"
                 },
+                "cover_url": {
+                    "type": "string"
+                },
                 "currency": {
                     "type": "string"
                 },
@@ -24634,6 +24957,9 @@ const docTemplate = `{
                 "capacity": {
                     "type": "integer"
                 },
+                "cover_url": {
+                    "type": "string"
+                },
                 "currency": {
                     "type": "string"
                 },
@@ -24672,6 +24998,12 @@ const docTemplate = `{
                 },
                 "open_until": {
                     "type": "string"
+                },
+                "photos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.WorkshopPhotoView"
+                    }
                 },
                 "promotions": {
                     "type": "array",
@@ -24756,6 +25088,41 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.WorkshopPhotoList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.WorkshopPhotoView"
+                    }
+                }
+            }
+        },
+        "dtos.WorkshopPhotoView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.WorkshopPhotosInput": {
+            "type": "object",
+            "properties": {
+                "photo_ids": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -25028,11 +25395,17 @@ const docTemplate = `{
                 "code": {
                     "type": "string"
                 },
+                "custom": {
+                    "type": "boolean"
+                },
                 "label": {
                     "type": "string"
                 },
                 "qty": {
                     "type": "integer"
+                },
+                "size": {
+                    "type": "string"
                 },
                 "volume_dm3": {
                     "type": "integer"

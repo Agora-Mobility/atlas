@@ -76,6 +76,26 @@ func (q *Queries) DuePayments(ctx context.Context, arg DuePaymentsParams) ([]uui
 	return items, nil
 }
 
+const findOutstandingPayment = `-- name: FindOutstandingPayment :one
+SELECT id, status FROM service_requests
+WHERE customer_id = $1 AND payment_status IN ('unpaid', 'pending')
+  AND ((status = 'completed' AND payment_method <> 'cash') OR (status = 'cancelled' AND cancel_fee_cents > 0))
+ORDER BY updated_at
+LIMIT 1
+`
+
+type FindOutstandingPaymentRow struct {
+	ID     uuid.UUID `json:"id"`
+	Status string    `json:"status"`
+}
+
+func (q *Queries) FindOutstandingPayment(ctx context.Context, customerID uuid.UUID) (FindOutstandingPaymentRow, error) {
+	row := q.db.QueryRow(ctx, findOutstandingPayment, customerID)
+	var i FindOutstandingPaymentRow
+	err := row.Scan(&i.ID, &i.Status)
+	return i, err
+}
+
 const getPaidPaymentOfRequest = `-- name: GetPaidPaymentOfRequest :one
 SELECT id, request_id, customer_id, method, status, amount_cents, refunded_cents, currency, merchant_id, provider_charge_id, payer_phone_masked, reference_number, reference_entity, failure_message, expires_at, next_check_at, paid_at, created_at, updated_at, kind, gateway_fee_cents, duplicate FROM payments WHERE request_id = $1 AND kind = $2 AND status = 'paid' AND NOT duplicate ORDER BY created_at LIMIT 1
 `
@@ -288,21 +308,6 @@ func (q *Queries) GetPendingPaymentOfRequest(ctx context.Context, arg GetPending
 		&i.Duplicate,
 	)
 	return i, err
-}
-
-const hasOutstandingPayment = `-- name: HasOutstandingPayment :one
-SELECT EXISTS (
-    SELECT 1 FROM service_requests
-    WHERE customer_id = $1 AND payment_status IN ('unpaid', 'pending')
-      AND ((status = 'completed' AND payment_method <> 'cash') OR (status = 'cancelled' AND cancel_fee_cents > 0))
-)
-`
-
-func (q *Queries) HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error) {
-	row := q.db.QueryRow(ctx, hasOutstandingPayment, customerID)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
 }
 
 const insertPayment = `-- name: InsertPayment :exec

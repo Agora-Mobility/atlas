@@ -47,3 +47,41 @@ func radians(degrees float64) float64 {
 
 // AnalyticsResolution is the H3 resolution of the cells kept on each request.
 const AnalyticsResolution = 8
+
+const HeatmapResolution = 9
+
+type GeoBox struct {
+	MinLng float64
+	MinLat float64
+	MaxLng float64
+	MaxLat float64
+}
+
+func (b GeoBox) IsValid() bool {
+	inRange := math.Abs(b.MinLat) <= maxLatitude && math.Abs(b.MaxLat) <= maxLatitude &&
+		math.Abs(b.MinLng) <= maxLongitude && math.Abs(b.MaxLng) <= maxLongitude
+	return inRange && b.MinLat < b.MaxLat && b.MinLng < b.MaxLng && b.MaxLng-b.MinLng < maxLongitude
+}
+
+func (b GeoBox) Polygon() GeoPolygon {
+	return GeoPolygon{Outer: []GeoPoint{
+		{Lat: b.MinLat, Lng: b.MinLng},
+		{Lat: b.MinLat, Lng: b.MaxLng},
+		{Lat: b.MaxLat, Lng: b.MaxLng},
+		{Lat: b.MaxLat, Lng: b.MinLng},
+	}}
+}
+
+func (b GeoBox) AreaKm2() float64 {
+	radiusKm := earthRadiusMeters / 1000
+	return radiusKm * radiusKm * radians(b.MaxLng-b.MinLng) * math.Abs(math.Sin(radians(b.MaxLat))-math.Sin(radians(b.MinLat)))
+}
+
+func (b GeoBox) RoundedOut(step float64) GeoBox {
+	return GeoBox{
+		MinLng: math.Max(-maxLongitude, math.Floor(b.MinLng/step)*step),
+		MinLat: math.Max(-maxLatitude, math.Floor(b.MinLat/step)*step),
+		MaxLng: math.Min(maxLongitude, math.Ceil(b.MaxLng/step)*step),
+		MaxLat: math.Min(maxLatitude, math.Ceil(b.MaxLat/step)*step),
+	}
+}

@@ -500,9 +500,10 @@ type fcmStub struct {
 }
 
 type fcmSeen struct {
-	OfferID string
-	Type    string
-	At      time.Time
+	OfferID   string
+	MessageID string
+	Type      string
+	At        time.Time
 }
 
 func newFCMStub() (*fcmStub, error) {
@@ -524,7 +525,7 @@ func newFCMStub() (*fcmStub, error) {
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		stub.mu.Lock()
-		stub.messages = append(stub.messages, fcmSeen{OfferID: body.Message.Data["offer_id"], Type: body.Message.Data["type"], At: time.Now()})
+		stub.messages = append(stub.messages, fcmSeen{OfferID: body.Message.Data["offer_id"], MessageID: body.Message.Data["message_id"], Type: body.Message.Data["type"], At: time.Now()})
 		stub.mu.Unlock()
 		_ = json.NewEncoder(w).Encode(map[string]string{"name": "projects/agora-e2e/messages/1"})
 	})
@@ -545,6 +546,18 @@ func (f *fcmStub) forOffer(offerID string) []fcmSeen {
 	var out []fcmSeen
 	for _, message := range f.messages {
 		if message.OfferID == offerID {
+			out = append(out, message)
+		}
+	}
+	return out
+}
+
+func (f *fcmStub) forMessage(messageID string) []fcmSeen {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []fcmSeen
+	for _, message := range f.messages {
+		if message.MessageID == messageID {
 			out = append(out, message)
 		}
 	}
@@ -635,6 +648,12 @@ func (r result) code() string {
 		return code
 	}
 	return ""
+}
+
+func (r result) errorData() map[string]any {
+	failure, _ := r.body["error"].(map[string]any)
+	data, _ := failure["data"].(map[string]any)
+	return data
 }
 
 func (r result) str(key string) string {
