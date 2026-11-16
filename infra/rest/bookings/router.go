@@ -49,6 +49,8 @@ func (r *Router) partner(group *gin.RouterGroup, read, manage gin.HandlerFunc) {
 	group.PUT("/workshops/:id/schedule", manage, r.controller.SetSchedule)
 	group.POST("/workshops/:id/closures", manage, r.controller.AddClosure)
 	group.DELETE("/workshops/:id/closures/:date", manage, r.controller.RemoveClosure)
+	group.GET("/workshops/:id/photos", read, r.controller.WorkshopPhotos)
+	group.PUT("/workshops/:id/photos", manage, r.controller.SetWorkshopPhotos)
 	group.GET("/workshops/:id/mechanics", read, r.controller.ListMechanics)
 	group.POST("/workshops/:id/mechanics", manage, r.controller.AddMechanic)
 	group.DELETE("/workshops/:id/mechanics/:mechanicId", manage, r.controller.RemoveMechanic)

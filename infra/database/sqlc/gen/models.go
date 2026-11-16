@@ -1463,6 +1463,13 @@ type WorkshopMechanic struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+type WorkshopPhoto struct {
+	UploadID   uuid.UUID `json:"upload_id"`
+	WorkshopID uuid.UUID `json:"workshop_id"`
+	Position   int32     `json:"position"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 type WorkshopService struct {
 	ID              uuid.UUID  `json:"id"`
 	WorkshopID      uuid.UUID  `json:"workshop_id"`

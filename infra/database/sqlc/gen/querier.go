@@ -95,6 +95,7 @@ type Querier interface {
 	DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDeviceTokenParams) error
 	DeleteWorkshopClosure(ctx context.Context, arg DeleteWorkshopClosureParams) error
 	DeleteWorkshopHours(ctx context.Context, workshopID uuid.UUID) error
+	DeleteWorkshopPhotos(ctx context.Context, workshopID uuid.UUID) error
 	DemandByCell(ctx context.Context, arg DemandByCellParams) ([]DemandByCellRow, error)
 	DuePayments(ctx context.Context, arg DuePaymentsParams) ([]uuid.UUID, error)
 	DueRequestOffers(ctx context.Context, arg DueRequestOffersParams) ([]uuid.UUID, error)
@@ -227,6 +228,7 @@ type Querier interface {
 	InsertVoucherRedemption(ctx context.Context, arg InsertVoucherRedemptionParams) error
 	InsertWorkshopHours(ctx context.Context, arg InsertWorkshopHoursParams) error
 	InsertWorkshopMechanic(ctx context.Context, arg InsertWorkshopMechanicParams) error
+	InsertWorkshopPhoto(ctx context.Context, arg InsertWorkshopPhotoParams) error
 	IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMethodEnabledParams) (bool, error)
 	IsValidZoneGeometry(ctx context.Context, geojson string) (bool, error)
 	LedgerBalance(ctx context.Context, arg LedgerBalanceParams) (int64, error)
@@ -316,6 +318,7 @@ type Querier interface {
 	ListWorkshopClosures(ctx context.Context, arg ListWorkshopClosuresParams) ([]ListWorkshopClosuresRow, error)
 	ListWorkshopHours(ctx context.Context, workshopID uuid.UUID) ([]WorkshopHour, error)
 	ListWorkshopMechanics(ctx context.Context, workshopID uuid.UUID) ([]WorkshopMechanic, error)
+	ListWorkshopPhotos(ctx context.Context, workshopID uuid.UUID) ([]MediaUpload, error)
 	ListWorkshopRatings(ctx context.Context, arg ListWorkshopRatingsParams) ([]ListWorkshopRatingsRow, error)
 	ListWorkshopServices(ctx context.Context, workshopID uuid.UUID) ([]WorkshopService, error)
 	ListWorkshops(ctx context.Context, arg ListWorkshopsParams) ([]Workshop, error)

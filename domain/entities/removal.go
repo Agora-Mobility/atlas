@@ -27,21 +27,24 @@ const (
 )
 
 var (
-	ErrRemovalItemUnknown  = errors.New("an item does not exist in the catalog")
-	ErrRemovalExtraUnknown = errors.New("an extra does not exist in the catalog")
-	ErrRemovalHelpers      = errors.New("too many helpers")
-	ErrRemovalTooLarge     = errors.New("no vehicle carries this volume")
-	ErrRemovalVehicle      = errors.New("this vehicle does not exist in the catalog")
-	ErrRemovalDetails      = errors.New("a removal needs the day, the window and the type of property")
-	ErrRemovalWindow       = errors.New("the time does not match the window")
-	ErrRemovalDayFull      = errors.New("this day is full")
-	ErrRemovalTooFar       = errors.New("this day is too far ahead")
-	ErrTeamNotAllowed      = errors.New("the team cannot be set on this request")
+	ErrRemovalItemUnknown     = errors.New("an item does not exist in the catalog")
+	ErrRemovalPropertyUnknown = errors.New("this type of property does not exist in the catalog")
+	ErrRemovalExtraUnknown    = errors.New("an extra does not exist in the catalog")
+	ErrRemovalHelpers         = errors.New("too many helpers")
+	ErrRemovalTooLarge        = errors.New("no vehicle carries this volume")
+	ErrRemovalVehicle         = errors.New("this vehicle does not exist in the catalog")
+	ErrRemovalDetails         = errors.New("a removal needs the day, the window and the type of property")
+	ErrRemovalWindow          = errors.New("the time does not match the window")
+	ErrRemovalDayFull         = errors.New("this day is full")
+	ErrRemovalTooFar          = errors.New("this day is too far ahead")
+	ErrTeamNotAllowed         = errors.New("the team cannot be set on this request")
 )
 
 type RemovalLine struct {
 	Code        string `json:"code"`
 	Label       string `json:"label"`
+	Custom      bool   `json:"custom,omitempty"`
+	Size        string `json:"size,omitempty"`
 	Qty         int    `json:"qty,omitempty"`
 	VolumeDm3   int64  `json:"volume_dm3,omitempty"`
 	AmountCents int64  `json:"amount_cents,omitempty"`
@@ -90,6 +93,55 @@ func RemovalVolume(choices []RemovalItemChoice) ([]RemovalLine, int64, error) {
 }
 
 const AttrVolumeDm3 = "volume_dm3"
+
+const (
+	CustomSizeSmall  = "small"
+	CustomSizeMedium = "medium"
+	CustomSizeLarge  = "large"
+	customItemCode   = "custom"
+	maxCustomItems   = 50
+	maxCustomName    = 120
+)
+
+var CustomSizeSettings = []struct {
+	Size    string
+	Setting string
+}{
+	{CustomSizeSmall, SettingCustomSmallDm3},
+	{CustomSizeMedium, SettingCustomMediumDm3},
+	{CustomSizeLarge, SettingCustomLargeDm3},
+}
+
+type RemovalCustomItem struct {
+	Name string
+	Qty  int
+	Size string
+}
+
+func RemovalCustomVolume(items []RemovalCustomItem, volumeOf map[string]int64) ([]RemovalLine, int64, error) {
+	if len(items) > maxCustomItems {
+		return nil, 0, validationError("removal.custom_items", "Podes juntar até 50 itens à mão.")
+	}
+	lines := make([]RemovalLine, 0, len(items))
+	total := int64(0)
+	for _, item := range items {
+		name := strings.TrimSpace(item.Name)
+		if name == "" || len([]rune(name)) > maxCustomName {
+			return nil, 0, validationError("removal.custom_items.name", "O nome é obrigatório e tem no máximo 120 caracteres.")
+		}
+		if item.Qty < 1 || item.Qty > maxRemovalQty {
+			return nil, 0, validationError("removal.custom_items.qty", "A quantidade tem de estar entre 1 e 500.")
+		}
+		unit, known := volumeOf[item.Size]
+		if !known {
+			return nil, 0, validationError("removal.custom_items.size", "O tamanho é small, medium ou large.")
+		}
+		volume := unit * int64(item.Qty)
+		total += volume
+		lines = append(lines, RemovalLine{Code: customItemCode, Label: name, Custom: true, Size: item.Size, Qty: item.Qty, VolumeDm3: volume})
+	}
+	return lines, total, nil
+}
 
 // RecommendedVehicle is the smallest vehicle that carries the volume.
 func RecommendedVehicle(vehicles []CatalogItem, volumeDm3 int64) *CatalogItem {

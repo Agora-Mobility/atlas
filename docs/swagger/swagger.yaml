@@ -1264,6 +1264,15 @@ definitions:
     - certificate_number
     - issued_at
     type: object
+  dtos.CustomSize:
+    properties:
+      code:
+        example: medium
+        type: string
+      volume_dm3:
+        example: 600
+        type: integer
+    type: object
   dtos.CustomerVehicleInput:
     properties:
       brand:
@@ -3940,6 +3949,29 @@ definitions:
           $ref: '#/definitions/dtos.RemovalDayView'
         type: array
     type: object
+  dtos.RemovalCustomItemInput:
+    properties:
+      name:
+        example: Aquário
+        maxLength: 120
+        type: string
+      qty:
+        example: 1
+        maximum: 500
+        minimum: 1
+        type: integer
+      size:
+        enum:
+        - small
+        - medium
+        - large
+        example: medium
+        type: string
+    required:
+    - name
+    - qty
+    - size
+    type: object
   dtos.RemovalDayView:
     properties:
       date:
@@ -3956,6 +3988,11 @@ definitions:
     type: object
   dtos.RemovalInput:
     properties:
+      custom_items:
+        items:
+          $ref: '#/definitions/dtos.RemovalCustomItemInput'
+        maxItems: 50
+        type: array
       extras:
         example:
         - packing
@@ -4005,6 +4042,13 @@ definitions:
         type: integer
       promo_until:
         type: string
+      properties:
+        example:
+        - home
+        - office
+        items:
+          type: string
+        type: array
       volume_dm3:
         type: integer
     type: object
@@ -4012,6 +4056,10 @@ definitions:
     properties:
       currency:
         type: string
+      custom_sizes:
+        items:
+          $ref: '#/definitions/dtos.CustomSize'
+        type: array
       extras:
         items:
           $ref: '#/definitions/dtos.RemovalOption'
@@ -5683,6 +5731,8 @@ definitions:
     properties:
       address:
         type: string
+      cover_url:
+        type: string
       currency:
         type: string
       distance_m:
@@ -5722,6 +5772,8 @@ definitions:
         type: string
       capacity:
         type: integer
+      cover_url:
+        type: string
       currency:
         type: string
       distance_m:
@@ -5748,6 +5800,10 @@ definitions:
         type: boolean
       open_until:
         type: string
+      photos:
+        items:
+          $ref: '#/definitions/dtos.WorkshopPhotoView'
+        type: array
       promotions:
         items:
           $ref: '#/definitions/dtos.PromotionView'
@@ -5807,6 +5863,29 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  dtos.WorkshopPhotoList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.WorkshopPhotoView'
+        type: array
+    type: object
+  dtos.WorkshopPhotoView:
+    properties:
+      id:
+        type: string
+      url:
+        type: string
+    type: object
+  dtos.WorkshopPhotosInput:
+    properties:
+      photo_ids:
+        items:
+          type: string
+        maxItems: 50
+        type: array
+        uniqueItems: true
     type: object
   dtos.WorkshopServiceInput:
     properties:
@@ -5990,10 +6069,14 @@ definitions:
         type: integer
       code:
         type: string
+      custom:
+        type: boolean
       label:
         type: string
       qty:
         type: integer
+      size:
+        type: string
       volume_dm3:
         type: integer
     type: object
@@ -6532,6 +6615,11 @@ paths:
         in: query
         name: category
         type: string
+      - description: Only the removal items of this removal_property code; an item
+          without properties fits every type
+        in: query
+        name: property
+        type: string
       produces:
       - application/json
       responses:
@@ -6553,7 +6641,9 @@ paths:
       consumes:
       - application/json
       description: Prices are integer cents. attrs holds the numbers of each kind,
-        such as included_km on towing_vehicle, and they are validated.
+        such as included_km on towing_vehicle, and they are validated. A removal_item
+        may list in attrs.properties the removal_property codes it belongs to, such
+        as ["home", "office"]; without the list it fits every type.
       parameters:
       - description: Catalog
         in: path
@@ -11025,6 +11115,71 @@ paths:
       summary: Deactivate a mechanic
       tags:
       - Workshop operations
+  /api/v1/fleet/workshops/{id}/photos:
+    get:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopPhotoList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the photos of a workshop
+      tags:
+      - Workshop operations
+    put:
+      consumes:
+      - application/json
+      description: 'Upload each photo with POST /api/v1/media/photos, then send the
+        full gallery in order: the first photo is the cover shown in GET /api/v1/workshops.
+        Photos left out are removed from the gallery and photos already in it may
+        stay. At most max_workshop_photos photos.'
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopPhotosInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopPhotoList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set the photos of a workshop
+      tags:
+      - Workshop operations
   /api/v1/fleet/workshops/{id}/schedule:
     put:
       consumes:
@@ -14298,7 +14453,14 @@ paths:
     get:
       description: Items by room with volume, vehicles, extras, arrival windows, property
         types, helper price and informative insurance. Everything is managed in the
-        backoffice.
+        backoffice. With property, only the items of that type of property come back;
+        an item without properties fits every type. custom_sizes holds the volume
+        of each size of an item the customer adds by hand.
+      parameters:
+      - description: Code of a removal_property, such as home or office
+        in: query
+        name: property
+        type: string
       produces:
       - application/json
       responses:
@@ -14306,6 +14468,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dtos.RemovalOptions'
+        "422":
+          description: The property does not exist
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
       security:
       - BearerAuth: []
       - ClientId: []

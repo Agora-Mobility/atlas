@@ -47,7 +47,9 @@ DELETE FROM workshop_favorites WHERE customer_id = $1 AND workshop_id = $2;
 -- name: SearchWorkshops :many
 SELECT w.id, w.name, w.offers_home_service, w.home_service_fee_cents, w.currency, w.rating_sum, w.rating_count, a.lat, a.lng, a.line,
        ST_Distance(a.geom, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography)::float8 AS distance_m,
-       EXISTS (SELECT 1 FROM workshop_favorites f WHERE f.workshop_id = w.id AND f.customer_id = sqlc.arg(customer_id)) AS is_favorite
+       EXISTS (SELECT 1 FROM workshop_favorites f WHERE f.workshop_id = w.id AND f.customer_id = sqlc.arg(customer_id)) AS is_favorite,
+       COALESCE((SELECT m.object_key FROM workshop_photos p JOIN media_uploads m ON m.id = p.upload_id
+                 WHERE p.workshop_id = w.id ORDER BY p.position LIMIT 1), '')::text AS cover_key
 FROM workshops w JOIN addresses a ON a.id = w.address_id
 WHERE w.is_active
   AND (sqlc.arg(search)::text = '' OR w.name ILIKE '%' || sqlc.arg(search)::text || '%')
@@ -121,3 +123,14 @@ ORDER BY starts_at DESC LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: CountWorkshopBookings :one
 SELECT count(*) FROM bookings WHERE workshop_id = $1 AND (sqlc.arg(status)::text = '' OR status = sqlc.arg(status)::text);
+
+-- name: ListWorkshopPhotos :many
+SELECT m.* FROM workshop_photos p JOIN media_uploads m ON m.id = p.upload_id
+WHERE p.workshop_id = $1
+ORDER BY p.position;
+
+-- name: DeleteWorkshopPhotos :exec
+DELETE FROM workshop_photos WHERE workshop_id = $1;
+
+-- name: InsertWorkshopPhoto :exec
+INSERT INTO workshop_photos (upload_id, workshop_id, position, created_at) VALUES ($1, $2, $3, $4);
