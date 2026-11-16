@@ -1218,6 +1218,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
+                "description": "Works on every request that is not finished yet, a trip in progress included. The customer pays no cancellation fee and gets back what was prepaid.",
                 "consumes": [
                     "application/json"
                 ],

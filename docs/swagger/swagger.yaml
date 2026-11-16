@@ -7297,6 +7297,8 @@ paths:
     post:
       consumes:
       - application/json
+      description: Works on every request that is not finished yet, a trip in progress
+        included. The customer pays no cancellation fee and gets back what was prepaid.
       parameters:
       - description: Request id
         in: path

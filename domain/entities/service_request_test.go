@@ -154,11 +154,24 @@ func TestCancelNeedsAReasonAndClearsDueActions(t *testing.T) {
 	assert.Nil(t, request.NextActionAt)
 }
 
-func TestInProgressCannotBeCancelled(t *testing.T) {
-	request := newRequest(t)
-	request.Status = entities.RequestInProgress
-	_, err := request.Transition(entities.RequestCancelled, entities.RequestActor{Type: entities.RequestActorCustomer}, "x", requestNow)
-	assert.ErrorIs(t, err, entities.ErrInvalidTransition)
+func TestInProgressIsCancelledByCustomerProviderOrOperator(t *testing.T) {
+	for _, actor := range []entities.RequestActorType{entities.RequestActorCustomer, entities.RequestActorProvider, entities.RequestActorOperator} {
+		request := newRequest(t)
+		request.Status = entities.RequestInProgress
+		_, err := request.Transition(entities.RequestCancelled, entities.RequestActor{Type: actor}, "Corrida interrompida", requestNow)
+		require.NoError(t, err, actor)
+		assert.Equal(t, entities.RequestCancelled, request.Status)
+		assert.Equal(t, string(actor), request.CancelledBy)
+	}
+}
+
+func TestFinishedRequestsCannotBeCancelled(t *testing.T) {
+	for _, status := range []entities.RequestStatus{entities.RequestCompleted, entities.RequestExpired, entities.RequestCancelled} {
+		request := newRequest(t)
+		request.Status = status
+		_, err := request.Transition(entities.RequestCancelled, entities.RequestActor{Type: entities.RequestActorOperator}, "x", requestNow)
+		assert.ErrorIs(t, err, entities.ErrInvalidTransition, status)
+	}
 }
 
 func TestBoostOnlyRaisesAndKeepsTheBase(t *testing.T) {
