@@ -557,17 +557,18 @@ func (c *DispatchController) RetrySearch(ctx *gin.Context) {
 
 // OperatorCancel godoc
 //
-//	@Summary	Cancel a request as an operator
-//	@Tags		Backoffice dispatch
-//	@Accept		json
-//	@Produce	json
-//	@Param		id		path		string						true	"Request id"
-//	@Param		body	body		dtos.OperatorCancelInput	true	"Reason"
-//	@Success	200		{object}	dtos.RequestView
-//	@Failure	409		{object}	shared.ErrorResponse
-//	@Security	BearerAuth
-//	@Security	ClientId
-//	@Router		/api/v1/admin/dispatch/requests/{id}/cancel [post]
+//	@Summary		Cancel a request as an operator
+//	@Description	Works on every request that is not finished yet, a trip in progress included. The customer pays no cancellation fee and gets back what was prepaid.
+//	@Tags			Backoffice dispatch
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string						true	"Request id"
+//	@Param			body	body		dtos.OperatorCancelInput	true	"Reason"
+//	@Success		200		{object}	dtos.RequestView
+//	@Failure		409		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/dispatch/requests/{id}/cancel [post]
 func (c *DispatchController) OperatorCancel(ctx *gin.Context) {
 	actor, ok := staffActor(ctx)
 	if !ok {

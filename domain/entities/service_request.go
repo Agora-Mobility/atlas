@@ -63,7 +63,7 @@ var allowedTransitions = map[RequestStatus][]RequestStatus{
 	RequestAwaitingChoice:  {RequestAccepted, RequestCancelled},
 	RequestAccepted:        {RequestProviderEnRoute, RequestCancelled},
 	RequestProviderEnRoute: {RequestInProgress, RequestCancelled},
-	RequestInProgress:      {RequestCompleted},
+	RequestInProgress:      {RequestCompleted, RequestCancelled},
 }
 
 var transitionActors = map[RequestStatus][]RequestActorType{
