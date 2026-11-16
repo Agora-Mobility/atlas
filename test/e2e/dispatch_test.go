@@ -983,6 +983,31 @@ func TestOperatorDispatchesByHandRetriesAndCancels(t *testing.T) {
 	stream.waitForStatus(t, "cancelled")
 }
 
+func TestOperatorCancelsATripInProgress(t *testing.T) {
+	clearOnlineProviders(t)
+	ctx := context.Background()
+	driver := newProvider(t, "taxi", point{-8.8400, 13.2350})
+	offers := driver.listen(t, "")
+	customer := newCustomer(t)
+	created := requestTaxi(t, customer)
+	id := created.str("id")
+	offer := offers.waitFor(t, "request.offer", nil)
+	require.Equal(t, http.StatusOK, acceptOffer(t, driver, offer).status)
+	for _, step := range []string{"en-route", "start"} {
+		res := driver.post(t, "/api/v1/requests/"+id+"/"+step, nil)
+		require.Equal(t, http.StatusOK, res.status, res.text)
+	}
+
+	assert.Equal(t, "in_progress", customer.get(t, "/api/v1/requests/"+id).str("status"))
+	stream := customer.listen(t, "")
+	cancelled, err := env.api.container.Dispatch.Usecase.CancelByOperator(ctx, entities.Actor{}, uuid.MustParse(id), "Corrida interrompida pelo operador")
+	require.NoError(t, err)
+	assert.Equal(t, "cancelled", cancelled.Status)
+	assert.Equal(t, "operator", cancelled.CancelledBy)
+	assert.Zero(t, cancelled.CancelFeeCents, "the customer pays no fee")
+	stream.waitForStatus(t, "cancelled")
+}
+
 func TestReminderReachesBothPartiesBeforeTheDate(t *testing.T) {
 	clearOnlineProviders(t)
 	driver := newProvider(t, "taxi", point{-8.84, 13.235})

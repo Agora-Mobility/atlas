@@ -1218,6 +1218,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
+                "description": "Works up to and including a trip in progress, which only an operator can stop: the apps cannot. The customer pays no cancellation fee and gets back what was prepaid.",
                 "consumes": [
                     "application/json"
                 ],
