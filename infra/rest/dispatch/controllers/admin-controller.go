@@ -558,7 +558,7 @@ func (c *DispatchController) RetrySearch(ctx *gin.Context) {
 // OperatorCancel godoc
 //
 //	@Summary		Cancel a request as an operator
-//	@Description	Works up to and including a trip in progress, which only an operator can stop: the apps cannot. The customer pays no cancellation fee and gets back what was prepaid.
+//	@Description	Works on every request that is not finished yet, a trip in progress included. The customer pays no cancellation fee and gets back what was prepaid.
 //	@Tags			Backoffice dispatch
 //	@Accept			json
 //	@Produce		json

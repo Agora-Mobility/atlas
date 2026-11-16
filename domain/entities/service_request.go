@@ -63,7 +63,7 @@ var allowedTransitions = map[RequestStatus][]RequestStatus{
 	RequestAwaitingChoice:  {RequestAccepted, RequestCancelled},
 	RequestAccepted:        {RequestProviderEnRoute, RequestCancelled},
 	RequestProviderEnRoute: {RequestInProgress, RequestCancelled},
-	RequestInProgress:      {RequestCompleted},
+	RequestInProgress:      {RequestCompleted, RequestCancelled},
 }
 
 var transitionActors = map[RequestStatus][]RequestActorType{
@@ -322,7 +322,7 @@ func (r *ServiceRequest) IsProvider(userID uuid.UUID) bool {
 }
 
 func (r *ServiceRequest) Transition(to RequestStatus, actor RequestActor, reason string, now time.Time) (*RequestStatusChange, error) {
-	if !canReach(r.Status, to, actor.Type) {
+	if !canReach(r.Status, to) {
 		return nil, ErrInvalidTransition
 	}
 	if !actorMay(to, actor.Type) {
@@ -406,18 +406,8 @@ func (r *ServiceRequest) ApplyBoost(bps int) (int64, error) {
 	return added, nil
 }
 
-// operatorTransitions are taken only from the backoffice. A trip under way can
-// be stopped by an operator, never from the apps.
-var operatorTransitions = map[RequestStatus][]RequestStatus{
-	RequestInProgress: {RequestCancelled},
-}
-
-func canReach(from, to RequestStatus, actor RequestActorType) bool {
-	targets := allowedTransitions[from]
-	if actor == RequestActorOperator {
-		targets = append(append([]RequestStatus{}, targets...), operatorTransitions[from]...)
-	}
-	for _, candidate := range targets {
+func canReach(from, to RequestStatus) bool {
+	for _, candidate := range allowedTransitions[from] {
 		if candidate == to {
 			return true
 		}

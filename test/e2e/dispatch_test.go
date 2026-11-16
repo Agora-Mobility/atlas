@@ -983,29 +983,45 @@ func TestOperatorDispatchesByHandRetriesAndCancels(t *testing.T) {
 	stream.waitForStatus(t, "cancelled")
 }
 
-func TestOperatorCancelsATripInProgress(t *testing.T) {
-	clearOnlineProviders(t)
-	ctx := context.Background()
-	driver := newProvider(t, "taxi", point{-8.8400, 13.2350})
-	offers := driver.listen(t, "")
-	customer := newCustomer(t)
-	created := requestTaxi(t, customer)
-	id := created.str("id")
-	offer := offers.waitFor(t, "request.offer", nil)
-	require.Equal(t, http.StatusOK, acceptOffer(t, driver, offer).status)
-	for _, step := range []string{"en-route", "start"} {
-		res := driver.post(t, "/api/v1/requests/"+id+"/"+step, nil)
-		require.Equal(t, http.StatusOK, res.status, res.text)
+func TestEveryoneCancelsATripInProgress(t *testing.T) {
+	started := func(t *testing.T) (customer, driver *person, id string) {
+		t.Helper()
+		customer, driver, id = assignedTaxi(t)
+		for _, step := range []string{"en-route", "start"} {
+			res := driver.post(t, "/api/v1/requests/"+id+"/"+step, nil)
+			require.Equal(t, http.StatusOK, res.status, res.text)
+		}
+		require.Equal(t, "in_progress", customer.get(t, "/api/v1/requests/"+id).str("status"))
+		return customer, driver, id
 	}
 
-	assert.Equal(t, "in_progress", customer.get(t, "/api/v1/requests/"+id).str("status"))
-	stream := customer.listen(t, "")
-	cancelled, err := env.api.container.Dispatch.Usecase.CancelByOperator(ctx, entities.Actor{}, uuid.MustParse(id), "Corrida interrompida pelo operador")
-	require.NoError(t, err)
-	assert.Equal(t, "cancelled", cancelled.Status)
-	assert.Equal(t, "operator", cancelled.CancelledBy)
-	assert.Zero(t, cancelled.CancelFeeCents, "the customer pays no fee")
-	stream.waitForStatus(t, "cancelled")
+	t.Run("the customer", func(t *testing.T) {
+		customer, _, id := started(t)
+		reason := cancelReason(t, customer, "customer", "taxi", "changed_plans")
+		cancelled := customer.post(t, "/api/v1/requests/"+id+"/cancel", map[string]any{"reason_id": reason})
+		require.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
+		assert.Equal(t, "cancelled", cancelled.str("status"))
+		assert.Equal(t, "customer", cancelled.str("cancelled_by"))
+	})
+
+	t.Run("the driver", func(t *testing.T) {
+		customer, driver, id := started(t)
+		reason := cancelReason(t, driver, "provider", "taxi", "customer_no_show")
+		cancelled := driver.post(t, "/api/v1/requests/"+id+"/cancel", map[string]any{"reason_id": reason})
+		require.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
+		assert.Equal(t, "cancelled", customer.get(t, "/api/v1/requests/"+id).str("status"))
+	})
+
+	t.Run("the operator", func(t *testing.T) {
+		customer, _, id := started(t)
+		stream := customer.listen(t, "")
+		cancelled, err := env.api.container.Dispatch.Usecase.CancelByOperator(context.Background(), entities.Actor{}, uuid.MustParse(id), "Corrida interrompida pelo operador")
+		require.NoError(t, err)
+		assert.Equal(t, "cancelled", cancelled.Status)
+		assert.Equal(t, "operator", cancelled.CancelledBy)
+		assert.Zero(t, cancelled.CancelFeeCents, "an operator never charges the customer")
+		stream.waitForStatus(t, "cancelled")
+	})
 }
 
 func TestReminderReachesBothPartiesBeforeTheDate(t *testing.T) {
