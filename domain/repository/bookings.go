@@ -35,6 +35,7 @@ type WorkshopCard struct {
 	RatingSum           int64
 	RatingCount         int
 	IsFavorite          bool
+	CoverKey            string
 }
 
 type WorkshopClosure struct {
@@ -49,6 +50,8 @@ type WorkshopProfile struct {
 }
 
 type IBookingRepository interface {
+	WorkshopPhotos(ctx context.Context, workshopID uuid.UUID) ([]entities.MediaUpload, error)
+	ReplaceWorkshopPhotos(ctx context.Context, workshopID uuid.UUID, uploadIDs []uuid.UUID, now time.Time) error
 	SaveSchedule(ctx context.Context, workshopID uuid.UUID, schedule *entities.WorkshopSchedule) (bool, error)
 	Profile(ctx context.Context, workshopID uuid.UUID) (*WorkshopProfile, error)
 	LockWorkshop(ctx context.Context, workshopID uuid.UUID) error

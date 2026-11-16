@@ -166,6 +166,7 @@ const (
 	SettingBookingSlotMinutes   = "booking_slot_minutes"
 	SettingRemovalMaxDays       = "removal_max_days"
 	SettingMaxPhotosPerBooking  = "max_booking_photos"
+	SettingMaxWorkshopPhotos    = "max_workshop_photos"
 	SettingTowingCompletionCode = "towing_code_digits"
 	SettingCompletionAttempts   = "completion_code_attempts"
 	SettingPrepayHoldMinutes    = "prepay_hold_minutes"
@@ -175,6 +176,7 @@ var settingRules = map[string]settingRule{
 	SettingMaxTipCents:          {SettingCents, 0, MaxFeeCents},
 	SettingMaxPhotos:            {SettingCount, 0, 50},
 	SettingMaxPhotosPerBooking:  {SettingCount, 0, 50},
+	SettingMaxWorkshopPhotos:    {SettingCount, 0, 50},
 	SettingPhotoMaxBytes:        {SettingCount, 1, 50_000_000},
 	SettingPhotoTypes:           {SettingText, 0, 200},
 	SettingReferralRewardCents:  {SettingCents, 0, MaxFeeCents},

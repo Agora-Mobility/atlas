@@ -7231,6 +7231,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/fleet/workshops/{id}/photos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "List the photos of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopPhotoList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Upload each photo with POST /api/v1/media/photos, then send the full gallery in order: the first photo is the cover shown in GET /api/v1/workshops. Photos left out are removed from the gallery and photos already in it may stay. At most max_workshop_photos photos.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Set the photos of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopPhotosInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopPhotoList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/fleet/workshops/{id}/schedule": {
             "put": {
                 "security": [
@@ -24708,6 +24809,9 @@ const docTemplate = `{
                 "address": {
                     "type": "string"
                 },
+                "cover_url": {
+                    "type": "string"
+                },
                 "currency": {
                     "type": "string"
                 },
@@ -24767,6 +24871,9 @@ const docTemplate = `{
                 "capacity": {
                     "type": "integer"
                 },
+                "cover_url": {
+                    "type": "string"
+                },
                 "currency": {
                     "type": "string"
                 },
@@ -24805,6 +24912,12 @@ const docTemplate = `{
                 },
                 "open_until": {
                     "type": "string"
+                },
+                "photos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.WorkshopPhotoView"
+                    }
                 },
                 "promotions": {
                     "type": "array",
@@ -24889,6 +25002,41 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.WorkshopPhotoList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.WorkshopPhotoView"
+                    }
+                }
+            }
+        },
+        "dtos.WorkshopPhotoView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.WorkshopPhotosInput": {
+            "type": "object",
+            "properties": {
+                "photo_ids": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

@@ -1,6 +1,7 @@
 package containers
 
 import (
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/geo/h3index"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/repository"
@@ -14,7 +15,7 @@ type BookingsModule struct {
 	Usecase *bookings.Usecase
 }
 
-func newBookingsModule(c *Container) *BookingsModule {
+func newBookingsModule(c *Container, storage services.IObjectStorage) *BookingsModule {
 	config := repository.NewDispatchConfigRepository(c.Pool)
 	geo := h3index.New()
 	uc := bookings.NewUsecase(bookings.Deps{
@@ -37,6 +38,8 @@ func newBookingsModule(c *Container) *BookingsModule {
 		Geo:      geo,
 		Zones:    dispatch.NewZoneCache(config, geo),
 		Refunds:  c.Payments.Usecase,
+		Storage:  storage,
+		Photos:   c.Experience.Usecase,
 	})
 	c.Payments.Usecase.Prepaid = prepaidRoutes{bookings: uc, removals: c.Dispatch.Usecase}
 	c.Dispatch.Usecase.Refunds = c.Payments.Usecase
