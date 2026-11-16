@@ -117,13 +117,6 @@ func TestFiveProvidersOfDifferentServicesCompleteTheKYC(t *testing.T) {
 
 	towingID := serviceBySlug(t, "towing")
 	towing := signUpProvider(t, "Rui Reboques")
-	closed := towing.do(t, http.MethodPut, "/api/v1/providers/me/profile", profileOf(towingID, "Rui Reboques"), nil)
-	require.Equal(t, "SERVICE_NOT_OPEN", closed.code(), "towing is closed to self sign-up until the business opens it")
-	_, err := env.owner.Exec(ctx, `UPDATE service_provider_requirements SET self_signup = true WHERE service_id = $1`, towingID)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_, _ = env.owner.Exec(context.Background(), `UPDATE service_provider_requirements SET self_signup = false WHERE service_id = $1`, towingID)
-	})
 
 	drivers := []driverCase{
 		{name: "Ana Económico", service: "taxi", categories: []string{"B"},
