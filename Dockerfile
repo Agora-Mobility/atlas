@@ -44,7 +44,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 # Alpine em vez de distroless: o arranque é um script de shell (entrypoint.sh) que espera pelo
 # Postgres com o pg_isready. O tzdata é preciso para os fusos das zonas (Africa/Luanda).
-FROM alpine:3.23
+FROM alpine:3.24
 
 RUN apk add --no-cache ca-certificates=20261020-r0 tzdata=2026f-r0 postgresql18-client=18.6-r0
 
