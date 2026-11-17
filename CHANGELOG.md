@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.6.0](https://github.com/Agora-Mobility/atlas/compare/v3.5.0...v3.6.0) (2026-11-17)
+
+
+### Features
+
+* **calls:** answer the real number when no masked call provider is set ([a040392](https://github.com/Agora-Mobility/atlas/commit/a040392ddfee705227c8954f601e8c85383ffd8e))
+* **live:** return the route of the driver with the ETA ([3fc3571](https://github.com/Agora-Mobility/atlas/commit/3fc3571c409bb86681501d85780be41ac8d69bd3))
+* **live:** return the route of the driver with the ETA ([13cdc8c](https://github.com/Agora-Mobility/atlas/commit/13cdc8cb7d12c087b3af838a0e7042e583c7fca3))
+
+
+### Bug Fixes
+
+* calls without a masked provider and customer quick replies ([1677411](https://github.com/Agora-Mobility/atlas/commit/1677411514daad5560262b70634ff8637c0ccd96))
+* **chat:** give the customer quick replies of their own side ([aa1024c](https://github.com/Agora-Mobility/atlas/commit/aa1024c4a5821628feca2d8a03c61d0d6fd8b2e4))
+* **dispatch:** answer a reused fare estimate instead of failing ([a760f2e](https://github.com/Agora-Mobility/atlas/commit/a760f2e41427b72e542fdfa110a7ba0f4fc2d30e))
+* **dispatch:** answer a reused fare estimate instead of failing ([38ee40b](https://github.com/Agora-Mobility/atlas/commit/38ee40be97a0efd62b7c4d8e3f0212537d51a7ed))
+
 ## [3.5.0](https://github.com/Agora-Mobility/atlas/compare/v3.4.0...v3.5.0) (2026-11-17)
 
 
