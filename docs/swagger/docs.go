@@ -63,6 +63,102 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/audit": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requires audit:read. Newest first. Every change of tariffs, policies, accounts, roles and the rest of the backoffice, with who made it and the values before and after. Passwords, hashes, tokens and secrets come as ***; IP and user agent are not shown. An entry without actor is a system action.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice audit"
+                ],
+                "summary": "Read the audit log",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Who made the change",
+                        "name": "actor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Type of entity, such as service_tariff or user",
+                        "name": "entity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Id of the entity",
+                        "name": "entity_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Action, such as service_tariff.publish",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "At or after, YYYY-MM-DD or RFC 3339",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Before, YYYY-MM-DD or RFC 3339",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (from 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AuditPage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing audit:read",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid filters",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/block-reasons": {
             "get": {
                 "security": [
