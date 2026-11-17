@@ -13,6 +13,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
 	"github.com/Agora-Mobility/atlas/infra/database/sqlc/gen"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 )
 
 type Repository struct {
@@ -26,6 +27,9 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 }
 
 func (r *Repository) Save(ctx context.Context, env events.Envelope) error {
+	if env.Trace == nil {
+		env.Trace = tracing.Inject(ctx)
+	}
 	raw, err := json.Marshal(env)
 	if err != nil {
 		return fmt.Errorf("marshal envelope: %w", err)

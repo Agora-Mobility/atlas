@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/Agora-Mobility/atlas/config"
@@ -18,6 +19,13 @@ func NewClient(ctx context.Context, cfg config.RedisConfig) (*goredis.Client, er
 		Password: cfg.Password,
 		DB:       cfg.DB,
 	})
+
+	// Commands run inside a traced request show up as spans of it. Values
+	// stay out of the spans: they carry tokens and personal data.
+	if err := redisotel.InstrumentTracing(client, redisotel.WithDBStatement(false)); err != nil {
+		_ = client.Close()
+		return nil, fmt.Errorf("instrument redis: %w", err)
+	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()

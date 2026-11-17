@@ -13,17 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const countPendingOutboxEvents = `-- name: CountPendingOutboxEvents :one
-SELECT count(*) FROM outbox WHERE published_at IS NULL
-`
-
-func (q *Queries) CountPendingOutboxEvents(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countPendingOutboxEvents)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const fetchPendingOutboxEvents = `-- name: FetchPendingOutboxEvents :many
 SELECT id, routing_key, envelope, event_type, attempts
 FROM outbox
@@ -131,4 +120,26 @@ WHERE id = ANY($1::uuid[])
 func (q *Queries) MarkOutboxEventsPublished(ctx context.Context, ids []uuid.UUID) error {
 	_, err := q.db.Exec(ctx, markOutboxEventsPublished, ids)
 	return err
+}
+
+const outboxPendingStats = `-- name: OutboxPendingStats :one
+SELECT
+    count(*)::bigint AS pending,
+    COALESCE(EXTRACT(EPOCH FROM now() - min(created_at)), 0)::float8 AS oldest_age_seconds
+FROM outbox
+WHERE published_at IS NULL
+`
+
+type OutboxPendingStatsRow struct {
+	Pending          int64   `json:"pending"`
+	OldestAgeSeconds float64 `json:"oldest_age_seconds"`
+}
+
+// How many events wait to be published and how long the oldest has waited:
+// the age is the real delay the relay adds to every consumer.
+func (q *Queries) OutboxPendingStats(ctx context.Context) (OutboxPendingStatsRow, error) {
+	row := q.db.QueryRow(ctx, outboxPendingStats)
+	var i OutboxPendingStatsRow
+	err := row.Scan(&i.Pending, &i.OldestAgeSeconds)
+	return i, err
 }

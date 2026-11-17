@@ -26,6 +26,9 @@ type Envelope struct {
 	AggregateType string          `json:"aggregate_type"`
 	AggregateID   string          `json:"aggregate_id"`
 	Payload       json.RawMessage `json:"payload"`
+	// Trace is the W3C trace context (traceparent, tracestate) of the code
+	// that raised the event, so its consumers continue the same trace.
+	Trace map[string]string `json:"trace,omitempty"`
 }
 
 func NewEnvelope(evt Event, correlationID string) (Envelope, error) {

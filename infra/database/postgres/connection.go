@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -45,6 +46,9 @@ func connect(ctx context.Context, cfg config.DatabaseConfig, asApp bool) (*pgxpo
 	poolCfg.MaxConnIdleTime = cfg.MaxConnIdleTime
 	// Every connection resolves our objects in Schema, whatever the URL says.
 	poolCfg.ConnConfig.RuntimeParams["search_path"] = searchPath
+	// Queries run inside a traced request show up as spans of it. Query
+	// parameters stay out of the spans: they carry personal data.
+	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer()
 	if asApp {
 		poolCfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 			if _, err := conn.Exec(ctx, "SET ROLE "+pgx.Identifier{AppRole}.Sanitize()); err != nil {

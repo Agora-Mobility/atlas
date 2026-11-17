@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/zap"
 
 	"github.com/Agora-Mobility/atlas/config"
@@ -28,9 +30,15 @@ const topologyRetryCeiling = 30 * time.Second
 
 var probePaths = []string{"/live", "/ready", "/health", "/metrics"}
 
+// untracedPaths are kept out of traces: probes are noise, and an SSE stream
+// lives for minutes, so its span would swallow every poll it makes.
+var untracedPaths = append([]string{"/events"}, probePaths...)
+
 type Server struct {
 	container *containers.Container
 	http      *http.Server
+	// metrics serves /metrics on an internal port when METRICS_PORT is set.
+	metrics *http.Server
 }
 
 func NewServer(c *containers.Container, basePath string, registerRoutes func(api *gin.RouterGroup)) (*Server, error) {
@@ -48,6 +56,7 @@ func NewServer(c *containers.Container, basePath string, registerRoutes func(api
 
 	r.Use(
 		middleware.Recovery(),
+		otelgin.Middleware(cfg.App.Name, otelgin.WithFilter(traced(untracedPaths))),
 		middleware.CorrelationID(),
 		middleware.SecurityHeaders(cfg.IsProduction()),
 		middleware.CORS(cfg.HTTP.CORSAllowedOrigins),
@@ -61,7 +70,18 @@ func NewServer(c *containers.Container, basePath string, registerRoutes func(api
 	})
 
 	healthrouter.Register(r, c.Health.Controller)
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	var metricsServer *http.Server
+	if cfg.Telemetry.MetricsPort > 0 {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", metricsHandler())
+		metricsServer = &http.Server{
+			Addr:              fmt.Sprintf(":%d", cfg.Telemetry.MetricsPort),
+			Handler:           mux,
+			ReadHeaderTimeout: 5 * time.Second,
+		}
+	} else {
+		r.GET("/metrics", gin.WrapH(metricsHandler()))
+	}
 	registerAPIDocs(r, cfg)
 
 	registerRoutes(r.Group(basePath))
@@ -69,6 +89,7 @@ func NewServer(c *containers.Container, basePath string, registerRoutes func(api
 
 	return &Server{
 		container: c,
+		metrics:   metricsServer,
 		http: &http.Server{
 			Addr:              fmt.Sprintf(":%d", cfg.HTTP.Port),
 			Handler:           r,
@@ -78,6 +99,23 @@ func NewServer(c *containers.Container, basePath string, registerRoutes func(api
 			IdleTimeout:       cfg.HTTP.IdleTimeout,
 		},
 	}, nil
+}
+
+// metricsHandler speaks OpenMetrics when the scraper asks for it, which is
+// the format that carries exemplars (the trace ids attached to latencies).
+func metricsHandler() http.Handler {
+	return promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{EnableOpenMetrics: true})
+}
+
+func traced(skip []string) otelgin.Filter {
+	set := make(map[string]struct{}, len(skip))
+	for _, p := range skip {
+		set[p] = struct{}{}
+	}
+	return func(r *http.Request) bool {
+		_, untraced := set[r.URL.Path]
+		return !untraced
+	}
 }
 
 func registerAPIDocs(r gin.IRoutes, cfg *config.Config) {
@@ -105,6 +143,15 @@ func (s *Server) Start(ctx context.Context) error {
 	workers.Go(func() { s.container.Verification.Usecase.RunHousekeeping(workersCtx) })
 	for _, consumer := range consumers {
 		workers.Go(func() { consumer.Run(workersCtx) })
+	}
+
+	if s.metrics != nil {
+		go func() {
+			logger.Info("metrics server starting", zap.String("addr", s.metrics.Addr))
+			if err := s.metrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Error("metrics server failed", err)
+			}
+		}()
 	}
 
 	serveErr := make(chan error, 1)
@@ -151,6 +198,9 @@ func (s *Server) shutdown(ctx context.Context, stopWorkers context.CancelFunc, w
 	s.container.SSE.Drain()
 	if err := s.http.Shutdown(shutdownCtx); err != nil {
 		errs = append(errs, fmt.Errorf("http shutdown: %w", err))
+	}
+	if s.metrics != nil {
+		_ = s.metrics.Shutdown(shutdownCtx)
 	}
 
 	stopWorkers()

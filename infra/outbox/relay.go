@@ -112,9 +112,10 @@ func (r *Relay) processBatch(ctx context.Context) (int, error) {
 }
 
 func (r *Relay) reportPending(ctx context.Context) {
-	n, err := gen.New(r.pool).CountPendingOutboxEvents(ctx)
+	stats, err := gen.New(r.pool).OutboxPendingStats(ctx)
 	if err != nil {
 		return
 	}
-	prometheus.OutboxPending.Set(float64(n))
+	prometheus.OutboxPending.Set(float64(stats.Pending))
+	prometheus.OutboxOldestPendingAge.Set(stats.OldestAgeSeconds)
 }

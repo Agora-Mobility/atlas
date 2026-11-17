@@ -3,7 +3,6 @@ package email
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 )
 
 type ResendSender struct {
@@ -28,7 +28,7 @@ func NewResendSender(apiKey, baseURL, from, replyTo string, timeout time.Duratio
 	if err != nil {
 		return nil, fmt.Errorf("parse resend base url: %w", err)
 	}
-	client := resend.NewCustomClient(&http.Client{Timeout: timeout}, apiKey)
+	client := resend.NewCustomClient(tracing.HTTPClient(timeout), apiKey)
 	client.BaseURL = endpoint
 	return &ResendSender{client: client, from: from, replyTo: replyTo}, nil
 }
