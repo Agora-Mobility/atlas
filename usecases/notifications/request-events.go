@@ -35,6 +35,8 @@ const (
 	templateBooking        = "booking_status"
 	templateBookingExtra   = "booking_extra"
 	templateMessage        = "request_message"
+	templateProviderTrip   = "provider_request"
+	templateRouteChanged   = "route_changed"
 	statusSent             = "sent"
 	statusFailed           = "failed"
 	statusSkipped          = "skipped"
@@ -86,7 +88,7 @@ func RequestBindingKeys() []string {
 	slices.Sort(types)
 	types = append(types, events.PaymentChanged, events.OfferCreated, events.OfferCancelled, events.QuoteSubmitted, events.ReminderDue, events.OperatorAlerted,
 		events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended, events.BookingChanged, events.BookingExtra,
-		events.ProviderApplicationSubmitted, events.ProviderVerificationReminder, events.RequestMessage)
+		events.ProviderApplicationSubmitted, events.ProviderVerificationReminder, events.RequestMessage, events.RouteChanged)
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
 		keys = append(keys, events.RoutingKey(eventType, 1))
@@ -121,6 +123,8 @@ func (n *RequestNotifier) OnEvent(ctx context.Context, env events.Envelope) erro
 		return n.onBookingExtra(ctx, env)
 	case events.RequestMessage:
 		return n.onMessage(ctx, env)
+	case events.RouteChanged:
+		return n.onRouteChanged(ctx, env)
 	default:
 		return n.onTransition(ctx, env)
 	}
@@ -202,11 +206,15 @@ func (n *RequestNotifier) onTransition(ctx context.Context, env events.Envelope)
 	}
 	data := map[string]string{"type": "request.status", "request_id": event.RequestID.String(), "status": event.To, "version": strconv.Itoa(event.Version), "event_id": env.EventID.String()}
 	err := n.statusPush(ctx, env.EventID.String(), event.CustomerID, templateStatus, services.PushMessage{Title: message.title, Body: message.body, Data: data})
-	if env.EventType != events.RequestAccepted {
-		return err
+	failures := []error{err}
+	if notice, toProvider := providerNotice(env.EventType, event); toProvider {
+		failures = append(failures, n.pushTo(ctx, env.EventID.String(), *event.ProviderID, templateProviderTrip, services.PushMessage{
+			Title: notice.title, Body: notice.body, Data: data, HighPriority: true,
+		}))
 	}
-	var failures []error
-	failures = append(failures, err)
+	if env.EventType != events.RequestAccepted {
+		return errors.Join(failures...)
+	}
 	if event.SMSOnAccept {
 		failures = append(failures, n.smsToUser(ctx, env.EventID.String(), event.CustomerID, templateAssigned, "AGORA: o teu pedido foi aceite. O prestador está a preparar-se para ir ter contigo."))
 	}
@@ -218,6 +226,48 @@ func (n *RequestNotifier) onTransition(ctx context.Context, env events.Envelope)
 		failures = append(failures, n.smsToPhone(ctx, env.EventID.String(), nil, event.PassengerPhone, templateAssigned, text))
 	}
 	return errors.Join(failures...)
+}
+
+var providerCancelBodies = map[string]string{
+	string(entities.RequestActorCustomer): "O cliente cancelou o pedido.",
+	string(entities.RequestActorOperator): "A operação cancelou o pedido.",
+}
+
+type pushText struct{ title, body string }
+
+func providerNotice(eventType string, event events.RequestTransitionV1) (pushText, bool) {
+	if event.ProviderID == nil || event.ActorType == string(entities.RequestActorProvider) {
+		return pushText{}, false
+	}
+	switch eventType {
+	case events.RequestCancelled:
+		body, known := providerCancelBodies[event.ActorType]
+		if !known {
+			body = "O pedido foi cancelado."
+		}
+		return pushText{"Pedido cancelado", body}, true
+	case events.RequestAccepted:
+		if event.ActorType != string(entities.RequestActorOperator) {
+			return pushText{}, false
+		}
+		return pushText{"Pedido atribuído", "A operação atribuiu-te um pedido. Abre a aplicação para veres os detalhes."}, true
+	default:
+		return pushText{}, false
+	}
+}
+
+func (n *RequestNotifier) onRouteChanged(ctx context.Context, env events.Envelope) error {
+	var event events.RouteChangedV1
+	if err := env.DecodePayload(&event); err != nil {
+		return err
+	}
+	if event.ProviderID == nil {
+		return nil
+	}
+	return n.pushTo(ctx, env.EventID.String(), *event.ProviderID, templateRouteChanged, services.PushMessage{
+		Title: "Destino alterado", Body: "O cliente mudou o destino da viagem. Confirma o novo percurso.", HighPriority: true,
+		Data: map[string]string{"type": "request.route_changed", "request_id": event.RequestID.String(), "version": strconv.Itoa(event.Version), "event_id": env.EventID.String()},
+	})
 }
 
 func (n *RequestNotifier) passengerText(ctx context.Context, requestID uuid.UUID) (string, error) {
@@ -293,16 +343,21 @@ func (n *RequestNotifier) onVerificationReminder(ctx context.Context, env events
 	if err := env.DecodePayload(&event); err != nil {
 		return err
 	}
-	title, body := "Registo criminal", "Falta enviar o registo criminal para concluíres a verificação."
-	if event.Kind == entities.ReminderDocumentExpiry {
-		title, body = "Documento a expirar", "Um dos teus documentos ("+entities.DocumentName(enums.DocumentType(event.DocumentType))+") está quase a expirar. Envia o novo na aplicação."
-		if event.ExpiresOn != nil {
-			body = "O documento " + entities.DocumentName(enums.DocumentType(event.DocumentType)) + " expira a " + event.ExpiresOn.Format("02/01/2006") + ". Envia o novo na aplicação."
-		}
-	}
+	text := verificationText(event)
 	return n.pushTo(ctx, env.EventID.String(), event.ProviderID, templateVerification, services.PushMessage{
-		Title: title, Body: body, Data: map[string]string{"type": "provider.verification", "kind": event.Kind, "document_type": event.DocumentType, "event_id": env.EventID.String()},
+		Title: text.title, Body: text.body, Data: map[string]string{"type": "provider.verification", "kind": event.Kind, "document_type": event.DocumentType, "event_id": env.EventID.String()},
 	})
+}
+
+func verificationText(event events.ProviderVerificationReminderV1) pushText {
+	if event.Kind != entities.ReminderDocumentExpiry {
+		return pushText{"Registo criminal", "Falta enviar o registo criminal para concluíres a verificação."}
+	}
+	document := entities.DocumentName(enums.DocumentType(event.DocumentType))
+	if event.ExpiresOn != nil {
+		return pushText{"Documento a expirar", "O documento " + document + " expira a " + event.ExpiresOn.Format("02/01/2006") + ". Envia o novo na aplicação."}
+	}
+	return pushText{"Documento a expirar", "Um dos teus documentos (" + document + ") está quase a expirar. Envia o novo na aplicação."}
 }
 
 func (n *RequestNotifier) onProviderReview(ctx context.Context, env events.Envelope) error {
@@ -545,15 +600,59 @@ func (n *RequestNotifier) addToInbox(ctx context.Context, env events.Envelope) e
 	if n.account == nil {
 		return nil
 	}
-	item, err := inboxItemOf(env)
-	if err != nil || item == nil {
-		return err
+	for _, build := range []func(events.Envelope) (*entities.InboxItem, error){inboxItemOf, providerInboxItemOf} {
+		item, err := build(env)
+		if err != nil {
+			return err
+		}
+		if item == nil {
+			continue
+		}
+		if item.ID, err = uuid.NewV7(); err != nil {
+			return err
+		}
+		item.EventID, item.CreatedAt = env.EventID.String(), time.Now().UTC()
+		if err := n.account.AddInboxItem(ctx, item); err != nil {
+			return err
+		}
 	}
-	if item.ID, err = uuid.NewV7(); err != nil {
-		return err
+	return nil
+}
+
+func providerInboxItemOf(env events.Envelope) (*entities.InboxItem, error) {
+	switch env.EventType {
+	case events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended, events.ProviderApplicationSubmitted:
+		var event events.ProviderReviewV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		message := providerReviewMessages[env.EventType]
+		return &entities.InboxItem{UserID: event.ProviderID, Kind: "account", Title: message.title, Body: message.body}, nil
+	case events.ProviderVerificationReminder:
+		var event events.ProviderVerificationReminderV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		text := verificationText(event)
+		return &entities.InboxItem{UserID: event.ProviderID, Kind: "verification", Title: text.title, Body: text.body}, nil
+	case events.RouteChanged:
+		var event events.RouteChangedV1
+		if err := env.DecodePayload(&event); err != nil || event.ProviderID == nil {
+			return nil, err
+		}
+		return &entities.InboxItem{UserID: *event.ProviderID, Kind: "request", Title: "Destino alterado", Body: "O cliente mudou o destino da viagem.", LinkType: linkRequest, LinkID: &event.RequestID}, nil
+	case events.RequestCancelled, events.RequestAccepted:
+		var event events.RequestTransitionV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		notice, toProvider := providerNotice(env.EventType, event)
+		if !toProvider {
+			return nil, nil
+		}
+		return &entities.InboxItem{UserID: *event.ProviderID, Kind: "request", Title: notice.title, Body: notice.body, LinkType: linkRequest, LinkID: &event.RequestID}, nil
 	}
-	item.EventID, item.CreatedAt = env.EventID.String(), time.Now().UTC()
-	return n.account.AddInboxItem(ctx, item)
+	return nil, nil
 }
 
 func inboxItemOf(env events.Envelope) (*entities.InboxItem, error) {
