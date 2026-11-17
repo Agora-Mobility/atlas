@@ -14,7 +14,6 @@ import (
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/events"
-	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/usecases/dispatch/dtos"
 )
@@ -279,9 +278,6 @@ func (u *Usecase) Call(ctx context.Context, userID, requestID uuid.UUID) (*dtos.
 	if !request.Status.HasLiveProvider() || request.ProviderID == nil {
 		return nil, entities.ErrCallNotAvailable
 	}
-	if !u.Calls.Enabled() {
-		return nil, services.ErrCallsUnavailable
-	}
 	other := request.CustomerID
 	if role == senderCustomer {
 		other = *request.ProviderID
@@ -301,7 +297,7 @@ func (u *Usecase) Call(ctx context.Context, userID, requestID uuid.UUID) (*dtos.
 	if err != nil {
 		return nil, err
 	}
-	return &dtos.CallView{ProxyNumber: call.ProxyNumber, ExpiresAt: call.ExpiresAt}, nil
+	return &dtos.CallView{Number: call.Number, Masked: call.Masked, ExpiresAt: call.ExpiresAt}, nil
 }
 
 func toSOSView(alert *entities.SOSAlert) dtos.SOSView {

@@ -6164,7 +6164,10 @@ definitions:
     properties:
       expires_at:
         type: string
-      proxy_number:
+      masked:
+        type: boolean
+      number:
+        example: "+244923000111"
         type: string
     type: object
   github_com_Agora-Mobility_atlas_usecases_bookings_dtos.MessageList:
@@ -6230,7 +6233,10 @@ definitions:
     properties:
       expires_at:
         type: string
-      proxy_number:
+      masked:
+        type: boolean
+      number:
+        example: "+244923000111"
         type: string
     type: object
   github_com_Agora-Mobility_atlas_usecases_dispatch_dtos.MessageList:
@@ -9779,7 +9785,9 @@ paths:
       - Maintenance
   /api/v1/bookings/{id}/call:
     post:
-      description: Answers 503 CALLS_UNAVAILABLE without a provider.
+      description: With a masked call provider (CALLS_BASE_URL) number is a temporary
+        proxy and masked is true; without one it is the phone of the workshop. 503
+        CALLS_UNAVAILABLE when the provider fails.
       parameters:
       - description: Booking id
         in: path
@@ -9808,7 +9816,7 @@ paths:
       security:
       - BearerAuth: []
       - ClientId: []
-      summary: Call the workshop through a masked number
+      summary: Number to call the workshop
       tags:
       - Maintenance
   /api/v1/bookings/{id}/cancel:
@@ -14645,8 +14653,11 @@ paths:
       - Dispatch
   /api/v1/requests/{id}/call:
     post:
-      description: The number of each side is not shared. Without a configured provider
-        the answer is 503 CALLS_UNAVAILABLE.
+      description: Customer or provider of the request, from accepted until in progress.
+        With a masked call provider (CALLS_BASE_URL) number is a temporary proxy and
+        masked is true; without one it is the phone of the other side (the passenger
+        for the driver when someone else rides). The app dials number. 503 CALLS_UNAVAILABLE
+        when the provider fails or the other side has no phone.
       parameters:
       - description: Request id
         in: path
@@ -14669,13 +14680,13 @@ paths:
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
         "503":
-          description: No provider
+          description: No number to call
           schema:
             $ref: '#/definitions/shared.ErrorResponse'
       security:
       - BearerAuth: []
       - ClientId: []
-      summary: Call the other side with a masked number
+      summary: Number to call the other side of the request
       tags:
       - Live request
   /api/v1/requests/{id}/cancel:

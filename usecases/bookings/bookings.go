@@ -1317,9 +1317,6 @@ func (u *Usecase) Call(ctx context.Context, customerID, id uuid.UUID) (*dtos.Cal
 	if !booking.Status.AtWorkshop() && booking.Status != entities.BookingConfirmed {
 		return nil, entities.ErrCallNotAvailable
 	}
-	if !u.Calls.Enabled() {
-		return nil, services.ErrCallsUnavailable
-	}
 	workshop, err := u.Fleet.FindWorkshop(ctx, booking.WorkshopID)
 	if err != nil {
 		return nil, err
@@ -1335,9 +1332,5 @@ func (u *Usecase) Call(ctx context.Context, customerID, id uuid.UUID) (*dtos.Cal
 	if err != nil {
 		return nil, fmt.Errorf("connect call: %w", err)
 	}
-	view := &dtos.CallView{ProxyNumber: call.ProxyNumber}
-	if call.ExpiresAt != nil {
-		view.ExpiresAt = *call.ExpiresAt
-	}
-	return view, nil
+	return &dtos.CallView{Number: call.Number, Masked: call.Masked, ExpiresAt: call.ExpiresAt}, nil
 }

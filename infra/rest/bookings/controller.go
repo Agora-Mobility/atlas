@@ -651,8 +651,8 @@ func (c *Controller) BookingMessages(ctx *gin.Context) {
 
 // CallWorkshop godoc
 //
-//	@Summary		Call the workshop through a masked number
-//	@Description	Answers 503 CALLS_UNAVAILABLE without a provider.
+//	@Summary		Number to call the workshop
+//	@Description	With a masked call provider (CALLS_BASE_URL) number is a temporary proxy and masked is true; without one it is the phone of the workshop. 503 CALLS_UNAVAILABLE when the provider fails.
 //	@Tags			Maintenance
 //	@Produce		json
 //	@Param			id	path		string	true	"Booking id"

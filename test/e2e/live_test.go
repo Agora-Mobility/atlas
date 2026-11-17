@@ -63,14 +63,15 @@ func TestChatOnlyWorksDuringTheRequestAndArrivesBySSE(t *testing.T) {
 	assert.Len(t, customer.get(t, path).body["items"], 2, "the history stays")
 }
 
-func TestMaskedCallsHideTheNumbersAndFailClearlyWithoutAProvider(t *testing.T) {
+func TestMaskedCallsHideTheNumbersAndFailClearlyWhenTheProviderIsDown(t *testing.T) {
 	customer, driver, id := assignedTaxi(t)
 	path := "/api/v1/requests/" + id + "/call"
 	assert.Equal(t, http.StatusNotFound, newCustomer(t).post(t, path, nil).status)
 
 	call := customer.post(t, path, nil)
 	require.Equal(t, http.StatusOK, call.status, call.text)
-	assert.Equal(t, "+244900111222", call.str("proxy_number"))
+	assert.Equal(t, "+244900111222", call.str("number"))
+	assert.Equal(t, true, call.body["masked"])
 	var driverPhone string
 	require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT phone FROM users WHERE id = $1`, driver.id).Scan(&driverPhone))
 	assert.NotContains(t, call.text, driverPhone, "the number of the driver is not shared")
