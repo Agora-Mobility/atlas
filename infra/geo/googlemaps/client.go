@@ -12,6 +12,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 )
 
 const (
@@ -42,7 +43,7 @@ type Client struct {
 var _ services.IRoutingProvider = (*Client)(nil)
 
 func NewClient(apiKey, baseURL string, timeout time.Duration) *Client {
-	return &Client{apiKey: apiKey, baseURL: strings.TrimRight(baseURL, "/"), http: &http.Client{Timeout: timeout}}
+	return &Client{apiKey: apiKey, baseURL: strings.TrimRight(baseURL, "/"), http: tracing.HTTPClient(timeout)}
 }
 
 type latLng struct {

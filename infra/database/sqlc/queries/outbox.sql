@@ -27,5 +27,11 @@ UPDATE outbox
 SET attempts = attempts + 1, last_error = @last_error
 WHERE id = @id;
 
--- name: CountPendingOutboxEvents :one
-SELECT count(*) FROM outbox WHERE published_at IS NULL;
+-- name: OutboxPendingStats :one
+-- How many events wait to be published and how long the oldest has waited:
+-- the age is the real delay the relay adds to every consumer.
+SELECT
+    count(*)::bigint AS pending,
+    COALESCE(EXTRACT(EPOCH FROM now() - min(created_at)), 0)::float8 AS oldest_age_seconds
+FROM outbox
+WHERE published_at IS NULL;

@@ -4,6 +4,8 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/Agora-Mobility/atlas/config/logger"
 )
@@ -21,6 +23,8 @@ func CorrelationID() gin.HandlerFunc {
 		if id == "" || len(id) > maxCorrelationIDLen {
 			id = uuid.NewString()
 		}
+		// On the span too, so a trace can be found from the id a client reports.
+		trace.SpanFromContext(c.Request.Context()).SetAttributes(attribute.String(logger.CorrelationIDField, id))
 		ctx := logger.WithCorrelationID(c.Request.Context(), id)
 		c.Request = c.Request.WithContext(ctx)
 		c.Header(HeaderCorrelationID, id)

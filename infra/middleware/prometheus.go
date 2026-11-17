@@ -5,8 +5,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	promclient "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/Agora-Mobility/atlas/infra/observability/prometheus"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 )
 
 // Prometheus records request count and latency per route template, so
@@ -32,6 +34,19 @@ func Prometheus(skipPaths ...string) gin.HandlerFunc {
 		}
 		method := c.Request.Method
 		prometheus.HTTPRequests.WithLabelValues(method, route, strconv.Itoa(c.Writer.Status())).Inc()
-		prometheus.HTTPDuration.WithLabelValues(method, route).Observe(time.Since(start).Seconds())
+		observe(prometheus.HTTPDuration.WithLabelValues(method, route), time.Since(start).Seconds(),
+			tracing.SampledTraceID(c.Request.Context()))
 	}
+}
+
+// observe attaches the trace id as an exemplar, so a latency spike in Grafana
+// links straight to one of the requests that caused it.
+func observe(o promclient.Observer, value float64, traceID string) {
+	if traceID != "" {
+		if eo, ok := o.(promclient.ExemplarObserver); ok {
+			eo.ObserveWithExemplar(value, promclient.Labels{"trace_id": traceID})
+			return
+		}
+	}
+	o.Observe(value)
 }

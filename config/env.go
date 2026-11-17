@@ -20,6 +20,7 @@ type Config struct {
 	App        AppConfig        `mapstructure:",squash"`
 	HTTP       HTTPConfig       `mapstructure:",squash"`
 	Log        LogConfig        `mapstructure:",squash"`
+	Telemetry  TelemetryConfig  `mapstructure:",squash"`
 	Database   DatabaseConfig   `mapstructure:",squash"`
 	Redis      RedisConfig      `mapstructure:",squash"`
 	RabbitMQ   RabbitMQConfig   `mapstructure:",squash"`
@@ -242,6 +243,22 @@ type LogConfig struct {
 	Output string `mapstructure:"LOG_OUTPUT"`
 }
 
+// TelemetryConfig controls traces and where /metrics is served.
+type TelemetryConfig struct {
+	// OTLPEndpoint is the OTLP gRPC collector (http://alloy:4317). Empty
+	// turns tracing off.
+	OTLPEndpoint string `mapstructure:"OTEL_EXPORTER_OTLP_ENDPOINT"`
+	// TraceSampleRatio is the share of new traces exported, in (0, 1].
+	TraceSampleRatio float64 `mapstructure:"OTEL_TRACES_SAMPLE_RATIO"`
+	// MetricsPort serves /metrics on its own internal listener. Zero keeps
+	// it on the public HTTP port.
+	MetricsPort int `mapstructure:"METRICS_PORT"`
+}
+
+func (c TelemetryConfig) TracingEnabled() bool {
+	return strings.TrimSpace(c.OTLPEndpoint) != ""
+}
+
 type DatabaseConfig struct {
 	URL             string        `mapstructure:"DATABASE_URL"`
 	MaxConns        int32         `mapstructure:"DB_MAX_CONNS"`
@@ -328,6 +345,9 @@ var defaults = map[string]any{
 	"AUTH_RATE_LIMIT_REQUESTS":              10,
 	"AUTH_RATE_LIMIT_WINDOW":                "1m",
 	"LOG_LEVEL":                             "info",
+	"OTEL_EXPORTER_OTLP_ENDPOINT":           "",
+	"OTEL_TRACES_SAMPLE_RATIO":              1.0,
+	"METRICS_PORT":                          0,
 	"LOG_OUTPUT":                            "stdout",
 	"DB_MAX_CONNS":                          20,
 	"DB_MIN_CONNS":                          2,
@@ -515,6 +535,12 @@ func (c *Config) validate() error {
 	}
 	if c.HTTP.Port <= 0 || c.HTTP.Port > 65535 {
 		errs = append(errs, fmt.Errorf("HTTP_PORT out of range: %d", c.HTTP.Port))
+	}
+	if c.Telemetry.TraceSampleRatio <= 0 || c.Telemetry.TraceSampleRatio > 1 {
+		errs = append(errs, fmt.Errorf("OTEL_TRACES_SAMPLE_RATIO must be in (0, 1], got %v", c.Telemetry.TraceSampleRatio))
+	}
+	if c.Telemetry.MetricsPort < 0 || c.Telemetry.MetricsPort > 65535 || (c.Telemetry.MetricsPort != 0 && c.Telemetry.MetricsPort == c.HTTP.Port) {
+		errs = append(errs, fmt.Errorf("METRICS_PORT must be 0 or a free port other than HTTP_PORT, got %d", c.Telemetry.MetricsPort))
 	}
 	if c.HTTP.RateLimitRequests <= 0 || c.HTTP.RateLimitWindow <= 0 {
 		errs = append(errs, errors.New("RATE_LIMIT_REQUESTS and RATE_LIMIT_WINDOW must be positive"))

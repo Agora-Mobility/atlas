@@ -17,6 +17,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 )
 
 const (
@@ -59,7 +60,7 @@ var _ services.IPaymentGateway = (*Client)(nil)
 
 func New(settings Settings) *Client {
 	settings.BaseURL = strings.TrimRight(settings.BaseURL, "/")
-	return &Client{settings: settings, http: &http.Client{Timeout: settings.Timeout}, now: time.Now}
+	return &Client{settings: settings, http: tracing.HTTPClient(settings.Timeout), now: time.Now}
 }
 
 func (c *Client) Enabled() bool { return true }
