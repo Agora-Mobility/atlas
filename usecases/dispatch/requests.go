@@ -63,7 +63,7 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	if policy.BookingOnly {
 		return nil, false, entities.ErrBookingOnly
 	}
-	paymentMethod, err := u.checkPayment(ctx, customerID, service.CategoryID, in.PaymentMethod)
+	paymentMethod, err := u.checkPayment(ctx, service.CategoryID, in.PaymentMethod)
 	if err != nil {
 		return nil, false, err
 	}
@@ -235,14 +235,7 @@ func withoutServerFields(details json.RawMessage) json.RawMessage {
 	return cleaned
 }
 
-func (u *Usecase) checkPayment(ctx context.Context, customerID, categoryID uuid.UUID, requested string) (entities.PaymentMethod, error) {
-	outstanding, err := u.Payments.FindOutstanding(ctx, customerID)
-	if err != nil {
-		return "", err
-	}
-	if outstanding != nil {
-		return "", outstanding
-	}
+func (u *Usecase) checkPayment(ctx context.Context, categoryID uuid.UUID, requested string) (entities.PaymentMethod, error) {
 	method := entities.PaymentMethod(requested)
 	if method == "" {
 		method = entities.PaymentCash
