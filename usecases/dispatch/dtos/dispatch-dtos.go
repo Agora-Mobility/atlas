@@ -357,11 +357,12 @@ type PublicTrip struct {
 }
 
 type ETAView struct {
-	DurationS int           `json:"duration_s"`
-	DistanceM int           `json:"distance_m"`
-	Source    string        `json:"source"`
-	Target    string        `json:"target"`
-	Position  *PositionView `json:"position,omitempty"`
+	DurationS     int           `json:"duration_s"`
+	DistanceM     int           `json:"distance_m"`
+	Source        string        `json:"source"`
+	Target        string        `json:"target"`
+	Position      *PositionView `json:"position,omitempty"`
+	RouteGeometry string        `json:"route_geometry,omitempty" example:"zmrv@cbdpA..."`
 }
 
 type CallView struct {

@@ -231,6 +231,7 @@ type liveETA struct {
 	meters   int
 	source   string
 	target   string
+	geometry string
 }
 
 func (u *Usecase) etaOf(ctx context.Context, request *entities.ServiceRequest) (*liveETA, error) {
@@ -254,7 +255,7 @@ func (u *Usecase) etaOf(ctx context.Context, request *entities.ServiceRequest) (
 	}
 	return &liveETA{
 		position: &dtos.PositionView{Lat: position.Point.Lat, Lng: position.Point.Lng, AgeS: int(u.now().Sub(position.RecordedAt).Seconds())},
-		seconds:  int(route.Duration.Seconds()), meters: route.DistanceMeters, source: string(route.Source), target: name,
+		seconds:  int(route.Duration.Seconds()), meters: route.DistanceMeters, source: string(route.Source), target: name, geometry: route.Geometry,
 	}, nil
 }
 
@@ -267,7 +268,7 @@ func (u *Usecase) ETA(ctx context.Context, userID, requestID uuid.UUID) (*dtos.E
 	if err != nil {
 		return nil, err
 	}
-	return &dtos.ETAView{DurationS: eta.seconds, DistanceM: eta.meters, Source: eta.source, Target: eta.target, Position: eta.position}, nil
+	return &dtos.ETAView{DurationS: eta.seconds, DistanceM: eta.meters, Source: eta.source, Target: eta.target, Position: eta.position, RouteGeometry: eta.geometry}, nil
 }
 
 func (u *Usecase) Call(ctx context.Context, userID, requestID uuid.UUID) (*dtos.CallView, error) {

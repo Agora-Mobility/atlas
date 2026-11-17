@@ -174,8 +174,8 @@ func (c *DispatchController) PublicTrip(ctx *gin.Context) {
 
 // ETA godoc
 //
-//	@Summary		Time until the provider arrives
-//	@Description	From the last position of the provider, by route. source tells whether it came from Google Maps or from the fallback.
+//	@Summary		Time and route until the provider arrives
+//	@Description	From the last position of the provider, by route: to the pickup until the trip starts (target pickup), then to the destination (target destination). route_geometry is that route as a Google encoded polyline (precision 5), the same format as the route_geometry of the request, to draw on the map. source tells whether it came from Google Maps or from the fallback; the fallback has no route_geometry.
 //	@Tags			Live request
 //	@Produce		json
 //	@Param			id	path		string	true	"Request id"
