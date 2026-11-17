@@ -380,6 +380,62 @@ definitions:
     required:
     - photo_ids
     type: object
+  dtos.AuditActorView:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        enum:
+        - staff
+        - customer
+        - provider
+        - system
+        type: string
+    type: object
+  dtos.AuditEntryView:
+    properties:
+      action:
+        example: service_tariff.publish
+        type: string
+      actor:
+        $ref: '#/definitions/dtos.AuditActorView'
+      after:
+        type: object
+      before:
+        type: object
+      correlation_id:
+        type: string
+      entity:
+        example: service_tariff
+        type: string
+      entity_id:
+        type: string
+      id:
+        type: string
+      occurred_at:
+        type: string
+      organization_id:
+        type: string
+      reason:
+        type: string
+    type: object
+  dtos.AuditPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.AuditEntryView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
   dtos.AvatarInput:
     properties:
       photo_id:
@@ -6535,6 +6591,70 @@ info:
   title: Atlas API
   version: "1.0"
 paths:
+  /api/v1/admin/audit:
+    get:
+      description: Requires audit:read. Newest first. Every change of tariffs, policies,
+        accounts, roles and the rest of the backoffice, with who made it and the values
+        before and after. Passwords, hashes, tokens and secrets come as ***; IP and
+        user agent are not shown. An entry without actor is a system action.
+      parameters:
+      - description: Who made the change
+        in: query
+        name: actor_id
+        type: string
+      - description: Type of entity, such as service_tariff or user
+        in: query
+        name: entity
+        type: string
+      - description: Id of the entity
+        in: query
+        name: entity_id
+        type: string
+      - description: Action, such as service_tariff.publish
+        in: query
+        name: action
+        type: string
+      - description: At or after, YYYY-MM-DD or RFC 3339
+        in: query
+        name: from
+        type: string
+      - description: Before, YYYY-MM-DD or RFC 3339
+        in: query
+        name: to
+        type: string
+      - description: Page (from 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (max 100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.AuditPage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing audit:read
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Invalid filters
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Read the audit log
+      tags:
+      - Backoffice audit
   /api/v1/admin/block-reasons:
     get:
       description: Requires users:block. The active reasons an account can be blocked

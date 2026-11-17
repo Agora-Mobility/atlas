@@ -14,6 +14,39 @@ import (
 	"github.com/google/uuid"
 )
 
+const countAuditLog = `-- name: CountAuditLog :one
+SELECT count(*) FROM audit_log a
+WHERE ($1::uuid IS NULL OR a.actor_id = $1)
+  AND ($2::text = '' OR a.entity_type = $2::text)
+  AND ($3::text = '' OR a.entity_id = $3::text)
+  AND ($4::text = '' OR a.action = $4::text)
+  AND ($5::timestamptz IS NULL OR a.created_at >= $5)
+  AND ($6::timestamptz IS NULL OR a.created_at < $6)
+`
+
+type CountAuditLogParams struct {
+	ActorID     *uuid.UUID `json:"actor_id"`
+	EntityType  string     `json:"entity_type"`
+	EntityID    string     `json:"entity_id"`
+	Action      string     `json:"action"`
+	CreatedFrom *time.Time `json:"created_from"`
+	CreatedTo   *time.Time `json:"created_to"`
+}
+
+func (q *Queries) CountAuditLog(ctx context.Context, arg CountAuditLogParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAuditLog,
+		arg.ActorID,
+		arg.EntityType,
+		arg.EntityID,
+		arg.Action,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAuditLog = `-- name: CreateAuditLog :exec
 INSERT INTO audit_log (
     id, actor_id, actor_role, organization_id, action, entity_type, entity_id, before, after,
@@ -60,4 +93,88 @@ func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) 
 		arg.CreatedAt,
 	)
 	return err
+}
+
+const listAuditLog = `-- name: ListAuditLog :many
+SELECT a.id, a.actor_id, a.actor_role, u.name AS actor_name, a.organization_id, a.action, a.entity_type, a.entity_id, a.before, a.after, a.reason, a.correlation_id, a.created_at
+FROM audit_log a
+LEFT JOIN users u ON u.id = a.actor_id
+WHERE ($1::uuid IS NULL OR a.actor_id = $1)
+  AND ($2::text = '' OR a.entity_type = $2::text)
+  AND ($3::text = '' OR a.entity_id = $3::text)
+  AND ($4::text = '' OR a.action = $4::text)
+  AND ($5::timestamptz IS NULL OR a.created_at >= $5)
+  AND ($6::timestamptz IS NULL OR a.created_at < $6)
+ORDER BY a.created_at DESC, a.id DESC
+LIMIT $8 OFFSET $7
+`
+
+type ListAuditLogParams struct {
+	ActorID     *uuid.UUID `json:"actor_id"`
+	EntityType  string     `json:"entity_type"`
+	EntityID    string     `json:"entity_id"`
+	Action      string     `json:"action"`
+	CreatedFrom *time.Time `json:"created_from"`
+	CreatedTo   *time.Time `json:"created_to"`
+	PageOffset  int32      `json:"page_offset"`
+	PageLimit   int32      `json:"page_limit"`
+}
+
+type ListAuditLogRow struct {
+	ID             uuid.UUID       `json:"id"`
+	ActorID        *uuid.UUID      `json:"actor_id"`
+	ActorRole      *enums.Role     `json:"actor_role"`
+	ActorName      *string         `json:"actor_name"`
+	OrganizationID *uuid.UUID      `json:"organization_id"`
+	Action         string          `json:"action"`
+	EntityType     string          `json:"entity_type"`
+	EntityID       string          `json:"entity_id"`
+	Before         json.RawMessage `json:"before"`
+	After          json.RawMessage `json:"after"`
+	Reason         string          `json:"reason"`
+	CorrelationID  string          `json:"correlation_id"`
+	CreatedAt      time.Time       `json:"created_at"`
+}
+
+func (q *Queries) ListAuditLog(ctx context.Context, arg ListAuditLogParams) ([]ListAuditLogRow, error) {
+	rows, err := q.db.Query(ctx, listAuditLog,
+		arg.ActorID,
+		arg.EntityType,
+		arg.EntityID,
+		arg.Action,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAuditLogRow{}
+	for rows.Next() {
+		var i ListAuditLogRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ActorID,
+			&i.ActorRole,
+			&i.ActorName,
+			&i.OrganizationID,
+			&i.Action,
+			&i.EntityType,
+			&i.EntityID,
+			&i.Before,
+			&i.After,
+			&i.Reason,
+			&i.CorrelationID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
