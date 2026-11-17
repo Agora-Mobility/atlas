@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.7.0](https://github.com/Agora-Mobility/atlas/compare/v3.6.0...v3.7.0) (2026-11-17)
+
+
+### Features
+
+* avatar of the provider in the request ([51d2481](https://github.com/Agora-Mobility/atlas/commit/51d24813991207d3bb5cd6d556ad324baebe1861))
+* **dispatch:** show the avatar of the provider to the customer ([702d66f](https://github.com/Agora-Mobility/atlas/commit/702d66ff7497b45766fe340fab1b5058da5ead5d))
+
 ## [3.6.0](https://github.com/Agora-Mobility/atlas/compare/v3.5.0...v3.6.0) (2026-11-17)
 
 
