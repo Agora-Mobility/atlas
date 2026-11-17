@@ -13,6 +13,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/domain/repository"
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/observability/businessmetrics"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/usecases/dispatch/dtos"
@@ -770,7 +771,11 @@ func (u *Usecase) providerSummary(ctx context.Context, providerID *uuid.UUID) (*
 	if err != nil {
 		return nil, err
 	}
-	summary := &dtos.ProviderSummary{ID: *providerID, Name: name}
+	avatar, err := u.avatarOf(ctx, *providerID)
+	if err != nil {
+		return nil, err
+	}
+	summary := &dtos.ProviderSummary{ID: *providerID, Name: name, AvatarURL: avatar}
 	profile, err := u.Providers.Find(ctx, *providerID)
 	if err != nil {
 		return nil, err
@@ -780,6 +785,21 @@ func (u *Usecase) providerSummary(ctx context.Context, providerID *uuid.UUID) (*
 		summary.Rating, summary.RatingCount, summary.CompletedRequests = entities.AverageRating(profile.RatingSum, profile.RatingCount), profile.RatingCount, profile.CompletedRequests
 	}
 	return summary, nil
+}
+
+func (u *Usecase) avatarOf(ctx context.Context, userID uuid.UUID) (string, error) {
+	key, err := u.Account.Avatar(ctx, userID)
+	if err != nil || key == "" {
+		return "", err
+	}
+	signed, err := u.Storage.PresignDownload(ctx, key)
+	if errors.Is(err, services.ErrStorageUnavailable) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return signed.URL, nil
 }
 
 func (u *Usecase) quotesOf(ctx context.Context, request *entities.ServiceRequest) ([]dtos.QuoteView, error) {

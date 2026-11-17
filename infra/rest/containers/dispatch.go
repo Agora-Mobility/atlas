@@ -45,7 +45,7 @@ func newCallBridge(cfg config.CallsConfig) services.ICallBridge {
 	return calls.NewBridge(cfg.BaseURL, cfg.APIKey, cfg.Timeout)
 }
 
-func newDispatchModule(c *Container, pushSender services.IPushSender, routingProvider services.IRoutingProvider) *DispatchModule {
+func newDispatchModule(c *Container, pushSender services.IPushSender, routingProvider services.IRoutingProvider, storage services.IObjectStorage) *DispatchModule {
 	cfg := c.Config
 	geo := h3index.New()
 	mailbox := realtime.NewMailbox(c.Redis, cfg.Realtime.MailboxEntries, cfg.Realtime.MailboxTTL)
@@ -69,6 +69,8 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Calls:     newCallBridge(cfg.Calls),
 		Removals:  repository.NewRemovalRepository(c.Pool),
 		Devices:   devices,
+		Account:   repository.NewAccountRepository(c.Pool),
+		Storage:   storage,
 		Locator:   locator,
 		Outbox:    c.Outbox,
 		Tx:        c.TxManager,

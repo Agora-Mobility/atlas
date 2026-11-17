@@ -21489,6 +21489,10 @@ const docTemplate = `{
         "dtos.ProviderSummary": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://files.agora.ao/avatars/1.jpg?X-Amz-Signature=..."
+                },
                 "completed_requests": {
                     "type": "integer"
                 },

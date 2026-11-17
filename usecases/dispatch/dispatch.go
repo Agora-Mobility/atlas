@@ -121,6 +121,8 @@ type Deps struct {
 	Refunds   PrepaidRefunder
 	Calls     services.ICallBridge
 	Devices   repository.IDeviceRepository
+	Account   repository.IAccountRepository
+	Storage   services.IObjectStorage
 	Locator   repository.IProviderLocator
 	Outbox    repository.IOutboxRepository
 	Tx        repository.ITransactionManager

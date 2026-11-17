@@ -122,8 +122,8 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 	if err != nil {
 		return nil, err
 	}
-	c.Dispatch = newDispatchModule(c, pushSender, newRoutingProvider(cfg.GoogleMaps))
 	storage := newObjectStorage(cfg.R2)
+	c.Dispatch = newDispatchModule(c, pushSender, newRoutingProvider(cfg.GoogleMaps), storage)
 	c.Verification = newVerificationModule(c, storage)
 	c.Providers = newProvidersModule(c, storage)
 	c.Fleet = newFleetModule(c)
