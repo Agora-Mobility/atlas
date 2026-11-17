@@ -16,6 +16,7 @@ var adjustmentLabels = map[entities.FareAdjustmentReason]string{
 	entities.AdjustmentBoost:       "Aumento da oferta",
 	entities.AdjustmentWaiting:     "Tempo de espera",
 	entities.AdjustmentRouteChange: "Alteração de rota",
+	entities.AdjustmentDemand:      "Procura alta",
 }
 
 func (u *Usecase) breakdownOf(ctx context.Context, request *entities.ServiceRequest, adjustments []entities.FareAdjustment) (*dtos.FareBreakdown, error) {

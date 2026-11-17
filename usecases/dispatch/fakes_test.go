@@ -268,7 +268,9 @@ func (fakeRatings) OfRequest(context.Context, uuid.UUID) (*entities.Rating, erro
 
 type fakePayments struct{ repository.IPaymentRepository }
 
-func (fakePayments) HasOutstanding(context.Context, uuid.UUID) (bool, error) { return false, nil }
+func (fakePayments) FindOutstanding(context.Context, uuid.UUID) (*entities.OutstandingPaymentError, error) {
+	return nil, nil
+}
 
 func (fakePayments) IsMethodEnabled(context.Context, uuid.UUID, entities.PaymentMethod) (bool, error) {
 	return true, nil

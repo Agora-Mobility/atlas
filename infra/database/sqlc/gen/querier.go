@@ -48,6 +48,7 @@ type Querier interface {
 	CountProviderRatings(ctx context.Context, providerID *uuid.UUID) (int64, error)
 	CountReferrals(ctx context.Context, referrerID uuid.UUID) (CountReferralsRow, error)
 	CountRemovalsOfDay(ctx context.Context, arg CountRemovalsOfDayParams) (int64, error)
+	CountRequestsByHeatCell(ctx context.Context, arg CountRequestsByHeatCellParams) ([]CountRequestsByHeatCellRow, error)
 	CountRequestsOfCustomer(ctx context.Context, arg CountRequestsOfCustomerParams) (int64, error)
 	CountSOSAlerts(ctx context.Context, status string) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
@@ -90,9 +91,11 @@ type Querier interface {
 	DeleteRole(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteRolePermissions(ctx context.Context, roleID uuid.UUID) error
 	DeleteServiceRequestStops(ctx context.Context, requestID uuid.UUID) error
+	DeleteStaleHeatmapCells(ctx context.Context, arg DeleteStaleHeatmapCellsParams) (int64, error)
 	DeleteUserDeviceToken(ctx context.Context, arg DeleteUserDeviceTokenParams) error
 	DeleteWorkshopClosure(ctx context.Context, arg DeleteWorkshopClosureParams) error
 	DeleteWorkshopHours(ctx context.Context, workshopID uuid.UUID) error
+	DeleteWorkshopPhotos(ctx context.Context, workshopID uuid.UUID) error
 	DemandByCell(ctx context.Context, arg DemandByCellParams) ([]DemandByCellRow, error)
 	DuePayments(ctx context.Context, arg DuePaymentsParams) ([]uuid.UUID, error)
 	DueRequestOffers(ctx context.Context, arg DueRequestOffersParams) ([]uuid.UUID, error)
@@ -103,9 +106,11 @@ type Querier interface {
 	// concurrently without publishing the same event twice.
 	FetchPendingOutboxEvents(ctx context.Context, batchSize int32) ([]FetchPendingOutboxEventsRow, error)
 	FilterEligibleProviders(ctx context.Context, arg FilterEligibleProvidersParams) ([]FilterEligibleProvidersRow, error)
+	FindOutstandingPayment(ctx context.Context, customerID uuid.UUID) (FindOutstandingPaymentRow, error)
 	FindServiceRequestByIdempotencyKey(ctx context.Context, arg FindServiceRequestByIdempotencyKeyParams) (ServiceRequest, error)
 	FindUserByReferralCode(ctx context.Context, referralCode *string) (uuid.UUID, error)
 	FindZoneCoveringPoint(ctx context.Context, arg FindZoneCoveringPointParams) (uuid.UUID, error)
+	FlowsByCell(ctx context.Context, arg FlowsByCellParams) ([]FlowsByCellRow, error)
 	GetActiveClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetActiveReason(ctx context.Context, arg GetActiveReasonParams) (RejectionReason, error)
 	GetAddress(ctx context.Context, id uuid.UUID) (GetAddressRow, error)
@@ -118,6 +123,7 @@ type Querier interface {
 	GetCatalogItems(ctx context.Context, ids []uuid.UUID) ([]GetCatalogItemsRow, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (ServiceCategory, error)
 	GetCustomerVehicle(ctx context.Context, arg GetCustomerVehicleParams) (CustomerVehicle, error)
+	GetDemandPricing(ctx context.Context, arg GetDemandPricingParams) (DemandPricing, error)
 	GetDispatchPolicy(ctx context.Context, id uuid.UUID) (DispatchPolicy, error)
 	GetDocumentFile(ctx context.Context, id uuid.UUID) (ProviderDocumentFile, error)
 	GetETAObservation(ctx context.Context, arg GetETAObservationParams) (GetETAObservationRow, error)
@@ -170,6 +176,7 @@ type Querier interface {
 	GetServiceZone(ctx context.Context, id uuid.UUID) (GetServiceZoneRow, error)
 	GetSystemRoleByCode(ctx context.Context, arg GetSystemRoleByCodeParams) (Role, error)
 	GetTicket(ctx context.Context, id uuid.UUID) (SupportTicket, error)
+	GetTripMetrics(ctx context.Context, requestID uuid.UUID) (RequestTripMetric, error)
 	GetUserAddress(ctx context.Context, arg GetUserAddressParams) (GetUserAddressRow, error)
 	GetUserAvatar(ctx context.Context, id uuid.UUID) (GetUserAvatarRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
@@ -186,7 +193,6 @@ type Querier interface {
 	GetWorkshopMechanic(ctx context.Context, id uuid.UUID) (WorkshopMechanic, error)
 	GetWorkshopProfile(ctx context.Context, id uuid.UUID) (GetWorkshopProfileRow, error)
 	GetWorkshopService(ctx context.Context, id uuid.UUID) (WorkshopService, error)
-	HasOutstandingPayment(ctx context.Context, customerID uuid.UUID) (bool, error)
 	HasPaidRequest(ctx context.Context, customerID uuid.UUID) (bool, error)
 	IncrementProviderCancellations(ctx context.Context, userID uuid.UUID) error
 	InsertBooking(ctx context.Context, arg InsertBookingParams) error
@@ -195,6 +201,7 @@ type Querier interface {
 	InsertBookingItem(ctx context.Context, arg InsertBookingItemParams) error
 	InsertCatalogItem(ctx context.Context, arg InsertCatalogItemParams) error
 	InsertCustomerVehicle(ctx context.Context, arg InsertCustomerVehicleParams) error
+	InsertDemandSnapshot(ctx context.Context, arg InsertDemandSnapshotParams) error
 	InsertFareAdjustment(ctx context.Context, arg InsertFareAdjustmentParams) error
 	InsertInboxItem(ctx context.Context, arg InsertInboxItemParams) error
 	InsertLedgerEntry(ctx context.Context, arg InsertLedgerEntryParams) error
@@ -221,6 +228,7 @@ type Querier interface {
 	InsertVoucherRedemption(ctx context.Context, arg InsertVoucherRedemptionParams) error
 	InsertWorkshopHours(ctx context.Context, arg InsertWorkshopHoursParams) error
 	InsertWorkshopMechanic(ctx context.Context, arg InsertWorkshopMechanicParams) error
+	InsertWorkshopPhoto(ctx context.Context, arg InsertWorkshopPhotoParams) error
 	IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMethodEnabledParams) (bool, error)
 	IsValidZoneGeometry(ctx context.Context, geojson string) (bool, error)
 	LedgerBalance(ctx context.Context, arg LedgerBalanceParams) (int64, error)
@@ -245,6 +253,8 @@ type Querier interface {
 	ListCurrentServiceTariffs(ctx context.Context) ([]ServiceTariff, error)
 	ListCustomerBookings(ctx context.Context, arg ListCustomerBookingsParams) ([]uuid.UUID, error)
 	ListCustomerVehicles(ctx context.Context, customerID uuid.UUID) ([]CustomerVehicle, error)
+	ListDemandPricing(ctx context.Context) ([]DemandPricing, error)
+	ListDemandSnapshots(ctx context.Context, arg ListDemandSnapshotsParams) ([]DemandSnapshot, error)
 	ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]string, error)
 	ListDispatchPolicies(ctx context.Context) ([]DispatchPolicy, error)
 	ListDocumentFiles(ctx context.Context, documentID uuid.UUID) ([]ProviderDocumentFile, error)
@@ -308,6 +318,7 @@ type Querier interface {
 	ListWorkshopClosures(ctx context.Context, arg ListWorkshopClosuresParams) ([]ListWorkshopClosuresRow, error)
 	ListWorkshopHours(ctx context.Context, workshopID uuid.UUID) ([]WorkshopHour, error)
 	ListWorkshopMechanics(ctx context.Context, workshopID uuid.UUID) ([]WorkshopMechanic, error)
+	ListWorkshopPhotos(ctx context.Context, workshopID uuid.UUID) ([]MediaUpload, error)
 	ListWorkshopRatings(ctx context.Context, arg ListWorkshopRatingsParams) ([]ListWorkshopRatingsRow, error)
 	ListWorkshopServices(ctx context.Context, workshopID uuid.UUID) ([]WorkshopService, error)
 	ListWorkshops(ctx context.Context, arg ListWorkshopsParams) ([]Workshop, error)
@@ -330,8 +341,11 @@ type Querier interface {
 	NextRequestCode(ctx context.Context, id uuid.UUID) (string, error)
 	NextTicketCode(ctx context.Context) (string, error)
 	OfferRejectionReport(ctx context.Context, arg OfferRejectionReportParams) ([]OfferRejectionReportRow, error)
+	PendingCustomersByCell(ctx context.Context, arg PendingCustomersByCellParams) ([]PendingCustomersByCellRow, error)
 	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)
 	ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithActiveJobParams) ([]uuid.UUID, error)
+	PurgeDemandSnapshots(ctx context.Context, recordedAt time.Time) (int64, error)
+	PurgeHeatmapCells(ctx context.Context, before time.Time) (int64, error)
 	PurgeLocationSamples(ctx context.Context, recordedAt time.Time) (int64, error)
 	RecentRequestOfUser(ctx context.Context, customerID uuid.UUID) (RecentRequestOfUserRow, error)
 	RecordETAObservation(ctx context.Context, arg RecordETAObservationParams) error
@@ -339,6 +353,7 @@ type Querier interface {
 	ReleaseVehicleOfProvider(ctx context.Context, providerID *uuid.UUID) error
 	ReleaseVoucherRedemption(ctx context.Context, requestID *uuid.UUID) error
 	RemoveWorkshopFavorite(ctx context.Context, arg RemoveWorkshopFavoriteParams) error
+	RequestsWithoutHeatCell(ctx context.Context, arg RequestsWithoutHeatCellParams) ([]RequestsWithoutHeatCellRow, error)
 	ResolveDispatchPolicy(ctx context.Context, arg ResolveDispatchPolicyParams) (DispatchPolicy, error)
 	ResolveSOSAlert(ctx context.Context, arg ResolveSOSAlertParams) (int64, error)
 	RevokePendingInvitations(ctx context.Context, arg RevokePendingInvitationsParams) error
@@ -360,13 +375,17 @@ type Querier interface {
 	SetCategoryPaymentMethod(ctx context.Context, arg SetCategoryPaymentMethodParams) (int64, error)
 	SetPaymentGatewayFee(ctx context.Context, arg SetPaymentGatewayFeeParams) (int64, error)
 	SetReferralCode(ctx context.Context, arg SetReferralCodeParams) error
+	SetRequestHeatCells(ctx context.Context, arg SetRequestHeatCellsParams) (int64, error)
 	SetRequestPayment(ctx context.Context, arg SetRequestPaymentParams) error
 	SetTicketStatus(ctx context.Context, arg SetTicketStatusParams) (int64, error)
 	SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
+	SumHeatmapCells(ctx context.Context, arg SumHeatmapCellsParams) ([]SumHeatmapCellsRow, error)
 	SummarizeRequests(ctx context.Context, arg SummarizeRequestsParams) ([]SummarizeRequestsRow, error)
 	SupersedeDocumentFiles(ctx context.Context, arg SupersedeDocumentFilesParams) error
 	TouchProviderJobCompleted(ctx context.Context, arg TouchProviderJobCompletedParams) error
+	TrackedDistanceMeters(ctx context.Context, arg TrackedDistanceMetersParams) (TrackedDistanceMetersRow, error)
+	TryLockHeatmap(ctx context.Context) (bool, error)
 	TryLockServiceRequest(ctx context.Context, id uuid.UUID) (ServiceRequest, error)
 	UnbalancedLedgerTransactions(ctx context.Context) (int64, error)
 	UnpaidPrepaidRequests(ctx context.Context, arg UnpaidPrepaidRequestsParams) ([]uuid.UUID, error)
@@ -393,10 +412,13 @@ type Querier interface {
 	UpdateVoucher(ctx context.Context, arg UpdateVoucherParams) error
 	UpdateWorkshopSchedule(ctx context.Context, arg UpdateWorkshopScheduleParams) (int64, error)
 	UpsertCancellationRule(ctx context.Context, arg UpsertCancellationRuleParams) error
+	UpsertDemandPricing(ctx context.Context, arg UpsertDemandPricingParams) error
 	UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) error
+	UpsertHeatmapCells(ctx context.Context, arg UpsertHeatmapCellsParams) error
 	UpsertPlatformSetting(ctx context.Context, arg UpsertPlatformSettingParams) error
 	UpsertProvider(ctx context.Context, arg UpsertProviderParams) error
 	UpsertRequestOffer(ctx context.Context, arg UpsertRequestOfferParams) (int64, error)
+	UpsertTripMetrics(ctx context.Context, arg UpsertTripMetricsParams) error
 	UpsertVehicle(ctx context.Context, arg UpsertVehicleParams) error
 	UpsertWorkshopClosure(ctx context.Context, arg UpsertWorkshopClosureParams) error
 	UseFareEstimate(ctx context.Context, arg UseFareEstimateParams) (int64, error)

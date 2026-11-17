@@ -39,7 +39,7 @@ func (r *RequestRepository) Create(ctx context.Context, s *entities.ServiceReque
 			DestinationH3R8: s.DestinationH3, PassengerName: s.PassengerName, PassengerPhone: s.PassengerPhone, Details: s.Details,
 			ScheduledFor: s.ScheduledFor, SearchRound: int16(s.SearchRound), SearchExtended: s.SearchExtended, SearchDeadlineAt: s.SearchDeadline, // #nosec G115 -- small counter
 			NextActionAt: s.NextActionAt, ReminderAt: s.ReminderAt, FareEstimateID: s.Fare.EstimateID, FareCents: s.Fare.Cents, CommissionCents: s.Fare.CommissionCents,
-			BoostBps: int32(s.Fare.BoostBps), Currency: s.Fare.Currency, IdempotencyKey: s.IdempotencyKey, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, PaymentMethod: string(s.PaymentMethod), PublicCode: s.PublicCode, VehicleTypeID: s.VehicleTypeID, CompletionCode: s.CompletionCode, WorkshopID: s.WorkshopID, Prepay: s.Prepay, RemovalDay: s.RemovalDay, RemovalWindowID: s.RemovalWindowID, RouteGeometry: s.Fare.RouteGeometry, // #nosec G115 -- 0 to 2000
+			BoostBps: int32(s.Fare.BoostBps), Currency: s.Fare.Currency, IdempotencyKey: s.IdempotencyKey, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, PaymentMethod: string(s.PaymentMethod), PublicCode: s.PublicCode, VehicleTypeID: s.VehicleTypeID, CompletionCode: s.CompletionCode, WorkshopID: s.WorkshopID, Prepay: s.Prepay, RemovalDay: s.RemovalDay, RemovalWindowID: s.RemovalWindowID, RouteGeometry: s.Fare.RouteGeometry, PickupH3R9: heatCellOf(s), // #nosec G115 -- 0 to 2000
 		}
 		if s.Destination != nil {
 			if err := saveAddressOfPlace(ctx, queries, s.Destination); err != nil {
@@ -221,8 +221,8 @@ func (r *RequestRepository) ListFareAdjustments(ctx context.Context, requestID u
 	return out, nil
 }
 
-func (r *RequestRepository) DemandByCell(ctx context.Context, since time.Time, zoneID *uuid.UUID) (map[int64]int64, error) {
-	rows, err := postgres.Queries(ctx, r.pool).DemandByCell(ctx, gen.DemandByCellParams{Since: since, ZoneID: zoneID})
+func (r *RequestRepository) DemandByCell(ctx context.Context, filter repository.HeatFilter) (map[int64]int64, error) {
+	rows, err := postgres.Queries(ctx, r.pool).DemandByCell(ctx, gen.DemandByCellParams{FromAt: filter.From, ToAt: filter.To, ZoneID: filter.ZoneID, Category: filter.Category})
 	if err != nil {
 		return nil, fmt.Errorf("demand by cell: %w", err)
 	}
@@ -231,6 +231,18 @@ func (r *RequestRepository) DemandByCell(ctx context.Context, since time.Time, z
 		demand[row.PickupH3R8] = row.Requests
 	}
 	return demand, nil
+}
+
+func (r *RequestRepository) FlowsByCell(ctx context.Context, filter repository.HeatFilter) ([]repository.CellFlow, error) {
+	rows, err := postgres.Queries(ctx, r.pool).FlowsByCell(ctx, gen.FlowsByCellParams{FromAt: filter.From, ToAt: filter.To, ZoneID: filter.ZoneID, Category: filter.Category})
+	if err != nil {
+		return nil, fmt.Errorf("flows by cell: %w", err)
+	}
+	flows := make([]repository.CellFlow, 0, len(rows))
+	for _, row := range rows {
+		flows = append(flows, repository.CellFlow{Origin: row.PickupH3R8, Destination: row.DestinationH3R8, Requests: row.Requests})
+	}
+	return flows, nil
 }
 
 func (r *RequestRepository) ListWithProviderOnTheWay(ctx context.Context, limit int) ([]*entities.ServiceRequest, error) {
@@ -254,14 +266,14 @@ func (r *RequestRepository) AdminList(ctx context.Context, f repository.AdminReq
 	statuses := emptyStatuses(f.Statuses)
 	rows, err := queries.ListAdminRequests(ctx, gen.ListAdminRequestsParams{
 		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
-		CreatedFrom: f.From, CreatedTo: f.To, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
+		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list admin requests: %w", err)
 	}
 	total, err := queries.CountAdminRequests(ctx, gen.CountAdminRequestsParams{
 		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
-		CreatedFrom: f.From, CreatedTo: f.To,
+		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count admin requests: %w", err)
@@ -273,7 +285,11 @@ func (r *RequestRepository) AdminList(ctx context.Context, f repository.AdminReq
 			ID: row.ID, Status: row.Status, Version: int(row.Version), Category: row.CategorySlug, CategoryName: row.CategoryName, ServiceID: row.ServiceID, ServiceName: row.ServiceName,
 			CustomerID: row.CustomerID, CustomerName: row.CustomerName, ProviderID: row.ProviderID, OrganizationID: row.OrganizationID, ZoneID: row.ZoneID, ZoneName: row.ZoneName,
 			FareCents: row.FareCents, Currency: row.Currency, NeedsOperator: row.NeedsOperator, ScheduledFor: row.ScheduledFor, CreatedAt: row.CreatedAt, CompletedAt: row.CompletedAt,
-			PickupLine: row.PickupLine, PickupLat: row.PickupLat, PickupLng: row.PickupLng,
+			PickupLine: row.PickupLine, PickupLat: row.PickupLat, PickupLng: row.PickupLng, RouteReview: row.RouteReview,
+		}
+		if row.DistanceDeviationBps != nil {
+			deviation := int(*row.DistanceDeviationBps)
+			item.DeviationBps = &deviation
 		}
 		if row.ProviderName != nil {
 			item.ProviderName = *row.ProviderName
@@ -440,7 +456,7 @@ func toRequest(row *gen.ServiceRequest) *entities.ServiceRequest {
 		ID: row.ID, PublicCode: row.PublicCode, CustomerID: row.CustomerID, CategoryID: row.CategoryID, CategorySlug: row.CategorySlug, ServiceID: row.ServiceID, ZoneID: row.ZoneID, PolicyID: row.PolicyID,
 		Status: entities.RequestStatus(row.Status), Version: int(row.Version), Stops: []entities.RequestPlace{},
 		PaymentMethod: entities.PaymentMethod(row.PaymentMethod), PaymentStatus: entities.RequestPaymentStatus(row.PaymentStatus),
-		PickupH3R8: row.PickupH3R8, DestinationH3: row.DestinationH3R8, ContactPhone: row.ContactPhone, PassengerName: row.PassengerName, PassengerPhone: row.PassengerPhone,
+		PickupH3R8: row.PickupH3R8, PickupH3R9: cellOrZero(row.PickupH3R9), DestinationH3: row.DestinationH3R8, ContactPhone: row.ContactPhone, PassengerName: row.PassengerName, PassengerPhone: row.PassengerPhone,
 		Details: row.Details, ScheduledFor: row.ScheduledFor, SearchRound: int(row.SearchRound), SearchExtended: row.SearchExtended, SearchDeadline: row.SearchDeadlineAt,
 		NextActionAt: row.NextActionAt, ReminderAt: row.ReminderAt, ProviderID: row.ProviderID,
 		Fare:          entities.RequestFare{EstimateID: row.FareEstimateID, Cents: row.FareCents, CommissionCents: row.CommissionCents, BoostBps: int(row.BoostBps), Currency: row.Currency, RouteGeometry: row.RouteGeometry},
@@ -567,4 +583,18 @@ func toOffer(row *gen.RequestOffer) *entities.RequestOffer {
 		offer.DistanceM = &distance
 	}
 	return offer
+}
+
+func heatCellOf(s *entities.ServiceRequest) *int64 {
+	if s.PickupH3R9 == 0 {
+		return nil
+	}
+	return &s.PickupH3R9
+}
+
+func cellOrZero(cell *int64) int64 {
+	if cell == nil {
+		return 0
+	}
+	return *cell
 }

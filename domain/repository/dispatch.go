@@ -45,6 +45,9 @@ type IPricingRepository interface {
 	UseEstimate(ctx context.Context, id uuid.UUID, now time.Time) (bool, error)
 	RecordETA(ctx context.Context, originCell, destinationCell int64, hourBand int, duration time.Duration) error
 	LearnedETA(ctx context.Context, originCell, destinationCell int64, hourBand int) (time.Duration, int, error)
+	TrackedDistance(ctx context.Context, requestID uuid.UUID, since time.Time) (meters, samples int, err error)
+	SaveTripMetrics(ctx context.Context, metrics entities.TripMetrics) error
+	FindTripMetrics(ctx context.Context, requestID uuid.UUID) (*entities.TripMetrics, error)
 }
 
 type IProviderRepository interface {
@@ -79,7 +82,8 @@ type IRequestRepository interface {
 	OperatorQueue(ctx context.Context, limit, offset int) ([]*entities.ServiceRequest, error)
 	AddFareAdjustment(ctx context.Context, adjustment entities.FareAdjustment) error
 	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]entities.FareAdjustment, error)
-	DemandByCell(ctx context.Context, since time.Time, zoneID *uuid.UUID) (map[int64]int64, error)
+	DemandByCell(ctx context.Context, filter HeatFilter) (map[int64]int64, error)
+	FlowsByCell(ctx context.Context, filter HeatFilter) ([]CellFlow, error)
 	ListWithProviderOnTheWay(ctx context.Context, limit int) ([]*entities.ServiceRequest, error)
 	AdminList(ctx context.Context, filter AdminRequestFilter) ([]AdminRequest, int64, error)
 	Summary(ctx context.Context, filter AdminRequestFilter) ([]RequestSummaryRow, error)
@@ -106,6 +110,19 @@ type PassengerNotice struct {
 	VehiclePlate string
 }
 
+type HeatFilter struct {
+	From     time.Time
+	To       time.Time
+	ZoneID   *uuid.UUID
+	Category string
+}
+
+type CellFlow struct {
+	Origin      int64
+	Destination int64
+	Requests    int64
+}
+
 type AdminRequestFilter struct {
 	Statuses       []string
 	Category       string
@@ -115,6 +132,7 @@ type AdminRequestFilter struct {
 	ProviderID     *uuid.UUID
 	From           *time.Time
 	To             *time.Time
+	RouteReview    bool
 	Limit          int
 	Offset         int
 }
@@ -145,6 +163,8 @@ type AdminRequest struct {
 	PickupLat        float64
 	PickupLng        float64
 	DestinationLine  string
+	DeviationBps     *int
+	RouteReview      bool
 }
 
 type RequestSummaryRow struct {
@@ -213,6 +233,7 @@ type LiveCandidate struct {
 	ProviderID uuid.UUID
 	Point      entities.GeoPoint
 	RecordedAt time.Time
+	Categories []string
 }
 
 type IProviderLocator interface {

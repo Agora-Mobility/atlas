@@ -63,7 +63,7 @@ var allowedTransitions = map[RequestStatus][]RequestStatus{
 	RequestAwaitingChoice:  {RequestAccepted, RequestCancelled},
 	RequestAccepted:        {RequestProviderEnRoute, RequestCancelled},
 	RequestProviderEnRoute: {RequestInProgress, RequestCancelled},
-	RequestInProgress:      {RequestCompleted},
+	RequestInProgress:      {RequestCompleted, RequestCancelled},
 }
 
 var transitionActors = map[RequestStatus][]RequestActorType{
@@ -134,6 +134,7 @@ type RequestFare struct {
 	VehicleTypeID   *uuid.UUID
 	EstimateDetails json.RawMessage
 	RouteGeometry   string
+	DemandCents     int64
 }
 
 func (f RequestFare) ProviderNetCents() *int64 {
@@ -180,6 +181,7 @@ type ServiceRequest struct {
 	Version         int
 	Pickup          RequestPlace
 	PickupH3R8      int64
+	PickupH3R9      int64
 	Destination     *RequestPlace
 	DestinationH3   *int64
 	Stops           []RequestPlace

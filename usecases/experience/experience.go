@@ -67,7 +67,7 @@ func toItemView(item *entities.CatalogItem) dtos.CatalogItemView {
 	}
 }
 
-func (u *Usecase) ListItems(ctx context.Context, kind, category string, includeInactive bool) (*dtos.CatalogItemList, error) {
+func (u *Usecase) ListItems(ctx context.Context, kind, category, property string, includeInactive bool) (*dtos.CatalogItemList, error) {
 	if !entities.IsCatalogKind(kind) {
 		return nil, ErrUnknownKind
 	}
@@ -77,6 +77,9 @@ func (u *Usecase) ListItems(ctx context.Context, kind, category string, includeI
 	}
 	list := &dtos.CatalogItemList{Items: make([]dtos.CatalogItemView, 0, len(items))}
 	for i := range items {
+		if property != "" && !items[i].AppliesToProperty(property) {
+			continue
+		}
 		list.Items = append(list.Items, toItemView(&items[i]))
 	}
 	return list, nil

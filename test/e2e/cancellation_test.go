@@ -94,17 +94,11 @@ func TestCancellingFollowsTheCatalogueAndTheFeeRule(t *testing.T) {
 		require.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
 		assert.EqualValues(t, fee, cancelled.num("cancel_fee_cents"))
 
-		next := customer.post(t, "/api/v1/fare-estimates", map[string]any{"category": "taxi", "pickup": pickup, "destination": target})
-		require.Equal(t, http.StatusCreated, next.status)
-		option := next.body["items"].([]any)[0].(map[string]any)
-		assert.Equal(t, "PAYMENT_OUTSTANDING", askFor(t, customer, option, nil).code(), "an unpaid fee is a debt")
-
 		paid := customer.post(t, "/api/v1/requests/"+id+"/payments", map[string]any{"method": "gpo", "phone_number": "900000000"})
 		require.Equal(t, http.StatusCreated, paid.status, paid.text)
 		assert.EqualValues(t, fee, paid.num("amount_cents"), "the customer pays the fee and not the fare")
 		env.appypay.settle(paid.str("code"), "Success", 0)
 		require.Eventually(t, func() bool { return customer.get(t, "/api/v1/requests/"+id).str("payment_status") == "paid" }, 15*time.Second, 100*time.Millisecond)
-		assert.Equal(t, http.StatusCreated, askFor(t, customer, option, nil).status, "the debt is gone")
 		_ = driver
 	})
 

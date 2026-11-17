@@ -51,6 +51,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	providers.POST("/offline", retryable, r.controller.GoOffline)
 	providers.POST("/locations", r.controller.ReportLocations)
 	providers.PUT("/coverage", retryable, r.controller.SetCoverage)
+	providers.GET("/demand", r.controller.ProviderDemand)
 
 	requests := signedIn.Group("/requests")
 	signedIn.GET("/cancellation-reasons", r.controller.CancellationReasons)
@@ -109,6 +110,12 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	tariffs.GET("", r.controller.ListTariffs)
 	tariffs.POST("", r.controller.PublishTariff)
 
+	demand := admin.Group("/demand-pricing", can(entities.PermServicesManage))
+	demand.GET("", r.controller.ListDemandPricing)
+	demand.PUT("", r.controller.SaveDemandPricing)
+	demand.GET("/areas", r.controller.DemandAreas)
+	demand.GET("/history", r.controller.DemandHistory)
+
 	admin.GET("/sos", can(entities.PermRequestsRead), r.controller.ListSOS)
 	admin.POST("/sos/:id/resolve", can(entities.PermRequestsManage), r.controller.ResolveSOS)
 	admin.GET("/cancellation-rules", can(entities.PermServicesManage), r.controller.ListCancellationRules)
@@ -126,6 +133,8 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	dispatchOps := admin.Group("/dispatch", can(entities.PermRequestsManage))
 	dispatchOps.GET("/queue", r.controller.OperatorQueue)
 	dispatchOps.GET("/heatmap", r.controller.HeatMap)
+	dispatchOps.GET("/heatmap/cells", r.controller.HeatCells)
+	dispatchOps.GET("/flows", r.controller.Flows)
 	dispatchOps.GET("/requests/:id", r.controller.OperatorGetRequest)
 	dispatchOps.POST("/requests/:id/assign", r.controller.AssignManually)
 	dispatchOps.POST("/requests/:id/retry", r.controller.RetrySearch)

@@ -59,7 +59,7 @@ type IPaymentRepository interface {
 	ListMethods(ctx context.Context, category string, onlyEnabled bool) ([]CategoryPaymentMethod, error)
 	IsMethodEnabled(ctx context.Context, categoryID uuid.UUID, method entities.PaymentMethod) (bool, error)
 	SetMethod(ctx context.Context, categoryID uuid.UUID, method entities.PaymentMethod, enabled bool) (bool, error)
-	HasOutstanding(ctx context.Context, customerID uuid.UUID) (bool, error)
+	FindOutstanding(ctx context.Context, customerID uuid.UUID) (*entities.OutstandingPaymentError, error)
 	SetRequestPayment(ctx context.Context, requestID uuid.UUID, method entities.PaymentMethod, status entities.RequestPaymentStatus) error
 	Create(ctx context.Context, payment *entities.Payment) error
 	Save(ctx context.Context, payment *entities.Payment) error

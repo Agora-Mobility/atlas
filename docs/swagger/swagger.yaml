@@ -244,6 +244,8 @@ definitions:
         type: array
       request:
         $ref: '#/definitions/dtos.RequestView'
+      trip:
+        $ref: '#/definitions/dtos.TripMetricsView'
     type: object
   dtos.AdminRequestList:
     properties:
@@ -276,6 +278,8 @@ definitions:
         type: string
       destination_line:
         type: string
+      distance_deviation_bps:
+        type: integer
       fare_cents:
         type: integer
       id:
@@ -296,6 +300,8 @@ definitions:
         type: string
       provider_name:
         type: string
+      route_review:
+        type: boolean
       scheduled_for:
         type: string
       service_id:
@@ -919,6 +925,15 @@ definitions:
       updated_at:
         type: string
     type: object
+  dtos.CellFlow:
+    properties:
+      destination:
+        $ref: '#/definitions/dtos.HeatPoint'
+      origin:
+        $ref: '#/definitions/dtos.HeatPoint'
+      requests:
+        type: integer
+    type: object
   dtos.ChangeMethodInput:
     properties:
       method:
@@ -1249,6 +1264,15 @@ definitions:
     - certificate_number
     - issued_at
     type: object
+  dtos.CustomSize:
+    properties:
+      code:
+        example: medium
+        type: string
+      volume_dm3:
+        example: 600
+        type: integer
+    type: object
   dtos.CustomerVehicleInput:
     properties:
       brand:
@@ -1340,6 +1364,184 @@ definitions:
         type: string
     required:
     - channel
+    type: object
+  dtos.DemandAreaList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.DemandAreaView'
+        type: array
+      resolution:
+        type: integer
+    type: object
+  dtos.DemandAreaView:
+    properties:
+      cell:
+        type: string
+      factor_bps:
+        example: 12000
+        type: integer
+      lat:
+        type: number
+      lng:
+        type: number
+      ratio_bps:
+        example: 17000
+        type: integer
+    type: object
+  dtos.DemandCell:
+    properties:
+      boundary:
+        items:
+          items:
+            type: number
+          type: array
+        type: array
+      cell:
+        example: 88754e64d3fffff
+        type: string
+      level:
+        enum:
+        - 1
+        - 2
+        - 3
+        example: 3
+        type: integer
+    type: object
+  dtos.DemandHistory:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.DemandSnapshotView'
+        type: array
+      resolution:
+        type: integer
+    type: object
+  dtos.DemandPricingInput:
+    properties:
+      category:
+        example: taxi
+        type: string
+      commission_on_surge:
+        type: boolean
+      max_factor_bps:
+        example: 13000
+        maximum: 30000
+        minimum: 10000
+        type: integer
+      mode:
+        enum:
+        - "off"
+        - observe
+        - "on"
+        example: observe
+        type: string
+      tiers:
+        items:
+          $ref: '#/definitions/dtos.DemandTierInput'
+        maxItems: 10
+        type: array
+      zone_id:
+        type: string
+    required:
+    - category
+    - mode
+    - zone_id
+    type: object
+  dtos.DemandPricingList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.DemandPricingView'
+        type: array
+    type: object
+  dtos.DemandPricingView:
+    properties:
+      category:
+        example: taxi
+        type: string
+      category_id:
+        type: string
+      commission_on_surge:
+        type: boolean
+      id:
+        type: string
+      max_factor_bps:
+        example: 13000
+        maximum: 30000
+        minimum: 10000
+        type: integer
+      mode:
+        enum:
+        - "off"
+        - observe
+        - "on"
+        example: observe
+        type: string
+      tiers:
+        items:
+          $ref: '#/definitions/dtos.DemandTierInput'
+        maxItems: 10
+        type: array
+      updated_at:
+        type: string
+      zone_id:
+        type: string
+    required:
+    - category
+    - mode
+    - zone_id
+    type: object
+  dtos.DemandSnapshotView:
+    properties:
+      cell:
+        type: string
+      factor_bps:
+        example: 12000
+        type: integer
+      free:
+        type: integer
+      lat:
+        type: number
+      lng:
+        type: number
+      pending:
+        type: integer
+      ratio_bps:
+        example: 17000
+        type: integer
+      recorded_at:
+        type: string
+    type: object
+  dtos.DemandTierInput:
+    properties:
+      above_ratio_bps:
+        example: 15000
+        minimum: 0
+        type: integer
+      factor_bps:
+        example: 12000
+        maximum: 30000
+        minimum: 10000
+        type: integer
+    type: object
+  dtos.DemandView:
+    properties:
+      category:
+        example: taxi
+        type: string
+      cells:
+        items:
+          $ref: '#/definitions/dtos.DemandCell'
+        type: array
+      expires_at:
+        type: string
+      radius_km:
+        example: 10
+        type: number
+      window_minutes:
+        example: 60
+        type: integer
     type: object
   dtos.DeviceInput:
     properties:
@@ -1648,6 +1850,9 @@ definitions:
     properties:
       currency:
         type: string
+      demand_factor_bps:
+        example: 10000
+        type: integer
       distance_m:
         type: integer
       duration_s:
@@ -1656,6 +1861,8 @@ definitions:
         type: integer
       fare_estimate_id:
         type: string
+      high_demand:
+        type: boolean
       included_km:
         type: integer
       removal:
@@ -1757,6 +1964,25 @@ definitions:
       year:
         type: integer
     type: object
+  dtos.FlowMap:
+    properties:
+      flows:
+        items:
+          $ref: '#/definitions/dtos.CellFlow'
+        type: array
+      from:
+        type: string
+      hidden:
+        type: integer
+      min_requests:
+        type: integer
+      resolution:
+        type: integer
+      to:
+        type: string
+      total:
+        type: integer
+    type: object
   dtos.GatewayFeeInput:
     properties:
       fee_cents:
@@ -1810,14 +2036,64 @@ definitions:
       supply:
         type: integer
     type: object
+  dtos.HeatCellsView:
+    properties:
+      cells:
+        items:
+          $ref: '#/definitions/dtos.HeatValue'
+        type: array
+      max:
+        example: 42.5
+        type: number
+      metric:
+        enum:
+        - count
+        - value
+        example: value
+        type: string
+      resolution:
+        example: 8
+        type: integer
+      window:
+        $ref: '#/definitions/dtos.HeatWindow'
+    type: object
   dtos.HeatMap:
     properties:
       cells:
         items:
           $ref: '#/definitions/dtos.HeatCell'
         type: array
+      from:
+        type: string
       resolution:
         type: integer
+      to:
+        type: string
+    type: object
+  dtos.HeatPoint:
+    properties:
+      cell:
+        type: string
+      lat:
+        type: number
+      lng:
+        type: number
+    type: object
+  dtos.HeatValue:
+    properties:
+      h3:
+        example: 8975a5a6a8bffff
+        type: string
+      value:
+        example: 12.3
+        type: number
+    type: object
+  dtos.HeatWindow:
+    properties:
+      from:
+        type: string
+      to:
+        type: string
     type: object
   dtos.HelpTopicView:
     properties:
@@ -2148,6 +2424,10 @@ definitions:
     type: object
   dtos.LoginInput:
     properties:
+      email:
+        example: admin@agora.ao
+        maxLength: 254
+        type: string
       password:
         example: S3gredo!forte
         maxLength: 128
@@ -2158,7 +2438,6 @@ definitions:
         type: string
     required:
     - password
-    - phone
     type: object
   dtos.MarkedView:
     properties:
@@ -3670,6 +3949,29 @@ definitions:
           $ref: '#/definitions/dtos.RemovalDayView'
         type: array
     type: object
+  dtos.RemovalCustomItemInput:
+    properties:
+      name:
+        example: Aquário
+        maxLength: 120
+        type: string
+      qty:
+        example: 1
+        maximum: 500
+        minimum: 1
+        type: integer
+      size:
+        enum:
+        - small
+        - medium
+        - large
+        example: medium
+        type: string
+    required:
+    - name
+    - qty
+    - size
+    type: object
   dtos.RemovalDayView:
     properties:
       date:
@@ -3686,6 +3988,11 @@ definitions:
     type: object
   dtos.RemovalInput:
     properties:
+      custom_items:
+        items:
+          $ref: '#/definitions/dtos.RemovalCustomItemInput'
+        maxItems: 50
+        type: array
       extras:
         example:
         - packing
@@ -3735,6 +4042,13 @@ definitions:
         type: integer
       promo_until:
         type: string
+      properties:
+        example:
+        - home
+        - office
+        items:
+          type: string
+        type: array
       volume_dm3:
         type: integer
     type: object
@@ -3742,6 +4056,10 @@ definitions:
     properties:
       currency:
         type: string
+      custom_sizes:
+        items:
+          $ref: '#/definitions/dtos.CustomSize'
+        type: array
       extras:
         items:
           $ref: '#/definitions/dtos.RemovalOption'
@@ -4794,6 +5112,31 @@ definitions:
           $ref: '#/definitions/dtos.CatalogItemView'
         type: array
     type: object
+  dtos.TripMetricsView:
+    properties:
+      actual_distance_m:
+        type: integer
+      actual_duration_s:
+        type: integer
+      distance_deviation_bps:
+        example: 3500
+        type: integer
+      duration_deviation_bps:
+        example: -1200
+        type: integer
+      estimated_distance_m:
+        type: integer
+      estimated_duration_s:
+        type: integer
+      gps_samples:
+        type: integer
+      needs_review:
+        type: boolean
+      recorded_at:
+        type: string
+      route_changed:
+        type: boolean
+    type: object
   dtos.UnblockUserInput:
     properties:
       reason:
@@ -5388,6 +5731,8 @@ definitions:
     properties:
       address:
         type: string
+      cover_url:
+        type: string
       currency:
         type: string
       distance_m:
@@ -5427,6 +5772,8 @@ definitions:
         type: string
       capacity:
         type: integer
+      cover_url:
+        type: string
       currency:
         type: string
       distance_m:
@@ -5453,6 +5800,10 @@ definitions:
         type: boolean
       open_until:
         type: string
+      photos:
+        items:
+          $ref: '#/definitions/dtos.WorkshopPhotoView'
+        type: array
       promotions:
         items:
           $ref: '#/definitions/dtos.PromotionView'
@@ -5512,6 +5863,29 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  dtos.WorkshopPhotoList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.WorkshopPhotoView'
+        type: array
+    type: object
+  dtos.WorkshopPhotoView:
+    properties:
+      id:
+        type: string
+      url:
+        type: string
+    type: object
+  dtos.WorkshopPhotosInput:
+    properties:
+      photo_ids:
+        items:
+          type: string
+        maxItems: 50
+        type: array
+        uniqueItems: true
     type: object
   dtos.WorkshopServiceInput:
     properties:
@@ -5695,10 +6069,14 @@ definitions:
         type: integer
       code:
         type: string
+      custom:
+        type: boolean
       label:
         type: string
       qty:
         type: integer
+      size:
+        type: string
       volume_dm3:
         type: integer
     type: object
@@ -6237,6 +6615,11 @@ paths:
         in: query
         name: category
         type: string
+      - description: Only the removal items of this removal_property code; an item
+          without properties fits every type
+        in: query
+        name: property
+        type: string
       produces:
       - application/json
       responses:
@@ -6258,7 +6641,9 @@ paths:
       consumes:
       - application/json
       description: Prices are integer cents. attrs holds the numbers of each kind,
-        such as included_km on towing_vehicle, and they are validated.
+        such as included_km on towing_vehicle, and they are validated. A removal_item
+        may list in attrs.properties the removal_property codes it belongs to, such
+        as ["home", "office"]; without the list it fits every type.
       parameters:
       - description: Catalog
         in: path
@@ -6480,6 +6865,117 @@ paths:
       summary: Change a service category
       tags:
       - Backoffice catalog
+  /api/v1/admin/demand-pricing:
+    get:
+      description: 'The price rises in an area of the zone when more customers wait
+        than providers are free, by tiers of the ratio (customers + 1) / (free providers
+        + 1), up to the cap. Each customer counts once, whether they quoted, requested
+        or both. Ratios and factors are basis points: 10000 is 1.0.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandPricingList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the demand pricing of each zone and category
+      tags:
+      - Backoffice dispatch
+    put:
+      consumes:
+      - application/json
+      description: A tier applies when the smoothed ratio is above above_ratio_bps.
+        Mode off stops measuring and brings every price of the zone back to normal
+        at once; observe measures and records the factor that would apply, without
+        changing prices, to calibrate the tiers; on charges it. Estimates already
+        given keep their price.
+      parameters:
+      - description: Demand pricing
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.DemandPricingInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandPricingView'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set the demand tiers, cap and switch of a zone and category
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/demand-pricing/areas:
+    get:
+      description: Areas of the zone where demand is above normal now, with the smoothed
+        ratio and the factor quotes use. Areas not listed price at 1.0.
+      parameters:
+      - description: Zone
+        in: query
+        name: zone_id
+        required: true
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandAreaList'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Current demand factor by area
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/demand-pricing/history:
+    get:
+      description: One row per area and minute while demand was above normal. Defaults
+        to the last 24 hours.
+      parameters:
+      - description: Zone
+        in: query
+        name: zone_id
+        required: true
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        required: true
+        type: string
+      - description: From, YYYY-MM-DD or RFC 3339
+        in: query
+        name: from
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandHistory'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Demand factor history
+      tags:
+      - Backoffice dispatch
   /api/v1/admin/dispatch-policies:
     get:
       produces:
@@ -6557,14 +7053,81 @@ paths:
       summary: Change a policy
       tags:
       - Backoffice dispatch
-  /api/v1/admin/dispatch/heatmap:
+  /api/v1/admin/dispatch/flows:
     get:
-      description: Resolution 8 hexagons for the Google Maps map of the backoffice.
-        Demand covers the last 24 hours.
+      description: Requests with a destination created in the period, grouped by pickup
+        and destination resolution 8 cells and sorted by volume. Pairs below min_requests
+        (default 3) and pairs beyond limit (default 500) are left out and counted
+        in hidden, so a single trip is not shown. The period defaults to the last
+        24 hours and spans at most 31 days.
       parameters:
       - description: Zone id
         in: query
         name: zone_id
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Start of the period (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: End of the period (RFC 3339), default now
+        in: query
+        name: to
+        type: string
+      - description: Smallest pair shown, 1 to 1000
+        in: query
+        name: min_requests
+        type: integer
+      - description: Most pairs returned, 1 to 2000
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.FlowMap'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Origin to destination flows by H3 cell
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/heatmap:
+    get:
+      description: Resolution 8 hexagons for the Google Maps map of the backoffice.
+        Demand counts the requests created in the period, by pickup cell; the period
+        defaults to the last 24 hours and spans at most 31 days. Supply is always
+        the providers online right now, whatever the period.
+      parameters:
+      - description: Zone id
+        in: query
+        name: zone_id
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Start of the period (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: End of the period (RFC 3339), default now
+        in: query
+        name: to
         type: string
       produces:
       - application/json
@@ -6573,10 +7136,79 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dtos.HeatMap'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
       security:
       - BearerAuth: []
       - ClientId: []
       summary: Supply and demand by H3 cell
+      tags:
+      - Backoffice dispatch
+  /api/v1/admin/dispatch/heatmap/cells:
+    get:
+      description: Requests per H3 cell for a hexagon layer such as deck.gl H3HexagonLayer,
+        read from the cells the heatmap job aggregates every few minutes in 15 minute
+        windows. The zoom picks the resolution (by default up to 10 is 6, 11 and 12
+        are 7, 13 and 14 are 8, from 15 is 9). When the view holds more than 20000
+        cells the next coarser resolution is used, and resolution tells which one
+        answered; only when even resolution 6 does not fit the answer is 400 AREA_TOO_LARGE.
+        value is the smoothed heat (0.6 of the cell plus 0.4 of the mean of its six
+        neighbors); count is the raw number of requests. Windows of the period are
+        summed. The period defaults to the last complete window and spans at most
+        7 days. h3 is always the hexadecimal index, since 64 bit integers lose precision
+        in JavaScript.
+      parameters:
+      - description: minLng,minLat,maxLng,maxLat
+        example: 13.15,-8.95,13.35,-8.75
+        in: query
+        name: bbox
+        required: true
+        type: string
+      - description: Map zoom, 0 to 24
+        in: query
+        name: zoom
+        required: true
+        type: integer
+      - description: Start of the period (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: End of the period (RFC 3339)
+        in: query
+        name: to
+        type: string
+      - description: count or value, default value
+        enum:
+        - count
+        - value
+        in: query
+        name: metric
+        type: string
+      - description: Category slug, default all
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.HeatCellsView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Heat of the H3 cells inside the map view
       tags:
       - Backoffice dispatch
   /api/v1/admin/dispatch/queue:
@@ -6665,6 +7297,8 @@ paths:
     post:
       consumes:
       - application/json
+      description: Works on every request that is not finished yet, a trip in progress
+        included. The customer pays no cancellation fee and gets back what was prepaid.
       parameters:
       - description: Request id
         in: path
@@ -7374,6 +8008,11 @@ paths:
         in: query
         name: to
         type: string
+      - description: Only completed rides whose real distance strayed from the quote
+          beyond ROUTE_REVIEW_ABOVE_PERCENT
+        in: query
+        name: route_review
+        type: boolean
       - description: Page
         in: query
         name: page
@@ -8458,13 +9097,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'Every account signs in with its phone number and password; the
-        X-Client-Id header decides which accounts are accepted. Customers sign in
-        through agora-customer-app and providers through agora-provider-app. Staff
-        sign in through agora-backoffice (AGORA membership) or agora-partner-panel
-        (partner membership) and the session enters the oldest active membership of
-        that scope. The organization is never sent: it comes from the membership and
-        travels in the token.'
+      description: 'The X-Client-Id header decides which accounts are accepted and
+        how they sign in. Customers (agora-customer-app) and providers (agora-provider-app)
+        send phone and password. Staff send email and password, through agora-backoffice
+        (AGORA membership) or agora-partner-panel (partner membership), and the session
+        enters the oldest active membership of that scope. The organization is never
+        sent: it comes from the membership and travels in the token.'
       parameters:
       - description: Login payload
         in: body
@@ -10477,6 +11115,71 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Deactivate a mechanic
+      tags:
+      - Workshop operations
+  /api/v1/fleet/workshops/{id}/photos:
+    get:
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopPhotoList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: List the photos of a workshop
+      tags:
+      - Workshop operations
+    put:
+      consumes:
+      - application/json
+      description: 'Upload each photo with POST /api/v1/media/photos, then send the
+        full gallery in order: the first photo is the cover shown in GET /api/v1/workshops.
+        Photos left out are removed from the gallery and photos already in it may
+        stay. At most max_workshop_photos photos.'
+      parameters:
+      - description: Workshop id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.WorkshopPhotosInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.WorkshopPhotoList'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Set the photos of a workshop
       tags:
       - Workshop operations
   /api/v1/fleet/workshops/{id}/schedule:
@@ -12492,6 +13195,47 @@ paths:
       summary: Set the base and service radius
       tags:
       - Provider work
+  /api/v1/providers/me/demand:
+    get:
+      description: Resolution 8 hexagons within 10 km of the provider with requests
+        of its category in the last hour, as levels 1 to 3 against the busiest cell
+        of the city. Cells with a single request are left out. The position comes
+        from lat and lng, or else from the last one reported. boundary lists the vertices
+        as [lat, lng]. Ask again after expires_at.
+      parameters:
+      - description: Latitude, with lng
+        in: query
+        name: lat
+        type: number
+      - description: Longitude, with lat
+        in: query
+        name: lng
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DemandView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Not approved
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: No position
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Where the category of the provider is asked for
+      tags:
+      - Provider work
   /api/v1/providers/me/documents:
     post:
       consumes:
@@ -13711,7 +14455,14 @@ paths:
     get:
       description: Items by room with volume, vehicles, extras, arrival windows, property
         types, helper price and informative insurance. Everything is managed in the
-        backoffice.
+        backoffice. With property, only the items of that type of property come back;
+        an item without properties fits every type. custom_sizes holds the volume
+        of each size of an item the customer adds by hand.
+      parameters:
+      - description: Code of a removal_property, such as home or office
+        in: query
+        name: property
+        type: string
       produces:
       - application/json
       responses:
@@ -13719,6 +14470,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dtos.RemovalOptions'
+        "422":
+          description: The property does not exist
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
       security:
       - BearerAuth: []
       - ClientId: []

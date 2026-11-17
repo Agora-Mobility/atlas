@@ -10,6 +10,8 @@ import (
 
 var ErrRoutingUnavailable = errors.New("routing provider unavailable")
 
+var ErrTooManyCells = errors.New("the area holds more cells than allowed")
+
 type RouteSource string
 
 const (
@@ -30,6 +32,7 @@ type IRoutingProvider interface {
 }
 
 type IGeoIndex interface {
+	Boundary(cell int64) ([]entities.GeoPoint, error)
 	Cell(point entities.GeoPoint, resolution int) (int64, error)
 	Disk(cell int64, rings int) ([]int64, error)
 	RingsFor(radiusKm float64, resolution int) int
@@ -37,5 +40,8 @@ type IGeoIndex interface {
 	Covering(center entities.GeoPoint, radiusKm float64, resolution int) ([]int64, error)
 	Center(cell int64) (entities.GeoPoint, error)
 	Format(cell int64) string
+	Parent(cell int64, resolution int) (int64, error)
+	Children(cell int64, resolution int) ([]int64, error)
 	InteriorCells(polygons []entities.GeoPolygon, resolution int) ([]int64, error)
+	BoxCells(box entities.GeoBox, resolution, limit int) ([]int64, error)
 }

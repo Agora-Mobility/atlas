@@ -367,6 +367,20 @@ func (mr *MockIBookingRepositoryMockRecorder) RemoveFavorite(ctx, customerID, wo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveFavorite", reflect.TypeOf((*MockIBookingRepository)(nil).RemoveFavorite), ctx, customerID, workshopID)
 }
 
+// ReplaceWorkshopPhotos mocks base method.
+func (m *MockIBookingRepository) ReplaceWorkshopPhotos(ctx context.Context, workshopID uuid.UUID, uploadIDs []uuid.UUID, now time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReplaceWorkshopPhotos", ctx, workshopID, uploadIDs, now)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReplaceWorkshopPhotos indicates an expected call of ReplaceWorkshopPhotos.
+func (mr *MockIBookingRepositoryMockRecorder) ReplaceWorkshopPhotos(ctx, workshopID, uploadIDs, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceWorkshopPhotos", reflect.TypeOf((*MockIBookingRepository)(nil).ReplaceWorkshopPhotos), ctx, workshopID, uploadIDs, now)
+}
+
 // Reviews mocks base method.
 func (m *MockIBookingRepository) Reviews(ctx context.Context, workshopID uuid.UUID, limit, offset int) ([]entities.Rating, int64, error) {
 	m.ctrl.T.Helper()
@@ -439,4 +453,19 @@ func (m *MockIBookingRepository) Update(ctx context.Context, booking *entities.B
 func (mr *MockIBookingRepositoryMockRecorder) Update(ctx, booking any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockIBookingRepository)(nil).Update), ctx, booking)
+}
+
+// WorkshopPhotos mocks base method.
+func (m *MockIBookingRepository) WorkshopPhotos(ctx context.Context, workshopID uuid.UUID) ([]entities.MediaUpload, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WorkshopPhotos", ctx, workshopID)
+	ret0, _ := ret[0].([]entities.MediaUpload)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WorkshopPhotos indicates an expected call of WorkshopPhotos.
+func (mr *MockIBookingRepositoryMockRecorder) WorkshopPhotos(ctx, workshopID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WorkshopPhotos", reflect.TypeOf((*MockIBookingRepository)(nil).WorkshopPhotos), ctx, workshopID)
 }

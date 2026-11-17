@@ -348,6 +348,21 @@ func (mr *MockIPricingRepositoryMockRecorder) FindTariff(ctx, id any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindTariff", reflect.TypeOf((*MockIPricingRepository)(nil).FindTariff), ctx, id)
 }
 
+// FindTripMetrics mocks base method.
+func (m *MockIPricingRepository) FindTripMetrics(ctx context.Context, requestID uuid.UUID) (*entities.TripMetrics, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindTripMetrics", ctx, requestID)
+	ret0, _ := ret[0].(*entities.TripMetrics)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindTripMetrics indicates an expected call of FindTripMetrics.
+func (mr *MockIPricingRepositoryMockRecorder) FindTripMetrics(ctx, requestID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindTripMetrics", reflect.TypeOf((*MockIPricingRepository)(nil).FindTripMetrics), ctx, requestID)
+}
+
 // LearnedETA mocks base method.
 func (m *MockIPricingRepository) LearnedETA(ctx context.Context, originCell, destinationCell int64, hourBand int) (time.Duration, int, error) {
 	m.ctrl.T.Helper()
@@ -405,6 +420,36 @@ func (m *MockIPricingRepository) ReplaceTariff(ctx context.Context, tariff *enti
 func (mr *MockIPricingRepositoryMockRecorder) ReplaceTariff(ctx, tariff any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceTariff", reflect.TypeOf((*MockIPricingRepository)(nil).ReplaceTariff), ctx, tariff)
+}
+
+// SaveTripMetrics mocks base method.
+func (m *MockIPricingRepository) SaveTripMetrics(ctx context.Context, metrics entities.TripMetrics) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveTripMetrics", ctx, metrics)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveTripMetrics indicates an expected call of SaveTripMetrics.
+func (mr *MockIPricingRepositoryMockRecorder) SaveTripMetrics(ctx, metrics any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveTripMetrics", reflect.TypeOf((*MockIPricingRepository)(nil).SaveTripMetrics), ctx, metrics)
+}
+
+// TrackedDistance mocks base method.
+func (m *MockIPricingRepository) TrackedDistance(ctx context.Context, requestID uuid.UUID, since time.Time) (int, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TrackedDistance", ctx, requestID, since)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// TrackedDistance indicates an expected call of TrackedDistance.
+func (mr *MockIPricingRepositoryMockRecorder) TrackedDistance(ctx, requestID, since any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrackedDistance", reflect.TypeOf((*MockIPricingRepository)(nil).TrackedDistance), ctx, requestID, since)
 }
 
 // UseEstimate mocks base method.
@@ -750,18 +795,18 @@ func (mr *MockIRequestRepositoryMockRecorder) Create(ctx, request any) *gomock.C
 }
 
 // DemandByCell mocks base method.
-func (m *MockIRequestRepository) DemandByCell(ctx context.Context, since time.Time, zoneID *uuid.UUID) (map[int64]int64, error) {
+func (m *MockIRequestRepository) DemandByCell(ctx context.Context, filter repository.HeatFilter) (map[int64]int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DemandByCell", ctx, since, zoneID)
+	ret := m.ctrl.Call(m, "DemandByCell", ctx, filter)
 	ret0, _ := ret[0].(map[int64]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DemandByCell indicates an expected call of DemandByCell.
-func (mr *MockIRequestRepositoryMockRecorder) DemandByCell(ctx, since, zoneID any) *gomock.Call {
+func (mr *MockIRequestRepositoryMockRecorder) DemandByCell(ctx, filter any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DemandByCell", reflect.TypeOf((*MockIRequestRepository)(nil).DemandByCell), ctx, since, zoneID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DemandByCell", reflect.TypeOf((*MockIRequestRepository)(nil).DemandByCell), ctx, filter)
 }
 
 // DueReminders mocks base method.
@@ -837,6 +882,21 @@ func (m *MockIRequestRepository) FindForUpdate(ctx context.Context, id uuid.UUID
 func (mr *MockIRequestRepositoryMockRecorder) FindForUpdate(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindForUpdate", reflect.TypeOf((*MockIRequestRepository)(nil).FindForUpdate), ctx, id)
+}
+
+// FlowsByCell mocks base method.
+func (m *MockIRequestRepository) FlowsByCell(ctx context.Context, filter repository.HeatFilter) ([]repository.CellFlow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FlowsByCell", ctx, filter)
+	ret0, _ := ret[0].([]repository.CellFlow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FlowsByCell indicates an expected call of FlowsByCell.
+func (mr *MockIRequestRepositoryMockRecorder) FlowsByCell(ctx, filter any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FlowsByCell", reflect.TypeOf((*MockIRequestRepository)(nil).FlowsByCell), ctx, filter)
 }
 
 // History mocks base method.

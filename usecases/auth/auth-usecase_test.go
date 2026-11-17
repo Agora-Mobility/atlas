@@ -191,7 +191,7 @@ func staffAccess(user *entities.User, scope enums.OrganizationType) (*entities.M
 }
 
 func (f fixture) expectStaffPassword(user *entities.User) {
-	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(user, nil)
+	f.users.EXPECT().FindByEmail(gomock.Any(), "ana@agora.ao").Return(user, nil)
 	f.hasher.EXPECT().Verify(gomock.Any(), storedHash).Return(true, false, nil)
 }
 
@@ -204,7 +204,7 @@ func TestLogin_StaffSessionCarriesTheMembership(t *testing.T) {
 	f.memberships.EXPECT().Access(gomock.Any(), membership.ID).Return(access, nil)
 	f.expectStaffSessionStarted(t, staff, backoffice, access)
 
-	out, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, backoffice, "", "")
+	out, err := f.auth.Login(context.Background(), dtos.LoginInput{Email: "ana@agora.ao", Password: "x"}, backoffice, "", "")
 
 	require.NoError(t, err)
 	assert.Equal(t, enums.RoleStaff, out.User.Role)
@@ -217,7 +217,7 @@ func TestLogin_StaffWithoutActiveMembershipGetsTheGenericAnswer(t *testing.T) {
 	f.expectStaffPassword(staff)
 	f.memberships.EXPECT().ListActiveForSignIn(gomock.Any(), staff.ID, enums.OrganizationTypePartner).Return(nil, nil)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, partnerPanel, "", "")
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Email: "ana@agora.ao", Password: "x"}, partnerPanel, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrInvalidCredentials)
 }
@@ -232,32 +232,61 @@ func TestLogin_StaffInSeveralOrganizationsEntersTheOldest(t *testing.T) {
 	f.memberships.EXPECT().Access(gomock.Any(), oldest.ID).Return(access, nil)
 	f.expectStaffSessionStarted(t, staff, partnerPanel, access)
 
-	out, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, partnerPanel, "", "")
+	out, err := f.auth.Login(context.Background(), dtos.LoginInput{Email: "ana@agora.ao", Password: "x"}, partnerPanel, "", "")
 
 	require.NoError(t, err)
 	assert.Equal(t, oldest.OrganizationID, out.Access.OrganizationID)
 }
 
-func TestLogin_EmailIsNotAnIdentifier(t *testing.T) {
+func TestLogin_StaffSignInWithTheEmailInAnyCase(t *testing.T) {
 	f := newFixture(t)
-	f.users.EXPECT().FindByPhone(gomock.Any(), "ana@agora.ao").Return(nil, nil)
-	f.hasher.EXPECT().Hash(gomock.Any()).Return("$argon2id$dummy", nil)
-	f.hasher.EXPECT().Verify("x", "$argon2id$dummy").Return(false, false, nil)
+	staff := newUser(t, enums.RoleStaff, true)
+	membership, access := staffAccess(staff, enums.OrganizationTypePlatform)
+	f.users.EXPECT().FindByEmail(gomock.Any(), "ana@agora.ao").Return(staff, nil)
+	f.hasher.EXPECT().Verify("x", storedHash).Return(true, false, nil)
+	f.memberships.EXPECT().ListActiveForSignIn(gomock.Any(), staff.ID, enums.OrganizationTypePlatform).Return([]*entities.Membership{membership}, nil)
+	f.memberships.EXPECT().Access(gomock.Any(), membership.ID).Return(access, nil)
+	f.expectStaffSessionStarted(t, staff, backoffice, access)
 
-	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: "ana@agora.ao", Password: "x"}, backoffice, "", "")
+	_, err := f.auth.Login(context.Background(), dtos.LoginInput{Email: "  Ana@Agora.AO ", Password: "x"}, backoffice, "", "")
 
-	require.ErrorIs(t, err, usecases.ErrInvalidCredentials)
+	require.NoError(t, err)
+}
+
+func TestLogin_EachClientAsksForItsIdentifier(t *testing.T) {
+	cases := []struct {
+		name   string
+		input  dtos.LoginInput
+		client *entities.Client
+		field  string
+	}{
+		{"backoffice with phone", dtos.LoginInput{Phone: phone, Password: "x"}, backoffice, "email"},
+		{"partner panel with phone", dtos.LoginInput{Phone: phone, Password: "x"}, partnerPanel, "email"},
+		{"customer app with email", dtos.LoginInput{Email: "ana@agora.ao", Password: "x"}, customerApp, "phone"},
+		{"provider app with email", dtos.LoginInput{Email: "ana@agora.ao", Password: "x"}, providerApp, "phone"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+
+			_, err := f.auth.Login(context.Background(), tc.input, tc.client, "", "")
+
+			validation, ok := customerrors.AsValidation(err)
+			require.True(t, ok, "%v", err)
+			assert.Contains(t, validation.Fields, tc.field)
+		})
+	}
 }
 
 func TestLogin_InvitedStaffWithoutPasswordCannotSignIn(t *testing.T) {
 	f := newFixture(t)
 	invited, err := entities.NewInvitedStaffUser("Ana", "ana@agora.ao", phone)
 	require.NoError(t, err)
-	f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(invited, nil)
+	f.users.EXPECT().FindByEmail(gomock.Any(), "ana@agora.ao").Return(invited, nil)
 	f.hasher.EXPECT().Hash(gomock.Any()).Return("$argon2id$dummy", nil)
 	f.hasher.EXPECT().Verify("x", "$argon2id$dummy").Return(false, false, nil)
 
-	_, err = f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, backoffice, "", "")
+	_, err = f.auth.Login(context.Background(), dtos.LoginInput{Email: "ana@agora.ao", Password: "x"}, backoffice, "", "")
 
 	require.ErrorIs(t, err, usecases.ErrInvalidCredentials)
 }
@@ -277,10 +306,16 @@ func TestLogin_RoleMustMatchTheClient(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.role.String()+"@"+tc.client.ClientID, func(t *testing.T) {
 			f := newFixture(t)
-			f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, tc.role, true), nil)
+			input := dtos.LoginInput{Phone: phone, Password: "x"}
+			if _, staff := tc.client.StaffScope(); staff {
+				input = dtos.LoginInput{Email: "ana@agora.ao", Password: "x"}
+				f.users.EXPECT().FindByEmail(gomock.Any(), "ana@agora.ao").Return(newUser(t, tc.role, true), nil)
+			} else {
+				f.users.EXPECT().FindByPhone(gomock.Any(), phone).Return(newUser(t, tc.role, true), nil)
+			}
 			f.hasher.EXPECT().Verify(gomock.Any(), storedHash).Return(true, false, nil)
 
-			_, err := f.auth.Login(context.Background(), dtos.LoginInput{Phone: phone, Password: "x"}, tc.client, "", "")
+			_, err := f.auth.Login(context.Background(), input, tc.client, "", "")
 
 			require.ErrorIs(t, err, usecases.ErrClientNotAllowed)
 		})

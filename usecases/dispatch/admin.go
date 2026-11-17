@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -24,6 +25,11 @@ const (
 	auditEntityRequest = "service_request"
 	heatResolution     = 8
 	defaultHeatWindow  = 24 * time.Hour
+	maxHeatWindow      = 31 * 24 * time.Hour
+	defaultFlowMinimum = 3
+	maxFlowMinimum     = 1000
+	defaultFlowLimit   = 500
+	maxFlowLimit       = 2000
 )
 
 func entitiesDestinationError() error {
@@ -415,40 +421,135 @@ func (u *Usecase) RetrySearch(ctx context.Context, actor entities.Actor, request
 	return u.GetRequestAsOperator(ctx, requestID)
 }
 
-func (u *Usecase) HeatMap(ctx context.Context, zoneID *uuid.UUID) (*dtos.HeatMap, error) {
-	demand, err := u.Requests.DemandByCell(ctx, u.now().Add(-defaultHeatWindow), zoneID)
+func (u *Usecase) HeatMap(ctx context.Context, query dtos.HeatQuery) (*dtos.HeatMap, error) {
+	filter, err := u.heatFilter(query)
 	if err != nil {
 		return nil, err
 	}
+	demand, err := u.Requests.DemandByCell(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	supply, err := u.liveSupply(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	all := make(map[int64]struct{}, len(demand)+len(supply))
+	for cell := range demand {
+		all[cell] = struct{}{}
+	}
+	for cell := range supply {
+		all[cell] = struct{}{}
+	}
+	heat := &dtos.HeatMap{Resolution: heatResolution, From: filter.From, To: filter.To, Cells: make([]dtos.HeatCell, 0, len(all))}
+	for cell := range all {
+		point, err := u.heatPoint(cell)
+		if err != nil {
+			return nil, err
+		}
+		heat.Cells = append(heat.Cells, dtos.HeatCell{Cell: point.Cell, Lat: point.Lat, Lng: point.Lng, Supply: supply[cell], Demand: demand[cell]})
+	}
+	sort.Slice(heat.Cells, func(i, j int) bool { return heat.Cells[i].Cell < heat.Cells[j].Cell })
+	return heat, nil
+}
+
+func (u *Usecase) Flows(ctx context.Context, query dtos.FlowQuery) (*dtos.FlowMap, error) {
+	filter, err := u.heatFilter(query.HeatQuery)
+	if err != nil {
+		return nil, err
+	}
+	minimum, limit := query.MinRequests, query.Limit
+	if minimum == 0 {
+		minimum = defaultFlowMinimum
+	}
+	if limit == 0 {
+		limit = defaultFlowLimit
+	}
+	if minimum < 1 || minimum > maxFlowMinimum || limit < 1 || limit > maxFlowLimit {
+		return nil, ErrFlowBounds
+	}
+	rows, err := u.Requests.FlowsByCell(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Requests != rows[j].Requests {
+			return rows[i].Requests > rows[j].Requests
+		}
+		if rows[i].Origin != rows[j].Origin {
+			return rows[i].Origin < rows[j].Origin
+		}
+		return rows[i].Destination < rows[j].Destination
+	})
+	view := &dtos.FlowMap{Resolution: heatResolution, From: filter.From, To: filter.To, MinRequests: minimum, Flows: make([]dtos.CellFlow, 0, min(len(rows), limit))}
+	for _, row := range rows {
+		view.Total += row.Requests
+		if row.Requests < int64(minimum) || len(view.Flows) == limit {
+			view.Hidden += row.Requests
+			continue
+		}
+		origin, err := u.heatPoint(row.Origin)
+		if err != nil {
+			return nil, err
+		}
+		destination, err := u.heatPoint(row.Destination)
+		if err != nil {
+			return nil, err
+		}
+		view.Flows = append(view.Flows, dtos.CellFlow{Origin: origin, Destination: destination, Requests: row.Requests})
+	}
+	return view, nil
+}
+
+func (u *Usecase) heatFilter(query dtos.HeatQuery) (repository.HeatFilter, error) {
+	to := u.now()
+	if query.To != nil {
+		to = query.To.UTC()
+	}
+	from := to.Add(-defaultHeatWindow)
+	if query.From != nil {
+		from = query.From.UTC()
+	}
+	if !from.Before(to) || to.Sub(from) > maxHeatWindow {
+		return repository.HeatFilter{}, ErrHeatPeriod
+	}
+	return repository.HeatFilter{From: from, To: to, ZoneID: query.ZoneID, Category: query.Category}, nil
+}
+
+// liveSupply counts the providers online right now; it is a snapshot, whatever the period asked.
+func (u *Usecase) liveSupply(ctx context.Context, filter repository.HeatFilter) (map[int64]int64, error) {
 	positions, err := u.Locator.AllPositions(ctx)
 	if err != nil {
 		return nil, err
 	}
 	supply := make(map[int64]int64, len(positions))
-	for _, position := range positions {
+	for i := range positions {
+		position := &positions[i]
+		if filter.Category != "" && !slices.Contains(position.Categories, filter.Category) {
+			continue
+		}
+		if filter.ZoneID != nil {
+			zone, err := u.zones.Resolve(ctx, position.Point)
+			if err != nil {
+				return nil, err
+			}
+			if zone == nil || zone.ID != *filter.ZoneID {
+				continue
+			}
+		}
 		cell, err := u.Geo.Cell(position.Point, heatResolution)
 		if err != nil {
 			return nil, err
 		}
 		supply[cell]++
 	}
-	all := make(map[int64]struct{}, len(demand)+len(supply))
-	for cell := range demand {
-		all[cell] = struct{}{}
+	return supply, nil
+}
+
+func (u *Usecase) heatPoint(cell int64) (dtos.HeatPoint, error) {
+	center, err := u.Geo.Center(cell)
+	if err != nil {
+		return dtos.HeatPoint{}, err
 	}
-	if zoneID == nil {
-		for cell := range supply {
-			all[cell] = struct{}{}
-		}
-	}
-	heat := &dtos.HeatMap{Resolution: heatResolution, Cells: make([]dtos.HeatCell, 0, len(all))}
-	for cell := range all {
-		center, err := u.Geo.Center(cell)
-		if err != nil {
-			return nil, err
-		}
-		heat.Cells = append(heat.Cells, dtos.HeatCell{Cell: u.Geo.Format(cell), Lat: center.Lat, Lng: center.Lng, Supply: supply[cell], Demand: demand[cell]})
-	}
-	sort.Slice(heat.Cells, func(i, j int) bool { return heat.Cells[i].Cell < heat.Cells[j].Cell })
-	return heat, nil
+	return dtos.HeatPoint{Cell: u.Geo.Format(cell), Lat: center.Lat, Lng: center.Lng}, nil
 }

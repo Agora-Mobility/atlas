@@ -147,3 +147,73 @@ func TestATeamIsVerifiedOnlyByThePartner(t *testing.T) {
 	assert.Equal(t, true, theirs.body["items"].([]any)[0].(map[string]any)["verified"])
 	assert.Len(t, customer.get(t, "/api/v1/requests/"+id).body["team"], 1)
 }
+
+func removalItemCodes(t *testing.T, res result) []string {
+	t.Helper()
+	require.Equal(t, http.StatusOK, res.status, res.text)
+	codes := []string{}
+	for _, raw := range res.body["items"].([]any) {
+		codes = append(codes, raw.(map[string]any)["code"].(string))
+	}
+	return codes
+}
+
+func TestRemovalItemsAreFilteredByTheTypeOfProperty(t *testing.T) {
+	customer := newCustomer(t)
+	every := removalItemCodes(t, customer.get(t, "/api/v1/removals/options"))
+	home := removalItemCodes(t, customer.get(t, "/api/v1/removals/options?property=home"))
+	office := removalItemCodes(t, customer.get(t, "/api/v1/removals/options?property=office"))
+	assert.ElementsMatch(t, every, home, "every item fits a home")
+	assert.Contains(t, office, "desk")
+	assert.Contains(t, office, "box", "an item without properties fits every type")
+	assert.NotContains(t, office, "bed", "a bed belongs to a home")
+	assert.Equal(t, "REMOVAL_PROPERTY_NOT_FOUND", customer.get(t, "/api/v1/removals/options?property=castelo").code())
+
+	admin := staffToken(t)
+	backoffice := removalItemCodes(t, admin.get(t, "/api/v1/admin/catalog/removal_item?property=office"))
+	assert.NotContains(t, backoffice, "bed", "the backoffice filters on the server too")
+	assert.Contains(t, backoffice, "desk")
+
+	refused := admin.post(t, "/api/v1/admin/catalog/removal_item", map[string]any{"code": "piano", "label": "Piano", "attrs": map[string]any{"volume_dm3": 2000, "properties": []string{"Casa Grande"}}})
+	assert.Equal(t, http.StatusUnprocessableEntity, refused.status, refused.text)
+}
+
+func TestRemovalItemsAddedByHandCountInTheVolumeAndReachTheRequest(t *testing.T) {
+	customer := newCustomer(t)
+	options := customer.get(t, "/api/v1/removals/options")
+	sizes := map[string]float64{}
+	for _, raw := range options.body["custom_sizes"].([]any) {
+		size := raw.(map[string]any)
+		sizes[size["code"].(string)] = size["volume_dm3"].(float64)
+	}
+	assert.Equal(t, map[string]float64{"small": 100, "medium": 600, "large": 1500}, sizes)
+
+	var sofa string
+	require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT id FROM catalog_items WHERE kind = 'removal_item' AND code = 'sofa'`).Scan(&sofa))
+	windowID, when := removalWindow(t, "midday")
+	removal := map[string]any{
+		"items":        []map[string]any{{"item_id": sofa, "qty": 1}},
+		"custom_items": []map[string]any{{"name": "Aquário", "qty": 2, "size": "medium"}},
+	}
+	estimate := removalEstimate(t, customer, when, "Carrinha", removal)
+	quote := estimate["removal"].(map[string]any)
+	assert.EqualValues(t, 2700, quote["volume_dm3"], "1 500 of the sofa and 2 x 600 of the aquarium")
+	lines := quote["items"].([]any)
+	require.Len(t, lines, 2)
+	custom := lines[1].(map[string]any)
+	assert.Equal(t, "Aquário", custom["label"])
+	assert.Equal(t, true, custom["custom"])
+	assert.Equal(t, "medium", custom["size"])
+
+	created := bookRemoval(t, customer, estimate, windowID, when, "gpo")
+	require.Equal(t, http.StatusCreated, created.status, created.text)
+	booked := created.body["details"].(map[string]any)["removal"].(map[string]any)["items"].([]any)
+	assert.Equal(t, "Aquário", booked[1].(map[string]any)["label"], "the provider sees what the customer added by hand")
+
+	post := func(item map[string]any) result {
+		return customer.post(t, "/api/v1/fare-estimates", map[string]any{"category": "removals", "pickup": pickup, "destination": target, "removal": map[string]any{"custom_items": []map[string]any{item}}})
+	}
+	assert.Equal(t, http.StatusUnprocessableEntity, post(map[string]any{"name": "Piano", "qty": 1, "size": "huge"}).status)
+	assert.Equal(t, http.StatusUnprocessableEntity, post(map[string]any{"name": "", "qty": 1, "size": "small"}).status)
+	assert.Equal(t, "REMOVAL_TOO_LARGE", post(map[string]any{"name": "Contentor", "qty": 30, "size": "large"}).code(), "45 m3 fit no vehicle")
+}

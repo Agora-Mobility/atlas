@@ -15,6 +15,7 @@ type AdminRequestFilter struct {
 	ProviderID     *uuid.UUID
 	From           *time.Time
 	To             *time.Time
+	RouteReview    bool
 }
 
 type AdminRequestView struct {
@@ -43,6 +44,8 @@ type AdminRequestView struct {
 	PickupLat        float64    `json:"pickup_lat"`
 	PickupLng        float64    `json:"pickup_lng"`
 	DestinationLine  string     `json:"destination_line,omitempty"`
+	DeviationBps     *int       `json:"distance_deviation_bps,omitempty"`
+	RouteReview      bool       `json:"route_review"`
 }
 
 type AdminRequestList struct {
@@ -80,4 +83,18 @@ type RequestHistoryEntry struct {
 type AdminRequestDetail struct {
 	Request RequestView           `json:"request"`
 	History []RequestHistoryEntry `json:"history"`
+	Trip    *TripMetricsView      `json:"trip,omitempty"`
+}
+
+type TripMetricsView struct {
+	EstimatedDistanceM   int       `json:"estimated_distance_m"`
+	EstimatedDurationS   int       `json:"estimated_duration_s"`
+	ActualDistanceM      int       `json:"actual_distance_m"`
+	ActualDurationS      int       `json:"actual_duration_s"`
+	DistanceDeviationBps int       `json:"distance_deviation_bps" example:"3500"`
+	DurationDeviationBps int       `json:"duration_deviation_bps" example:"-1200"`
+	Samples              int       `json:"gps_samples"`
+	RouteChanged         bool      `json:"route_changed"`
+	NeedsReview          bool      `json:"needs_review"`
+	RecordedAt           time.Time `json:"recorded_at"`
 }

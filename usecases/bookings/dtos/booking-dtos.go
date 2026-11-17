@@ -61,7 +61,21 @@ type WorkshopCardView struct {
 	IsOpen              bool            `json:"is_open"`
 	OpenUntil           *time.Time      `json:"open_until,omitempty"`
 	IsFavorite          bool            `json:"is_favorite"`
+	CoverURL            string          `json:"cover_url,omitempty"`
 	Promotions          []PromotionView `json:"promotions"`
+}
+
+type WorkshopPhotoView struct {
+	ID  uuid.UUID `json:"id"`
+	URL string    `json:"url"`
+}
+
+type WorkshopPhotoList struct {
+	Items []WorkshopPhotoView `json:"items"`
+}
+
+type WorkshopPhotosInput struct {
+	PhotoIDs []uuid.UUID `json:"photo_ids" binding:"max=50,unique"`
 }
 
 type WorkshopCardList struct {
@@ -86,6 +100,7 @@ type WorkshopDetailView struct {
 	Capacity int                   `json:"capacity"`
 	Hours    []HoursInput          `json:"hours"`
 	Services []WorkshopServiceView `json:"services"`
+	Photos   []WorkshopPhotoView   `json:"photos"`
 }
 
 type ReviewView struct {

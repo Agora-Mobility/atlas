@@ -129,7 +129,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 	c.Fleet = newFleetModule(c)
 	c.Payments = newPaymentsModule(c)
 	c.Experience = newExperienceModule(c)
-	c.Bookings = newBookingsModule(c)
+	c.Bookings = newBookingsModule(c, storage)
 	c.Addresses = newAddressesModule(c)
 	return c, nil
 }

@@ -30,20 +30,21 @@ func NewController(uc *experience.Usecase) *Controller {
 //	@Produce		json
 //	@Param			kind		path		string	true	"Catalog"
 //	@Param			category	query		string	false	"Category slug"
+//	@Param			property	query		string	false	"Only the removal items of this removal_property code; an item without properties fits every type"
 //	@Success		200			{object}	dtos.CatalogItemList
 //	@Failure		404			{object}	shared.ErrorResponse
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/catalog/{kind} [get]
 func (c *Controller) AdminListItems(ctx *gin.Context) {
-	list, err := c.uc.ListItems(ctx.Request.Context(), ctx.Param("kind"), ctx.Query("category"), true)
+	list, err := c.uc.ListItems(ctx.Request.Context(), ctx.Param("kind"), ctx.Query("category"), ctx.Query("property"), true)
 	respond(ctx, http.StatusOK, list, err)
 }
 
 // AdminCreateItem godoc
 //
 //	@Summary		Add an item to a catalog
-//	@Description	Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated.
+//	@Description	Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated. A removal_item may list in attrs.properties the removal_property codes it belongs to, such as ["home", "office"]; without the list it fits every type.
 //	@Tags			Backoffice
 //	@Accept			json
 //	@Produce		json

@@ -43,7 +43,7 @@ func newPartner(t *testing.T) *partner {
 	require.NoError(t, err)
 
 	staff := &person{id: userID, client: partnerClient, api: env.api.baseURL}
-	login := staff.post(t, "/api/v1/auth/login", map[string]string{"phone": phone, "password": secret})
+	login := staff.post(t, "/api/v1/auth/login", map[string]string{"email": email, "password": secret})
 	require.Equal(t, http.StatusOK, login.status, login.text)
 	staff.token = login.str("access_token")
 	return &partner{person: staff, organizationID: orgID.String()}

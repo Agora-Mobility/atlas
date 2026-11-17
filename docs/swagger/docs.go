@@ -173,6 +173,12 @@ const docTemplate = `{
                         "description": "Category slug",
                         "name": "category",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only the removal items of this removal_property code; an item without properties fits every type",
+                        "name": "property",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -199,7 +205,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated.",
+                "description": "Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated. A removal_item may list in attrs.properties the removal_property codes it belongs to, such as [\"home\", \"office\"]; without the list it fits every type.",
                 "consumes": [
                     "application/json"
                 ],
@@ -547,6 +553,174 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/demand-pricing": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "The price rises in an area of the zone when more customers wait than providers are free, by tiers of the ratio (customers + 1) / (free providers + 1), up to the cap. Each customer counts once, whether they quoted, requested or both. Ratios and factors are basis points: 10000 is 1.0.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "List the demand pricing of each zone and category",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandPricingList"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "A tier applies when the smoothed ratio is above above_ratio_bps. Mode off stops measuring and brings every price of the zone back to normal at once; observe measures and records the factor that would apply, without changing prices, to calibrate the tiers; on charges it. Estimates already given keep their price.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Set the demand tiers, cap and switch of a zone and category",
+                "parameters": [
+                    {
+                        "description": "Demand pricing",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandPricingInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandPricingView"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/demand-pricing/areas": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Areas of the zone where demand is above normal now, with the smoothed ratio and the factor quotes use. Areas not listed price at 1.0.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Current demand factor by area",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Zone",
+                        "name": "zone_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandAreaList"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/demand-pricing/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "One row per area and minute while demand was above normal. Defaults to the last 24 hours.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Demand factor history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Zone",
+                        "name": "zone_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "From, YYYY-MM-DD or RFC 3339",
+                        "name": "from",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandHistory"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/dispatch-policies": {
             "get": {
                 "security": [
@@ -674,6 +848,84 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/dispatch/flows": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requests with a destination created in the period, grouped by pickup and destination resolution 8 cells and sorted by volume. Pairs below min_requests (default 3) and pairs beyond limit (default 500) are left out and counted in hidden, so a single trip is not shown. The period defaults to the last 24 hours and spans at most 31 days.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Origin to destination flows by H3 cell",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Zone id",
+                        "name": "zone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start of the period (RFC 3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End of the period (RFC 3339), default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Smallest pair shown, 1 to 1000",
+                        "name": "min_requests",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Most pairs returned, 1 to 2000",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.FlowMap"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/dispatch/heatmap": {
             "get": {
                 "security": [
@@ -684,7 +936,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Resolution 8 hexagons for the Google Maps map of the backoffice. Demand covers the last 24 hours.",
+                "description": "Resolution 8 hexagons for the Google Maps map of the backoffice. Demand counts the requests created in the period, by pickup cell; the period defaults to the last 24 hours and spans at most 31 days. Supply is always the providers online right now, whatever the period.",
                 "produces": [
                     "application/json"
                 ],
@@ -698,6 +950,24 @@ const docTemplate = `{
                         "description": "Zone id",
                         "name": "zone_id",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start of the period (RFC 3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End of the period (RFC 3339), default now",
+                        "name": "to",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -705,6 +975,97 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.HeatMap"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/dispatch/heatmap/cells": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Requests per H3 cell for a hexagon layer such as deck.gl H3HexagonLayer, read from the cells the heatmap job aggregates every few minutes in 15 minute windows. The zoom picks the resolution (by default up to 10 is 6, 11 and 12 are 7, 13 and 14 are 8, from 15 is 9). When the view holds more than 20000 cells the next coarser resolution is used, and resolution tells which one answered; only when even resolution 6 does not fit the answer is 400 AREA_TOO_LARGE. value is the smoothed heat (0.6 of the cell plus 0.4 of the mean of its six neighbors); count is the raw number of requests. Windows of the period are summed. The period defaults to the last complete window and spans at most 7 days. h3 is always the hexadecimal index, since 64 bit integers lose precision in JavaScript.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice dispatch"
+                ],
+                "summary": "Heat of the H3 cells inside the map view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "13.15,-8.95,13.35,-8.75",
+                        "description": "minLng,minLat,maxLng,maxLat",
+                        "name": "bbox",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Map zoom, 0 to 24",
+                        "name": "zoom",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start of the period (RFC 3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End of the period (RFC 3339)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "count",
+                            "value"
+                        ],
+                        "type": "string",
+                        "description": "count or value, default value",
+                        "name": "metric",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug, default all",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.HeatCellsView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -857,6 +1218,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
+                "description": "Works on every request that is not finished yet, a trip in progress included. The customer pays no cancellation fee and gets back what was prepaid.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1980,6 +2342,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Created before, YYYY-MM-DD or RFC 3339",
                         "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only completed rides whose real distance strayed from the quote beyond ROUTE_REVIEW_ABOVE_PERCENT",
+                        "name": "route_review",
                         "in": "query"
                     },
                     {
@@ -3715,7 +4083,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Every account signs in with its phone number and password; the X-Client-Id header decides which accounts are accepted. Customers sign in through agora-customer-app and providers through agora-provider-app. Staff sign in through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership) and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.",
+                "description": "The X-Client-Id header decides which accounts are accepted and how they sign in. Customers (agora-customer-app) and providers (agora-provider-app) send phone and password. Staff send email and password, through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership), and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6863,6 +7231,107 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/photos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "List the photos of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopPhotoList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Upload each photo with POST /api/v1/media/photos, then send the full gallery in order: the first photo is the cover shown in GET /api/v1/workshops. Photos left out are removed from the gallery and photos already in it may stay. At most max_workshop_photos photos.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workshop operations"
+                ],
+                "summary": "Set the photos of a workshop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workshop id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopPhotosInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.WorkshopPhotoList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -10032,6 +10501,66 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/providers/me/demand": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Resolution 8 hexagons within 10 km of the provider with requests of its category in the last hour, as levels 1 to 3 against the busiest cell of the city. Cells with a single request are left out. The position comes from lat and lng, or else from the last one reported. boundary lists the vertices as [lat, lng]. Ask again after expires_at.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider work"
+                ],
+                "summary": "Where the category of the provider is asked for",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude, with lng",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude, with lat",
+                        "name": "lng",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DemandView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Not approved",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "No position",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/providers/me/documents": {
             "post": {
                 "security": [
@@ -11946,7 +12475,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice.",
+                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type. custom_sizes holds the volume of each size of an item the customer adds by hand.",
                 "produces": [
                     "application/json"
                 ],
@@ -11954,11 +12483,25 @@ const docTemplate = `{
                     "Removals"
                 ],
                 "summary": "Catalog of a removal",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Code of a removal_property, such as home or office",
+                        "name": "property",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.RemovalOptions"
+                        }
+                    },
+                    "422": {
+                        "description": "The property does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 }
@@ -16430,6 +16973,9 @@ const docTemplate = `{
                 },
                 "request": {
                     "$ref": "#/definitions/dtos.RequestView"
+                },
+                "trip": {
+                    "$ref": "#/definitions/dtos.TripMetricsView"
                 }
             }
         },
@@ -16480,6 +17026,9 @@ const docTemplate = `{
                 "destination_line": {
                     "type": "string"
                 },
+                "distance_deviation_bps": {
+                    "type": "integer"
+                },
                 "fare_cents": {
                     "type": "integer"
                 },
@@ -16509,6 +17058,9 @@ const docTemplate = `{
                 },
                 "provider_name": {
                     "type": "string"
+                },
+                "route_review": {
+                    "type": "boolean"
                 },
                 "scheduled_for": {
                     "type": "string"
@@ -17427,6 +17979,20 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CellFlow": {
+            "type": "object",
+            "properties": {
+                "destination": {
+                    "$ref": "#/definitions/dtos.HeatPoint"
+                },
+                "origin": {
+                    "$ref": "#/definitions/dtos.HeatPoint"
+                },
+                "requests": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.ChangeMethodInput": {
             "type": "object",
             "required": [
@@ -17881,6 +18447,19 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.CustomSize": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "medium"
+                },
+                "volume_dm3": {
+                    "type": "integer",
+                    "example": 600
+                }
+            }
+        },
         "dtos.CustomerVehicleInput": {
             "type": "object",
             "required": [
@@ -18007,6 +18586,260 @@ const docTemplate = `{
                         "fcm",
                         "sms"
                     ]
+                }
+            }
+        },
+        "dtos.DemandAreaList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandAreaView"
+                    }
+                },
+                "resolution": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.DemandAreaView": {
+            "type": "object",
+            "properties": {
+                "cell": {
+                    "type": "string"
+                },
+                "factor_bps": {
+                    "type": "integer",
+                    "example": 12000
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "ratio_bps": {
+                    "type": "integer",
+                    "example": 17000
+                }
+            }
+        },
+        "dtos.DemandCell": {
+            "type": "object",
+            "properties": {
+                "boundary": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        }
+                    }
+                },
+                "cell": {
+                    "type": "string",
+                    "example": "88754e64d3fffff"
+                },
+                "level": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "example": 3
+                }
+            }
+        },
+        "dtos.DemandHistory": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandSnapshotView"
+                    }
+                },
+                "resolution": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.DemandPricingInput": {
+            "type": "object",
+            "required": [
+                "category",
+                "mode",
+                "zone_id"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "commission_on_surge": {
+                    "type": "boolean"
+                },
+                "max_factor_bps": {
+                    "type": "integer",
+                    "maximum": 30000,
+                    "minimum": 10000,
+                    "example": 13000
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "observe",
+                        "on"
+                    ],
+                    "example": "observe"
+                },
+                "tiers": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandTierInput"
+                    }
+                },
+                "zone_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.DemandPricingList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandPricingView"
+                    }
+                }
+            }
+        },
+        "dtos.DemandPricingView": {
+            "type": "object",
+            "required": [
+                "category",
+                "mode",
+                "zone_id"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "commission_on_surge": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "max_factor_bps": {
+                    "type": "integer",
+                    "maximum": 30000,
+                    "minimum": 10000,
+                    "example": 13000
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "observe",
+                        "on"
+                    ],
+                    "example": "observe"
+                },
+                "tiers": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandTierInput"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "zone_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.DemandSnapshotView": {
+            "type": "object",
+            "properties": {
+                "cell": {
+                    "type": "string"
+                },
+                "factor_bps": {
+                    "type": "integer",
+                    "example": 12000
+                },
+                "free": {
+                    "type": "integer"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "pending": {
+                    "type": "integer"
+                },
+                "ratio_bps": {
+                    "type": "integer",
+                    "example": 17000
+                },
+                "recorded_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.DemandTierInput": {
+            "type": "object",
+            "properties": {
+                "above_ratio_bps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 15000
+                },
+                "factor_bps": {
+                    "type": "integer",
+                    "maximum": 30000,
+                    "minimum": 10000,
+                    "example": 12000
+                }
+            }
+        },
+        "dtos.DemandView": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "cells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.DemandCell"
+                    }
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "radius_km": {
+                    "type": "number",
+                    "example": 10
+                },
+                "window_minutes": {
+                    "type": "integer",
+                    "example": 60
                 }
             }
         },
@@ -18462,6 +19295,10 @@ const docTemplate = `{
                 "currency": {
                     "type": "string"
                 },
+                "demand_factor_bps": {
+                    "type": "integer",
+                    "example": 10000
+                },
                 "distance_m": {
                     "type": "integer"
                 },
@@ -18473,6 +19310,9 @@ const docTemplate = `{
                 },
                 "fare_estimate_id": {
                     "type": "string"
+                },
+                "high_demand": {
+                    "type": "boolean"
                 },
                 "included_km": {
                     "type": "integer"
@@ -18613,6 +19453,35 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.FlowMap": {
+            "type": "object",
+            "properties": {
+                "flows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CellFlow"
+                    }
+                },
+                "from": {
+                    "type": "string"
+                },
+                "hidden": {
+                    "type": "integer"
+                },
+                "min_requests": {
+                    "type": "integer"
+                },
+                "resolution": {
+                    "type": "integer"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.GatewayFeeInput": {
             "type": "object",
             "properties": {
@@ -18691,6 +19560,36 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.HeatCellsView": {
+            "type": "object",
+            "properties": {
+                "cells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.HeatValue"
+                    }
+                },
+                "max": {
+                    "type": "number",
+                    "example": 42.5
+                },
+                "metric": {
+                    "type": "string",
+                    "enum": [
+                        "count",
+                        "value"
+                    ],
+                    "example": "value"
+                },
+                "resolution": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "window": {
+                    "$ref": "#/definitions/dtos.HeatWindow"
+                }
+            }
+        },
         "dtos.HeatMap": {
             "type": "object",
             "properties": {
@@ -18700,8 +19599,52 @@ const docTemplate = `{
                         "$ref": "#/definitions/dtos.HeatCell"
                     }
                 },
+                "from": {
+                    "type": "string"
+                },
                 "resolution": {
                     "type": "integer"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.HeatPoint": {
+            "type": "object",
+            "properties": {
+                "cell": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                }
+            }
+        },
+        "dtos.HeatValue": {
+            "type": "object",
+            "properties": {
+                "h3": {
+                    "type": "string",
+                    "example": "8975a5a6a8bffff"
+                },
+                "value": {
+                    "type": "number",
+                    "example": 12.3
+                }
+            }
+        },
+        "dtos.HeatWindow": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
                 }
             }
         },
@@ -19171,10 +20114,14 @@ const docTemplate = `{
         "dtos.LoginInput": {
             "type": "object",
             "required": [
-                "password",
-                "phone"
+                "password"
             ],
             "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "example": "admin@agora.ao"
+                },
                 "password": {
                     "type": "string",
                     "maxLength": 128,
@@ -21380,6 +22327,36 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.RemovalCustomItemInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "qty",
+                "size"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Aquário"
+                },
+                "qty": {
+                    "type": "integer",
+                    "maximum": 500,
+                    "minimum": 1,
+                    "example": 1
+                },
+                "size": {
+                    "type": "string",
+                    "enum": [
+                        "small",
+                        "medium",
+                        "large"
+                    ],
+                    "example": "medium"
+                }
+            }
+        },
         "dtos.RemovalDayView": {
             "type": "object",
             "properties": {
@@ -21404,6 +22381,13 @@ const docTemplate = `{
         "dtos.RemovalInput": {
             "type": "object",
             "properties": {
+                "custom_items": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "$ref": "#/definitions/dtos.RemovalCustomItemInput"
+                    }
+                },
                 "extras": {
                     "type": "array",
                     "maxItems": 20,
@@ -21474,6 +22458,16 @@ const docTemplate = `{
                 "promo_until": {
                     "type": "string"
                 },
+                "properties": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "home",
+                        "office"
+                    ]
+                },
                 "volume_dm3": {
                     "type": "integer"
                 }
@@ -21484,6 +22478,12 @@ const docTemplate = `{
             "properties": {
                 "currency": {
                     "type": "string"
+                },
+                "custom_sizes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.CustomSize"
+                    }
                 },
                 "extras": {
                     "type": "array",
@@ -23014,6 +24014,43 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.TripMetricsView": {
+            "type": "object",
+            "properties": {
+                "actual_distance_m": {
+                    "type": "integer"
+                },
+                "actual_duration_s": {
+                    "type": "integer"
+                },
+                "distance_deviation_bps": {
+                    "type": "integer",
+                    "example": 3500
+                },
+                "duration_deviation_bps": {
+                    "type": "integer",
+                    "example": -1200
+                },
+                "estimated_distance_m": {
+                    "type": "integer"
+                },
+                "estimated_duration_s": {
+                    "type": "integer"
+                },
+                "gps_samples": {
+                    "type": "integer"
+                },
+                "needs_review": {
+                    "type": "boolean"
+                },
+                "recorded_at": {
+                    "type": "string"
+                },
+                "route_changed": {
+                    "type": "boolean"
+                }
+            }
+        },
         "dtos.UnblockUserInput": {
             "type": "object",
             "properties": {
@@ -23859,6 +24896,9 @@ const docTemplate = `{
                 "address": {
                     "type": "string"
                 },
+                "cover_url": {
+                    "type": "string"
+                },
                 "currency": {
                     "type": "string"
                 },
@@ -23918,6 +24958,9 @@ const docTemplate = `{
                 "capacity": {
                     "type": "integer"
                 },
+                "cover_url": {
+                    "type": "string"
+                },
                 "currency": {
                     "type": "string"
                 },
@@ -23956,6 +24999,12 @@ const docTemplate = `{
                 },
                 "open_until": {
                     "type": "string"
+                },
+                "photos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.WorkshopPhotoView"
+                    }
                 },
                 "promotions": {
                     "type": "array",
@@ -24040,6 +25089,41 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "dtos.WorkshopPhotoList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.WorkshopPhotoView"
+                    }
+                }
+            }
+        },
+        "dtos.WorkshopPhotoView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.WorkshopPhotosInput": {
+            "type": "object",
+            "properties": {
+                "photo_ids": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -24312,11 +25396,17 @@ const docTemplate = `{
                 "code": {
                     "type": "string"
                 },
+                "custom": {
+                    "type": "boolean"
+                },
                 "label": {
                     "type": "string"
                 },
                 "qty": {
                     "type": "integer"
+                },
+                "size": {
+                    "type": "string"
                 },
                 "volume_dm3": {
                     "type": "integer"

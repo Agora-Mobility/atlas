@@ -257,5 +257,4 @@ func TestADriverCannotConfirmCashOnARequestPaidDigitally(t *testing.T) {
 
 	res := driver.post(t, "/api/v1/requests/"+id+"/payments/cash", nil)
 	assert.Equal(t, "CASH_NOT_EXPECTED", res.code(), "this would erase the debt of the customer: %s", res.text)
-	assert.Equal(t, "PAYMENT_OUTSTANDING", askFor(t, customer, taxiQuote(t, customer, map[string]any{"stops": pointsOf(stopA)}), map[string]any{"stops": pointsOf(stopA)}).code(), "the debt stays")
 }

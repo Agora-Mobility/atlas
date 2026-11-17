@@ -983,6 +983,47 @@ func TestOperatorDispatchesByHandRetriesAndCancels(t *testing.T) {
 	stream.waitForStatus(t, "cancelled")
 }
 
+func TestEveryoneCancelsATripInProgress(t *testing.T) {
+	started := func(t *testing.T) (customer, driver *person, id string) {
+		t.Helper()
+		customer, driver, id = assignedTaxi(t)
+		for _, step := range []string{"en-route", "start"} {
+			res := driver.post(t, "/api/v1/requests/"+id+"/"+step, nil)
+			require.Equal(t, http.StatusOK, res.status, res.text)
+		}
+		require.Equal(t, "in_progress", customer.get(t, "/api/v1/requests/"+id).str("status"))
+		return customer, driver, id
+	}
+
+	t.Run("the customer", func(t *testing.T) {
+		customer, _, id := started(t)
+		reason := cancelReason(t, customer, "customer", "taxi", "changed_plans")
+		cancelled := customer.post(t, "/api/v1/requests/"+id+"/cancel", map[string]any{"reason_id": reason})
+		require.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
+		assert.Equal(t, "cancelled", cancelled.str("status"))
+		assert.Equal(t, "customer", cancelled.str("cancelled_by"))
+	})
+
+	t.Run("the driver", func(t *testing.T) {
+		customer, driver, id := started(t)
+		reason := cancelReason(t, driver, "provider", "taxi", "customer_no_show")
+		cancelled := driver.post(t, "/api/v1/requests/"+id+"/cancel", map[string]any{"reason_id": reason})
+		require.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
+		assert.Equal(t, "cancelled", customer.get(t, "/api/v1/requests/"+id).str("status"))
+	})
+
+	t.Run("the operator", func(t *testing.T) {
+		customer, _, id := started(t)
+		stream := customer.listen(t, "")
+		cancelled, err := env.api.container.Dispatch.Usecase.CancelByOperator(context.Background(), entities.Actor{}, uuid.MustParse(id), "Corrida interrompida pelo operador")
+		require.NoError(t, err)
+		assert.Equal(t, "cancelled", cancelled.Status)
+		assert.Equal(t, "operator", cancelled.CancelledBy)
+		assert.Zero(t, cancelled.CancelFeeCents, "an operator never charges the customer")
+		stream.waitForStatus(t, "cancelled")
+	})
+}
+
 func TestReminderReachesBothPartiesBeforeTheDate(t *testing.T) {
 	clearOnlineProviders(t)
 	driver := newProvider(t, "taxi", point{-8.84, 13.235})
@@ -1142,4 +1183,36 @@ func TestProviderAddressesLiveInTheAddressTable(t *testing.T) {
 	require.NoError(t, env.owner.QueryRow(ctx, `SELECT a.lat FROM providers p JOIN addresses a ON a.id = p.base_address_id WHERE p.user_id = $1`, provider.id).Scan(&lat))
 	assert.InDelta(t, -8.86, lat, 1e-9, "the base is updated in place")
 
+}
+
+func TestProviderSeesWhereItsCategoryIsAskedFor(t *testing.T) {
+	clearOnlineProviders(t)
+	driver := newProvider(t, "taxi", point{-8.8391, 13.2341})
+	for range 2 {
+		customer := newCustomer(t)
+		estimateID, serviceID := estimateFor(t, customer, "taxi")
+		created := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
+		require.Contains(t, []int{http.StatusCreated, http.StatusOK}, created.status, created.text)
+	}
+
+	demand := driver.get(t, "/api/v1/providers/me/demand")
+	require.Equal(t, http.StatusOK, demand.status, demand.text)
+	assert.Equal(t, "taxi", demand.str("category"))
+	cells := demand.body["cells"].([]any)
+	require.NotEmpty(t, cells, "two requests at the same pickup make a hot cell")
+	for _, raw := range cells {
+		cell := raw.(map[string]any)
+		assert.Contains(t, []any{1.0, 2.0, 3.0}, cell["level"])
+		assert.Len(t, cell["boundary"], 6)
+		assert.NotContains(t, cell, "requests", "the app never sees counts")
+	}
+
+	far := driver.get(t, "/api/v1/providers/me/demand?lat=-14.9177&lng=13.4925")
+	require.Equal(t, http.StatusOK, far.status, far.text)
+	assert.Empty(t, far.body["cells"])
+
+	assert.Equal(t, http.StatusBadRequest, driver.get(t, "/api/v1/providers/me/demand?lat=-8.8").status)
+
+	stranger := newPerson(t, "provider")
+	assert.Equal(t, "PROVIDER_NOT_APPROVED", stranger.get(t, "/api/v1/providers/me/demand?lat=-8.8&lng=13.2").code())
 }

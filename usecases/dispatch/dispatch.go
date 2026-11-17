@@ -28,6 +28,8 @@ var (
 	ErrReasonNotApplicable  = errors.New("this reason does not exist or does not apply here")
 	ErrUnknownReasonActor   = errors.New("actor must be customer, provider or offer")
 	ErrReportScope          = errors.New("scope must be customer_cancel, provider_cancel or offer_reject")
+	ErrHeatPeriod           = errors.New("the period must end after it starts and span at most 31 days")
+	ErrFlowBounds           = errors.New("min_requests must be between 1 and 1000 and limit between 1 and 2000")
 	ErrDuplicateRequest     = errors.New("the customer already has this request active")
 	ErrRequestConflict      = repository.ErrRequestVersionConflict
 	ErrProviderNotApproved  = errors.New("the provider is not approved")
@@ -77,6 +79,14 @@ type Settings struct {
 	ChannelTimeout   time.Duration
 	ShareBaseURL     string
 	Currency         string
+
+	DemandAreaResolution   int
+	DemandQuoteWindow      time.Duration
+	DemandFactorTTL        time.Duration
+	DemandHistoryRetention time.Duration
+	RouteReviewAboveBps    int
+
+	Heatmap HeatmapSettings
 }
 
 type OfferChannels interface {
@@ -96,6 +106,8 @@ type OfferNotice struct {
 type Deps struct {
 	Config    repository.IDispatchConfigRepository
 	Pricing   repository.IPricingRepository
+	Demand    repository.IDemandRepository
+	Signals   repository.IDemandSignals
 	Providers repository.IProviderRepository
 	Requests  repository.IRequestRepository
 	Offers    repository.IOfferRepository
@@ -117,6 +129,13 @@ type Deps struct {
 	Routing   services.IRoutingProvider
 	Feed      services.IPositionFeed
 	Channels  OfferChannels
+	Heatmap   repository.IHeatmapRepository
+	Cache     Cache
+}
+
+type Cache interface {
+	Get(ctx context.Context, key string, dest any) (bool, error)
+	Set(ctx context.Context, key string, value any, ttl time.Duration) error
 }
 
 type PrepaidRefunder interface {
@@ -128,6 +147,7 @@ type Usecase struct {
 	Deps
 	settings Settings
 	zones    *ZoneCache
+	hotCells *hotCellCache
 	now      func() time.Time
 	sends    chan struct{}
 }
@@ -137,9 +157,10 @@ const concurrentChannelSends = 32
 func NewUsecase(deps Deps, settings Settings) *Usecase {
 	return &Usecase{
 		Deps: deps, settings: settings,
-		zones: NewZoneCache(deps.Config, deps.Geo),
-		now:   func() time.Time { return time.Now().UTC() },
-		sends: make(chan struct{}, concurrentChannelSends),
+		zones:    NewZoneCache(deps.Config, deps.Geo),
+		hotCells: &hotCellCache{byCategory: map[string]hotCells{}},
+		now:      func() time.Time { return time.Now().UTC() },
+		sends:    make(chan struct{}, concurrentChannelSends),
 	}
 }
 

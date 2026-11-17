@@ -63,7 +63,7 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	if policy.BookingOnly {
 		return nil, false, entities.ErrBookingOnly
 	}
-	paymentMethod, err := u.checkPayment(ctx, customerID, service.CategoryID, in.PaymentMethod)
+	paymentMethod, err := u.checkPayment(ctx, service.CategoryID, in.PaymentMethod)
 	if err != nil {
 		return nil, false, err
 	}
@@ -110,6 +110,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	if request.PickupH3R8, err = u.Geo.Cell(request.Pickup.Point, analyticsResolution); err != nil {
 		return nil, false, err
 	}
+	if request.PickupH3R9, err = u.Geo.Cell(request.Pickup.Point, entities.HeatmapResolution); err != nil {
+		return nil, false, err
+	}
 	if request.Destination != nil {
 		cell, err := u.Geo.Cell(request.Destination.Point, analyticsResolution)
 		if err != nil {
@@ -141,6 +144,11 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 			}
 			if !fresh {
 				return ErrFareEstimateUsed
+			}
+		}
+		if request.Fare.DemandCents > 0 {
+			if err := u.Requests.AddFareAdjustment(ctx, entities.FareAdjustment{RequestID: request.ID, Reason: entities.AdjustmentDemand, AmountCents: request.Fare.DemandCents, CreatedAt: now}); err != nil {
+				return err
 			}
 		}
 		created := &entities.RequestStatusChange{To: entities.RequestCreated, Version: request.Version, Actor: entities.RequestActor{Type: entities.RequestActorCustomer, ID: &customerID}, At: now}
@@ -227,14 +235,7 @@ func withoutServerFields(details json.RawMessage) json.RawMessage {
 	return cleaned
 }
 
-func (u *Usecase) checkPayment(ctx context.Context, customerID, categoryID uuid.UUID, requested string) (entities.PaymentMethod, error) {
-	outstanding, err := u.Payments.HasOutstanding(ctx, customerID)
-	if err != nil {
-		return "", err
-	}
-	if outstanding {
-		return "", entities.ErrPaymentOutstanding
-	}
+func (u *Usecase) checkPayment(ctx context.Context, categoryID uuid.UUID, requested string) (entities.PaymentMethod, error) {
 	method := entities.PaymentMethod(requested)
 	if method == "" {
 		method = entities.PaymentCash
@@ -297,7 +298,7 @@ func (u *Usecase) resolveFare(ctx context.Context, customerID uuid.UUID, service
 	}
 	id := estimate.ID
 	total, commission := estimate.TotalCents, estimate.CommissionCents
-	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency, VehicleTypeID: estimate.VehicleTypeID, EstimateDetails: estimate.Details, RouteGeometry: estimate.RouteGeometry}, nil
+	return entities.RequestFare{EstimateID: &id, Cents: &total, CommissionCents: &commission, Currency: estimate.Currency, VehicleTypeID: estimate.VehicleTypeID, EstimateDetails: estimate.Details, RouteGeometry: estimate.RouteGeometry, DemandCents: estimate.DemandCents}, nil
 }
 
 func (u *Usecase) GetRequest(ctx context.Context, userID, requestID uuid.UUID) (*dtos.RequestView, error) {
@@ -613,7 +614,8 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 				base = entities.TowingFare(vehicleType, vehicleType.PriceAt(estimate.CreatedAt), route.DistanceMeters)
 			}
 		}
-		boosted := base + base*int64(request.Fare.BoostBps)/10_000
+		quote := tariff.Quote(base, estimate.Demand())
+		boosted := quote.TotalCents + quote.TotalCents*int64(request.Fare.BoostBps)/10_000
 		difference := boosted - *request.Fare.Cents
 		if err := u.repriceVoucher(ctx, request, boosted); err != nil {
 			return err
@@ -622,7 +624,7 @@ func (u *Usecase) ChangeRoute(ctx context.Context, customerID, requestID uuid.UU
 		if err != nil {
 			return err
 		}
-		if err := request.ChangeRoute(destination, stops, policy, boosted, tariff.CommissionFor(base), route.Geometry); err != nil {
+		if err := request.ChangeRoute(destination, stops, policy, boosted, quote.CommissionCents, route.Geometry); err != nil {
 			return err
 		}
 		cell, err := u.Geo.Cell(destination.Point, analyticsResolution)

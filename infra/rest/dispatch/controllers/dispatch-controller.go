@@ -85,6 +85,11 @@ func respond(ctx *gin.Context, status int, body any, err error) {
 }
 
 func handleError(ctx *gin.Context, err error) {
+	var outstanding *entities.OutstandingPaymentError
+	if errors.As(err, &outstanding) {
+		shared.PaymentOutstanding(ctx, outstanding)
+		return
+	}
 	var feeChanged *dispatch.CancelFeeChangedError
 	if errors.As(err, &feeChanged) {
 		ctx.AbortWithStatusJSON(http.StatusConflict, gin.H{
@@ -121,18 +126,19 @@ var errorTable = []struct {
 	message string
 }{
 	{dispatch.ErrRequestNotFound, http.StatusNotFound, "REQUEST_NOT_FOUND", "Request not found."},
-	{entities.ErrPaymentOutstanding, http.StatusConflict, "PAYMENT_OUTSTANDING", "Pay the completed request before asking for another."},
 	{entities.ErrPaymentMethodUnavailable, http.StatusUnprocessableEntity, "PAYMENT_METHOD_UNAVAILABLE", "This payment method is not available for this service."},
 	{dispatch.ErrInvalidGrouping, http.StatusUnprocessableEntity, "INVALID_GROUPING", "group_by must be category, service, status, zone or organization."},
 	{dispatch.ErrOfferNotFound, http.StatusNotFound, "OFFER_NOT_FOUND", "Offer not found."},
 	{dispatch.ErrZoneNotFound, http.StatusNotFound, "ZONE_NOT_FOUND", "Zone not found."},
 	{dispatch.ErrPolicyNotFound, http.StatusNotFound, "POLICY_NOT_FOUND", "Policy not found."},
+	{dispatch.ErrDemandNotLive, http.StatusUnprocessableEntity, "DEMAND_PRICING_NOT_LIVE", "Demand pricing only applies to categories dispatched to online providers."},
 	{dispatch.ErrServiceNotOffered, http.StatusUnprocessableEntity, "SERVICE_NOT_OFFERED", "This service is not available."},
 	{dispatch.ErrOutsideServiceArea, http.StatusUnprocessableEntity, "OUTSIDE_SERVICE_AREA", "The service is not available at this location yet."},
 	{dispatch.ErrFareEstimateRequired, http.StatusUnprocessableEntity, "FARE_ESTIMATE_REQUIRED", "This service needs a fare estimate."},
 	{dispatch.ErrFareEstimateInvalid, http.StatusConflict, "FARE_ESTIMATE_INVALID", "The price does not match this route. Ask for a new one."},
 	{dispatch.ErrFareEstimateUsed, http.StatusConflict, "FARE_ESTIMATE_USED", "This price was already used. Ask for a new one."},
 	{entities.ErrRemovalItemUnknown, http.StatusUnprocessableEntity, "REMOVAL_ITEM_NOT_FOUND", "An item does not exist in the catalog."},
+	{entities.ErrRemovalPropertyUnknown, http.StatusUnprocessableEntity, "REMOVAL_PROPERTY_NOT_FOUND", "This type of property does not exist in the catalog."},
 	{entities.ErrRemovalExtraUnknown, http.StatusUnprocessableEntity, "REMOVAL_EXTRA_NOT_FOUND", "An extra does not exist in the catalog."},
 	{entities.ErrRemovalHelpers, http.StatusUnprocessableEntity, "REMOVAL_TOO_MANY_HELPERS", "Too many helpers."},
 	{entities.ErrRemovalTooLarge, http.StatusUnprocessableEntity, "REMOVAL_TOO_LARGE", "No vehicle carries this volume."},
@@ -149,6 +155,14 @@ var errorTable = []struct {
 	{dispatch.ErrReasonNotApplicable, http.StatusUnprocessableEntity, "REASON_NOT_APPLICABLE", "This reason does not exist or does not apply here."},
 	{dispatch.ErrUnknownReasonActor, http.StatusUnprocessableEntity, "UNKNOWN_REASON_ACTOR", "actor must be customer, provider or offer."},
 	{dispatch.ErrReportScope, http.StatusUnprocessableEntity, "INVALID_REPORT_SCOPE", "scope must be customer_cancel, provider_cancel or offer_reject."},
+	{dispatch.ErrHeatPeriod, http.StatusUnprocessableEntity, "INVALID_PERIOD", "The period must end after it starts and span at most 31 days."},
+	{dispatch.ErrPositionUnknown, http.StatusUnprocessableEntity, "POSITION_UNKNOWN", "Send lat and lng, or report a position first."},
+	{dispatch.ErrHeatmapBox, http.StatusBadRequest, "INVALID_BBOX", "bbox must be minLng,minLat,maxLng,maxLat with longitudes between -180 and 180, latitudes between -90 and 90 and each minimum below its maximum."},
+	{dispatch.ErrHeatmapZoom, http.StatusBadRequest, "INVALID_ZOOM", "zoom must be a whole number between 0 and 24."},
+	{dispatch.ErrHeatmapMetric, http.StatusBadRequest, "INVALID_METRIC", "metric must be count or value."},
+	{dispatch.ErrHeatmapPeriod, http.StatusBadRequest, "INVALID_PERIOD", "The period must end after it starts and span at most the allowed period, 7 days by default."},
+	{dispatch.ErrHeatmapArea, http.StatusBadRequest, "AREA_TOO_LARGE", "The area holds too many cells even at the coarsest resolution. Zoom in."},
+	{dispatch.ErrFlowBounds, http.StatusUnprocessableEntity, "INVALID_FLOW_BOUNDS", "min_requests must be between 1 and 1000 and limit between 1 and 2000."},
 	{entities.ErrVoucherNotFound, http.StatusUnprocessableEntity, "VOUCHER_NOT_FOUND", "This voucher does not exist."},
 	{entities.ErrVoucherExpired, http.StatusUnprocessableEntity, "VOUCHER_EXPIRED", "This voucher is outside its validity."},
 	{entities.ErrVoucherNotApplicable, http.StatusUnprocessableEntity, "VOUCHER_NOT_APPLICABLE", "This voucher does not apply to this service."},
@@ -339,6 +353,41 @@ func (c *DispatchController) GoOnline(ctx *gin.Context) {
 		}
 	}
 	view, err := c.dispatch.GoOnline(ctx.Request.Context(), providerID, in)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// ProviderDemand godoc
+//
+//	@Summary		Where the category of the provider is asked for
+//	@Description	Resolution 8 hexagons within 10 km of the provider with requests of its category in the last hour, as levels 1 to 3 against the busiest cell of the city. Cells with a single request are left out. The position comes from lat and lng, or else from the last one reported. boundary lists the vertices as [lat, lng]. Ask again after expires_at.
+//	@Tags			Provider work
+//	@Produce		json
+//	@Param			lat	query		number	false	"Latitude, with lng"
+//	@Param			lng	query		number	false	"Longitude, with lat"
+//	@Success		200	{object}	dtos.DemandView
+//	@Failure		400	{object}	shared.ErrorResponse
+//	@Failure		403	{object}	shared.ErrorResponse	"Not approved"
+//	@Failure		422	{object}	shared.ErrorResponse	"No position"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/providers/me/demand [get]
+func (c *DispatchController) ProviderDemand(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	var query dtos.DemandQuery
+	rawLat, rawLng := ctx.Query("lat"), ctx.Query("lng")
+	if rawLat != "" || rawLng != "" {
+		lat, latErr := strconv.ParseFloat(rawLat, 64)
+		lng, lngErr := strconv.ParseFloat(rawLng, 64)
+		if latErr != nil || lngErr != nil || lat < -90 || lat > 90 || lng < -180 || lng > 180 {
+			shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid lat or lng.")
+			return
+		}
+		query.Position = &entities.GeoPoint{Lat: lat, Lng: lng}
+	}
+	view, err := c.dispatch.ProviderDemand(ctx.Request.Context(), providerID, query)
 	respond(ctx, http.StatusOK, view, err)
 }
 

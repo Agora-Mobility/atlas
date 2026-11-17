@@ -342,8 +342,9 @@ Atualizado em 2026-11-02. Migração `000021_payments`, módulo `usecases/paymen
 
 **Regras em vigor**
 
+- Desde a migração 000051 o cliente paga fora da app: só o dinheiro está ligado em todas as categorias, e o código de pagamento digital fica desligado por configuração. A migração `down` volta a ligá-lo.
+- Um pedido por pagar não impede o cliente de fazer outro. O erro `PAYMENT_OUTSTANDING` deixou de ser devolvido.
 - O pagamento digital acontece depois de o pedido estar concluído, com o valor do próprio pedido.
-- Um pedido concluído por pagar com Express ou Referência impede o cliente de fazer outro (`PAYMENT_OUTSTANDING`).
 - Depois de concluído, o método não pode mudar para dinheiro.
 - A Referência está desligada no Táxi e no Reboque, e ligada na Manutenção e nas Mudanças. Altera-se no backoffice.
 - O webhook é só um aviso: o estado vem sempre de `GET /charges/{id}`, e valor e código têm de coincidir.
@@ -383,7 +384,7 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 
 ### Fase 3: motivos por ator e cancelamento com custo
 
-`rejection_reasons` passou a ter os âmbitos `customer_cancel`, `provider_cancel` e `offer_reject`, por categoria (C7). `cancellation_rules` guarda a taxa e os prazos por serviço. O cancelamento guarda `cancel_reason_id` e `cancel_fee_cents`, e a taxa por pagar entra em `PAYMENT_OUTSTANDING`.
+`rejection_reasons` passou a ter os âmbitos `customer_cancel`, `provider_cancel` e `offer_reject`, por categoria (C7). `cancellation_rules` guarda a taxa e os prazos por serviço. O cancelamento guarda `cancel_reason_id` e `cancel_fee_cents`, e a taxa por pagar não bloqueia novos pedidos. Desde a migração 000051 a taxa é zero em todos os serviços.
 
 **Endpoints novos:** `GET /cancellation-reasons`, `GET /requests/{id}/cancellation`, `GET /admin/cancellation-rules`, `PUT /admin/cancellation-rules/{serviceId}`, `GET /admin/reports/cancellations`.
 
@@ -435,6 +436,8 @@ Cada fase lista o que deixou de faltar nas secções acima. As secções 2 a 11 
 **Endpoints novos:** `GET,POST /requests/{id}/messages`, `GET /quick-replies`, `POST,DELETE /requests/{id}/share`, `GET /public/trips/{token}`, `GET /requests/{id}/eta`, `POST /requests/{id}/call`, `POST /requests/{id}/sos`, `GET /admin/sos`, `POST /admin/sos/{id}/resolve`.
 
 O SMS ao passageiro leva agora a ligação de seguimento. SSE novo: `request.message`.
+
+**Adicionado em 2026-11-12:** cada mensagem do chat também segue por push FCM (`type: request.message`, com `request_id` e `message_id`) para quem a recebe. Assim, o aviso chega com a app em segundo plano e sem SSE. A app esconde-o quando esse chat está aberto. As mensagens não entram na caixa de entrada.
 
 **Env novas:** `CALLS_BASE_URL`, `CALLS_API_KEY`, `CALLS_TIMEOUT`, `SHARE_BASE_URL`.
 
