@@ -33,6 +33,7 @@ const (
 	maxAttrCodes          = 20
 
 	AttrProperties = "properties"
+	AttrActor      = "actor"
 )
 
 var ErrCatalogItemNotFound = errors.New("catalog item not found")
@@ -181,6 +182,22 @@ func (i *CatalogItem) AttrInt(name string) int64 {
 		return 0
 	}
 	return number
+}
+
+func (i *CatalogItem) AttrText(name string) string {
+	values, err := i.attrValues()
+	if err != nil {
+		return ""
+	}
+	var value string
+	if json.Unmarshal(values[name], &value) != nil {
+		return ""
+	}
+	return value
+}
+
+func (i *CatalogItem) IsQuickReplyOf(actor string) bool {
+	return i.Kind == CatalogQuickReply && i.IsActive && i.AttrText(AttrActor) == actor
 }
 
 func (i *CatalogItem) PriceAt(now time.Time) int64 {

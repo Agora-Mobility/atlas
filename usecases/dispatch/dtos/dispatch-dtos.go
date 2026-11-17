@@ -357,16 +357,18 @@ type PublicTrip struct {
 }
 
 type ETAView struct {
-	DurationS int           `json:"duration_s"`
-	DistanceM int           `json:"distance_m"`
-	Source    string        `json:"source"`
-	Target    string        `json:"target"`
-	Position  *PositionView `json:"position,omitempty"`
+	DurationS     int           `json:"duration_s"`
+	DistanceM     int           `json:"distance_m"`
+	Source        string        `json:"source"`
+	Target        string        `json:"target"`
+	Position      *PositionView `json:"position,omitempty"`
+	RouteGeometry string        `json:"route_geometry,omitempty" example:"zmrv@cbdpA..."`
 }
 
 type CallView struct {
-	ProxyNumber string     `json:"proxy_number"`
-	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	Number    string     `json:"number" example:"+244923000111"`
+	Masked    bool       `json:"masked"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
 type SOSInput struct {

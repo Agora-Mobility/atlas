@@ -40,7 +40,7 @@ type DispatchModule struct {
 
 func newCallBridge(cfg config.CallsConfig) services.ICallBridge {
 	if !cfg.Enabled() {
-		return calls.Unavailable{}
+		return calls.Direct{}
 	}
 	return calls.NewBridge(cfg.BaseURL, cfg.APIKey, cfg.Timeout)
 }

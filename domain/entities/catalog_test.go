@@ -92,3 +92,18 @@ func TestServiceChange(t *testing.T) {
 		}
 	})
 }
+
+func TestAQuickReplyBelongsToOneSide(t *testing.T) {
+	reply := entities.CatalogItem{Kind: entities.CatalogQuickReply, Attrs: []byte(`{"actor": "customer"}`), IsActive: true}
+	assert.True(t, reply.IsQuickReplyOf("customer"))
+	assert.False(t, reply.IsQuickReplyOf("provider"))
+
+	reply.IsActive = false
+	assert.False(t, reply.IsQuickReplyOf("customer"), "inactive")
+
+	compliment := entities.CatalogItem{Kind: entities.CatalogCompliment, Attrs: []byte(`{"actor": "customer"}`), IsActive: true}
+	assert.False(t, compliment.IsQuickReplyOf("customer"), "not a quick reply")
+
+	broken := entities.CatalogItem{Kind: entities.CatalogQuickReply, Attrs: []byte(`{"note": "customer"}`), IsActive: true}
+	assert.False(t, broken.IsQuickReplyOf("customer"), "the actor attribute decides, not any text")
+}

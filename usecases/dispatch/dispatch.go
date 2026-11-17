@@ -52,6 +52,18 @@ func (e *FareEstimateExpiredError) Error() string {
 	return "the fare estimate expired"
 }
 
+type FareEstimateUsedError struct {
+	Fresh any
+}
+
+func (e *FareEstimateUsedError) Error() string {
+	return ErrFareEstimateUsed.Error()
+}
+
+func (e *FareEstimateUsedError) Unwrap() error {
+	return ErrFareEstimateUsed
+}
+
 const (
 	maxCandidateBatchForETA = 10
 	maxCandidatesPerSearch  = 50

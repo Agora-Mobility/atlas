@@ -5115,14 +5115,14 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Answers 503 CALLS_UNAVAILABLE without a provider.",
+                "description": "With a masked call provider (CALLS_BASE_URL) number is a temporary proxy and masked is true; without one it is the phone of the workshop. 503 CALLS_UNAVAILABLE when the provider fails.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Maintenance"
                 ],
-                "summary": "Call the workshop through a masked number",
+                "summary": "Number to call the workshop",
                 "parameters": [
                     {
                         "type": "string",
@@ -12569,7 +12569,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Requires Idempotency-Key, so the app can resend on a bad network without creating a second request. The pin is the truth; reference and address only help. When the fare estimate expired the answer is 409 with new quotes and no request is created.",
+                "description": "Requires Idempotency-Key, so the app can resend on a bad network without creating a second request. The pin is the truth; reference and address only help. A fare estimate serves one request: sent again while that request is active, the answer is 200 with it. When the estimate expired, or its request already ended, the answer is 409 with new quotes and no request is created.",
                 "consumes": [
                     "application/json"
                 ],
@@ -12583,7 +12583,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Unique per attempt",
+                        "description": "One key per tap on Request, kept for every retry of that tap",
                         "name": "Idempotency-Key",
                         "in": "header",
                         "required": true
@@ -12600,7 +12600,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "The same key was already used",
+                        "description": "The same key or the same fare estimate already created this request",
                         "schema": {
                             "$ref": "#/definitions/dtos.RequestView"
                         }
@@ -12612,7 +12612,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "FARE_ESTIMATE_EXPIRED or FARE_ESTIMATE_INVALID",
+                        "description": "FARE_ESTIMATE_EXPIRED or FARE_ESTIMATE_USED (both with new quotes), FARE_ESTIMATE_INVALID, DUPLICATE_REQUEST",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -12804,14 +12804,14 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "The number of each side is not shared. Without a configured provider the answer is 503 CALLS_UNAVAILABLE.",
+                "description": "Customer or provider of the request, from accepted until in progress. With a masked call provider (CALLS_BASE_URL) number is a temporary proxy and masked is true; without one it is the phone of the other side (the passenger for the driver when someone else rides). The app dials number. 503 CALLS_UNAVAILABLE when the provider fails or the other side has no phone.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Live request"
                 ],
-                "summary": "Call the other side with a masked number",
+                "summary": "Number to call the other side of the request",
                 "parameters": [
                     {
                         "type": "string",
@@ -12841,7 +12841,7 @@ const docTemplate = `{
                         }
                     },
                     "503": {
-                        "description": "No provider",
+                        "description": "No number to call",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -13055,14 +13055,14 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "From the last position of the provider, by route. source tells whether it came from Google Maps or from the fallback.",
+                "description": "From the last position of the provider, by route: to the pickup until the trip starts (target pickup), then to the destination (target destination). route_geometry is that route as a Google encoded polyline (precision 5), the same format as the route_geometry of the request, to draw on the map. source tells whether it came from Google Maps or from the fallback; the fallback has no route_geometry.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Live request"
                 ],
-                "summary": "Time until the provider arrives",
+                "summary": "Time and route until the provider arrives",
                 "parameters": [
                     {
                         "type": "string",
@@ -19087,6 +19087,10 @@ const docTemplate = `{
                 },
                 "position": {
                     "$ref": "#/definitions/dtos.PositionView"
+                },
+                "route_geometry": {
+                    "type": "string",
+                    "example": "zmrv@cbdpA..."
                 },
                 "source": {
                     "type": "string"
@@ -25532,8 +25536,12 @@ const docTemplate = `{
                 "expires_at": {
                     "type": "string"
                 },
-                "proxy_number": {
-                    "type": "string"
+                "masked": {
+                    "type": "boolean"
+                },
+                "number": {
+                    "type": "string",
+                    "example": "+244923000111"
                 }
             }
         },
@@ -25634,8 +25642,12 @@ const docTemplate = `{
                 "expires_at": {
                     "type": "string"
                 },
-                "proxy_number": {
-                    "type": "string"
+                "masked": {
+                    "type": "boolean"
+                },
+                "number": {
+                    "type": "string",
+                    "example": "+244923000111"
                 }
             }
         },

@@ -61,7 +61,8 @@ func TestRemovalPriceAddsVehicleHelpersAndExtrasAndIsClosed(t *testing.T) {
 	assert.Equal(t, "ROUTE_CHANGE_FORBIDDEN", customer.post(t, "/api/v1/requests/"+created.str("id")+"/route", map[string]any{"destination": pickup}).code(), "the closed price does not follow the route")
 
 	again := bookRemoval(t, customer, estimate, windowID, when, "gpo")
-	assert.Equal(t, "FARE_ESTIMATE_USED", again.code(), "an estimate serves one request")
+	assert.Equal(t, http.StatusOK, again.status, "an estimate serves one request: %s", again.text)
+	assert.Equal(t, created.str("id"), again.str("id"), "sent again, it answers with that request")
 }
 
 func TestRemovalRepeatCreatesNewRequest(t *testing.T) {

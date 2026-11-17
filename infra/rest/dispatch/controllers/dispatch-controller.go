@@ -106,6 +106,14 @@ func handleError(ctx *gin.Context, err error) {
 		})
 		return
 	}
+	var used *dispatch.FareEstimateUsedError
+	if errors.As(err, &used) {
+		ctx.AbortWithStatusJSON(http.StatusConflict, gin.H{
+			"error":  shared.ErrorBody{Code: "FARE_ESTIMATE_USED", Message: "This price was already used. Confirm the new one."},
+			"quotes": used.Fresh,
+		})
+		return
+	}
 	for _, mapped := range errorTable {
 		if errors.Is(err, mapped.target) {
 			shared.RespondError(ctx, mapped.status, mapped.code, mapped.message)
@@ -464,15 +472,15 @@ func (c *DispatchController) SetCoverage(ctx *gin.Context) {
 // CreateRequest godoc
 //
 //	@Summary		Create a service request
-//	@Description	Requires Idempotency-Key, so the app can resend on a bad network without creating a second request. The pin is the truth; reference and address only help. When the fare estimate expired the answer is 409 with new quotes and no request is created.
+//	@Description	Requires Idempotency-Key, so the app can resend on a bad network without creating a second request. The pin is the truth; reference and address only help. A fare estimate serves one request: sent again while that request is active, the answer is 200 with it. When the estimate expired, or its request already ended, the answer is 409 with new quotes and no request is created.
 //	@Tags			Dispatch
 //	@Accept			json
 //	@Produce		json
-//	@Param			Idempotency-Key	header		string					true	"Unique per attempt"
+//	@Param			Idempotency-Key	header		string					true	"One key per tap on Request, kept for every retry of that tap"
 //	@Param			body			body		dtos.CreateRequestInput	true	"Request"
 //	@Success		201				{object}	dtos.RequestView
-//	@Success		200				{object}	dtos.RequestView		"The same key was already used"
-//	@Failure		409				{object}	shared.ErrorResponse	"FARE_ESTIMATE_EXPIRED or FARE_ESTIMATE_INVALID"
+//	@Success		200				{object}	dtos.RequestView		"The same key or the same fare estimate already created this request"
+//	@Failure		409				{object}	shared.ErrorResponse	"FARE_ESTIMATE_EXPIRED or FARE_ESTIMATE_USED (both with new quotes), FARE_ESTIMATE_INVALID, DUPLICATE_REQUEST"
 //	@Failure		422				{object}	shared.ErrorResponse	"OUTSIDE_SERVICE_AREA and others"
 //	@Security		BearerAuth
 //	@Security		ClientId

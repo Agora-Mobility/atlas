@@ -51,6 +51,15 @@ func TestChatOnlyWorksDuringTheRequestAndArrivesBySSE(t *testing.T) {
 	assert.Equal(t, "Estou a caminho", quick.str("body"))
 	assert.Equal(t, "Estou a caminho", customerStream.waitFor(t, "request.message", nil).Data["body"])
 	assert.Equal(t, "QUICK_REPLY_NOT_FOUND", driver.post(t, path, map[string]any{"quick_reply_id": uuid.NewString()}).code())
+	assert.Equal(t, "QUICK_REPLY_NOT_FOUND", customer.post(t, path, map[string]any{"quick_reply_id": reply["id"]}).code(), "the customer does not send the replies of the driver")
+
+	own := customer.get(t, "/api/v1/quick-replies")
+	require.Equal(t, http.StatusOK, own.status, own.text)
+	var labels []string
+	for _, item := range own.body["items"].([]any) {
+		labels = append(labels, item.(map[string]any)["label"].(string))
+	}
+	assert.Equal(t, []string{"Já estou à sua espera", "Quanto tempo falta?", "Já vi o carro, vou já"}, labels, "the replies of the customer")
 
 	history := customer.get(t, path)
 	require.Equal(t, http.StatusOK, history.status)
@@ -63,14 +72,15 @@ func TestChatOnlyWorksDuringTheRequestAndArrivesBySSE(t *testing.T) {
 	assert.Len(t, customer.get(t, path).body["items"], 2, "the history stays")
 }
 
-func TestMaskedCallsHideTheNumbersAndFailClearlyWithoutAProvider(t *testing.T) {
+func TestMaskedCallsHideTheNumbersAndFailClearlyWhenTheProviderIsDown(t *testing.T) {
 	customer, driver, id := assignedTaxi(t)
 	path := "/api/v1/requests/" + id + "/call"
 	assert.Equal(t, http.StatusNotFound, newCustomer(t).post(t, path, nil).status)
 
 	call := customer.post(t, path, nil)
 	require.Equal(t, http.StatusOK, call.status, call.text)
-	assert.Equal(t, "+244900111222", call.str("proxy_number"))
+	assert.Equal(t, "+244900111222", call.str("number"))
+	assert.Equal(t, true, call.body["masked"])
 	var driverPhone string
 	require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT phone FROM users WHERE id = $1`, driver.id).Scan(&driverPhone))
 	assert.NotContains(t, call.text, driverPhone, "the number of the driver is not shared")
@@ -131,7 +141,18 @@ func TestETAComesFromTheRouteOfTheProvider(t *testing.T) {
 	assert.Equal(t, "google", eta.str("source"))
 	assert.Equal(t, "pickup", eta.str("target"))
 	assert.Positive(t, eta.num("duration_s"))
-	_ = driver
+	assert.Equal(t, "polyline", eta.str("route_geometry"), "the app draws the way of the driver to the customer")
+
+	toPickup := driver.get(t, "/api/v1/requests/"+id+"/eta")
+	require.Equal(t, http.StatusOK, toPickup.status, toPickup.text)
+	assert.Equal(t, "polyline", toPickup.str("route_geometry"), "the driver gets the same route")
+
+	env.googleMaps.down.Store(true)
+	defer env.googleMaps.down.Store(false)
+	fallback := customer.get(t, "/api/v1/requests/"+id+"/eta")
+	require.Equal(t, http.StatusOK, fallback.status, fallback.text)
+	assert.Equal(t, "fallback", fallback.str("source"))
+	assert.Empty(t, fallback.str("route_geometry"), "no route to draw without Google")
 }
 
 func TestSOSReachesTheOperatorAndStaysUntilResolved(t *testing.T) {

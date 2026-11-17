@@ -14,7 +14,6 @@ import (
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/events"
-	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/usecases/dispatch/dtos"
 )
@@ -59,7 +58,7 @@ func (u *Usecase) SendMessage(ctx context.Context, userID, requestID uuid.UUID, 
 		if err != nil {
 			return nil, err
 		}
-		if reply == nil || reply.Kind != entities.CatalogQuickReply || !reply.IsActive {
+		if reply == nil || !reply.IsQuickReplyOf(sender) {
 			return nil, entities.ErrCatalogItemNotFound
 		}
 		body = reply.Label
@@ -115,7 +114,7 @@ func (u *Usecase) QuickReplies(ctx context.Context, actor string) (*dtos.QuickRe
 	}
 	list := &dtos.QuickReplyList{Items: []dtos.QuickReplyView{}}
 	for i := range items {
-		if strings.Contains(string(items[i].Attrs), `"`+actor+`"`) {
+		if items[i].IsQuickReplyOf(actor) {
 			list.Items = append(list.Items, dtos.QuickReplyView{ID: items[i].ID, Label: items[i].Label})
 		}
 	}
@@ -232,6 +231,7 @@ type liveETA struct {
 	meters   int
 	source   string
 	target   string
+	geometry string
 }
 
 func (u *Usecase) etaOf(ctx context.Context, request *entities.ServiceRequest) (*liveETA, error) {
@@ -255,7 +255,7 @@ func (u *Usecase) etaOf(ctx context.Context, request *entities.ServiceRequest) (
 	}
 	return &liveETA{
 		position: &dtos.PositionView{Lat: position.Point.Lat, Lng: position.Point.Lng, AgeS: int(u.now().Sub(position.RecordedAt).Seconds())},
-		seconds:  int(route.Duration.Seconds()), meters: route.DistanceMeters, source: string(route.Source), target: name,
+		seconds:  int(route.Duration.Seconds()), meters: route.DistanceMeters, source: string(route.Source), target: name, geometry: route.Geometry,
 	}, nil
 }
 
@@ -268,7 +268,7 @@ func (u *Usecase) ETA(ctx context.Context, userID, requestID uuid.UUID) (*dtos.E
 	if err != nil {
 		return nil, err
 	}
-	return &dtos.ETAView{DurationS: eta.seconds, DistanceM: eta.meters, Source: eta.source, Target: eta.target, Position: eta.position}, nil
+	return &dtos.ETAView{DurationS: eta.seconds, DistanceM: eta.meters, Source: eta.source, Target: eta.target, Position: eta.position, RouteGeometry: eta.geometry}, nil
 }
 
 func (u *Usecase) Call(ctx context.Context, userID, requestID uuid.UUID) (*dtos.CallView, error) {
@@ -278,9 +278,6 @@ func (u *Usecase) Call(ctx context.Context, userID, requestID uuid.UUID) (*dtos.
 	}
 	if !request.Status.HasLiveProvider() || request.ProviderID == nil {
 		return nil, entities.ErrCallNotAvailable
-	}
-	if !u.Calls.Enabled() {
-		return nil, services.ErrCallsUnavailable
 	}
 	other := request.CustomerID
 	if role == senderCustomer {
@@ -301,7 +298,7 @@ func (u *Usecase) Call(ctx context.Context, userID, requestID uuid.UUID) (*dtos.
 	if err != nil {
 		return nil, err
 	}
-	return &dtos.CallView{ProxyNumber: call.ProxyNumber, ExpiresAt: call.ExpiresAt}, nil
+	return &dtos.CallView{Number: call.Number, Masked: call.Masked, ExpiresAt: call.ExpiresAt}, nil
 }
 
 func toSOSView(alert *entities.SOSAlert) dtos.SOSView {
