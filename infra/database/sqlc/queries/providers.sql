@@ -105,7 +105,11 @@ DELETE FROM device_tokens WHERE token = $1 AND user_id = $2;
 SELECT token FROM device_tokens WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 5;
 
 -- name: RecordNotification :exec
-INSERT INTO notifications (user_id, channel, template, status, provider_message_id, error) VALUES ($1, $2, $3, $4, $5, $6);
+INSERT INTO notifications (user_id, channel, template, status, provider_message_id, error, delivery_key) VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (delivery_key) WHERE status = 'sent' AND delivery_key IS NOT NULL DO NOTHING;
+
+-- name: NotificationDelivered :one
+SELECT EXISTS (SELECT 1 FROM notifications WHERE delivery_key = $1 AND status = 'sent');
 
 -- name: GetUserContact :one
 SELECT name, phone FROM users WHERE id = $1;

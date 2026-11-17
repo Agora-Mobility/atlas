@@ -23,6 +23,7 @@ coverage.*
 
 # Tooling, editors and docs (not needed in the image)
 .claude
+.cache
 .idea
 .vscode
 .pre-commit-config.yaml

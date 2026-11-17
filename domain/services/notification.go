@@ -26,7 +26,10 @@ type IEmailSender interface {
 	Send(ctx context.Context, email Email) error
 }
 
-var ErrPushTokenInvalid = errors.New("push token is no longer valid")
+var (
+	ErrPushTokenInvalid = errors.New("push token is no longer valid")
+	ErrPushRejected     = errors.New("push rejected for good")
+)
 
 type PushMessage struct {
 	Token        string

@@ -439,6 +439,14 @@ O SMS ao passageiro leva agora a ligação de seguimento. SSE novo: `request.mes
 
 **Adicionado em 2026-11-12:** cada mensagem do chat também segue por push FCM (`type: request.message`, com `request_id` e `message_id`) para quem a recebe. Assim, o aviso chega com a app em segundo plano e sem SSE. A app esconde-o quando esse chat está aberto. As mensagens não entram na caixa de entrada.
 
+**Adicionado em 2026-11-17, notificações do motorista:**
+
+- Quando o cliente, a operação ou o sistema cancelam um pedido com motorista atribuído, o motorista recebe push `type: request.status` com `status: cancelled` e `request_id`. Se foi o próprio motorista a cancelar, não recebe nada.
+- Quando a operação atribui um pedido à mão, o motorista recebe push `type: request.status` com `status: accepted`.
+- Quando o cliente muda o destino, o motorista recebe push `type: request.route_changed` com `request_id` e `version`.
+- Aprovação, rejeição, suspensão, verificação enviada, lembretes de documentos e os três avisos acima também entram na caixa de entrada do motorista (`GET /notifications`).
+- Cada push e cada SMS sai uma única vez por evento, mesmo quando o evento é processado de novo (migração 000052). Se o FCM recusar um envio de forma definitiva (`THIRD_PARTY_AUTH_ERROR`, `INVALID_ARGUMENT`), o motivo fica registado em `notifications.error` e o envio não é repetido. Um token de outra app (`SENDER_ID_MISMATCH`) é apagado.
+
 **Env novas:** `CALLS_BASE_URL`, `CALLS_API_KEY`, `CALLS_TIMEOUT`, `SHARE_BASE_URL`.
 
 ### Fase 9: viaturas do cliente e fotos no R2

@@ -35,6 +35,8 @@ const (
 	templateBooking        = "booking_status"
 	templateBookingExtra   = "booking_extra"
 	templateMessage        = "request_message"
+	templateProviderTrip   = "provider_request"
+	templateRouteChanged   = "route_changed"
 	statusSent             = "sent"
 	statusFailed           = "failed"
 	statusSkipped          = "skipped"
@@ -86,7 +88,7 @@ func RequestBindingKeys() []string {
 	slices.Sort(types)
 	types = append(types, events.PaymentChanged, events.OfferCreated, events.OfferCancelled, events.QuoteSubmitted, events.ReminderDue, events.OperatorAlerted,
 		events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended, events.BookingChanged, events.BookingExtra,
-		events.ProviderApplicationSubmitted, events.ProviderVerificationReminder, events.RequestMessage)
+		events.ProviderApplicationSubmitted, events.ProviderVerificationReminder, events.RequestMessage, events.RouteChanged)
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
 		keys = append(keys, events.RoutingKey(eventType, 1))
@@ -121,6 +123,8 @@ func (n *RequestNotifier) OnEvent(ctx context.Context, env events.Envelope) erro
 		return n.onBookingExtra(ctx, env)
 	case events.RequestMessage:
 		return n.onMessage(ctx, env)
+	case events.RouteChanged:
+		return n.onRouteChanged(ctx, env)
 	default:
 		return n.onTransition(ctx, env)
 	}
@@ -156,13 +160,14 @@ func (n *RequestNotifier) SendOffer(ctx context.Context, channel string, notice 
 		"type": "request.offer", "offer_id": notice.OfferID.String(), "request_id": notice.RequestID.String(), "category": notice.Category,
 		"event_id": notice.OfferID.String(), "expires_in_s": strconv.Itoa(notice.ExpiresIn),
 	}
+	key := "offer:" + notice.OfferID.String()
 	switch channel {
 	case entities.ChannelFCM:
-		return n.pushTo(ctx, notice.ProviderID, templateOffer, services.PushMessage{
+		return n.pushTo(ctx, key, notice.ProviderID, templateOffer, services.PushMessage{
 			Title: "Novo pedido", Body: offerBody(notice), Data: data, HighPriority: true, TTLSeconds: notice.ExpiresIn,
 		})
 	case entities.ChannelSMS:
-		return n.smsToUser(ctx, notice.ProviderID, templateOffer, offerSMS(notice, n.deepLinkBase))
+		return n.smsToUser(ctx, key, notice.ProviderID, templateOffer, offerSMS(notice, n.deepLinkBase))
 	default:
 		return nil
 	}
@@ -184,7 +189,7 @@ func (n *RequestNotifier) onOfferCancelled(ctx context.Context, env events.Envel
 	if err := env.DecodePayload(&event); err != nil {
 		return err
 	}
-	return n.pushTo(ctx, event.ProviderID, templateOfferCancelled, services.PushMessage{
+	return n.pushTo(ctx, env.EventID.String(), event.ProviderID, templateOfferCancelled, services.PushMessage{
 		Title: "Oferta terminada", Body: "Este pedido já não está disponível.",
 		Data: map[string]string{"type": "request.offer_cancelled", "offer_id": event.OfferID.String(), "event_id": env.EventID.String()},
 	})
@@ -200,23 +205,69 @@ func (n *RequestNotifier) onTransition(ctx context.Context, env events.Envelope)
 		return nil
 	}
 	data := map[string]string{"type": "request.status", "request_id": event.RequestID.String(), "status": event.To, "version": strconv.Itoa(event.Version), "event_id": env.EventID.String()}
-	err := n.statusPush(ctx, event.CustomerID, templateStatus, services.PushMessage{Title: message.title, Body: message.body, Data: data})
-	if env.EventType != events.RequestAccepted {
-		return err
+	err := n.statusPush(ctx, env.EventID.String(), event.CustomerID, templateStatus, services.PushMessage{Title: message.title, Body: message.body, Data: data})
+	failures := []error{err}
+	if notice, toProvider := providerNotice(env.EventType, event); toProvider {
+		failures = append(failures, n.pushTo(ctx, env.EventID.String(), *event.ProviderID, templateProviderTrip, services.PushMessage{
+			Title: notice.title, Body: notice.body, Data: data, HighPriority: true,
+		}))
 	}
-	var failures []error
-	failures = append(failures, err)
+	if env.EventType != events.RequestAccepted {
+		return errors.Join(failures...)
+	}
 	if event.SMSOnAccept {
-		failures = append(failures, n.smsToUser(ctx, event.CustomerID, templateAssigned, "AGORA: o teu pedido foi aceite. O prestador está a preparar-se para ir ter contigo."))
+		failures = append(failures, n.smsToUser(ctx, env.EventID.String(), event.CustomerID, templateAssigned, "AGORA: o teu pedido foi aceite. O prestador está a preparar-se para ir ter contigo."))
 	}
 	if event.PassengerPhone != "" {
 		text, err := n.passengerText(ctx, event.RequestID)
 		if err != nil {
 			return errors.Join(append(failures, err)...)
 		}
-		failures = append(failures, n.smsToPhone(ctx, nil, event.PassengerPhone, templateAssigned, text))
+		failures = append(failures, n.smsToPhone(ctx, env.EventID.String(), nil, event.PassengerPhone, templateAssigned, text))
 	}
 	return errors.Join(failures...)
+}
+
+var providerCancelBodies = map[string]string{
+	string(entities.RequestActorCustomer): "O cliente cancelou o pedido.",
+	string(entities.RequestActorOperator): "A operação cancelou o pedido.",
+}
+
+type pushText struct{ title, body string }
+
+func providerNotice(eventType string, event events.RequestTransitionV1) (pushText, bool) {
+	if event.ProviderID == nil || event.ActorType == string(entities.RequestActorProvider) {
+		return pushText{}, false
+	}
+	switch eventType {
+	case events.RequestCancelled:
+		body, known := providerCancelBodies[event.ActorType]
+		if !known {
+			body = "O pedido foi cancelado."
+		}
+		return pushText{"Pedido cancelado", body}, true
+	case events.RequestAccepted:
+		if event.ActorType != string(entities.RequestActorOperator) {
+			return pushText{}, false
+		}
+		return pushText{"Pedido atribuído", "A operação atribuiu-te um pedido. Abre a aplicação para veres os detalhes."}, true
+	default:
+		return pushText{}, false
+	}
+}
+
+func (n *RequestNotifier) onRouteChanged(ctx context.Context, env events.Envelope) error {
+	var event events.RouteChangedV1
+	if err := env.DecodePayload(&event); err != nil {
+		return err
+	}
+	if event.ProviderID == nil {
+		return nil
+	}
+	return n.pushTo(ctx, env.EventID.String(), *event.ProviderID, templateRouteChanged, services.PushMessage{
+		Title: "Destino alterado", Body: "O cliente mudou o destino da viagem. Confirma o novo percurso.", HighPriority: true,
+		Data: map[string]string{"type": "request.route_changed", "request_id": event.RequestID.String(), "version": strconv.Itoa(event.Version), "event_id": env.EventID.String()},
+	})
 }
 
 func (n *RequestNotifier) passengerText(ctx context.Context, requestID uuid.UUID) (string, error) {
@@ -246,7 +297,7 @@ func (n *RequestNotifier) onQuote(ctx context.Context, env events.Envelope) erro
 	if err := env.DecodePayload(&event); err != nil {
 		return err
 	}
-	return n.pushTo(ctx, event.CustomerID, templateQuote, services.PushMessage{
+	return n.pushTo(ctx, env.EventID.String(), event.CustomerID, templateQuote, services.PushMessage{
 		Title: "Novo orçamento", Body: "Recebeste um orçamento para o teu pedido.",
 		Data: map[string]string{"type": "request.quote", "request_id": event.RequestID.String(), "event_id": env.EventID.String()},
 	})
@@ -261,9 +312,9 @@ func (n *RequestNotifier) onReminder(ctx context.Context, env events.Envelope) e
 		Title: "Lembrete", Body: "O teu serviço está marcado para amanhã.",
 		Data: map[string]string{"type": "request.reminder", "request_id": event.RequestID.String(), "event_id": env.EventID.String()},
 	}
-	failures := []error{n.pushTo(ctx, event.CustomerID, templateReminder, message)}
+	failures := []error{n.pushTo(ctx, env.EventID.String(), event.CustomerID, templateReminder, message)}
 	if event.ProviderID != nil {
-		failures = append(failures, n.pushTo(ctx, *event.ProviderID, templateReminder, message))
+		failures = append(failures, n.pushTo(ctx, env.EventID.String(), *event.ProviderID, templateReminder, message))
 	}
 	return errors.Join(failures...)
 }
@@ -277,7 +328,7 @@ func (n *RequestNotifier) onOperatorAlert(ctx context.Context, env events.Envelo
 	if n.operatorPhone == "" {
 		return nil
 	}
-	return n.smsToPhone(ctx, nil, n.operatorPhone, templateOperator, fmt.Sprintf("AGORA operação: pedido %s de %s precisa de atenção (%s).", event.RequestID, event.Category, event.Reason))
+	return n.smsToPhone(ctx, env.EventID.String(), nil, n.operatorPhone, templateOperator, fmt.Sprintf("AGORA operação: pedido %s de %s precisa de atenção (%s).", event.RequestID, event.Category, event.Reason))
 }
 
 var providerReviewMessages = map[string]struct{ title, body string }{
@@ -292,16 +343,21 @@ func (n *RequestNotifier) onVerificationReminder(ctx context.Context, env events
 	if err := env.DecodePayload(&event); err != nil {
 		return err
 	}
-	title, body := "Registo criminal", "Falta enviar o registo criminal para concluíres a verificação."
-	if event.Kind == entities.ReminderDocumentExpiry {
-		title, body = "Documento a expirar", "Um dos teus documentos ("+entities.DocumentName(enums.DocumentType(event.DocumentType))+") está quase a expirar. Envia o novo na aplicação."
-		if event.ExpiresOn != nil {
-			body = "O documento " + entities.DocumentName(enums.DocumentType(event.DocumentType)) + " expira a " + event.ExpiresOn.Format("02/01/2006") + ". Envia o novo na aplicação."
-		}
-	}
-	return n.pushTo(ctx, event.ProviderID, templateVerification, services.PushMessage{
-		Title: title, Body: body, Data: map[string]string{"type": "provider.verification", "kind": event.Kind, "document_type": event.DocumentType, "event_id": env.EventID.String()},
+	text := verificationText(event)
+	return n.pushTo(ctx, env.EventID.String(), event.ProviderID, templateVerification, services.PushMessage{
+		Title: text.title, Body: text.body, Data: map[string]string{"type": "provider.verification", "kind": event.Kind, "document_type": event.DocumentType, "event_id": env.EventID.String()},
 	})
+}
+
+func verificationText(event events.ProviderVerificationReminderV1) pushText {
+	if event.Kind != entities.ReminderDocumentExpiry {
+		return pushText{"Registo criminal", "Falta enviar o registo criminal para concluíres a verificação."}
+	}
+	document := entities.DocumentName(enums.DocumentType(event.DocumentType))
+	if event.ExpiresOn != nil {
+		return pushText{"Documento a expirar", "O documento " + document + " expira a " + event.ExpiresOn.Format("02/01/2006") + ". Envia o novo na aplicação."}
+	}
+	return pushText{"Documento a expirar", "Um dos teus documentos (" + document + ") está quase a expirar. Envia o novo na aplicação."}
 }
 
 func (n *RequestNotifier) onProviderReview(ctx context.Context, env events.Envelope) error {
@@ -310,26 +366,42 @@ func (n *RequestNotifier) onProviderReview(ctx context.Context, env events.Envel
 		return err
 	}
 	message := providerReviewMessages[env.EventType]
-	push := n.pushTo(ctx, event.ProviderID, templateProviderReview, services.PushMessage{
+	push := n.pushTo(ctx, env.EventID.String(), event.ProviderID, templateProviderReview, services.PushMessage{
 		Title: message.title, Body: message.body, Data: map[string]string{"type": "provider.review", "event_id": env.EventID.String()},
 	})
 	if env.EventType == events.ProviderApplicationSubmitted {
 		return push
 	}
-	return errors.Join(push, n.smsToUser(ctx, event.ProviderID, templateProviderReview, "AGORA: "+message.body))
+	return errors.Join(push, n.smsToUser(ctx, env.EventID.String(), event.ProviderID, templateProviderReview, "AGORA: "+message.body))
 }
 
-func (n *RequestNotifier) pushTo(ctx context.Context, userID uuid.UUID, template string, message services.PushMessage) error {
+func deliveryKey(eventKey, channel, template, recipient string) string {
+	if eventKey == "" {
+		return ""
+	}
+	return strings.Join([]string{eventKey, channel, template, recipient}, ":")
+}
+
+func (n *RequestNotifier) pushTo(ctx context.Context, eventKey string, userID uuid.UUID, template string, message services.PushMessage) error {
 	tokens, err := n.devices.Tokens(ctx, userID)
 	if err != nil {
 		return err
 	}
 	if len(tokens) == 0 {
-		n.record(ctx, &userID, entities.ChannelFCM, template, statusSkipped, "", "no device")
+		n.record(ctx, &userID, entities.ChannelFCM, template, statusSkipped, "", "no device", "")
 		return nil
 	}
 	var failures []error
 	for _, token := range tokens {
+		key := deliveryKey(eventKey, entities.ChannelFCM, template, token)
+		delivered, err := n.devices.Delivered(ctx, key)
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		if delivered {
+			continue
+		}
 		message.Token = token
 		id, err := n.push.Send(ctx, message)
 		switch {
@@ -337,12 +409,15 @@ func (n *RequestNotifier) pushTo(ctx context.Context, userID uuid.UUID, template
 			if removeErr := n.devices.Remove(ctx, token); removeErr != nil {
 				failures = append(failures, removeErr)
 			}
-			n.record(ctx, &userID, entities.ChannelFCM, template, statusFailed, "", err.Error())
+			n.record(ctx, &userID, entities.ChannelFCM, template, statusFailed, "", err.Error(), key)
+		case errors.Is(err, services.ErrPushRejected):
+			logger.FromContext(ctx).Warn("push rejected", zap.String("user_id", userID.String()), zap.String("template", template), zap.Error(err))
+			n.record(ctx, &userID, entities.ChannelFCM, template, statusFailed, "", err.Error(), key)
 		case err != nil:
 			failures = append(failures, err)
-			n.record(ctx, &userID, entities.ChannelFCM, template, statusFailed, "", err.Error())
+			n.record(ctx, &userID, entities.ChannelFCM, template, statusFailed, "", err.Error(), key)
 		default:
-			n.record(ctx, &userID, entities.ChannelFCM, template, statusSent, id, "")
+			n.record(ctx, &userID, entities.ChannelFCM, template, statusSent, id, "", key)
 		}
 	}
 	return errors.Join(failures...)
@@ -355,26 +430,26 @@ func (n *RequestNotifier) preferencesOf(ctx context.Context, userID uuid.UUID) (
 	return n.account.Preferences(ctx, userID)
 }
 
-func (n *RequestNotifier) statusPush(ctx context.Context, userID uuid.UUID, template string, message services.PushMessage) error {
+func (n *RequestNotifier) statusPush(ctx context.Context, eventKey string, userID uuid.UUID, template string, message services.PushMessage) error {
 	preferences, err := n.preferencesOf(ctx, userID)
 	if err != nil {
 		return err
 	}
 	if preferences != nil && !preferences.AllowsStatusPush() {
-		n.record(ctx, &userID, entities.ChannelFCM, template, statusSkipped, "", "the user turned this off")
+		n.record(ctx, &userID, entities.ChannelFCM, template, statusSkipped, "", "the user turned this off", "")
 		return nil
 	}
-	return n.pushTo(ctx, userID, template, message)
+	return n.pushTo(ctx, eventKey, userID, template, message)
 }
 
-func (n *RequestNotifier) smsToUser(ctx context.Context, userID uuid.UUID, template, body string) error {
+func (n *RequestNotifier) smsToUser(ctx context.Context, eventKey string, userID uuid.UUID, template, body string) error {
 	if template != templateOffer {
 		preferences, err := n.preferencesOf(ctx, userID)
 		if err != nil {
 			return err
 		}
 		if preferences != nil && !preferences.AllowsSMS() {
-			n.record(ctx, &userID, entities.ChannelSMS, template, statusSkipped, "", "the user turned this off")
+			n.record(ctx, &userID, entities.ChannelSMS, template, statusSkipped, "", "the user turned this off", "")
 			return nil
 		}
 	}
@@ -383,23 +458,28 @@ func (n *RequestNotifier) smsToUser(ctx context.Context, userID uuid.UUID, templ
 		return err
 	}
 	if phone == "" {
-		n.record(ctx, &userID, entities.ChannelSMS, template, statusSkipped, "", "no phone")
+		n.record(ctx, &userID, entities.ChannelSMS, template, statusSkipped, "", "no phone", "")
 		return nil
 	}
-	return n.smsToPhone(ctx, &userID, phone, template, body)
+	return n.smsToPhone(ctx, eventKey, &userID, phone, template, body)
 }
 
-func (n *RequestNotifier) smsToPhone(ctx context.Context, userID *uuid.UUID, phone, template, body string) error {
-	if err := n.sms.Send(ctx, phone, body); err != nil {
-		n.record(ctx, userID, entities.ChannelSMS, template, statusFailed, "", err.Error())
+func (n *RequestNotifier) smsToPhone(ctx context.Context, eventKey string, userID *uuid.UUID, phone, template, body string) error {
+	key := deliveryKey(eventKey, entities.ChannelSMS, template, phone)
+	delivered, err := n.devices.Delivered(ctx, key)
+	if err != nil || delivered {
 		return err
 	}
-	n.record(ctx, userID, entities.ChannelSMS, template, statusSent, "", "")
+	if err := n.sms.Send(ctx, phone, body); err != nil {
+		n.record(ctx, userID, entities.ChannelSMS, template, statusFailed, "", err.Error(), key)
+		return err
+	}
+	n.record(ctx, userID, entities.ChannelSMS, template, statusSent, "", "", key)
 	return nil
 }
 
-func (n *RequestNotifier) record(ctx context.Context, userID *uuid.UUID, channel, template, status, messageID, failure string) {
-	err := n.devices.RecordNotification(ctx, repository.NotificationRecord{UserID: userID, Channel: channel, Template: template, Status: status, ProviderMessageID: messageID, Error: failure})
+func (n *RequestNotifier) record(ctx context.Context, userID *uuid.UUID, channel, template, status, messageID, failure, key string) {
+	err := n.devices.RecordNotification(ctx, repository.NotificationRecord{UserID: userID, Channel: channel, Template: template, Status: status, ProviderMessageID: messageID, Error: failure, DeliveryKey: key})
 	if err != nil {
 		logger.FromContext(ctx).Warn("notification not recorded", zap.Error(err))
 	}
@@ -421,9 +501,9 @@ func (n *RequestNotifier) onPayment(ctx context.Context, env events.Envelope) er
 		return nil
 	}
 	message.Data = map[string]string{"type": "request.payment", "request_id": event.RequestID.String(), "status": event.Status, "event_id": env.EventID.String()}
-	failures := []error{n.pushTo(ctx, event.CustomerID, templatePayment, message)}
+	failures := []error{n.pushTo(ctx, env.EventID.String(), event.CustomerID, templatePayment, message)}
 	if event.ProviderID != nil && event.Status == string(entities.PaymentPaid) {
-		failures = append(failures, n.pushTo(ctx, *event.ProviderID, templatePayment, message))
+		failures = append(failures, n.pushTo(ctx, env.EventID.String(), *event.ProviderID, templatePayment, message))
 	}
 	return errors.Join(failures...)
 }
@@ -447,7 +527,7 @@ func (n *RequestNotifier) onBooking(ctx context.Context, env events.Envelope) er
 	if !known {
 		return nil
 	}
-	err := n.statusPush(ctx, event.CustomerID, templateBooking, services.PushMessage{
+	err := n.statusPush(ctx, env.EventID.String(), event.CustomerID, templateBooking, services.PushMessage{
 		Title: message.title, Body: message.body,
 		Data: map[string]string{"type": "booking.status", "booking_id": event.BookingID.String(), "request_id": event.RequestID.String(), "status": event.Status, "event_id": env.EventID.String()},
 	})
@@ -455,7 +535,7 @@ func (n *RequestNotifier) onBooking(ctx context.Context, env events.Envelope) er
 		return err
 	}
 	sms := fmt.Sprintf("AGORA: marcação %s confirmada em %s, %s.", event.Code, event.WorkshopName, event.StartsAt.In(bookingZone).Format("02/01 15:04"))
-	return errors.Join(err, n.smsToUser(ctx, event.CustomerID, templateBooking, sms))
+	return errors.Join(err, n.smsToUser(ctx, env.EventID.String(), event.CustomerID, templateBooking, sms))
 }
 
 func (n *RequestNotifier) onBookingExtra(ctx context.Context, env events.Envelope) error {
@@ -463,7 +543,7 @@ func (n *RequestNotifier) onBookingExtra(ctx context.Context, env events.Envelop
 	if err := env.DecodePayload(&event); err != nil {
 		return err
 	}
-	return n.statusPush(ctx, event.CustomerID, templateBookingExtra, services.PushMessage{
+	return n.statusPush(ctx, env.EventID.String(), event.CustomerID, templateBookingExtra, services.PushMessage{
 		Title: "Orçamento extra", Body: event.Description,
 		Data: map[string]string{"type": "booking.extra", "booking_id": event.BookingID.String(), "extra_id": event.ExtraID.String(), "event_id": env.EventID.String()},
 	})
@@ -491,7 +571,7 @@ func (n *RequestNotifier) onMessage(ctx context.Context, env events.Envelope) er
 	if !known {
 		title = "Nova mensagem"
 	}
-	return n.pushTo(ctx, event.RecipientID, templateMessage, services.PushMessage{
+	return n.pushTo(ctx, env.EventID.String(), event.RecipientID, templateMessage, services.PushMessage{
 		Title: title, Body: messagePreview(event.Body), HighPriority: true, TTLSeconds: messageTTLSeconds,
 		Data: map[string]string{
 			"type": "request.message", "request_id": event.RequestID.String(), "message_id": event.MessageID.String(),
@@ -520,15 +600,59 @@ func (n *RequestNotifier) addToInbox(ctx context.Context, env events.Envelope) e
 	if n.account == nil {
 		return nil
 	}
-	item, err := inboxItemOf(env)
-	if err != nil || item == nil {
-		return err
+	for _, build := range []func(events.Envelope) (*entities.InboxItem, error){inboxItemOf, providerInboxItemOf} {
+		item, err := build(env)
+		if err != nil {
+			return err
+		}
+		if item == nil {
+			continue
+		}
+		if item.ID, err = uuid.NewV7(); err != nil {
+			return err
+		}
+		item.EventID, item.CreatedAt = env.EventID.String(), time.Now().UTC()
+		if err := n.account.AddInboxItem(ctx, item); err != nil {
+			return err
+		}
 	}
-	if item.ID, err = uuid.NewV7(); err != nil {
-		return err
+	return nil
+}
+
+func providerInboxItemOf(env events.Envelope) (*entities.InboxItem, error) {
+	switch env.EventType {
+	case events.ProviderApproved, events.ProviderRejected, events.ProviderSuspended, events.ProviderApplicationSubmitted:
+		var event events.ProviderReviewV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		message := providerReviewMessages[env.EventType]
+		return &entities.InboxItem{UserID: event.ProviderID, Kind: "account", Title: message.title, Body: message.body}, nil
+	case events.ProviderVerificationReminder:
+		var event events.ProviderVerificationReminderV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		text := verificationText(event)
+		return &entities.InboxItem{UserID: event.ProviderID, Kind: "verification", Title: text.title, Body: text.body}, nil
+	case events.RouteChanged:
+		var event events.RouteChangedV1
+		if err := env.DecodePayload(&event); err != nil || event.ProviderID == nil {
+			return nil, err
+		}
+		return &entities.InboxItem{UserID: *event.ProviderID, Kind: "request", Title: "Destino alterado", Body: "O cliente mudou o destino da viagem.", LinkType: linkRequest, LinkID: &event.RequestID}, nil
+	case events.RequestCancelled, events.RequestAccepted:
+		var event events.RequestTransitionV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		notice, toProvider := providerNotice(env.EventType, event)
+		if !toProvider {
+			return nil, nil
+		}
+		return &entities.InboxItem{UserID: *event.ProviderID, Kind: "request", Title: notice.title, Body: notice.body, LinkType: linkRequest, LinkID: &event.RequestID}, nil
 	}
-	item.EventID, item.CreatedAt = env.EventID.String(), time.Now().UTC()
-	return n.account.AddInboxItem(ctx, item)
+	return nil, nil
 }
 
 func inboxItemOf(env events.Envelope) (*entities.InboxItem, error) {

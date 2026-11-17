@@ -365,6 +365,17 @@ func (q *Queries) ListProviderApplications(ctx context.Context, arg ListProvider
 	return items, nil
 }
 
+const notificationDelivered = `-- name: NotificationDelivered :one
+SELECT EXISTS (SELECT 1 FROM notifications WHERE delivery_key = $1 AND status = 'sent')
+`
+
+func (q *Queries) NotificationDelivered(ctx context.Context, deliveryKey *string) (bool, error) {
+	row := q.db.QueryRow(ctx, notificationDelivered, deliveryKey)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const providersCoveringCell = `-- name: ProvidersCoveringCell :many
 SELECT provider_id FROM provider_coverage WHERE category_id = $1 AND h3_r6 = $2
 `
@@ -426,7 +437,8 @@ func (q *Queries) ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithA
 }
 
 const recordNotification = `-- name: RecordNotification :exec
-INSERT INTO notifications (user_id, channel, template, status, provider_message_id, error) VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO notifications (user_id, channel, template, status, provider_message_id, error, delivery_key) VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (delivery_key) WHERE status = 'sent' AND delivery_key IS NOT NULL DO NOTHING
 `
 
 type RecordNotificationParams struct {
@@ -436,6 +448,7 @@ type RecordNotificationParams struct {
 	Status            string     `json:"status"`
 	ProviderMessageID string     `json:"provider_message_id"`
 	Error             string     `json:"error"`
+	DeliveryKey       *string    `json:"delivery_key"`
 }
 
 func (q *Queries) RecordNotification(ctx context.Context, arg RecordNotificationParams) error {
@@ -446,6 +459,7 @@ func (q *Queries) RecordNotification(ctx context.Context, arg RecordNotification
 		arg.Status,
 		arg.ProviderMessageID,
 		arg.Error,
+		arg.DeliveryKey,
 	)
 	return err
 }
