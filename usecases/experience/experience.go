@@ -10,6 +10,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/domain/entities"
+	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
@@ -36,6 +37,7 @@ type Deps struct {
 	Requests  repository.IRequestRepository
 	Providers repository.IProviderRepository
 	Audit     repository.IAuditLogRepository
+	Outbox    repository.IOutboxRepository
 	Tx        repository.ITransactionManager
 }
 
@@ -288,4 +290,12 @@ func (u *Usecase) ProviderRatings(ctx context.Context, providerID uuid.UUID, pag
 		list.Items = append(list.Items, dtos.RatingView{ID: rating.ID, RequestID: rating.RequestID, Stars: rating.Stars, Compliments: options, Comment: rating.Comment, CreatedAt: rating.CreatedAt})
 	}
 	return list, nil
+}
+
+func (u *Usecase) publish(ctx context.Context, event events.Event) error {
+	envelope, err := events.NewEnvelope(event, logger.CorrelationID(ctx))
+	if err != nil {
+		return err
+	}
+	return u.Outbox.Save(ctx, envelope)
 }

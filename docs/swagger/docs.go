@@ -15,6 +15,54 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/events": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ],
+                "description": "Server-Sent Events for the team, with requests:read. staff.request_alert arrives when a request goes to the operator queue or a customer or provider raises an SOS (reason sos), with request_id, customer_id, category and reason. staff.ticket arrives when a support ticket is opened, with ticket_id, code, user_id, subject and request_id, only for whoever also has requests:manage. Every connected member gets every alert. Send Last-Event-ID to replay what was missed.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Real time"
+                ],
+                "summary": "Real-time alerts of the backoffice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Id of the last event received",
+                        "name": "Last-Event-ID",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing requests:read",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/block-reasons": {
             "get": {
                 "security": [

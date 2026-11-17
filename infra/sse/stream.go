@@ -40,6 +40,11 @@ type Session struct {
 	LastEventID     string
 	TokenExpiresAt  time.Time
 	ActiveRequestID func(ctx context.Context) (string, error)
+	Allow           func(eventType string) bool
+}
+
+func (s Session) allows(eventType string) bool {
+	return s.Allow == nil || s.Allow(eventType)
 }
 
 type Streamer struct {
@@ -136,7 +141,7 @@ func (s *Streamer) Serve(ctx context.Context, response http.ResponseWriter, sess
 		case <-heartbeat.C:
 			writer.comment("hb")
 		case <-poll.C:
-			cursor, err = s.deliver(ctx, writer, session.UserID, cursor)
+			cursor, err = s.deliver(ctx, writer, session, cursor)
 			if err != nil {
 				return err
 			}
@@ -146,7 +151,7 @@ func (s *Streamer) Serve(ctx context.Context, response http.ResponseWriter, sess
 					return err
 				}
 			}
-			cursor, err = s.deliver(ctx, writer, session.UserID, cursor)
+			cursor, err = s.deliver(ctx, writer, session, cursor)
 			if err != nil {
 				return err
 			}
@@ -187,7 +192,7 @@ func (s *Streamer) open(ctx context.Context, writer *streamWriter, session Sessi
 			mode = "replay"
 		}
 		businessmetrics.SSEReconnects.WithLabelValues(mode).Inc()
-		cursor, err = s.replay(ctx, writer, session.UserID, cursor)
+		cursor, err = s.replay(ctx, writer, session, cursor)
 		if err != nil {
 			return "", err
 		}
@@ -220,10 +225,10 @@ func (s *Streamer) skipToEnd(ctx context.Context, userID string) (string, error)
 	}
 }
 
-func (s *Streamer) replay(ctx context.Context, writer *streamWriter, userID, cursor string) (string, error) {
+func (s *Streamer) replay(ctx context.Context, writer *streamWriter, session Session, cursor string) (string, error) {
 	var pending []services.MailboxEntry
 	for {
-		entries, err := s.mailbox.Read(ctx, userID, cursor, readBatch)
+		entries, err := s.mailbox.Read(ctx, session.UserID, cursor, readBatch)
 		if err != nil {
 			return cursor, err
 		}
@@ -239,13 +244,13 @@ func (s *Streamer) replay(ctx context.Context, writer *streamWriter, userID, cur
 
 	now := s.now()
 	for i := range pending {
-		if pending[i].Class == services.ClassCritical && !isExpired(&pending[i], now) {
+		if pending[i].Class == services.ClassCritical && !isExpired(&pending[i], now) && session.allows(pending[i].Type) {
 			writer.write("", pending[i].Type, withRemaining(&pending[i], now))
 		}
 	}
 	lastDelivered := ""
 	for i := range pending {
-		if pending[i].Class == services.ClassCritical || isExpired(&pending[i], now) {
+		if pending[i].Class == services.ClassCritical || isExpired(&pending[i], now) || !session.allows(pending[i].Type) {
 			continue
 		}
 		writer.write(pending[i].ID, pending[i].Type, withRemaining(&pending[i], now))
@@ -257,9 +262,9 @@ func (s *Streamer) replay(ctx context.Context, writer *streamWriter, userID, cur
 	return cursor, nil
 }
 
-func (s *Streamer) deliver(ctx context.Context, writer *streamWriter, userID, cursor string) (string, error) {
+func (s *Streamer) deliver(ctx context.Context, writer *streamWriter, session Session, cursor string) (string, error) {
 	for {
-		entries, err := s.mailbox.Read(ctx, userID, cursor, readBatch)
+		entries, err := s.mailbox.Read(ctx, session.UserID, cursor, readBatch)
 		if err != nil {
 			return cursor, err
 		}
@@ -269,7 +274,7 @@ func (s *Streamer) deliver(ctx context.Context, writer *streamWriter, userID, cu
 		now := s.now()
 		for i := range entries {
 			cursor = entries[i].ID
-			if isExpired(&entries[i], now) {
+			if isExpired(&entries[i], now) || !session.allows(entries[i].Type) {
 				continue
 			}
 			writer.write(entries[i].ID, entries[i].Type, withRemaining(&entries[i], now))

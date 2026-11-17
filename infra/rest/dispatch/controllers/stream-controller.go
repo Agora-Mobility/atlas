@@ -7,6 +7,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Agora-Mobility/atlas/config/logger"
+	"github.com/Agora-Mobility/atlas/domain/entities"
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/sse"
 	"github.com/Agora-Mobility/atlas/shared"
@@ -56,5 +58,37 @@ func (c *StreamController) Stream(ctx *gin.Context) {
 	}
 	if err := c.streamer.Serve(reqCtx, ctx.Writer, session); err != nil && reqCtx.Err() == nil {
 		logger.FromContext(reqCtx).Warn("event stream ended", zap.Error(err))
+	}
+}
+
+// StaffStream godoc
+//
+//	@Summary		Real-time alerts of the backoffice
+//	@Description	Server-Sent Events for the team, with requests:read. staff.request_alert arrives when a request goes to the operator queue or a customer or provider raises an SOS (reason sos), with request_id, customer_id, category and reason. staff.ticket arrives when a support ticket is opened, with ticket_id, code, user_id, subject and request_id, only for whoever also has requests:manage. Every connected member gets every alert. Send Last-Event-ID to replay what was missed.
+//	@Tags			Real time
+//	@Produce		text/event-stream
+//	@Param			Last-Event-ID	header		string	false	"Id of the last event received"
+//	@Success		200				{string}	string	"Event stream"
+//	@Failure		401				{object}	shared.ErrorResponse
+//	@Failure		403				{object}	shared.ErrorResponse	"Missing requests:read"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/admin/events [get]
+func (c *StreamController) StaffStream(ctx *gin.Context) {
+	reqCtx := ctx.Request.Context()
+	access, ok := middleware.AccessFromContext(reqCtx)
+	if !ok {
+		shared.Forbidden(ctx, middleware.CodePermissionDenied, "You do not have permission to perform this action.")
+		return
+	}
+	readsTickets := access.Has(entities.PermRequestsManage)
+	session := sse.Session{
+		UserID: services.StaffAlertsBox, LastEventID: ctx.GetHeader("Last-Event-ID"), TokenExpiresAt: middleware.TokenExpiryFromContext(reqCtx),
+		Allow: func(eventType string) bool {
+			return eventType != services.StaffTicket || readsTickets
+		},
+	}
+	if err := c.streamer.Serve(reqCtx, ctx.Writer, session); err != nil && reqCtx.Err() == nil {
+		logger.FromContext(reqCtx).Warn("staff event stream ended", zap.Error(err))
 	}
 }

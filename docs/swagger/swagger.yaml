@@ -6535,6 +6535,41 @@ info:
   title: Atlas API
   version: "1.0"
 paths:
+  /admin/events:
+    get:
+      description: Server-Sent Events for the team, with requests:read. staff.request_alert
+        arrives when a request goes to the operator queue or a customer or provider
+        raises an SOS (reason sos), with request_id, customer_id, category and reason.
+        staff.ticket arrives when a support ticket is opened, with ticket_id, code,
+        user_id, subject and request_id, only for whoever also has requests:manage.
+        Every connected member gets every alert. Send Last-Event-ID to replay what
+        was missed.
+      parameters:
+      - description: Id of the last event received
+        in: header
+        name: Last-Event-ID
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Event stream
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Missing requests:read
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Real-time alerts of the backoffice
+      tags:
+      - Real time
   /api/v1/admin/block-reasons:
     get:
       description: Requires users:block. The active reasons an account can be blocked
