@@ -63,7 +63,7 @@ var ErrRefundNeedsCancel = errors.New("cancel the request before refunding all o
 
 var (
 	ErrPaymentMethodUnavailable = errors.New("this payment method is not available for this service")
-	ErrPaymentOutstanding       = errors.New("the customer has a completed request to pay")
+	ErrPaymentOutstanding       = errors.New("the customer has a request to pay")
 	ErrPaymentNotPayable        = errors.New("this request cannot be paid now")
 	ErrPaymentAlreadyPaid       = errors.New("this request is already paid")
 	ErrPaymentPendingElsewhere  = errors.New("this request has a payment waiting for the customer")
@@ -74,6 +74,34 @@ var (
 
 	payerPhonePattern = regexp.MustCompile(`^\d{9,15}$`)
 )
+
+type OutstandingReason string
+
+const (
+	OutstandingCompletedRequest OutstandingReason = "completed_request"
+	OutstandingCancellationFee  OutstandingReason = "cancellation_fee"
+)
+
+type OutstandingPaymentError struct {
+	RequestID uuid.UUID
+	Reason    OutstandingReason
+}
+
+func NewOutstandingPayment(requestID uuid.UUID, status RequestStatus) *OutstandingPaymentError {
+	reason := OutstandingCompletedRequest
+	if status == RequestCancelled {
+		reason = OutstandingCancellationFee
+	}
+	return &OutstandingPaymentError{RequestID: requestID, Reason: reason}
+}
+
+func (e *OutstandingPaymentError) Error() string {
+	return ErrPaymentOutstanding.Error() + ": " + string(e.Reason)
+}
+
+func (e *OutstandingPaymentError) Is(target error) bool {
+	return target == ErrPaymentOutstanding
+}
 
 func IsPaymentMethod(method PaymentMethod) bool {
 	return method == PaymentCash || method == PaymentGPO || method == PaymentReference || method == PaymentWallet

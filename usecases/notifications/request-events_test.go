@@ -3,9 +3,11 @@ package notifications_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -220,4 +222,43 @@ func TestCriminalRecordReminderAsksForTheCertificate(t *testing.T) {
 
 	require.Len(t, push.sent, 1)
 	assert.Contains(t, push.sent[0].Body, "registo criminal")
+}
+
+func TestAChatMessageIsPushedToTheOtherSide(t *testing.T) {
+	driver, customer := uuid.New(), uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{driver: {"driver-device"}, customer: {"customer-device"}}}
+	push := &fakePush{}
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, &fakeSMS{sent: map[string]string{}}, "", "")
+	event := events.RequestMessageV1{MessageID: uuid.New(), RequestID: uuid.New(), SenderType: "customer", RecipientID: driver, Body: "Estou junto à farmácia", OccurredAt: time.Now()}
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
+
+	require.Len(t, push.sent, 1)
+	sent := push.sent[0]
+	assert.Equal(t, "driver-device", sent.Token, "only the recipient")
+	assert.Equal(t, "Mensagem do cliente", sent.Title)
+	assert.Equal(t, "Estou junto à farmácia", sent.Body)
+	assert.True(t, sent.HighPriority)
+	assert.Equal(t, "request.message", sent.Data["type"])
+	assert.Equal(t, event.RequestID.String(), sent.Data["request_id"])
+	assert.Equal(t, event.MessageID.String(), sent.Data["message_id"])
+}
+
+func TestALongChatMessageIsCutInThePush(t *testing.T) {
+	customer := uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{customer: {"device"}}}
+	push := &fakePush{}
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, &fakeSMS{sent: map[string]string{}}, "", "")
+	event := events.RequestMessageV1{MessageID: uuid.New(), RequestID: uuid.New(), SenderType: "workshop", RecipientID: customer, Body: strings.Repeat("ã", 300), OccurredAt: time.Now()}
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
+
+	require.Len(t, push.sent, 1)
+	assert.Equal(t, "Mensagem da oficina", push.sent[0].Title)
+	assert.Equal(t, 120, utf8.RuneCountInString(push.sent[0].Body))
+	assert.True(t, strings.HasSuffix(push.sent[0].Body, "…"))
+}
+
+func TestAChatMessageListensOnTheNotificationQueue(t *testing.T) {
+	assert.Contains(t, notifications.RequestBindingKeys(), events.RoutingKey(events.RequestMessage, 1))
 }

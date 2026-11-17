@@ -85,6 +85,11 @@ func respond(ctx *gin.Context, status int, body any, err error) {
 }
 
 func handleError(ctx *gin.Context, err error) {
+	var outstanding *entities.OutstandingPaymentError
+	if errors.As(err, &outstanding) {
+		shared.PaymentOutstanding(ctx, outstanding)
+		return
+	}
 	var feeChanged *dispatch.CancelFeeChangedError
 	if errors.As(err, &feeChanged) {
 		ctx.AbortWithStatusJSON(http.StatusConflict, gin.H{
@@ -121,7 +126,6 @@ var errorTable = []struct {
 	message string
 }{
 	{dispatch.ErrRequestNotFound, http.StatusNotFound, "REQUEST_NOT_FOUND", "Request not found."},
-	{entities.ErrPaymentOutstanding, http.StatusConflict, "PAYMENT_OUTSTANDING", "Pay the completed request before asking for another."},
 	{entities.ErrPaymentMethodUnavailable, http.StatusUnprocessableEntity, "PAYMENT_METHOD_UNAVAILABLE", "This payment method is not available for this service."},
 	{dispatch.ErrInvalidGrouping, http.StatusUnprocessableEntity, "INVALID_GROUPING", "group_by must be category, service, status, zone or organization."},
 	{dispatch.ErrOfferNotFound, http.StatusNotFound, "OFFER_NOT_FOUND", "Offer not found."},
@@ -134,6 +138,7 @@ var errorTable = []struct {
 	{dispatch.ErrFareEstimateInvalid, http.StatusConflict, "FARE_ESTIMATE_INVALID", "The price does not match this route. Ask for a new one."},
 	{dispatch.ErrFareEstimateUsed, http.StatusConflict, "FARE_ESTIMATE_USED", "This price was already used. Ask for a new one."},
 	{entities.ErrRemovalItemUnknown, http.StatusUnprocessableEntity, "REMOVAL_ITEM_NOT_FOUND", "An item does not exist in the catalog."},
+	{entities.ErrRemovalPropertyUnknown, http.StatusUnprocessableEntity, "REMOVAL_PROPERTY_NOT_FOUND", "This type of property does not exist in the catalog."},
 	{entities.ErrRemovalExtraUnknown, http.StatusUnprocessableEntity, "REMOVAL_EXTRA_NOT_FOUND", "An extra does not exist in the catalog."},
 	{entities.ErrRemovalHelpers, http.StatusUnprocessableEntity, "REMOVAL_TOO_MANY_HELPERS", "Too many helpers."},
 	{entities.ErrRemovalTooLarge, http.StatusUnprocessableEntity, "REMOVAL_TOO_LARGE", "No vehicle carries this volume."},
@@ -152,6 +157,11 @@ var errorTable = []struct {
 	{dispatch.ErrReportScope, http.StatusUnprocessableEntity, "INVALID_REPORT_SCOPE", "scope must be customer_cancel, provider_cancel or offer_reject."},
 	{dispatch.ErrHeatPeriod, http.StatusUnprocessableEntity, "INVALID_PERIOD", "The period must end after it starts and span at most 31 days."},
 	{dispatch.ErrPositionUnknown, http.StatusUnprocessableEntity, "POSITION_UNKNOWN", "Send lat and lng, or report a position first."},
+	{dispatch.ErrHeatmapBox, http.StatusBadRequest, "INVALID_BBOX", "bbox must be minLng,minLat,maxLng,maxLat with longitudes between -180 and 180, latitudes between -90 and 90 and each minimum below its maximum."},
+	{dispatch.ErrHeatmapZoom, http.StatusBadRequest, "INVALID_ZOOM", "zoom must be a whole number between 0 and 24."},
+	{dispatch.ErrHeatmapMetric, http.StatusBadRequest, "INVALID_METRIC", "metric must be count or value."},
+	{dispatch.ErrHeatmapPeriod, http.StatusBadRequest, "INVALID_PERIOD", "The period must end after it starts and span at most the allowed period, 7 days by default."},
+	{dispatch.ErrHeatmapArea, http.StatusBadRequest, "AREA_TOO_LARGE", "The area holds too many cells even at the coarsest resolution. Zoom in."},
 	{dispatch.ErrFlowBounds, http.StatusUnprocessableEntity, "INVALID_FLOW_BOUNDS", "min_requests must be between 1 and 1000 and limit between 1 and 2000."},
 	{entities.ErrVoucherNotFound, http.StatusUnprocessableEntity, "VOUCHER_NOT_FOUND", "This voucher does not exist."},
 	{entities.ErrVoucherExpired, http.StatusUnprocessableEntity, "VOUCHER_EXPIRED", "This voucher is outside its validity."},

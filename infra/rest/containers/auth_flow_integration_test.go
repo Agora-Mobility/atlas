@@ -714,6 +714,11 @@ func newTestEngine(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client, sms *s
 		Dispatch:   config.DispatchConfig{WatcherInterval: time.Hour, WatcherBatch: 10, ChannelTimeout: time.Second, FareEstimateTTL: time.Minute, NearbyMinCount: 1, MaxAccuracyM: 100, MaxSpeedKmh: 200, OfferDeepLink: "agora://app", IdempotencyTTL: time.Hour, NotificationWorkers: 1},
 		Realtime:   config.RealtimeConfig{Heartbeat: time.Second, PollInterval: time.Second, DeadAfter: 3 * time.Second, MailboxEntries: 200, MailboxTTL: time.Hour, ProjectorWorkers: 1},
 		GoogleMaps: config.GoogleMapsConfig{Timeout: time.Second, BreakerFailures: 1, BreakerCooldown: time.Second, RoadFactor: 1.4, AverageSpeedKmh: 25},
+		Heatmap: config.HeatmapConfig{
+			Interval: time.Hour, Window: 15 * time.Minute, LookbackWindows: 2, Rollups: []int{8, 7, 6}, SelfWeight: 0.6, NeighborWeight: 0.4,
+			Zooms:    []config.HeatmapZoom{{MinZoom: 0, Resolution: 6}, {MinZoom: 11, Resolution: 7}, {MinZoom: 13, Resolution: 8}, {MinZoom: 15, Resolution: 9}},
+			MaxCells: 20_000, MaxPeriod: 7 * 24 * time.Hour, CacheTTL: time.Minute,
+		},
 		Access: config.AccessConfig{
 			PermissionCacheTTL: time.Minute, InvitationBackoffice: "https://argus.test/convite", InvitationPartner: "https://athena.test/convite",
 		},

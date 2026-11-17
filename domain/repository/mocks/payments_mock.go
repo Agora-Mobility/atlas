@@ -192,19 +192,19 @@ func (mr *MockIPaymentRepositoryMockRecorder) FindForUpdate(ctx, id any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindForUpdate", reflect.TypeOf((*MockIPaymentRepository)(nil).FindForUpdate), ctx, id)
 }
 
-// HasOutstanding mocks base method.
-func (m *MockIPaymentRepository) HasOutstanding(ctx context.Context, customerID uuid.UUID) (bool, error) {
+// FindOutstanding mocks base method.
+func (m *MockIPaymentRepository) FindOutstanding(ctx context.Context, customerID uuid.UUID) (*entities.OutstandingPaymentError, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HasOutstanding", ctx, customerID)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "FindOutstanding", ctx, customerID)
+	ret0, _ := ret[0].(*entities.OutstandingPaymentError)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// HasOutstanding indicates an expected call of HasOutstanding.
-func (mr *MockIPaymentRepositoryMockRecorder) HasOutstanding(ctx, customerID any) *gomock.Call {
+// FindOutstanding indicates an expected call of FindOutstanding.
+func (mr *MockIPaymentRepositoryMockRecorder) FindOutstanding(ctx, customerID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasOutstanding", reflect.TypeOf((*MockIPaymentRepository)(nil).HasOutstanding), ctx, customerID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOutstanding", reflect.TypeOf((*MockIPaymentRepository)(nil).FindOutstanding), ctx, customerID)
 }
 
 // IsMethodEnabled mocks base method.

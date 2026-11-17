@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
@@ -174,10 +175,42 @@ func (r *BookingRepository) Search(ctx context.Context, f repository.WorkshopSea
 		row := &rows[i]
 		out = append(out, repository.WorkshopCard{
 			ID: row.ID, Name: row.Name, Line: row.Line, Point: entities.GeoPoint{Lat: row.Lat, Lng: row.Lng}, DistanceM: row.DistanceM, OffersHomeService: row.OffersHomeService,
-			HomeServiceFeeCents: row.HomeServiceFeeCents, Currency: row.Currency, RatingSum: row.RatingSum, RatingCount: int(row.RatingCount), IsFavorite: row.IsFavorite,
+			HomeServiceFeeCents: row.HomeServiceFeeCents, Currency: row.Currency, RatingSum: row.RatingSum, RatingCount: int(row.RatingCount), IsFavorite: row.IsFavorite, CoverKey: row.CoverKey,
 		})
 	}
 	return out, nil
+}
+
+func (r *BookingRepository) WorkshopPhotos(ctx context.Context, workshopID uuid.UUID) ([]entities.MediaUpload, error) {
+	rows, err := postgres.Queries(ctx, r.pool).ListWorkshopPhotos(ctx, workshopID)
+	if err != nil {
+		return nil, fmt.Errorf("list workshop photos: %w", err)
+	}
+	out := make([]entities.MediaUpload, 0, len(rows))
+	for i := range rows {
+		out = append(out, toUpload(&rows[i]))
+	}
+	return out, nil
+}
+
+func (r *BookingRepository) ReplaceWorkshopPhotos(ctx context.Context, workshopID uuid.UUID, uploadIDs []uuid.UUID, now time.Time) error {
+	queries := postgres.Queries(ctx, r.pool)
+	if err := queries.DeleteWorkshopPhotos(ctx, workshopID); err != nil {
+		return fmt.Errorf("clear workshop photos: %w", err)
+	}
+	var position int32
+	for _, id := range uploadIDs {
+		err := queries.InsertWorkshopPhoto(ctx, gen.InsertWorkshopPhotoParams{UploadID: id, WorkshopID: workshopID, Position: position, CreatedAt: now})
+		position++
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+			return entities.ErrPhotoNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("add workshop photo: %w", err)
+		}
+	}
+	return nil
 }
 
 func (r *BookingRepository) Promotions(ctx context.Context, workshopID uuid.UUID, now time.Time) ([]entities.Voucher, error) {

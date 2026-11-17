@@ -983,6 +983,47 @@ func TestOperatorDispatchesByHandRetriesAndCancels(t *testing.T) {
 	stream.waitForStatus(t, "cancelled")
 }
 
+func TestEveryoneCancelsATripInProgress(t *testing.T) {
+	started := func(t *testing.T) (customer, driver *person, id string) {
+		t.Helper()
+		customer, driver, id = assignedTaxi(t)
+		for _, step := range []string{"en-route", "start"} {
+			res := driver.post(t, "/api/v1/requests/"+id+"/"+step, nil)
+			require.Equal(t, http.StatusOK, res.status, res.text)
+		}
+		require.Equal(t, "in_progress", customer.get(t, "/api/v1/requests/"+id).str("status"))
+		return customer, driver, id
+	}
+
+	t.Run("the customer", func(t *testing.T) {
+		customer, _, id := started(t)
+		reason := cancelReason(t, customer, "customer", "taxi", "changed_plans")
+		cancelled := customer.post(t, "/api/v1/requests/"+id+"/cancel", map[string]any{"reason_id": reason})
+		require.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
+		assert.Equal(t, "cancelled", cancelled.str("status"))
+		assert.Equal(t, "customer", cancelled.str("cancelled_by"))
+	})
+
+	t.Run("the driver", func(t *testing.T) {
+		customer, driver, id := started(t)
+		reason := cancelReason(t, driver, "provider", "taxi", "customer_no_show")
+		cancelled := driver.post(t, "/api/v1/requests/"+id+"/cancel", map[string]any{"reason_id": reason})
+		require.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
+		assert.Equal(t, "cancelled", customer.get(t, "/api/v1/requests/"+id).str("status"))
+	})
+
+	t.Run("the operator", func(t *testing.T) {
+		customer, _, id := started(t)
+		stream := customer.listen(t, "")
+		cancelled, err := env.api.container.Dispatch.Usecase.CancelByOperator(context.Background(), entities.Actor{}, uuid.MustParse(id), "Corrida interrompida pelo operador")
+		require.NoError(t, err)
+		assert.Equal(t, "cancelled", cancelled.Status)
+		assert.Equal(t, "operator", cancelled.CancelledBy)
+		assert.Zero(t, cancelled.CancelFeeCents, "an operator never charges the customer")
+		stream.waitForStatus(t, "cancelled")
+	})
+}
+
 func TestReminderReachesBothPartiesBeforeTheDate(t *testing.T) {
 	clearOnlineProviders(t)
 	driver := newProvider(t, "taxi", point{-8.84, 13.235})

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -183,4 +184,44 @@ func TestAClosedDayIsNotBookable(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, newPartner(t).post(t, "/api/v1/fleet/workshops/"+workshop.id+"/closures", map[string]string{"date": day}).status, "another partner")
 	require.Equal(t, http.StatusNoContent, workshop.owner.do(t, http.MethodDelete, "/api/v1/fleet/workshops/"+workshop.id+"/closures/"+day, nil, nil).status)
 	assert.Equal(t, http.StatusCreated, workshop.book(t, customer, slot, "gpo").status)
+}
+
+func TestAWorkshopShowsItsPhotosWithTheFirstAsCover(t *testing.T) {
+	workshop := newShop(t, 1)
+	owner := workshop.owner
+	path := "/api/v1/fleet/workshops/" + workshop.id + "/photos"
+	front, inside := uploadPhoto(t, owner.person), uploadPhoto(t, owner.person)
+
+	set := owner.do(t, http.MethodPut, path, map[string]any{"photo_ids": []string{inside, front}}, nil)
+	require.Equal(t, http.StatusOK, set.status, set.text)
+	gallery := set.body["items"].([]any)
+	require.Len(t, gallery, 2)
+	assert.Equal(t, inside, gallery[0].(map[string]any)["id"], "the order of the partner is kept")
+
+	customer := newCustomer(t)
+	detail := customer.get(t, "/api/v1/workshops/"+workshop.id+"?lat=-8.84&lng=13.24")
+	require.Equal(t, http.StatusOK, detail.status, detail.text)
+	photos := detail.body["photos"].([]any)
+	require.Len(t, photos, 2)
+	assert.NotEmpty(t, photos[0].(map[string]any)["url"])
+	assert.NotEmpty(t, detail.str("cover_url"))
+
+	search := customer.get(t, fmt.Sprintf("/api/v1/workshops?lat=-8.84&lng=13.24&search=%s", url.QueryEscape(detail.str("name"))))
+	require.Equal(t, http.StatusOK, search.status, search.text)
+	cards := search.body["items"].([]any)
+	require.Len(t, cards, 1)
+	assert.NotEmpty(t, cards[0].(map[string]any)["cover_url"], "the list shows the cover")
+
+	kept := owner.do(t, http.MethodPut, path, map[string]any{"photo_ids": []string{front}}, nil)
+	require.Equal(t, http.StatusOK, kept.status, kept.text)
+	assert.Len(t, kept.body["items"], 1, "a photo left out leaves the gallery")
+	assert.Equal(t, http.StatusUnprocessableEntity, owner.do(t, http.MethodPut, path, map[string]any{"photo_ids": []string{front, front}}, nil).status, "a photo appears once")
+
+	other := newShop(t, 1)
+	assert.Equal(t, "PHOTO_NOT_FOUND", other.owner.do(t, http.MethodPut, "/api/v1/fleet/workshops/"+other.id+"/photos", map[string]any{"photo_ids": []string{inside}}, nil).code(), "a partner uses only their own uploads")
+	assert.Equal(t, http.StatusNotFound, other.owner.do(t, http.MethodPut, path, map[string]any{"photo_ids": []string{}}, nil).status, "nor changes another workshop")
+
+	cleared := owner.do(t, http.MethodPut, path, map[string]any{"photo_ids": []string{}}, nil)
+	require.Equal(t, http.StatusOK, cleared.status, cleared.text)
+	assert.Empty(t, customer.get(t, "/api/v1/workshops/"+workshop.id+"?lat=-8.84&lng=13.24").str("cover_url"))
 }

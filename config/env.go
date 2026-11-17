@@ -37,6 +37,7 @@ type Config struct {
 	Verify     VerifyConfig     `mapstructure:",squash"`
 	AppyPay    AppyPayConfig    `mapstructure:",squash"`
 	Calls      CallsConfig      `mapstructure:",squash"`
+	Heatmap    HeatmapConfig    `mapstructure:",squash"`
 }
 
 type CallsConfig struct {
@@ -377,6 +378,17 @@ var defaults = map[string]any{
 	"DEMAND_FACTOR_TTL":                     "3m",
 	"DEMAND_HISTORY_RETENTION":              "720h",
 	"ROUTE_REVIEW_ABOVE_PERCENT":            30,
+	"HEATMAP_INTERVAL":                      "5m",
+	"HEATMAP_WINDOW":                        "15m",
+	"HEATMAP_LOOKBACK_WINDOWS":              2,
+	"HEATMAP_ROLLUP_RESOLUTIONS":            "8,7,6",
+	"HEATMAP_SELF_WEIGHT":                   0.6,
+	"HEATMAP_NEIGHBOR_WEIGHT":               0.4,
+	"HEATMAP_ZOOM_RESOLUTIONS":              "0:6,11:7,13:8,15:9",
+	"HEATMAP_MAX_CELLS":                     20000,
+	"HEATMAP_MAX_PERIOD":                    "168h",
+	"HEATMAP_CACHE_TTL":                     "60s",
+	"HEATMAP_RETENTION":                     "2160h",
 	"REALTIME_PROJECTOR_WORKERS":            16,
 	"SSE_HEARTBEAT_INTERVAL":                "15s",
 	"SSE_POLL_INTERVAL":                     "30s",
@@ -544,6 +556,7 @@ func (c *Config) validate() error {
 		errs = append(errs, errors.New("INVITATION_URL_BACKOFFICE and INVITATION_URL_PARTNER_PANEL cannot be empty"))
 	}
 	errs = append(errs, c.validateDispatch()...)
+	errs = append(errs, c.Heatmap.prepare()...)
 	if c.AppyPay.Timeout <= 0 || c.AppyPay.GPOWindow <= 0 || c.AppyPay.ReferenceTTL <= 0 || c.AppyPay.ReconcileInterval <= 0 || c.AppyPay.ReconcileBatch <= 0 || c.AppyPay.GPOCheckInterval <= 0 || c.AppyPay.ReferenceCheckInterval <= 0 {
 		errs = append(errs, errors.New("APPYPAY_TIMEOUT and the PAYMENT_* settings must be positive"))
 	}

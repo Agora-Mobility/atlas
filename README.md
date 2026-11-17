@@ -48,7 +48,7 @@ infra/rest/<module>/controllers  →  usecases/<module>  →  domain/repository 
 | `infra/sse/` | SSE hub (skeleton) |
 | `shared/` | HTTP error responses, validation errors, enums, pagination |
 | `migrations/` | `.up.sql` / `.down.sql` pairs |
-| `cmd/` | Auxiliary binaries: `migrate`, `seed`, `bootstrap-admin`, `healthcheck` |
+| `cmd/` | Auxiliary binaries: `migrate`, `seed`, `bootstrap-admin`, `healthcheck`, `backfill-h3` |
 | `docs/adr/` | Architecture decision records |
 
 The `auth` module is the reference implementation across every layer. Copy
@@ -146,6 +146,7 @@ Run `make help` for the full list. Main ones:
 | `migrate-up`, `migrate-down`, `migrate-create name=...` | Migrations |
 | `seed` | Development seed data |
 | `bootstrap-admin` | Create the first Super Admin when none exists |
+| `backfill-h3 [batch=1000] [rebuild=168h]` | Set the r9 pickup cell on old requests and rebuild `heatmap_cells` (ADR 0022) |
 | `swag` | Regenerate the OpenAPI spec |
 | `docker-up`, `docker-down`, `docker-logs` | Compose stack |
 | `security` | gosec, govulncheck, gitleaks |

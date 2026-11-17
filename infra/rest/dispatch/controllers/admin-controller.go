@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -409,6 +411,60 @@ func (c *DispatchController) Flows(ctx *gin.Context) {
 	respond(ctx, http.StatusOK, view, err)
 }
 
+// HeatCells godoc
+//
+//	@Summary		Heat of the H3 cells inside the map view
+//	@Description	Requests per H3 cell for a hexagon layer such as deck.gl H3HexagonLayer, read from the cells the heatmap job aggregates every few minutes in 15 minute windows. The zoom picks the resolution (by default up to 10 is 6, 11 and 12 are 7, 13 and 14 are 8, from 15 is 9). When the view holds more than 20000 cells the next coarser resolution is used, and resolution tells which one answered; only when even resolution 6 does not fit the answer is 400 AREA_TOO_LARGE. value is the smoothed heat (0.6 of the cell plus 0.4 of the mean of its six neighbors); count is the raw number of requests. Windows of the period are summed. The period defaults to the last complete window and spans at most 7 days. h3 is always the hexadecimal index, since 64 bit integers lose precision in JavaScript.
+//	@Tags			Backoffice dispatch
+//	@Produce		json
+//	@Param			bbox		query		string	true	"minLng,minLat,maxLng,maxLat"	example(13.15,-8.95,13.35,-8.75)
+//	@Param			zoom		query		int		true	"Map zoom, 0 to 24"
+//	@Param			from		query		string	false	"Start of the period (RFC 3339)"
+//	@Param			to			query		string	false	"End of the period (RFC 3339)"
+//	@Param			metric		query		string	false	"count or value, default value"	Enums(count, value)
+//	@Param			category	query		string	false	"Category slug, default all"
+//	@Success		200			{object}	dtos.HeatCellsView
+//	@Failure		400			{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/dispatch/heatmap/cells [get]
+func (c *DispatchController) HeatCells(ctx *gin.Context) {
+	box, ok := bboxQuery(ctx)
+	if !ok {
+		return
+	}
+	zoom, err := strconv.Atoi(ctx.Query("zoom"))
+	if err != nil {
+		shared.BadRequest(ctx, "INVALID_ZOOM", "zoom is required and must be a whole number between 0 and 24.")
+		return
+	}
+	from, to, ok := reportPeriod(ctx)
+	if !ok {
+		return
+	}
+	view, err := c.dispatch.HeatCells(ctx.Request.Context(), dtos.HeatCellsQuery{
+		Box: box, Zoom: zoom, From: from, To: to, Metric: ctx.Query("metric"), Category: ctx.Query("category"),
+	})
+	respond(ctx, http.StatusOK, view, err)
+}
+
+func bboxQuery(ctx *gin.Context) (entities.GeoBox, bool) {
+	parts := strings.Split(ctx.Query("bbox"), ",")
+	values := make([]float64, 0, len(parts))
+	for _, part := range parts {
+		value, err := strconv.ParseFloat(strings.TrimSpace(part), 64)
+		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+			break
+		}
+		values = append(values, value)
+	}
+	if len(parts) != 4 || len(values) != 4 {
+		shared.BadRequest(ctx, "INVALID_BBOX", "bbox is required as minLng,minLat,maxLng,maxLat.")
+		return entities.GeoBox{}, false
+	}
+	return entities.GeoBox{MinLng: values[0], MinLat: values[1], MaxLng: values[2], MaxLat: values[3]}, true
+}
+
 func heatQuery(ctx *gin.Context) (dtos.HeatQuery, bool) {
 	query := dtos.HeatQuery{Category: ctx.Query("category")}
 	if raw := ctx.Query("zone_id"); raw != "" {
@@ -501,17 +557,18 @@ func (c *DispatchController) RetrySearch(ctx *gin.Context) {
 
 // OperatorCancel godoc
 //
-//	@Summary	Cancel a request as an operator
-//	@Tags		Backoffice dispatch
-//	@Accept		json
-//	@Produce	json
-//	@Param		id		path		string						true	"Request id"
-//	@Param		body	body		dtos.OperatorCancelInput	true	"Reason"
-//	@Success	200		{object}	dtos.RequestView
-//	@Failure	409		{object}	shared.ErrorResponse
-//	@Security	BearerAuth
-//	@Security	ClientId
-//	@Router		/api/v1/admin/dispatch/requests/{id}/cancel [post]
+//	@Summary		Cancel a request as an operator
+//	@Description	Works on every request that is not finished yet, a trip in progress included. The customer pays no cancellation fee and gets back what was prepaid.
+//	@Tags			Backoffice dispatch
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string						true	"Request id"
+//	@Param			body	body		dtos.OperatorCancelInput	true	"Reason"
+//	@Success		200		{object}	dtos.RequestView
+//	@Failure		409		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/dispatch/requests/{id}/cancel [post]
 func (c *DispatchController) OperatorCancel(ctx *gin.Context) {
 	actor, ok := staffActor(ctx)
 	if !ok {

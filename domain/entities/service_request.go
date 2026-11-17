@@ -63,7 +63,7 @@ var allowedTransitions = map[RequestStatus][]RequestStatus{
 	RequestAwaitingChoice:  {RequestAccepted, RequestCancelled},
 	RequestAccepted:        {RequestProviderEnRoute, RequestCancelled},
 	RequestProviderEnRoute: {RequestInProgress, RequestCancelled},
-	RequestInProgress:      {RequestCompleted},
+	RequestInProgress:      {RequestCompleted, RequestCancelled},
 }
 
 var transitionActors = map[RequestStatus][]RequestActorType{
@@ -181,6 +181,7 @@ type ServiceRequest struct {
 	Version         int
 	Pickup          RequestPlace
 	PickupH3R8      int64
+	PickupH3R9      int64
 	Destination     *RequestPlace
 	DestinationH3   *int64
 	Stops           []RequestPlace

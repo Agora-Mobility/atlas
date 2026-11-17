@@ -63,7 +63,7 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	if policy.BookingOnly {
 		return nil, false, entities.ErrBookingOnly
 	}
-	paymentMethod, err := u.checkPayment(ctx, customerID, service.CategoryID, in.PaymentMethod)
+	paymentMethod, err := u.checkPayment(ctx, service.CategoryID, in.PaymentMethod)
 	if err != nil {
 		return nil, false, err
 	}
@@ -108,6 +108,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 		return nil, false, err
 	}
 	if request.PickupH3R8, err = u.Geo.Cell(request.Pickup.Point, analyticsResolution); err != nil {
+		return nil, false, err
+	}
+	if request.PickupH3R9, err = u.Geo.Cell(request.Pickup.Point, entities.HeatmapResolution); err != nil {
 		return nil, false, err
 	}
 	if request.Destination != nil {
@@ -232,14 +235,7 @@ func withoutServerFields(details json.RawMessage) json.RawMessage {
 	return cleaned
 }
 
-func (u *Usecase) checkPayment(ctx context.Context, customerID, categoryID uuid.UUID, requested string) (entities.PaymentMethod, error) {
-	outstanding, err := u.Payments.HasOutstanding(ctx, customerID)
-	if err != nil {
-		return "", err
-	}
-	if outstanding {
-		return "", entities.ErrPaymentOutstanding
-	}
+func (u *Usecase) checkPayment(ctx context.Context, categoryID uuid.UUID, requested string) (entities.PaymentMethod, error) {
 	method := entities.PaymentMethod(requested)
 	if method == "" {
 		method = entities.PaymentCash

@@ -77,6 +77,8 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		Routing:   routingProvider,
 		Feed:      mailbox,
 		Channels:  notifier,
+		Heatmap:   repository.NewHeatmapRepository(c.Pool),
+		Cache:     c.Cache,
 	}, dispatch.Settings{
 		WatcherInterval: cfg.Dispatch.WatcherInterval, WatcherBatch: cfg.Dispatch.WatcherBatch, FareEstimateTTL: cfg.Dispatch.FareEstimateTTL,
 		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout, ShareBaseURL: cfg.Dispatch.ShareBaseURL, Currency: cfg.AppyPay.LedgerCurrency,
@@ -84,6 +86,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		RoadFactor: cfg.GoogleMaps.RoadFactor, AverageSpeedKmh: cfg.GoogleMaps.AverageSpeedKmh,
 		DemandAreaResolution: cfg.Dispatch.DemandAreaResolution, DemandQuoteWindow: cfg.Dispatch.DemandQuoteWindow, DemandFactorTTL: cfg.Dispatch.DemandFactorTTL,
 		DemandHistoryRetention: cfg.Dispatch.DemandHistoryRetention, RouteReviewAboveBps: cfg.Dispatch.RouteReviewAboveBps(),
+		Heatmap: HeatmapSettings(cfg.Heatmap),
 	})
 	notifier.UseSharer(uc)
 	notifier.UseAccount(repository.NewAccountRepository(c.Pool))
@@ -129,4 +132,16 @@ func newPushSender(ctx context.Context, cfg config.FCMConfig) (services.IPushSen
 		return nil, fmt.Errorf("fcm: %w", err)
 	}
 	return sender, nil
+}
+
+func HeatmapSettings(cfg config.HeatmapConfig) dispatch.HeatmapSettings {
+	zooms := make([]dispatch.ZoomStep, 0, len(cfg.Zooms))
+	for _, zoom := range cfg.Zooms {
+		zooms = append(zooms, dispatch.ZoomStep{MinZoom: zoom.MinZoom, Resolution: zoom.Resolution})
+	}
+	return dispatch.HeatmapSettings{
+		Interval: cfg.Interval, Window: cfg.Window, LookbackWindows: cfg.LookbackWindows, Rollups: cfg.Rollups,
+		SelfWeight: cfg.SelfWeight, NeighborWeight: cfg.NeighborWeight, Zooms: zooms, MaxCells: cfg.MaxCells,
+		MaxPeriod: cfg.MaxPeriod, CacheTTL: cfg.CacheTTL, Retention: cfg.Retention,
+	}
 }
