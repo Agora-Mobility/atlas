@@ -17258,6 +17258,89 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.AuditActorView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "staff",
+                        "customer",
+                        "provider",
+                        "system"
+                    ]
+                }
+            }
+        },
+        "dtos.AuditEntryView": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "example": "service_tariff.publish"
+                },
+                "actor": {
+                    "$ref": "#/definitions/dtos.AuditActorView"
+                },
+                "after": {
+                    "type": "object"
+                },
+                "before": {
+                    "type": "object"
+                },
+                "correlation_id": {
+                    "type": "string"
+                },
+                "entity": {
+                    "type": "string",
+                    "example": "service_tariff"
+                },
+                "entity_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "occurred_at": {
+                    "type": "string"
+                },
+                "organization_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.AuditPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.AuditEntryView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.AvatarInput": {
             "type": "object",
             "required": [

@@ -83,6 +83,7 @@ func newAuthModule(c *Container) (*AuthModule, error) {
 			Invitations: controllers.NewInvitationController(usecases.NewInvitationUsecase(
 				userRepo, orgRepo, membershipRepo, invitationRepo, auditRepo, c.Outbox, c.TxManager, hasher, opaqueTokens, otpService, codeSender, accessResolver,
 			)),
+			Audit: controllers.NewAuditController(usecases.NewAuditUsecase(auditRepo)),
 			Roles: controllers.NewRoleController(usecases.NewRoleUsecase(roleRepo, auditRepo, c.Outbox, c.TxManager, accessResolver)),
 		}, c.Authenticator, authorizer, c.ClientAuthorizer, authrouter.Limiters{
 			Register: authLimiter(c, "register"),

@@ -383,6 +383,62 @@ definitions:
     required:
     - photo_ids
     type: object
+  dtos.AuditActorView:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        enum:
+        - staff
+        - customer
+        - provider
+        - system
+        type: string
+    type: object
+  dtos.AuditEntryView:
+    properties:
+      action:
+        example: service_tariff.publish
+        type: string
+      actor:
+        $ref: '#/definitions/dtos.AuditActorView'
+      after:
+        type: object
+      before:
+        type: object
+      correlation_id:
+        type: string
+      entity:
+        example: service_tariff
+        type: string
+      entity_id:
+        type: string
+      id:
+        type: string
+      occurred_at:
+        type: string
+      organization_id:
+        type: string
+      reason:
+        type: string
+    type: object
+  dtos.AuditPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.AuditEntryView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
   dtos.AvatarInput:
     properties:
       photo_id:

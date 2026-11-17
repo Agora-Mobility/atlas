@@ -24,6 +24,7 @@ type Controllers struct {
 	Partners    *controllers.PartnerController
 	Invitations *controllers.InvitationController
 	Roles       *controllers.RoleController
+	Audit       *controllers.AuditController
 }
 
 type Router struct {
@@ -34,6 +35,7 @@ type Router struct {
 	partners         *controllers.PartnerController
 	invitations      *controllers.InvitationController
 	roles            *controllers.RoleController
+	audit            *controllers.AuditController
 	authenticator    *middleware.Authenticator
 	authorizer       *middleware.Authorizer
 	clientAuthorizer *middleware.ClientAuthorizer
@@ -55,6 +57,7 @@ func NewRouter(
 		partners:         c.Partners,
 		invitations:      c.Invitations,
 		roles:            c.Roles,
+		audit:            c.Audit,
 		authenticator:    authenticator,
 		authorizer:       authorizer,
 		clientAuthorizer: clientAuthorizer,
@@ -133,6 +136,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	partners.POST("/:orgId/members/invitations", can(entities.PermPartnersManage), r.partners.InviteMember)
 
 	staff.GET("/admin/block-reasons", can(entities.PermUsersBlock), r.userAdmin.ListBlockReasons)
+	staff.GET("/admin/audit", can(entities.PermAuditRead), r.audit.List)
 	admin := staff.Group("/admin/users")
 	admin.GET("", can(entities.PermUsersRead), r.userAdmin.List)
 	admin.GET("/:id", can(entities.PermUsersRead), r.userAdmin.Get)
