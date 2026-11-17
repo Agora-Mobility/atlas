@@ -2287,7 +2287,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Requires requests:read. Every category is here; filter by category to see one segment, such as taxi, towing, removals or maintenance. Newest first.",
+                "description": "Requires requests:read. Every category is here; filter by category to see one segment, such as taxi, towing, removals or maintenance. search finds a request by its code (TX-10001), the name or phone of the customer, or the plate of the provider, ignoring case, spaces and dashes. Newest first unless sort says otherwise.",
                 "produces": [
                     "application/json"
                 ],
@@ -2348,6 +2348,18 @@ const docTemplate = `{
                         "type": "boolean",
                         "description": "Only completed rides whose real distance strayed from the quote beyond ROUTE_REVIEW_ABOVE_PERCENT",
                         "name": "route_review",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Code, customer name or phone, provider plate",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "created_at, -created_at (default), scheduled_for, -scheduled_for, fare_cents or -fare_cents",
+                        "name": "sort",
                         "in": "query"
                     },
                     {
@@ -17007,6 +17019,10 @@ const docTemplate = `{
                 },
                 "category_name": {
                     "type": "string"
+                },
+                "code": {
+                    "type": "string",
+                    "example": "TX-10001"
                 },
                 "completed_at": {
                     "type": "string"

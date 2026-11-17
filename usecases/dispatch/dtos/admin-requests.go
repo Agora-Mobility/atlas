@@ -16,10 +16,13 @@ type AdminRequestFilter struct {
 	From           *time.Time
 	To             *time.Time
 	RouteReview    bool
+	Search         string
+	Sort           string
 }
 
 type AdminRequestView struct {
 	ID               uuid.UUID  `json:"id"`
+	Code             string     `json:"code" example:"TX-10001"`
 	Status           string     `json:"status"`
 	Version          int        `json:"version"`
 	Category         string     `json:"category"`
