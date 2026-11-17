@@ -33,6 +33,8 @@ func NewRouter(
 
 func (r *Router) RegisterStream(root gin.IRoutes) {
 	root.GET("/events", middleware.Streaming(), r.clientAuthorizer.RequireClient(), r.authenticator.RequireAuth(), r.stream.Stream)
+	root.GET("/admin/events", middleware.Streaming(), r.clientAuthorizer.RequireClient(), r.authenticator.RequireAuth(),
+		r.authorizer.RequirePermission(entities.PermRequestsRead), r.stream.StaffStream)
 }
 
 func (r *Router) Register(api *gin.RouterGroup) {

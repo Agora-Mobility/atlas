@@ -743,8 +743,13 @@ func (p *person) listen(t *testing.T, lastEventID string) *stream {
 
 func (p *person) listenSlow(t *testing.T, lastEventID string, delay time.Duration) *stream {
 	t.Helper()
+	return p.listenTo(t, "/events", lastEventID, delay)
+}
+
+func (p *person) listenTo(t *testing.T, path, lastEventID string, delay time.Duration) *stream {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.api+"/events", http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.api+path, http.NoBody)
 	require.NoError(t, err)
 	req.Header.Set("X-Client-Id", p.client)
 	req.Header.Set("Authorization", "Bearer "+p.token)

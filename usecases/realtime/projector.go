@@ -45,6 +45,7 @@ func BindingKeys() []string {
 		events.RequestSearching, events.RequestScheduled, events.RequestOffered, events.RequestAwaitingChoice, events.RequestAccepted, events.RequestProviderEnRoute,
 		events.RequestInProgress, events.RequestCompleted, events.RequestExpired, events.RequestCancelled, events.OfferCreated, events.OfferExpired,
 		events.OfferCancelled, events.RequestMessage, events.PaymentChanged, events.QuoteSubmitted, events.FareBoosted, events.RouteChanged, events.OperatorAlerted, events.ReminderDue, events.BookingChanged, events.BookingExtra,
+		events.TicketOpened,
 	}
 	keys := make([]string, 0, len(types))
 	for _, eventType := range types {
@@ -55,6 +56,7 @@ func BindingKeys() []string {
 
 type projection struct {
 	recipients []uuid.UUID
+	staff      *staffAlert
 	sseType    string
 	class      services.MessageClass
 	body       map[string]any
@@ -84,7 +86,26 @@ func (p *Projector) Handle(ctx context.Context, env events.Envelope) error {
 			return err
 		}
 	}
-	return nil
+	if projected.staff == nil {
+		return nil
+	}
+	return p.deliverToStaff(ctx, env, projected.staff)
+}
+
+type staffAlert struct {
+	sseType string
+	body    map[string]any
+}
+
+func (p *Projector) deliverToStaff(ctx context.Context, env events.Envelope, alert *staffAlert) error {
+	alert.body["event_id"] = env.EventID.String()
+	alert.body["class"] = services.ClassState
+	alert.body["occurred_at"] = env.OccurredAt
+	data, err := json.Marshal(alert.body)
+	if err != nil {
+		return fmt.Errorf("encode staff %s: %w", env.EventType, err)
+	}
+	return p.mailbox.Deliver(ctx, services.StaffAlertsBox, services.MailboxMessage{EventID: env.EventID.String(), Type: alert.sseType, Class: services.ClassState, Data: data})
 }
 
 func (p *Projector) project(env events.Envelope) (*projection, error) {
@@ -177,7 +198,18 @@ func (p *Projector) project(env events.Envelope) (*projection, error) {
 		return &projection{
 			recipients: []uuid.UUID{event.CustomerID}, sseType: sseAlert, class: services.ClassState,
 			body: map[string]any{"request_id": event.RequestID, "reason": event.Reason},
+			staff: &staffAlert{sseType: services.StaffRequestAlert, body: map[string]any{
+				"request_id": event.RequestID, "customer_id": event.CustomerID, "category": event.Category, "reason": event.Reason,
+			}},
 		}, nil
+	case events.TicketOpened:
+		var event events.TicketOpenedV1
+		if err := env.DecodePayload(&event); err != nil {
+			return nil, err
+		}
+		return &projection{body: map[string]any{}, staff: &staffAlert{sseType: services.StaffTicket, body: map[string]any{
+			"ticket_id": event.TicketID, "code": event.Code, "user_id": event.UserID, "request_id": event.RequestID, "subject": event.Subject,
+		}}}, nil
 	case events.ReminderDue:
 		var event events.ReminderDueV1
 		if err := env.DecodePayload(&event); err != nil {
