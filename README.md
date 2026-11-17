@@ -155,41 +155,39 @@ Run `make help` for the full list. Main ones:
 ## Releases and images
 
 Images live in the public Docker Hub repository `docker.io/agoramobility/atlas`
-and are built only by `.github/workflows/cd.yml`, once per commit on `main`.
-The workflows log in with the repository variable `DOCKERHUB_USERNAME` and the
-repository secret `DOCKERHUB_TOKEN` (Settings → Secrets and variables → Actions). The same
-image (same digest) is promoted from staging to production; nothing is rebuilt.
+and are built only by `.github/workflows/cd.yml`, once per release, for
+`linux/amd64`. The workflows log in with the repository variable
+`DOCKERHUB_USERNAME` and the repository secret `DOCKERHUB_TOKEN` (Settings →
+Secrets and variables → Actions). There is no staging environment.
 
 | Tag | Meaning | Mutable |
 |---|---|---|
-| `sha-1a2b3c4` | Build of that commit on `main` | no |
 | `1.4.2`, `1.4` | Release `v1.4.2` (`1.4` follows the latest patch) | `1.4.2` no |
-| `staging` | What staging runs | yes |
+| `sha-1a2b3c4` | The commit of that release | no |
 | `production`, `latest` | What production runs | yes |
 
 Flow:
 
-1. Merging `develop` into `main` builds `sha-…`, signs it (cosign keyless),
-   attests the SBOM and deploys it to the `staging` environment.
+1. Open a pull request against `main`. CI and Security run on it, and only
+   there. Merge when they pass.
 2. release-please keeps a release PR open with the next version and the
    CHANGELOG, computed from the Conventional Commits (`feat` → minor,
-   `fix` → patch, `!` → major; minor while on `0.x`).
-3. Merging the release PR tags `vX.Y.Z`, publishes the GitHub release with the
-   image digest and SBOM, and deploys that image to `production`. Merging the
-   release PR is the production approval.
-4. Merge `main` back into `develop` after a release so the CHANGELOG and the
-   manifest stay in sync.
+   `fix` → patch, `!` → major; minor while on `0.x`). Merging a feature does
+   not build or deploy anything.
+3. Merging the release PR tags `vX.Y.Z`, builds and signs the image (cosign
+   keyless), attests the SBOM, publishes the GitHub release with the digest
+   and deploys that image to `production`. Merging the release PR is the
+   production approval.
 
-Rollback: Actions → **Rollback** → choose the environment and a previous tag
-(`1.4.1` for production, `1.4.1` or `sha-…` for staging). The workflow checks
-that the image was signed by `cd.yml` on `main`, moves the environment tag to it
-and redeploys. Nothing is rebuilt, so the rollback is the exact bytes that ran
-before.
+Rollback: Actions → **Rollback** → a previous release (`1.4.1`). The workflow
+checks that the image was signed by `cd.yml` on `main`, moves the `production`
+tag to it and redeploys. Nothing is rebuilt, so the rollback is the exact bytes
+that ran before.
 
 ## Conventions
 
 - Commits follow Conventional Commits (enforced by the commit-msg hook).
-- Branches: work on `develop`, release from `main`, tags `vX.Y.Z` (created by release-please, never by hand).
+- Branches: short-lived branches merged into `main` by pull request, tags `vX.Y.Z` (created by release-please, never by hand).
 - Configuration comes only from environment variables, validated at startup.
 - Never commit `.env` or confidential documents (`*.pdf` is ignored).
 
