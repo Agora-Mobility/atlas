@@ -106,6 +106,14 @@ func handleError(ctx *gin.Context, err error) {
 		})
 		return
 	}
+	var used *dispatch.FareEstimateUsedError
+	if errors.As(err, &used) {
+		ctx.AbortWithStatusJSON(http.StatusConflict, gin.H{
+			"error":  shared.ErrorBody{Code: "FARE_ESTIMATE_USED", Message: "This price was already used. Confirm the new one."},
+			"quotes": used.Fresh,
+		})
+		return
+	}
 	for _, mapped := range errorTable {
 		if errors.Is(err, mapped.target) {
 			shared.RespondError(ctx, mapped.status, mapped.code, mapped.message)
