@@ -187,6 +187,11 @@ func WindowStart(window *CatalogItem, local time.Time) bool {
 	return window != nil && window.Kind == CatalogRemovalWindow && window.IsActive && minute == window.AttrInt(AttrStartMinute) && local.Second() == 0
 }
 
+func WindowStartsAt(window *CatalogItem, day time.Time, location *time.Location) time.Time {
+	minutes := time.Duration(window.AttrInt(AttrStartMinute)) * time.Minute
+	return time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, location).Add(minutes)
+}
+
 type TeamMember struct {
 	ID        uuid.UUID
 	RequestID uuid.UUID

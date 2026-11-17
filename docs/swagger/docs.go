@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/admin/audit": {
+        "/admin/events": {
             "get": {
                 "security": [
                     {
@@ -25,69 +25,27 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Requires audit:read. Newest first. Every change of tariffs, policies, accounts, roles and the rest of the backoffice, with who made it and the values before and after. Passwords, hashes, tokens and secrets come as ***; IP and user agent are not shown. An entry without actor is a system action.",
+                "description": "Server-Sent Events for the team, with requests:read. staff.request_alert arrives when a request goes to the operator queue or a customer or provider raises an SOS (reason sos), with request_id, customer_id, category and reason. staff.ticket arrives when a support ticket is opened, with ticket_id, code, user_id, subject and request_id, only for whoever also has requests:manage. Every connected member gets every alert. Send Last-Event-ID to replay what was missed.",
                 "produces": [
-                    "application/json"
+                    "text/event-stream"
                 ],
                 "tags": [
-                    "Backoffice audit"
+                    "Real time"
                 ],
-                "summary": "Read the audit log",
+                "summary": "Real-time alerts of the backoffice",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Who made the change",
-                        "name": "actor_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Type of entity, such as service_tariff or user",
-                        "name": "entity",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Id of the entity",
-                        "name": "entity_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Action, such as service_tariff.publish",
-                        "name": "action",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "At or after, YYYY-MM-DD or RFC 3339",
-                        "name": "from",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Before, YYYY-MM-DD or RFC 3339",
-                        "name": "to",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page (from 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page size (max 100)",
-                        "name": "size",
-                        "in": "query"
+                        "description": "Id of the last event received",
+                        "name": "Last-Event-ID",
+                        "in": "header"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Event stream",
                         "schema": {
-                            "$ref": "#/definitions/dtos.AuditPage"
+                            "type": "string"
                         }
                     },
                     "401": {
@@ -97,13 +55,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Missing audit:read",
-                        "schema": {
-                            "$ref": "#/definitions/shared.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Invalid filters",
+                        "description": "Missing requests:read",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -2383,7 +2335,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Requires requests:read. Every category is here; filter by category to see one segment, such as taxi, towing, removals or maintenance. Newest first.",
+                "description": "Requires requests:read. Every category is here; filter by category to see one segment, such as taxi, towing, removals or maintenance. search finds a request by its code (TX-10001), the name or phone of the customer, or the plate of the provider, ignoring case, spaces and dashes. Newest first unless sort says otherwise.",
                 "produces": [
                     "application/json"
                 ],
@@ -2444,6 +2396,18 @@ const docTemplate = `{
                         "type": "boolean",
                         "description": "Only completed rides whose real distance strayed from the quote beyond ROUTE_REVIEW_ABOVE_PERCENT",
                         "name": "route_review",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Code, customer name or phone, provider plate",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "created_at, -created_at (default), scheduled_for, -scheduled_for, fare_cents or -fare_cents",
+                        "name": "sort",
                         "in": "query"
                     },
                     {
@@ -12510,6 +12474,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
+                "description": "Only windows that have not started yet come back. A day with none left, such as a past day or today after the last window, is closed. lat and lng of the pickup choose the time zone; without them, or outside every zone, the first active zone decides.",
                 "produces": [
                     "application/json"
                 ],
@@ -12536,6 +12501,18 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Number of days, default 1, at most 62",
                         "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Pickup latitude",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Pickup longitude",
+                        "name": "lng",
                         "in": "query"
                     }
                 ],
@@ -12571,7 +12548,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type. custom_sizes holds the volume of each size of an item the customer adds by hand.",
+                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. Every item lists in properties the types of property it fits; an item that fits every type lists them all. With property, only the items of that type come back. custom_sizes holds the volume of each size of an item the customer adds by hand.",
                 "produces": [
                     "application/json"
                 ],
@@ -17103,6 +17080,10 @@ const docTemplate = `{
                 },
                 "category_name": {
                     "type": "string"
+                },
+                "code": {
+                    "type": "string",
+                    "example": "TX-10001"
                 },
                 "completed_at": {
                     "type": "string"
@@ -22554,7 +22535,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "free",
-                        "full"
+                        "full",
+                        "closed"
                     ]
                 },
                 "windows": {

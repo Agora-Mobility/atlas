@@ -15,6 +15,13 @@ const (
 	ClassControl   MessageClass = "control"
 )
 
+const StaffAlertsBox = "staff:alerts"
+
+const (
+	StaffRequestAlert = "staff.request_alert"
+	StaffTicket       = "staff.ticket"
+)
+
 var ErrMailboxCursorLost = errors.New("the cursor is older than the mailbox")
 
 type MailboxMessage struct {

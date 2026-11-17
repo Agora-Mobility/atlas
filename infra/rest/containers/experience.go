@@ -26,6 +26,7 @@ func newExperienceModule(c *Container) *ExperienceModule {
 		Requests:  repository.NewRequestRepository(c.Pool),
 		Providers: repository.NewProviderRepository(c.Pool),
 		Audit:     repository.NewAuditLogRepository(c.Pool),
+		Outbox:    c.Outbox,
 		Tx:        c.TxManager,
 	})
 	uc.Inbox = uc
