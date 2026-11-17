@@ -131,7 +131,18 @@ func TestETAComesFromTheRouteOfTheProvider(t *testing.T) {
 	assert.Equal(t, "google", eta.str("source"))
 	assert.Equal(t, "pickup", eta.str("target"))
 	assert.Positive(t, eta.num("duration_s"))
-	_ = driver
+	assert.Equal(t, "polyline", eta.str("route_geometry"), "the app draws the way of the driver to the customer")
+
+	toPickup := driver.get(t, "/api/v1/requests/"+id+"/eta")
+	require.Equal(t, http.StatusOK, toPickup.status, toPickup.text)
+	assert.Equal(t, "polyline", toPickup.str("route_geometry"), "the driver gets the same route")
+
+	env.googleMaps.down.Store(true)
+	defer env.googleMaps.down.Store(false)
+	fallback := customer.get(t, "/api/v1/requests/"+id+"/eta")
+	require.Equal(t, http.StatusOK, fallback.status, fallback.text)
+	assert.Equal(t, "fallback", fallback.str("source"))
+	assert.Empty(t, fallback.str("route_geometry"), "no route to draw without Google")
 }
 
 func TestSOSReachesTheOperatorAndStaysUntilResolved(t *testing.T) {

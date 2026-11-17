@@ -13055,14 +13055,14 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "From the last position of the provider, by route. source tells whether it came from Google Maps or from the fallback.",
+                "description": "From the last position of the provider, by route: to the pickup until the trip starts (target pickup), then to the destination (target destination). route_geometry is that route as a Google encoded polyline (precision 5), the same format as the route_geometry of the request, to draw on the map. source tells whether it came from Google Maps or from the fallback; the fallback has no route_geometry.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Live request"
                 ],
-                "summary": "Time until the provider arrives",
+                "summary": "Time and route until the provider arrives",
                 "parameters": [
                     {
                         "type": "string",
@@ -19087,6 +19087,10 @@ const docTemplate = `{
                 },
                 "position": {
                     "$ref": "#/definitions/dtos.PositionView"
+                },
+                "route_geometry": {
+                    "type": "string",
+                    "example": "zmrv@cbdpA..."
                 },
                 "source": {
                     "type": "string"
