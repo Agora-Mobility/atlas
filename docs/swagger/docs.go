@@ -12569,7 +12569,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Requires Idempotency-Key, so the app can resend on a bad network without creating a second request. The pin is the truth; reference and address only help. When the fare estimate expired the answer is 409 with new quotes and no request is created.",
+                "description": "Requires Idempotency-Key, so the app can resend on a bad network without creating a second request. The pin is the truth; reference and address only help. A fare estimate serves one request: sent again while that request is active, the answer is 200 with it. When the estimate expired, or its request already ended, the answer is 409 with new quotes and no request is created.",
                 "consumes": [
                     "application/json"
                 ],
@@ -12583,7 +12583,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Unique per attempt",
+                        "description": "One key per tap on Request, kept for every retry of that tap",
                         "name": "Idempotency-Key",
                         "in": "header",
                         "required": true
@@ -12600,7 +12600,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "The same key was already used",
+                        "description": "The same key or the same fare estimate already created this request",
                         "schema": {
                             "$ref": "#/definitions/dtos.RequestView"
                         }
@@ -12612,7 +12612,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "FARE_ESTIMATE_EXPIRED or FARE_ESTIMATE_INVALID",
+                        "description": "FARE_ESTIMATE_EXPIRED or FARE_ESTIMATE_USED (both with new quotes), FARE_ESTIMATE_INVALID, DUPLICATE_REQUEST",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }

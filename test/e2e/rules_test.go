@@ -146,20 +146,22 @@ func TestAnEstimateServesOnlyOneRequest(t *testing.T) {
 	option := taxiQuote(t, customer, nil)
 
 	var wg sync.WaitGroup
-	statuses := make([]int, 5)
-	for i := range statuses {
-		wg.Go(func() { statuses[i] = askFor(t, customer, option, nil).status })
+	answers := make([]result, 5)
+	for i := range answers {
+		wg.Go(func() { answers[i] = askFor(t, customer, option, nil) })
 	}
 	wg.Wait()
-	created := 0
-	for _, status := range statuses {
-		if status == http.StatusCreated {
+	created, ids := 0, map[string]bool{}
+	for _, answer := range answers {
+		if answer.status == http.StatusCreated {
 			created++
 		} else {
-			assert.Equal(t, http.StatusConflict, status)
+			assert.Equal(t, http.StatusOK, answer.status, "a repeated tap gets the request it made: %s", answer.text)
 		}
+		ids[answer.str("id")] = true
 	}
-	assert.Equal(t, 1, created, "five keys, one estimate: %v", statuses)
+	assert.Equal(t, 1, created, "five keys, one estimate")
+	assert.Len(t, ids, 1, "every answer is the same request")
 
 	var active int
 	require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT count(*) FROM service_requests WHERE customer_id = $1 AND status NOT IN ('cancelled', 'expired')`, customer.id).Scan(&active))
@@ -257,4 +259,21 @@ func TestADriverCannotConfirmCashOnARequestPaidDigitally(t *testing.T) {
 
 	res := driver.post(t, "/api/v1/requests/"+id+"/payments/cash", nil)
 	assert.Equal(t, "CASH_NOT_EXPECTED", res.code(), "this would erase the debt of the customer: %s", res.text)
+}
+
+func TestAnEstimateOfAFinishedRequestBringsANewPrice(t *testing.T) {
+	clearOnlineProviders(t)
+	customer := newCustomer(t)
+	option := taxiQuote(t, customer, nil)
+	first := askFor(t, customer, option, nil)
+	require.Equal(t, http.StatusCreated, first.status, first.text)
+	require.Equal(t, http.StatusOK, cancelAs(t, customer, "customer", first.str("id")).status)
+
+	again := askFor(t, customer, option, nil)
+
+	assert.Equal(t, http.StatusConflict, again.status)
+	assert.Equal(t, "FARE_ESTIMATE_USED", again.code())
+	fresh := again.body["quotes"].(map[string]any)["items"].([]any)[0].(map[string]any)
+	assert.NotEqual(t, option["fare_estimate_id"], fresh["fare_estimate_id"], "the old price is not reused")
+	assert.Equal(t, http.StatusCreated, askFor(t, customer, fresh, nil).status, "the new price asks for a new driver")
 }

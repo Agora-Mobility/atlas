@@ -74,6 +74,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 		destination = &place
 	}
 	fare, err := u.resolveFare(ctx, customerID, service, policy, zone, pickup, destination, in, now)
+	if errors.Is(err, ErrFareEstimateUsed) {
+		return u.afterUsedEstimate(ctx, customerID, service, in, err)
+	}
 	if err != nil {
 		return nil, false, err
 	}
@@ -173,6 +176,9 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 		}
 		return u.recordTransition(ctx, request, change, policy)
 	})
+	if in.FareEstimateID != nil && (errors.Is(err, ErrFareEstimateUsed) || errors.Is(err, ErrDuplicateRequest)) {
+		return u.afterUsedEstimate(ctx, customerID, service, in, err)
+	}
 	if errors.Is(err, repository.ErrDuplicateIdempotency) {
 		winner, err := u.Requests.FindByIdempotencyKey(ctx, customerID, idempotencyKey)
 		if err != nil {
@@ -198,6 +204,27 @@ func (u *Usecase) CreateRequest(ctx context.Context, customerID uuid.UUID, idemp
 	}
 	view, err := u.customerView(ctx, request)
 	return view, true, err
+}
+
+func (u *Usecase) afterUsedEstimate(ctx context.Context, customerID uuid.UUID, service *entities.DispatchService, in dtos.CreateRequestInput, cause error) (*dtos.RequestView, bool, error) {
+	active, err := u.Requests.ActiveOfCustomerService(ctx, customerID, service.ID)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, request := range active {
+		if request.Fare.EstimateID != nil && *request.Fare.EstimateID == *in.FareEstimateID {
+			view, err := u.customerView(ctx, request)
+			return view, false, err
+		}
+	}
+	if !errors.Is(cause, ErrFareEstimateUsed) {
+		return nil, false, cause
+	}
+	fresh, err := u.CreateEstimates(ctx, customerID, dtos.FareEstimateInput{Category: service.CategorySlug, Pickup: in.Pickup, Destination: in.Destination, Stops: in.Stops, ScheduledFor: in.ScheduledFor})
+	if err != nil {
+		return nil, false, err
+	}
+	return nil, false, &FareEstimateUsedError{Fresh: fresh}
 }
 
 func (u *Usecase) rejectDuplicate(ctx context.Context, request *entities.ServiceRequest) error {
