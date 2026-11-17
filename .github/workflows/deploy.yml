@@ -3,9 +3,6 @@ name: Deploy
 on:
   workflow_call:
     inputs:
-      environment:
-        type: string
-        required: true
       image:
         type: string
         required: true
@@ -21,13 +18,12 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy ${{ inputs.version }} to ${{ inputs.environment }}
+    name: Deploy ${{ inputs.version }} to production
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: production
     permissions:
       contents: read
     env:
-      TARGET: ${{ inputs.environment }}
       IMAGE: ${{ inputs.image }}
       DIGEST: ${{ inputs.digest }}
     steps:
@@ -38,16 +34,10 @@ jobs:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Point the environment tag at this image
-        run: |
-          tags=(--tag "$IMAGE:$TARGET")
-          if [[ "$TARGET" == "production" ]]; then
-            tags+=(--tag "$IMAGE:latest")
-          fi
-          docker buildx imagetools create "${tags[@]}" "$IMAGE@$DIGEST"
+      - name: Point the production tags at this image
+        run: docker buildx imagetools create --tag "$IMAGE:production" --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
 
       - name: Deploy to server
-        if: inputs.environment == 'production'
         uses: appleboy/ssh-action@v1.2.5
         env:
           IMAGE_REF: ${{ inputs.image }}@${{ inputs.digest }}
@@ -177,9 +167,4 @@ jobs:
         if: success()
         env:
           VERSION: ${{ inputs.version }}
-        run: |
-          if [[ "$TARGET" == "production" ]]; then
-            echo "Deployed \`$IMAGE@$DIGEST\` ($VERSION) to the production server" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Tagged \`$IMAGE@$DIGEST\` ($VERSION) as $TARGET, no server for this environment" >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: echo "Deployed \`$IMAGE@$DIGEST\` ($VERSION) to the production server" >> "$GITHUB_STEP_SUMMARY"

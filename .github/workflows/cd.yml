@@ -33,7 +33,7 @@ jobs:
   image:
     name: Build, sign and push image
     needs: release-please
-    if: ${{ !cancelled() }}
+    if: needs.release-please.outputs.created == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,19 +64,19 @@ jobs:
           images: ${{ steps.image.outputs.name }}
           tags: |
             type=sha,format=short,prefix=sha-
-            type=semver,pattern={{version}},value=${{ needs.release-please.outputs.tag }},enable=${{ needs.release-please.outputs.created == 'true' }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-please.outputs.tag }},enable=${{ needs.release-please.outputs.created == 'true' }}
+            type=semver,pattern={{version}},value=${{ needs.release-please.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-please.outputs.tag }}
 
       - name: Build and push
         id: build
         uses: docker/build-push-action@v7.4.0
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: VERSION=${{ needs.release-please.outputs.created == 'true' && needs.release-please.outputs.version || github.sha }}
+          build-args: VERSION=${{ needs.release-please.outputs.version }}
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -108,7 +108,6 @@ jobs:
 
   release-assets:
     name: Attach image to GitHub release
-    if: needs.release-please.outputs.created == 'true'
     needs: [release-please, image]
     runs-on: ubuntu-latest
     permissions:
@@ -145,24 +144,11 @@ jobs:
           EOF
           gh release edit "$TAG" --notes-file notes.md
 
-  deploy-staging:
-    name: Deploy to staging
-    needs: image
-    uses: ./.github/workflows/deploy.yml
-    with:
-      environment: staging
-      image: ${{ needs.image.outputs.image }}
-      digest: ${{ needs.image.outputs.digest }}
-      version: ${{ github.sha }}
-    secrets: inherit
-
   deploy-production:
     name: Deploy to production
-    if: needs.release-please.outputs.created == 'true'
-    needs: [release-please, image, deploy-staging]
+    needs: [release-please, image]
     uses: ./.github/workflows/deploy.yml
     with:
-      environment: production
       image: ${{ needs.image.outputs.image }}
       digest: ${{ needs.image.outputs.digest }}
       version: ${{ needs.release-please.outputs.version }}
