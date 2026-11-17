@@ -259,6 +259,18 @@ func itemsForProperty(items, properties []dtos.RemovalOption, property string) (
 	return out, nil
 }
 
+func withEveryProperty(items, properties []dtos.RemovalOption) {
+	every := make([]string, 0, len(properties))
+	for i := range properties {
+		every = append(every, properties[i].Code)
+	}
+	for i := range items {
+		if len(items[i].Properties) == 0 {
+			items[i].Properties = every
+		}
+	}
+}
+
 func (u *Usecase) removalList(ctx context.Context, kind entities.CatalogKind) ([]dtos.RemovalOption, error) {
 	items, err := u.Reference.Items(ctx, kind, removalsSlug, false)
 	if err != nil {
@@ -292,6 +304,7 @@ func (u *Usecase) RemovalOptions(ctx context.Context, property string) (*dtos.Re
 	if view.Items, err = itemsForProperty(view.Items, view.Properties, property); err != nil {
 		return nil, err
 	}
+	withEveryProperty(view.Items, view.Properties)
 	if view.CustomSizes, err = u.customSizes(ctx); err != nil {
 		return nil, err
 	}
@@ -308,7 +321,7 @@ func (u *Usecase) RemovalOptions(ctx context.Context, property string) (*dtos.Re
 	return view, nil
 }
 
-func (u *Usecase) RemovalCalendar(ctx context.Context, vehicleID uuid.UUID, from string, days int) (*dtos.RemovalCalendar, error) {
+func (u *Usecase) RemovalCalendar(ctx context.Context, vehicleID uuid.UUID, from string, days int, near *entities.GeoPoint) (*dtos.RemovalCalendar, error) {
 	first, err := time.Parse(dayLayout, from)
 	if err != nil || days < 1 || days > maxRemovalDays {
 		return nil, ErrBadDay
@@ -320,24 +333,64 @@ func (u *Usecase) RemovalCalendar(ctx context.Context, vehicleID uuid.UUID, from
 	if vehicle == nil || vehicle.Kind != entities.CatalogRemovalVehicle || !vehicle.IsActive {
 		return nil, entities.ErrRemovalVehicle
 	}
-	windows, err := u.removalList(ctx, entities.CatalogRemovalWindow)
+	windows, err := u.Reference.Items(ctx, entities.CatalogRemovalWindow, removalsSlug, false)
 	if err != nil {
 		return nil, err
 	}
+	location, err := u.calendarLocation(ctx, near)
+	if err != nil {
+		return nil, err
+	}
+	now := u.now()
 	view := &dtos.RemovalCalendar{Days: make([]dtos.RemovalDayView, 0, days)}
 	for offset := range days {
 		day := first.AddDate(0, 0, offset)
+		item := dtos.RemovalDayView{Date: day.Format(dayLayout), Status: string(entities.DayFree), Windows: openWindows(windows, day, location, now)}
+		if len(item.Windows) == 0 {
+			item.Status, item.Windows = string(entities.DayClosed), nil
+			view.Days = append(view.Days, item)
+			continue
+		}
 		used, err := u.Removals.CountOfDay(ctx, vehicleID, day)
 		if err != nil {
 			return nil, err
 		}
-		item := dtos.RemovalDayView{Date: day.Format(dayLayout), Status: string(entities.DayFree), Windows: windows}
 		if used >= vehicle.AttrInt(entities.AttrDailyCapacity) {
 			item.Status, item.Windows = string(entities.DayFull), nil
 		}
 		view.Days = append(view.Days, item)
 	}
 	return view, nil
+}
+
+func openWindows(windows []entities.CatalogItem, day time.Time, location *time.Location, now time.Time) []dtos.RemovalOption {
+	open := make([]dtos.RemovalOption, 0, len(windows))
+	for i := range windows {
+		if entities.WindowStartsAt(&windows[i], day, location).After(now) {
+			open = append(open, toRemovalOption(&windows[i]))
+		}
+	}
+	return open
+}
+
+func (u *Usecase) calendarLocation(ctx context.Context, near *entities.GeoPoint) (*time.Location, error) {
+	if near != nil {
+		zone, err := u.zones.Resolve(ctx, *near)
+		if err != nil {
+			return nil, err
+		}
+		if zone != nil {
+			return zone.Location(), nil
+		}
+	}
+	zones, err := u.Config.ListZones(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(zones) == 0 {
+		return time.UTC, nil
+	}
+	return zones[0].Location(), nil
 }
 
 func (u *Usecase) teamOf(ctx context.Context, requestID uuid.UUID) ([]dtos.TeamMemberView, error) {

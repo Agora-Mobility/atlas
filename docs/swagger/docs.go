@@ -12474,6 +12474,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
+                "description": "Only windows that have not started yet come back. A day with none left, such as a past day or today after the last window, is closed. lat and lng of the pickup choose the time zone; without them, or outside every zone, the first active zone decides.",
                 "produces": [
                     "application/json"
                 ],
@@ -12500,6 +12501,18 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Number of days, default 1, at most 62",
                         "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Pickup latitude",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Pickup longitude",
+                        "name": "lng",
                         "in": "query"
                     }
                 ],
@@ -12535,7 +12548,7 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type. custom_sizes holds the volume of each size of an item the customer adds by hand.",
+                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. Every item lists in properties the types of property it fits; an item that fits every type lists them all. With property, only the items of that type come back. custom_sizes holds the volume of each size of an item the customer adds by hand.",
                 "produces": [
                     "application/json"
                 ],
@@ -22439,7 +22452,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "free",
-                        "full"
+                        "full",
+                        "closed"
                     ]
                 },
                 "windows": {

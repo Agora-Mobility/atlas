@@ -170,6 +170,18 @@ func TestRemovalItemsAreFilteredByTheTypeOfProperty(t *testing.T) {
 	assert.NotContains(t, office, "bed", "a bed belongs to a home")
 	assert.Equal(t, "REMOVAL_PROPERTY_NOT_FOUND", customer.get(t, "/api/v1/removals/options?property=castelo").code())
 
+	properties := map[string][]any{}
+	for _, item := range customer.get(t, "/api/v1/removals/options").body["items"].([]any) {
+		entry := item.(map[string]any)
+		list, _ := entry["properties"].([]any)
+		properties[entry["code"].(string)] = list
+	}
+	for code, list := range properties {
+		assert.NotEmpty(t, list, "item %s says the types it fits", code)
+	}
+	assert.ElementsMatch(t, []any{"home", "office"}, properties["box"], "an item of every type lists them all")
+	assert.Equal(t, []any{"home"}, properties["bed"])
+
 	admin := staffToken(t)
 	backoffice := removalItemCodes(t, admin.get(t, "/api/v1/admin/catalog/removal_item?property=office"))
 	assert.NotContains(t, backoffice, "bed", "the backoffice filters on the server too")
@@ -217,4 +229,37 @@ func TestRemovalItemsAddedByHandCountInTheVolumeAndReachTheRequest(t *testing.T)
 	assert.Equal(t, http.StatusUnprocessableEntity, post(map[string]any{"name": "Piano", "qty": 1, "size": "huge"}).status)
 	assert.Equal(t, http.StatusUnprocessableEntity, post(map[string]any{"name": "", "qty": 1, "size": "small"}).status)
 	assert.Equal(t, "REMOVAL_TOO_LARGE", post(map[string]any{"name": "Contentor", "qty": 30, "size": "large"}).code(), "45 m3 fit no vehicle")
+}
+
+func TestTheCalendarOffersNoWindowThatHasStarted(t *testing.T) {
+	customer := newCustomer(t)
+	var truck string
+	require.NoError(t, env.owner.QueryRow(context.Background(), `SELECT id FROM catalog_items WHERE kind = 'removal_vehicle' AND code = 'truck_7t'`).Scan(&truck))
+	luanda, err := time.LoadLocation("Africa/Luanda")
+	require.NoError(t, err)
+	today := time.Now().In(luanda)
+	path := "/api/v1/removals/availability?vehicle_id=" + truck + "&lat=-8.83&lng=13.23&days=3&from=" + today.AddDate(0, 0, -1).Format("2006-01-02")
+
+	calendar := customer.get(t, path)
+	require.Equal(t, http.StatusOK, calendar.status, calendar.text)
+	days := calendar.body["days"].([]any)
+	require.Len(t, days, 3)
+	yesterday := days[0].(map[string]any)
+	assert.Equal(t, "closed", yesterday["status"], "a past day")
+	assert.Nil(t, yesterday["windows"])
+
+	minute := today.Hour()*60 + today.Minute()
+	starts := map[string]int{"morning": 480, "midday": 660, "afternoon": 840}
+	offered := map[string]bool{}
+	if windows, ok := days[1].(map[string]any)["windows"].([]any); ok {
+		for _, window := range windows {
+			offered[window.(map[string]any)["code"].(string)] = true
+		}
+	}
+	for code, start := range starts {
+		assert.Equal(t, start > minute, offered[code], "today, window %s", code)
+	}
+	assert.Len(t, days[2].(map[string]any)["windows"], 3, "tomorrow has every window")
+
+	assert.Equal(t, http.StatusBadRequest, customer.get(t, "/api/v1/removals/availability?vehicle_id="+truck+"&lat=x&lng=13.23&from="+today.Format("2006-01-02")).status)
 }
