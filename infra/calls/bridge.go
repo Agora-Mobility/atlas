@@ -12,12 +12,13 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/services"
 )
 
-type Unavailable struct{}
+type Direct struct{}
 
-func (Unavailable) Enabled() bool { return false }
-
-func (Unavailable) Connect(context.Context, string, string, string) (*services.MaskedCall, error) {
-	return nil, services.ErrCallsUnavailable
+func (Direct) Connect(_ context.Context, _, toPhone, _ string) (*services.Call, error) {
+	if toPhone == "" {
+		return nil, services.ErrCallsUnavailable
+	}
+	return &services.Call{Number: toPhone}, nil
 }
 
 // Bridge talks to a masked call provider through a small HTTP contract, so a
@@ -33,9 +34,7 @@ func NewBridge(baseURL, apiKey string, timeout time.Duration) *Bridge {
 	return &Bridge{baseURL: strings.TrimRight(baseURL, "/"), apiKey: apiKey, client: &http.Client{Timeout: timeout}}
 }
 
-func (b *Bridge) Enabled() bool { return true }
-
-func (b *Bridge) Connect(ctx context.Context, fromPhone, toPhone, reference string) (*services.MaskedCall, error) {
+func (b *Bridge) Connect(ctx context.Context, fromPhone, toPhone, reference string) (*services.Call, error) {
 	body, err := json.Marshal(map[string]string{"from": fromPhone, "to": toPhone, "reference": reference})
 	if err != nil {
 		return nil, fmt.Errorf("encode call: %w", err)
@@ -64,5 +63,5 @@ func (b *Bridge) Connect(ctx context.Context, fromPhone, toPhone, reference stri
 	if out.ProxyNumber == "" {
 		return nil, fmt.Errorf("%w: no number", services.ErrCallsUnavailable)
 	}
-	return &services.MaskedCall{ProxyNumber: out.ProxyNumber, ExpiresAt: out.ExpiresAt}, nil
+	return &services.Call{Number: out.ProxyNumber, Masked: true, ExpiresAt: out.ExpiresAt}, nil
 }

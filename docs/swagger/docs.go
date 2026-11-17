@@ -5115,14 +5115,14 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "Answers 503 CALLS_UNAVAILABLE without a provider.",
+                "description": "With a masked call provider (CALLS_BASE_URL) number is a temporary proxy and masked is true; without one it is the phone of the workshop. 503 CALLS_UNAVAILABLE when the provider fails.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Maintenance"
                 ],
-                "summary": "Call the workshop through a masked number",
+                "summary": "Number to call the workshop",
                 "parameters": [
                     {
                         "type": "string",
@@ -12804,14 +12804,14 @@ const docTemplate = `{
                         "ClientId": []
                     }
                 ],
-                "description": "The number of each side is not shared. Without a configured provider the answer is 503 CALLS_UNAVAILABLE.",
+                "description": "Customer or provider of the request, from accepted until in progress. With a masked call provider (CALLS_BASE_URL) number is a temporary proxy and masked is true; without one it is the phone of the other side (the passenger for the driver when someone else rides). The app dials number. 503 CALLS_UNAVAILABLE when the provider fails or the other side has no phone.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Live request"
                 ],
-                "summary": "Call the other side with a masked number",
+                "summary": "Number to call the other side of the request",
                 "parameters": [
                     {
                         "type": "string",
@@ -12841,7 +12841,7 @@ const docTemplate = `{
                         }
                     },
                     "503": {
-                        "description": "No provider",
+                        "description": "No number to call",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -25532,8 +25532,12 @@ const docTemplate = `{
                 "expires_at": {
                     "type": "string"
                 },
-                "proxy_number": {
-                    "type": "string"
+                "masked": {
+                    "type": "boolean"
+                },
+                "number": {
+                    "type": "string",
+                    "example": "+244923000111"
                 }
             }
         },
@@ -25634,8 +25638,12 @@ const docTemplate = `{
                 "expires_at": {
                     "type": "string"
                 },
-                "proxy_number": {
-                    "type": "string"
+                "masked": {
+                    "type": "boolean"
+                },
+                "number": {
+                    "type": "string",
+                    "example": "+244923000111"
                 }
             }
         },

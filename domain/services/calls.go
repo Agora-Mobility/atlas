@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-var ErrCallsUnavailable = errors.New("masked calls are not available")
+var ErrCallsUnavailable = errors.New("calls are not available")
 
-type MaskedCall struct {
-	ProxyNumber string
-	ExpiresAt   *time.Time
+type Call struct {
+	Number    string
+	Masked    bool
+	ExpiresAt *time.Time
 }
 
 type ICallBridge interface {
-	Enabled() bool
-	Connect(ctx context.Context, fromPhone, toPhone, reference string) (*MaskedCall, error)
+	Connect(ctx context.Context, fromPhone, toPhone, reference string) (*Call, error)
 }

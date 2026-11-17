@@ -365,8 +365,9 @@ type ETAView struct {
 }
 
 type CallView struct {
-	ProxyNumber string     `json:"proxy_number"`
-	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	Number    string     `json:"number" example:"+244923000111"`
+	Masked    bool       `json:"masked"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
 type SOSInput struct {

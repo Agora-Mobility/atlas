@@ -200,15 +200,15 @@ func (c *DispatchController) ETA(ctx *gin.Context) {
 
 // Call godoc
 //
-//	@Summary		Call the other side with a masked number
-//	@Description	The number of each side is not shared. Without a configured provider the answer is 503 CALLS_UNAVAILABLE.
+//	@Summary		Number to call the other side of the request
+//	@Description	Customer or provider of the request, from accepted until in progress. With a masked call provider (CALLS_BASE_URL) number is a temporary proxy and masked is true; without one it is the phone of the other side (the passenger for the driver when someone else rides). The app dials number. 503 CALLS_UNAVAILABLE when the provider fails or the other side has no phone.
 //	@Tags			Live request
 //	@Produce		json
 //	@Param			id	path		string	true	"Request id"
 //	@Success		200	{object}	dtos.CallView
 //	@Failure		404	{object}	shared.ErrorResponse
 //	@Failure		409	{object}	shared.ErrorResponse
-//	@Failure		503	{object}	shared.ErrorResponse	"No provider"
+//	@Failure		503	{object}	shared.ErrorResponse	"No number to call"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/requests/{id}/call [post]
