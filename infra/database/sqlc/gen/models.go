@@ -798,6 +798,7 @@ type Notification struct {
 	ProviderMessageID string     `json:"provider_message_id"`
 	Error             string     `json:"error"`
 	CreatedAt         time.Time  `json:"created_at"`
+	DeliveryKey       *string    `json:"delivery_key"`
 }
 
 type Organization struct {

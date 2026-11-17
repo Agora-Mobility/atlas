@@ -3,6 +3,7 @@ package notifications_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -52,6 +53,16 @@ func (d *fakeDevices) RecordNotification(_ context.Context, record repository.No
 	d.records = append(d.records, record)
 	return nil
 }
+func (d *fakeDevices) Delivered(_ context.Context, key string) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, record := range d.records {
+		if key != "" && record.DeliveryKey == key && record.Status == "sent" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 type fakePush struct {
 	sent []services.PushMessage
@@ -66,10 +77,14 @@ func (p *fakePush) Send(_ context.Context, message services.PushMessage) (string
 	return "msg-1", nil
 }
 
-type fakeSMS struct{ sent map[string]string }
+type fakeSMS struct {
+	sent  map[string]string
+	count int
+}
 
 func (s *fakeSMS) Send(_ context.Context, phone, message string) error {
 	s.sent[phone] = message
+	s.count++
 	return nil
 }
 
@@ -261,4 +276,36 @@ func TestALongChatMessageIsCutInThePush(t *testing.T) {
 
 func TestAChatMessageListensOnTheNotificationQueue(t *testing.T) {
 	assert.Contains(t, notifications.RequestBindingKeys(), events.RoutingKey(events.RequestMessage, 1))
+}
+
+func TestARetriedApprovalSendsTheSMSOnce(t *testing.T) {
+	provider := uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}, phones: map[uuid.UUID]string{provider: "+244900000000"}}
+	push, sms := &fakePush{err: errors.New("fcm down")}, &fakeSMS{sent: map[string]string{}}
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, sms, "", "")
+	env := requestEnvelope(t, events.ProviderReviewV1{Type: events.ProviderApproved, ProviderID: provider})
+
+	for range 5 {
+		require.Error(t, notifier.OnEvent(context.Background(), env), "the push is still owed")
+	}
+	push.err = nil
+	require.NoError(t, notifier.OnEvent(context.Background(), env))
+	require.NoError(t, notifier.OnEvent(context.Background(), env))
+
+	assert.Equal(t, 1, sms.count, "each retry only sends what is still missing")
+	assert.Len(t, push.sent, 1)
+}
+
+func TestAPushRejectedForGoodIsNotRetried(t *testing.T) {
+	provider := uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}, phones: map[uuid.UUID]string{provider: "+244900000000"}}
+	sms := &fakeSMS{sent: map[string]string{}}
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, &fakePush{err: fmt.Errorf("%w: THIRD_PARTY_AUTH_ERROR", services.ErrPushRejected)}, sms, "", "")
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, events.ProviderReviewV1{Type: events.ProviderApproved, ProviderID: provider})))
+
+	assert.Equal(t, 1, sms.count)
+	assert.Empty(t, devices.removed, "the token is fine, the app setup is not")
+	require.NotEmpty(t, devices.records)
+	assert.Contains(t, devices.records[0].Error, "THIRD_PARTY_AUTH_ERROR")
 }

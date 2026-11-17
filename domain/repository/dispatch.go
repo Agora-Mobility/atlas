@@ -218,6 +218,7 @@ type IDeviceRepository interface {
 	Tokens(ctx context.Context, userID uuid.UUID) ([]string, error)
 	Contact(ctx context.Context, userID uuid.UUID) (name, phone string, err error)
 	RecordNotification(ctx context.Context, record NotificationRecord) error
+	Delivered(ctx context.Context, deliveryKey string) (bool, error)
 }
 
 type NotificationRecord struct {
@@ -227,6 +228,7 @@ type NotificationRecord struct {
 	Status            string
 	ProviderMessageID string
 	Error             string
+	DeliveryKey       string
 }
 
 type LiveCandidate struct {
