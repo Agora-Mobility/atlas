@@ -62,3 +62,34 @@ func TestServerErrorIsRetryable(t *testing.T) {
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, services.ErrPushTokenInvalid)
 }
+
+func fcmFailure(status int, errorCode string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{
+			"status": "INVALID_ARGUMENT", "message": "rejected",
+			"details": []map[string]string{{"@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError", "errorCode": errorCode}},
+		}})
+	}
+}
+
+func TestATokenOfAnotherSenderIsReportedAsInvalid(t *testing.T) {
+	_, err := sender(t, fcmFailure(http.StatusForbidden, "SENDER_ID_MISMATCH")).Send(context.Background(), services.PushMessage{Token: "other-app"})
+	assert.ErrorIs(t, err, services.ErrPushTokenInvalid)
+}
+
+func TestAPermanentRejectionIsNotRetryable(t *testing.T) {
+	for _, code := range []string{"THIRD_PARTY_AUTH_ERROR", "INVALID_ARGUMENT"} {
+		_, err := sender(t, fcmFailure(http.StatusUnauthorized, code)).Send(context.Background(), services.PushMessage{Token: "device"})
+		assert.ErrorIs(t, err, services.ErrPushRejected, code)
+		assert.NotErrorIs(t, err, services.ErrPushTokenInvalid, code)
+		assert.Contains(t, err.Error(), code, "the reason is kept for the logs")
+	}
+}
+
+func TestAQuotaErrorIsRetryable(t *testing.T) {
+	_, err := sender(t, fcmFailure(http.StatusTooManyRequests, "QUOTA_EXCEEDED")).Send(context.Background(), services.PushMessage{Token: "device"})
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, services.ErrPushRejected)
+	assert.NotErrorIs(t, err, services.ErrPushTokenInvalid)
+}
