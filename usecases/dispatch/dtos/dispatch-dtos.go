@@ -80,7 +80,7 @@ type RemovalOption struct {
 
 type RemovalDayView struct {
 	Date    string          `json:"date"`
-	Status  string          `json:"status" enums:"free,full"`
+	Status  string          `json:"status" enums:"free,full,closed"`
 	Windows []RemovalOption `json:"windows,omitempty"`
 }
 

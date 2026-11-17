@@ -34,6 +34,7 @@ type Querier interface {
 	CloseServiceTariff(ctx context.Context, arg CloseServiceTariffParams) error
 	CountAdminPayments(ctx context.Context, arg CountAdminPaymentsParams) (int64, error)
 	CountAdminRequests(ctx context.Context, arg CountAdminRequestsParams) (int64, error)
+	CountAuditLog(ctx context.Context, arg CountAuditLogParams) (int64, error)
 	CountCustomerBookings(ctx context.Context, customerID uuid.UUID) (int64, error)
 	CountCustomerVoucherRedemptions(ctx context.Context, arg CountCustomerVoucherRedemptionsParams) (int64, error)
 	CountFleetDrivers(ctx context.Context, arg CountFleetDriversParams) (int64, error)
@@ -43,7 +44,6 @@ type Querier interface {
 	CountOrganizationsWithNIF(ctx context.Context, nif *string) (int64, error)
 	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
 	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
-	CountPendingOutboxEvents(ctx context.Context) (int64, error)
 	CountProviderApplications(ctx context.Context, arg CountProviderApplicationsParams) (int64, error)
 	CountProviderRatings(ctx context.Context, providerID *uuid.UUID) (int64, error)
 	CountReferrals(ctx context.Context, referrerID uuid.UUID) (CountReferralsRow, error)
@@ -243,6 +243,7 @@ type Querier interface {
 	ListActiveServicesOfCategory(ctx context.Context, slug string) ([]ListActiveServicesOfCategoryRow, error)
 	ListAdminPayments(ctx context.Context, arg ListAdminPaymentsParams) ([]ListAdminPaymentsRow, error)
 	ListAdminRequests(ctx context.Context, arg ListAdminRequestsParams) ([]ListAdminRequestsRow, error)
+	ListAuditLog(ctx context.Context, arg ListAuditLogParams) ([]ListAuditLogRow, error)
 	ListBanks(ctx context.Context, search string) ([]Bank, error)
 	ListBookedSlots(ctx context.Context, arg ListBookedSlotsParams) ([]ListBookedSlotsRow, error)
 	ListBookingExtras(ctx context.Context, bookingID uuid.UUID) ([]BookingExtra, error)
@@ -342,6 +343,9 @@ type Querier interface {
 	NextTicketCode(ctx context.Context) (string, error)
 	NotificationDelivered(ctx context.Context, deliveryKey *string) (bool, error)
 	OfferRejectionReport(ctx context.Context, arg OfferRejectionReportParams) ([]OfferRejectionReportRow, error)
+	// How many events wait to be published and how long the oldest has waited:
+	// the age is the real delay the relay adds to every consumer.
+	OutboxPendingStats(ctx context.Context) (OutboxPendingStatsRow, error)
 	PendingCustomersByCell(ctx context.Context, arg PendingCustomersByCellParams) ([]PendingCustomersByCellRow, error)
 	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)
 	ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithActiveJobParams) ([]uuid.UUID, error)

@@ -133,12 +133,15 @@ type AdminRequestFilter struct {
 	From           *time.Time
 	To             *time.Time
 	RouteReview    bool
+	Search         string
+	Sort           string
 	Limit          int
 	Offset         int
 }
 
 type AdminRequest struct {
 	ID               uuid.UUID
+	Code             string
 	Status           string
 	Version          int
 	Category         string

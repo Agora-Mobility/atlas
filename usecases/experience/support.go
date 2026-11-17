@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Agora-Mobility/atlas/domain/entities"
+	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/usecases/experience/dtos"
 )
@@ -51,7 +52,10 @@ func (u *Usecase) OpenTicket(ctx context.Context, userID uuid.UUID, requestID *u
 		if err := u.Support.Create(ctx, ticket); err != nil {
 			return err
 		}
-		return u.Support.AddMessage(ctx, &entities.SupportMessage{TicketID: id, SenderType: entities.TicketSenderUser, SenderID: userID, Body: body, CreatedAt: now})
+		if err := u.Support.AddMessage(ctx, &entities.SupportMessage{TicketID: id, SenderType: entities.TicketSenderUser, SenderID: userID, Body: body, CreatedAt: now}); err != nil {
+			return err
+		}
+		return u.publish(ctx, events.TicketOpenedV1{TicketID: id, Code: ticket.Code, UserID: userID, RequestID: requestID, Subject: subject, OccurredAt: now})
 	})
 	if err != nil {
 		return nil, err

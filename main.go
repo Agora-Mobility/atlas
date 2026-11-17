@@ -19,12 +19,15 @@ import (
 	"log"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
+	"github.com/Agora-Mobility/atlas/infra/observability/prometheus"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 	"github.com/Agora-Mobility/atlas/infra/rest"
 	"github.com/Agora-Mobility/atlas/infra/rest/containers"
 )
@@ -56,6 +59,29 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	shutdownTracing, err := tracing.Init(ctx, tracing.Options{
+		ServiceName: cfg.App.Name,
+		Version:     version,
+		Environment: cfg.App.Env.String(),
+		Endpoint:    cfg.Telemetry.OTLPEndpoint,
+		SampleRatio: cfg.Telemetry.TraceSampleRatio,
+	})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		// Flush the spans still buffered; a collector that is down must not
+		// hold the shutdown.
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTracing(flushCtx); err != nil {
+			logger.Error("failed to flush traces", err)
+		}
+	}()
+	if cfg.Telemetry.TracingEnabled() {
+		logger.Info("tracing enabled")
+	}
+
 	if cfg.Database.MigrateOnStart {
 		if err := postgres.Migrate(cfg.Database.URL, "up"); err != nil {
 			return err
@@ -65,6 +91,9 @@ func run() error {
 
 	connections, err := containers.Connect(ctx, cfg)
 	if err != nil {
+		return err
+	}
+	if err := prometheus.RegisterPool(connections.Pool); err != nil {
 		return err
 	}
 	c, err := containers.New(cfg, version, connections)

@@ -36,7 +36,7 @@ var summaryKeys = map[string]summaryKey{
 func toRepositoryFilter(filter *dtos.AdminRequestFilter) repository.AdminRequestFilter {
 	return repository.AdminRequestFilter{
 		Statuses: filter.Statuses, Category: filter.Category, ServiceID: filter.ServiceID, ZoneID: filter.ZoneID, OrganizationID: filter.OrganizationID,
-		ProviderID: filter.ProviderID, From: filter.From, To: filter.To, RouteReview: filter.RouteReview,
+		ProviderID: filter.ProviderID, From: filter.From, To: filter.To, RouteReview: filter.RouteReview, Search: filter.Search, Sort: filter.Sort,
 	}
 }
 
@@ -52,7 +52,7 @@ func (u *Usecase) ListAdminRequests(ctx context.Context, filter *dtos.AdminReque
 	for i := range rows {
 		row := &rows[i]
 		list.Items = append(list.Items, dtos.AdminRequestView{
-			ID: row.ID, Status: row.Status, Version: row.Version, Category: row.Category, CategoryName: row.CategoryName, ServiceID: row.ServiceID, ServiceName: row.ServiceName,
+			ID: row.ID, Code: row.Code, Status: row.Status, Version: row.Version, Category: row.Category, CategoryName: row.CategoryName, ServiceID: row.ServiceID, ServiceName: row.ServiceName,
 			CustomerID: row.CustomerID, CustomerName: row.CustomerName, ProviderID: row.ProviderID, ProviderName: row.ProviderName, OrganizationID: row.OrganizationID,
 			OrganizationName: row.OrganizationName, ZoneID: row.ZoneID, ZoneName: row.ZoneName, FareCents: row.FareCents, Currency: row.Currency, NeedsOperator: row.NeedsOperator,
 			ScheduledFor: row.ScheduledFor, CreatedAt: row.CreatedAt, CompletedAt: row.CompletedAt, PickupLine: row.PickupLine, PickupLat: row.PickupLat, PickupLng: row.PickupLng,

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -42,8 +43,20 @@ func queryTime(ctx *gin.Context, name string) (*time.Time, bool) {
 	return nil, false
 }
 
+const maxRequestSearch = 100
+
+var requestSorts = []string{"", "created_at", "-created_at", "scheduled_for", "-scheduled_for", "fare_cents", "-fare_cents"}
+
 func requestFilter(ctx *gin.Context) (*dtos.AdminRequestFilter, bool) {
-	filter := &dtos.AdminRequestFilter{Category: ctx.Query("category"), RouteReview: ctx.Query("route_review") == "true"}
+	filter := &dtos.AdminRequestFilter{Category: ctx.Query("category"), RouteReview: ctx.Query("route_review") == "true", Search: ctx.Query("search"), Sort: ctx.Query("sort")}
+	if !slices.Contains(requestSorts, filter.Sort) {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "sort is one of created_at, -created_at, scheduled_for, -scheduled_for, fare_cents or -fare_cents.")
+		return nil, false
+	}
+	if len(filter.Search) > maxRequestSearch {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "search is too long.")
+		return nil, false
+	}
 	if statuses := ctx.Query("status"); statuses != "" {
 		filter.Statuses = strings.Split(statuses, ",")
 	}
@@ -86,7 +99,7 @@ func (c *DispatchController) listRequests(ctx *gin.Context, filter *dtos.AdminRe
 // ListAdminRequests godoc
 //
 //	@Summary		List rides and service requests
-//	@Description	Requires requests:read. Every category is here; filter by category to see one segment, such as taxi, towing, removals or maintenance. Newest first.
+//	@Description	Requires requests:read. Every category is here; filter by category to see one segment, such as taxi, towing, removals or maintenance. search finds a request by its code (TX-10001), the name or phone of the customer, or the plate of the provider, ignoring case, spaces and dashes. Newest first unless sort says otherwise.
 //	@Tags			Backoffice requests
 //	@Produce		json
 //	@Param			status			query		string	false	"One status or several separated by commas"
@@ -98,6 +111,8 @@ func (c *DispatchController) listRequests(ctx *gin.Context, filter *dtos.AdminRe
 //	@Param			from			query		string	false	"Created at or after, YYYY-MM-DD or RFC 3339"
 //	@Param			to				query		string	false	"Created before, YYYY-MM-DD or RFC 3339"
 //	@Param			route_review	query		bool	false	"Only completed rides whose real distance strayed from the quote beyond ROUTE_REVIEW_ABOVE_PERCENT"
+//	@Param			search			query		string	false	"Code, customer name or phone, provider plate"
+//	@Param			sort			query		string	false	"created_at, -created_at (default), scheduled_for, -scheduled_for, fare_cents or -fare_cents"
 //	@Param			page			query		int		false	"Page"
 //	@Param			size			query		int		false	"Page size"
 //	@Success		200				{object}	dtos.AdminRequestList

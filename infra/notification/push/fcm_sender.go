@@ -16,6 +16,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 )
 
 const (
@@ -41,7 +42,7 @@ func NewFCMSender(ctx context.Context, credentialsJSON []byte, projectID, baseUR
 }
 
 func NewFCMSenderWithTokens(tokens oauth2.TokenSource, projectID, baseURL string, timeout time.Duration) *FCMSender {
-	return &FCMSender{baseURL: strings.TrimRight(baseURL, "/"), projectID: projectID, tokens: tokens, http: &http.Client{Timeout: timeout}}
+	return &FCMSender{baseURL: strings.TrimRight(baseURL, "/"), projectID: projectID, tokens: tokens, http: tracing.HTTPClient(timeout)}
 }
 
 type fcmRequest struct {

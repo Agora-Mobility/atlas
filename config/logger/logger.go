@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -17,6 +18,8 @@ const (
 	defaultServiceName = "atlas"
 	defaultEnvironment = "development"
 	CorrelationIDField = "correlation_id"
+	TraceIDField       = "trace_id"
+	SpanIDField        = "span_id"
 )
 
 type Options struct {
@@ -165,6 +168,14 @@ func WithContext(ctx context.Context) []zap.Field {
 
 	if id := CorrelationID(ctx); id != "" {
 		fields = append(fields, zap.String(CorrelationIDField, id))
+	}
+
+	// The trace ids let Grafana jump from a log line to its trace in Tempo.
+	if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+		fields = append(fields,
+			zap.String(TraceIDField, sc.TraceID().String()),
+			zap.String(SpanIDField, sc.SpanID().String()),
+		)
 	}
 
 	return fields

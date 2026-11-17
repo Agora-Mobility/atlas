@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	entities "github.com/Agora-Mobility/atlas/domain/entities"
+	repository "github.com/Agora-Mobility/atlas/domain/repository"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -53,4 +54,44 @@ func (m *MockIAuditLogRepository) Record(ctx context.Context, entry *entities.Au
 func (mr *MockIAuditLogRepositoryMockRecorder) Record(ctx, entry any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Record", reflect.TypeOf((*MockIAuditLogRepository)(nil).Record), ctx, entry)
+}
+
+// MockIAuditLogReader is a mock of IAuditLogReader interface.
+type MockIAuditLogReader struct {
+	ctrl     *gomock.Controller
+	recorder *MockIAuditLogReaderMockRecorder
+	isgomock struct{}
+}
+
+// MockIAuditLogReaderMockRecorder is the mock recorder for MockIAuditLogReader.
+type MockIAuditLogReaderMockRecorder struct {
+	mock *MockIAuditLogReader
+}
+
+// NewMockIAuditLogReader creates a new mock instance.
+func NewMockIAuditLogReader(ctrl *gomock.Controller) *MockIAuditLogReader {
+	mock := &MockIAuditLogReader{ctrl: ctrl}
+	mock.recorder = &MockIAuditLogReaderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIAuditLogReader) EXPECT() *MockIAuditLogReaderMockRecorder {
+	return m.recorder
+}
+
+// List mocks base method.
+func (m *MockIAuditLogReader) List(ctx context.Context, filter repository.AuditFilter) ([]repository.AuditRecord, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx, filter)
+	ret0, _ := ret[0].([]repository.AuditRecord)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// List indicates an expected call of List.
+func (mr *MockIAuditLogReaderMockRecorder) List(ctx, filter any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockIAuditLogReader)(nil).List), ctx, filter)
 }

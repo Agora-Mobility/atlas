@@ -12,6 +12,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 )
 
 var failureReasonByStatus = map[int]string{
@@ -30,7 +31,7 @@ var _ services.ISMSSender = (*CastBrickSender)(nil)
 
 func NewCastBrickSender(apiKey, baseURL, senderID string, timeout time.Duration) *CastBrickSender {
 	return &CastBrickSender{
-		client:   castbrick.NewWithOptions(apiKey, baseURL, &http.Client{Timeout: timeout}),
+		client:   castbrick.NewWithOptions(apiKey, baseURL, tracing.HTTPClient(timeout)),
 		senderID: senderID,
 	}
 }

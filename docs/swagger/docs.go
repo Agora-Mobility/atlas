@@ -15,8 +15,44 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/admin/block-reasons": {
+        "/admin/events": {
             "get": {
+                "description": "Server-Sent Events for the team, with requests:read. staff.request_alert arrives when a request goes to the operator queue or a customer or provider raises an SOS (reason sos), with request_id, customer_id, category and reason. staff.ticket arrives when a support ticket is opened, with ticket_id, code, user_id, subject and request_id, only for whoever also has requests:manage. Every connected member gets every alert. Send Last-Event-ID to replay what was missed.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Real time"
+                ],
+                "summary": "Real-time alerts of the backoffice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Id of the last event received",
+                        "name": "Last-Event-ID",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing requests:read",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -24,7 +60,107 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
+                ]
+            }
+        },
+        "/api/v1/admin/audit": {
+            "get": {
+                "description": "Requires audit:read. Newest first. Every change of tariffs, policies, accounts, roles and the rest of the backoffice, with who made it and the values before and after. Passwords, hashes, tokens and secrets come as ***; IP and user agent are not shown. An entry without actor is a system action.",
+                "produces": [
+                    "application/json"
                 ],
+                "tags": [
+                    "Backoffice audit"
+                ],
+                "summary": "Read the audit log",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Who made the change",
+                        "name": "actor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Type of entity, such as service_tariff or user",
+                        "name": "entity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Id of the entity",
+                        "name": "entity_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Action, such as service_tariff.publish",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "At or after, YYYY-MM-DD or RFC 3339",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Before, YYYY-MM-DD or RFC 3339",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (from 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.AuditPage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Missing audit:read",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid filters",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/block-reasons": {
+            "get": {
                 "description": "Requires users:block. The active reasons an account can be blocked for. Send their ids in reason_ids when blocking.",
                 "produces": [
                     "application/json"
@@ -58,11 +194,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/cancellation-rules": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -70,7 +202,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/cancellation-rules": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -85,11 +221,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CancellationRuleList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/cancellation-rules/{serviceId}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -97,7 +229,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/cancellation-rules/{serviceId}": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -139,11 +275,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/catalog/{kind}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -151,7 +283,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/catalog/{kind}": {
+            "get": {
                 "description": "kind is one of compliment, tip_preset, quick_reply, towing_vehicle, towing_incident, removal_item, removal_vehicle, removal_extra, removal_window, removal_property, help_topic or workshop_category.",
                 "produces": [
                     "application/json"
@@ -194,9 +330,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -204,7 +338,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Prices are integer cents. attrs holds the numbers of each kind, such as included_km on towing_vehicle, and they are validated. A removal_item may list in attrs.properties the removal_property codes it belongs to, such as [\"home\", \"office\"]; without the list it fits every type.",
                 "consumes": [
                     "application/json"
@@ -253,11 +389,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/catalog/{kind}/{id}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -265,7 +397,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/catalog/{kind}/{id}": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -320,11 +456,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/categories": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -332,7 +464,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/categories": {
+            "get": {
                 "description": "Requires categories:manage. Active and inactive, in display order.",
                 "produces": [
                     "application/json"
@@ -360,9 +496,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -370,7 +504,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires categories:manage. The slug cannot change later. The category starts active but stays out of the app until it has an active service.",
                 "consumes": [
                     "application/json"
@@ -424,11 +560,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/categories/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -436,7 +568,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/categories/{id}": {
+            "get": {
                 "description": "Requires categories:manage.",
                 "produces": [
                     "application/json"
@@ -479,9 +615,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "patch": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -489,7 +623,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "patch": {
                 "description": "Requires categories:manage. Only the fields sent change. Setting is_active to false hides the category and all its services from the app; categories are never deleted.",
                 "consumes": [
                     "application/json"
@@ -550,11 +686,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/demand-pricing": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -562,7 +694,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/demand-pricing": {
+            "get": {
                 "description": "The price rises in an area of the zone when more customers wait than providers are free, by tiers of the ratio (customers + 1) / (free providers + 1), up to the cap. Each customer counts once, whether they quoted, requested or both. Ratios and factors are basis points: 10000 is 1.0.",
                 "produces": [
                     "application/json"
@@ -578,9 +714,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.DemandPricingList"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -588,7 +722,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "A tier applies when the smoothed ratio is above above_ratio_bps. Mode off stops measuring and brings every price of the zone back to normal at once; observe measures and records the factor that would apply, without changing prices, to calibrate the tiers; on charges it. Estimates already given keep their price.",
                 "consumes": [
                     "application/json"
@@ -624,11 +760,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/demand-pricing/areas": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -636,7 +768,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/demand-pricing/areas": {
+            "get": {
                 "description": "Areas of the zone where demand is above normal now, with the smoothed ratio and the factor quotes use. Areas not listed price at 1.0.",
                 "produces": [
                     "application/json"
@@ -668,11 +804,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.DemandAreaList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/demand-pricing/history": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -680,7 +812,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/demand-pricing/history": {
+            "get": {
                 "description": "One row per area and minute while demand was above normal. Defaults to the last 24 hours.",
                 "produces": [
                     "application/json"
@@ -718,11 +854,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.DemandHistory"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch-policies": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -730,7 +862,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch-policies": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -745,9 +881,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.PolicyList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -755,7 +889,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "The resolution and radii are refused when they would need too many H3 cells per search.",
                 "consumes": [
                     "application/json"
@@ -791,11 +927,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch-policies/{id}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -803,7 +935,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch-policies/{id}": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -845,11 +981,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch/flows": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -857,7 +989,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch/flows": {
+            "get": {
                 "description": "Requests with a destination created in the period, grouped by pickup and destination resolution 8 cells and sorted by volume. Pairs below min_requests (default 3) and pairs beyond limit (default 500) are left out and counted in hidden, so a single trip is not shown. The period defaults to the last 24 hours and spans at most 31 days.",
                 "produces": [
                     "application/json"
@@ -923,11 +1059,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch/heatmap": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -935,7 +1067,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch/heatmap": {
+            "get": {
                 "description": "Resolution 8 hexagons for the Google Maps map of the backoffice. Demand counts the requests created in the period, by pickup cell; the period defaults to the last 24 hours and spans at most 31 days. Supply is always the providers online right now, whatever the period.",
                 "produces": [
                     "application/json"
@@ -989,11 +1125,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch/heatmap/cells": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1001,7 +1133,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch/heatmap/cells": {
+            "get": {
                 "description": "Requests per H3 cell for a hexagon layer such as deck.gl H3HexagonLayer, read from the cells the heatmap job aggregates every few minutes in 15 minute windows. The zoom picks the resolution (by default up to 10 is 6, 11 and 12 are 7, 13 and 14 are 8, from 15 is 9). When the view holds more than 20000 cells the next coarser resolution is used, and resolution tells which one answered; only when even resolution 6 does not fit the answer is 400 AREA_TOO_LARGE. value is the smoothed heat (0.6 of the cell plus 0.4 of the mean of its six neighbors); count is the raw number of requests. Windows of the period are summed. The period defaults to the last complete window and spans at most 7 days. h3 is always the hexadecimal index, since 64 bit integers lose precision in JavaScript.",
                 "produces": [
                     "application/json"
@@ -1068,11 +1204,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch/queue": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1080,7 +1212,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch/queue": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -1109,11 +1245,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.RequestList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch/requests/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1121,7 +1253,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch/requests/{id}": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -1151,11 +1287,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch/requests/{id}/assign": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1163,7 +1295,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch/requests/{id}/assign": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -1205,11 +1341,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch/requests/{id}/cancel": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1217,7 +1349,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch/requests/{id}/cancel": {
+            "post": {
                 "description": "Works on every request that is not finished yet, a trip in progress included. The customer pays no cancellation fee and gets back what was prepaid.",
                 "consumes": [
                     "application/json"
@@ -1260,11 +1396,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/dispatch/requests/{id}/retry": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1272,7 +1404,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/dispatch/requests/{id}/retry": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -1302,11 +1438,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/ledger/summary": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1314,7 +1446,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/ledger/summary": {
+            "get": {
                 "description": "Per account, the balances of the providers and how many transactions do not add up to zero, which has to be 0.",
                 "produces": [
                     "application/json"
@@ -1344,11 +1480,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.LedgerSummary"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/payment-methods": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1356,7 +1488,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/payment-methods": {
+            "get": {
                 "description": "Requires services:manage.",
                 "produces": [
                     "application/json"
@@ -1380,9 +1516,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.MethodList"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1390,7 +1524,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "Requires services:manage.",
                 "consumes": [
                     "application/json"
@@ -1426,11 +1562,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/payments": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1438,7 +1570,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/payments": {
+            "get": {
                 "description": "Requires finance:read. Newest first.",
                 "produces": [
                     "application/json"
@@ -1504,11 +1640,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.AdminPaymentList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/payments/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1516,7 +1648,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/payments/{id}": {
+            "get": {
                 "description": "Requires finance:read.",
                 "produces": [
                     "application/json"
@@ -1547,11 +1683,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/payments/{id}/gateway-fee": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1559,7 +1691,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/payments/{id}/gateway-fee": {
+            "put": {
                 "description": "The value comes from the AppyPay statement and is never assumed. It is a cost of the platform and can be recorded once per payment.",
                 "consumes": [
                     "application/json"
@@ -1602,11 +1738,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/payments/{id}/refund": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1614,7 +1746,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/payments/{id}/refund": {
+            "post": {
                 "description": "Requires refunds:approve. Only gpo payments: AppyPay does not refund references and cash stays out of the gateway. Leave amount_cents at 0 to refund all that is left.",
                 "consumes": [
                     "application/json"
@@ -1670,11 +1806,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/providers": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1682,7 +1814,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/providers": {
+            "get": {
                 "description": "Requires providers:read. Oldest submission first.",
                 "produces": [
                     "application/json"
@@ -1742,11 +1878,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.ApplicationList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/providers/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1754,7 +1886,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/providers/{id}": {
+            "get": {
                 "description": "Requires providers:read. Profile, requested service and documents, each with a short-lived link.",
                 "produces": [
                     "application/json"
@@ -1785,9 +1921,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1795,7 +1929,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "Requires providers:approve. Never creates a provider: accounts are created in the app. Approving needs service_id, usually the requested service, and every required document approved. Rejecting needs reason_ids with scope provider and suspending needs reason_ids with scope suspension. A reason with requires_note also needs note. A suspended provider can be approved again.",
                 "consumes": [
                     "application/json"
@@ -1850,11 +1986,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/providers/{id}/documents/{type}/review": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1862,7 +1994,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/providers/{id}/documents/{type}/review": {
+            "post": {
                 "description": "Requires providers:approve. Rejecting needs reason_ids from GET /admin/rejection-reasons?scope=document. A reason with requires_note also needs note.",
                 "consumes": [
                     "application/json"
@@ -1924,11 +2060,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/providers/{id}/ledger": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1936,7 +2068,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/providers/{id}/ledger": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -1972,11 +2108,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.AccountStatement"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/providers/{id}/settlements": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -1984,7 +2116,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/providers/{id}/settlements": {
+            "post": {
                 "description": "payout pays what AGORA owes and collect receives the debt of the provider. reference is the bank document: the same reference is applied only once.",
                 "consumes": [
                     "application/json"
@@ -2027,11 +2163,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/providers/{id}/verification": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2039,7 +2171,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/providers/{id}/verification": {
+            "get": {
                 "description": "Progress, review and every document with its data, flags and short-lived links to the files. Every call is recorded in the audit log.",
                 "produces": [
                     "application/json"
@@ -2070,11 +2206,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/rejection-reasons": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2082,7 +2214,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/rejection-reasons": {
+            "get": {
                 "description": "Requires providers:read. Fills the reason selector of a review. Scopes: document, provider and suspension.",
                 "produces": [
                     "application/json"
@@ -2112,9 +2248,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.RejectionReasonList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2122,7 +2256,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires providers:approve.",
                 "consumes": [
                     "application/json"
@@ -2158,11 +2294,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/rejection-reasons/{id}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2170,7 +2302,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/rejection-reasons/{id}": {
+            "put": {
                 "description": "Requires providers:approve. Set is_active to false to retire a reason; past reviews keep it.",
                 "consumes": [
                     "application/json"
@@ -2213,11 +2349,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/reports/cancellations": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2225,7 +2357,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/reports/cancellations": {
+            "get": {
                 "description": "Grouped by the reason id, so a label can change without breaking the report.",
                 "produces": [
                     "application/json"
@@ -2274,11 +2410,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/requests": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2286,8 +2418,12 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
-                "description": "Requires requests:read. Every category is here; filter by category to see one segment, such as taxi, towing, removals or maintenance. Newest first.",
+                ]
+            }
+        },
+        "/api/v1/admin/requests": {
+            "get": {
+                "description": "Requires requests:read. Every category is here; filter by category to see one segment, such as taxi, towing, removals or maintenance. search finds a request by its code (TX-10001), the name or phone of the customer, or the plate of the provider, ignoring case, spaces and dashes. Newest first unless sort says otherwise.",
                 "produces": [
                     "application/json"
                 ],
@@ -2351,6 +2487,18 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Code, customer name or phone, provider plate",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "created_at, -created_at (default), scheduled_for, -scheduled_for, fare_cents or -fare_cents",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page",
                         "name": "page",
@@ -2370,11 +2518,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.AdminRequestList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/requests/summary": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2382,7 +2526,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/requests/summary": {
+            "get": {
                 "description": "Requires requests:read. Counts per status and the fare of completed requests, for each group. Amounts in different currencies stay in separate groups.",
                 "produces": [
                     "application/json"
@@ -2442,11 +2590,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/requests/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2454,7 +2598,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/requests/{id}": {
+            "get": {
                 "description": "Requires requests:read.",
                 "produces": [
                     "application/json"
@@ -2485,11 +2633,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/services": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2497,7 +2641,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/services": {
+            "get": {
                 "description": "Requires services:manage. Active and inactive unless filtered.",
                 "produces": [
                     "application/json"
@@ -2563,9 +2711,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2573,7 +2719,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires services:manage. The slug cannot change later. Fees are in cêntimos of kwanza (1 Kz = 100).",
                 "consumes": [
                     "application/json"
@@ -2627,11 +2775,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/services/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2639,7 +2783,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/services/{id}": {
+            "get": {
                 "description": "Requires services:manage.",
                 "produces": [
                     "application/json"
@@ -2682,9 +2830,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "patch": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2692,7 +2838,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "patch": {
                 "description": "Requires services:manage. Only the fields sent change; pricing, when sent, replaces the three fees. Setting is_active to false hides the service from the app; services are never deleted.",
                 "consumes": [
                     "application/json"
@@ -2753,11 +2901,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/settings": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2765,7 +2909,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/settings": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -2780,11 +2928,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.SettingList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/settings/{key}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2792,7 +2936,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/settings/{key}": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -2834,11 +2982,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/sos": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2846,7 +2990,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/sos": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -2881,11 +3029,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.SOSList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/sos/{id}/resolve": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2893,7 +3037,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/sos/{id}/resolve": {
+            "post": {
                 "tags": [
                     "Backoffice"
                 ],
@@ -2917,11 +3065,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/support/tickets": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2929,7 +3073,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/support/tickets": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -2964,11 +3112,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.TicketList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/support/tickets/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -2976,7 +3120,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/support/tickets/{id}": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -3006,11 +3154,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/support/tickets/{id}/close": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3018,7 +3162,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/support/tickets/{id}/close": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -3048,11 +3196,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/support/tickets/{id}/messages": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3060,7 +3204,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/support/tickets/{id}/messages": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -3102,11 +3250,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/tariffs": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3114,7 +3258,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/tariffs": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -3129,9 +3277,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.TariffList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3139,7 +3285,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Tariffs are never edited: this closes the current version and creates another, so the history explains every price. Values are integers in the smallest unit of the currency.",
                 "consumes": [
                     "application/json"
@@ -3175,11 +3323,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/users": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3187,7 +3331,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/users": {
+            "get": {
                 "description": "Requires users:read. Staff are managed as members.",
                 "produces": [
                     "application/json"
@@ -3268,11 +3416,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/users/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3280,7 +3424,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/users/{id}": {
+            "get": {
                 "description": "Requires users:read.",
                 "produces": [
                     "application/json"
@@ -3335,11 +3483,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/users/{id}/block": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3347,7 +3491,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/users/{id}/block": {
+            "post": {
                 "description": "Requires users:block. Ends every session of the customer or provider at once.",
                 "consumes": [
                     "application/json"
@@ -3420,11 +3568,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/users/{id}/password": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3432,7 +3576,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/users/{id}/password": {
+            "put": {
                 "description": "Requires users:reset-password, for accounts that cannot use SMS recovery. Ends every session of the user at once.",
                 "consumes": [
                     "application/json"
@@ -3502,11 +3650,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/users/{id}/unblock": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3514,7 +3658,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/users/{id}/unblock": {
+            "post": {
                 "description": "Requires users:block.",
                 "consumes": [
                     "application/json"
@@ -3581,11 +3729,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/vehicles": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3593,7 +3737,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/vehicles": {
+            "get": {
                 "description": "Requires providers:read.",
                 "produces": [
                     "application/json"
@@ -3641,11 +3789,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.VehicleList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/vouchers": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3653,7 +3797,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/vouchers": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -3682,9 +3830,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.VoucherList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3692,7 +3838,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "A percentage in basis points or a value in cents, never both. Limited to a service or category when given, and always paid by AGORA.",
                 "consumes": [
                     "application/json"
@@ -3734,11 +3882,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/vouchers/{id}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3746,7 +3890,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/vouchers/{id}": {
+            "put": {
                 "description": "The code and the service of a voucher do not change.",
                 "consumes": [
                     "application/json"
@@ -3795,11 +3943,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/workshops": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3807,7 +3951,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/workshops": {
+            "get": {
                 "description": "Requires partners:read. To create or change one, use /partners/{orgId}/fleet/workshops.",
                 "produces": [
                     "application/json"
@@ -3843,11 +3991,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.WorkshopList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/workshops/{id}/ledger": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3855,7 +3999,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/workshops/{id}/ledger": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -3891,11 +4039,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.AccountStatement"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/workshops/{id}/settlements": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3903,7 +4047,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/workshops/{id}/settlements": {
+            "post": {
                 "description": "Same rules as the settlement of a provider.",
                 "consumes": [
                     "application/json"
@@ -3946,11 +4094,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/zones": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3958,7 +4102,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/zones": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -3973,9 +4121,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.ZoneList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -3983,7 +4129,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires services:manage. The geometry is a GeoJSON Polygon or MultiPolygon. Each zone carries its currency and time zone.",
                 "consumes": [
                     "application/json"
@@ -4019,11 +4167,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/admin/zones/{id}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -4031,7 +4175,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/admin/zones/{id}": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -4073,16 +4221,19 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/auth/login": {
             "post": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "description": "The X-Client-Id header decides which accounts are accepted and how they sign in. Customers (agora-customer-app) and providers (agora-provider-app) send phone and password. Staff send email and password, through agora-backoffice (AGORA membership) or agora-partner-panel (partner membership), and the session enters the oldest active membership of that scope. The organization is never sent: it comes from the membership and travels in the token.",
                 "consumes": [
                     "application/json"
@@ -4142,16 +4293,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/auth/login/otp/request": {
-            "post": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/auth/login/otp/request": {
+            "post": {
                 "description": "Customer and provider apps only. Sends an SMS code to the account of the phone. Always answers 202 so the response does not reveal whether the phone is registered. Continue with /auth/login/otp/verify.",
                 "consumes": [
                     "application/json"
@@ -4211,16 +4362,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/auth/login/otp/verify": {
-            "post": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/auth/login/otp/verify": {
+            "post": {
                 "description": "Customer and provider apps only. Validates the code from /auth/login/otp/request and returns an access token and a refresh token.",
                 "consumes": [
                     "application/json"
@@ -4286,19 +4437,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/auth/logout": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "description": "Revokes the refresh tokens of the current session and denies its access token at once.",
                 "produces": [
                     "application/json"
@@ -4329,11 +4477,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/auth/logout-all": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -4341,7 +4485,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/auth/logout-all": {
+            "post": {
                 "description": "Revokes every refresh token of the authenticated user, in every client, and denies their access tokens at once.",
                 "produces": [
                     "application/json"
@@ -4372,16 +4520,19 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/auth/phone/verification-code": {
             "post": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "description": "Customer and provider apps only. Sends nothing to an account already verified: signing in with a code is /auth/login/otp/request. Always answers 202 so the response does not reveal whether the phone is registered.",
                 "consumes": [
                     "application/json"
@@ -4441,16 +4592,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/auth/phone/verify": {
-            "post": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/auth/phone/verify": {
+            "post": {
                 "description": "Customer and provider apps only. Takes the code sent by /auth/register or /auth/phone/verification-code and marks the phone verified.",
                 "consumes": [
                     "application/json"
@@ -4516,16 +4667,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/auth/recovery/confirm": {
-            "post": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/auth/recovery/confirm": {
+            "post": {
                 "description": "Takes the recovery token from /auth/recovery/verify and the new password. Ends every session of the user. A password equal to the current one answers 422 PASSWORD_REUSED and keeps the token valid, so the user can try another.",
                 "consumes": [
                     "application/json"
@@ -4591,16 +4742,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/auth/recovery/request": {
-            "post": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/auth/recovery/request": {
+            "post": {
                 "description": "Sends a recovery code by SMS when the body has phone, or by e-mail when it has email. Send one of them, never both. Always answers 202 so the response does not reveal whether the account exists. resend_after_seconds is how long the app waits before offering a resend; a request sent earlier sends nothing.",
                 "consumes": [
                     "application/json"
@@ -4660,16 +4811,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/auth/recovery/verify": {
-            "post": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/auth/recovery/verify": {
+            "post": {
                 "description": "Validates the code sent by /auth/recovery/request, with the same phone or email used there, and answers with a short-lived, single-use recovery token. Send that token with the new password to /auth/recovery/confirm. A wrong code answers INVALID_CODE, an expired one CODE_EXPIRED and too many attempts CODE_ATTEMPTS_EXCEEDED.",
                 "consumes": [
                     "application/json"
@@ -4735,16 +4886,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/auth/refresh": {
-            "post": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/auth/refresh": {
+            "post": {
                 "description": "Exchanges a valid refresh token for a new access token and rotates the refresh token. The refresh token only works with the client that created the session.",
                 "consumes": [
                     "application/json"
@@ -4798,16 +4949,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/auth/register": {
-            "post": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/auth/register": {
+            "post": {
                 "description": "Creates an unverified account with only the phone number and sends a verification code by SMS. Confirm it with /auth/phone/verify to get the session, then set the name with PATCH /users/me and, optionally, a password with POST /users/password. Calling it again for a number whose registration was not verified resends the code. The role comes from the client: agora-customer-app creates a customer, agora-provider-app creates a provider. Other clients cannot register.",
                 "consumes": [
                     "application/json"
@@ -4879,19 +5030,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/bookings": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -4912,9 +5060,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -4922,7 +5068,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Needs an Idempotency-Key. The price comes from the services of the workshop, the home fee and the best promotion still unused by the customer. If two customers race for the last place of a slot, the second gets 409 BOOKING_SLOT_FULL. With a reference the booking waits for the payment; with Express or wallet it confirms now and is charged after the customer approves the finished work.",
                 "consumes": [
                     "application/json"
@@ -4971,11 +5119,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/bookings/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -4983,7 +5127,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/bookings/{id}": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -5013,11 +5161,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/bookings/{id}/approve": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5025,7 +5169,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/bookings/{id}/approve": {
+            "post": {
                 "description": "Moves a ready booking to completed. Only from here can the service be paid through POST /requests/{request_id}/payments.",
                 "produces": [
                     "application/json"
@@ -5062,11 +5210,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/bookings/{id}/calendar": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5074,7 +5218,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/bookings/{id}/calendar": {
+            "get": {
                 "description": "Text/calendar (.ics).",
                 "produces": [
                     "application/json"
@@ -5102,11 +5250,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/bookings/{id}/call": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5114,7 +5258,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/bookings/{id}/call": {
+            "post": {
                 "description": "With a masked call provider (CALLS_BASE_URL) number is a temporary proxy and masked is true; without one it is the phone of the workshop. 503 CALLS_UNAVAILABLE when the provider fails.",
                 "produces": [
                     "application/json"
@@ -5157,11 +5305,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/bookings/{id}/cancel": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5169,7 +5313,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/bookings/{id}/cancel": {
+            "post": {
                 "description": "Free until the vehicle arrives at the workshop. What was paid ahead by reference goes to the wallet.",
                 "consumes": [
                     "application/json"
@@ -5224,11 +5372,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/bookings/{id}/extras/{extraId}/answer": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5236,7 +5380,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/bookings/{id}/extras/{extraId}/answer": {
+            "post": {
                 "description": "Only an approved extra enters the total.",
                 "consumes": [
                     "application/json"
@@ -5292,11 +5440,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/bookings/{id}/messages": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5304,7 +5448,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/bookings/{id}/messages": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -5334,9 +5482,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5344,7 +5490,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -5398,11 +5546,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/cancellation-reasons": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5410,7 +5554,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/cancellation-reasons": {
+            "get": {
                 "description": "List managed in the backoffice, per actor and category.",
                 "produces": [
                     "application/json"
@@ -5448,16 +5596,19 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/catalog": {
             "get": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "description": "Active categories in display order, each with its active services. Categories without active services are left out. No sign-in needed. Fees are in cêntimos of kwanza (1 Kz = 100).",
                 "produces": [
                     "application/json"
@@ -5485,19 +5636,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/devices": {
             "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -5520,11 +5668,7 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     }
-                }
-            }
-        },
-        "/api/v1/devices/{token}": {
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5532,7 +5676,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/devices/{token}": {
+            "delete": {
                 "tags": [
                     "Dispatch"
                 ],
@@ -5550,11 +5698,7 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     }
-                }
-            }
-        },
-        "/api/v1/fare-estimates": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5562,7 +5706,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fare-estimates": {
+            "post": {
                 "description": "Customers only. One priced option per active service of the category. route_source tells whether the distance came from Google Maps or from the fallback estimate.",
                 "consumes": [
                     "application/json"
@@ -5598,11 +5746,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/bookings/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5610,7 +5754,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/bookings/{id}": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -5640,11 +5788,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/bookings/{id}/assignment": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5652,7 +5796,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/assignment": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -5694,11 +5842,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/bookings/{id}/cancel": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5706,7 +5850,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/cancel": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -5754,11 +5902,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/bookings/{id}/extras": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5766,7 +5910,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/extras": {
+            "post": {
                 "description": "Only while the vehicle is at the workshop. The customer approves or declines it.",
                 "consumes": [
                     "application/json"
@@ -5821,11 +5969,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/bookings/{id}/messages": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5833,7 +5977,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/messages": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -5863,9 +6011,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5873,7 +6019,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -5921,11 +6069,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/bookings/{id}/status": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5933,7 +6077,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/bookings/{id}/status": {
+            "post": {
                 "description": "Confirmed to vehicle_received to in_service to ready, without skipping. Ready is refused while an extra waits for an answer.",
                 "consumes": [
                     "application/json"
@@ -5982,11 +6130,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/drivers": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -5994,7 +6138,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/drivers": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
                 "produces": [
                     "application/json"
@@ -6030,9 +6178,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.DriverList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6040,7 +6186,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver validates it with /auth/recovery/verify, sets the password with /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.",
                 "consumes": [
                     "application/json"
@@ -6082,11 +6230,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/drivers/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6094,7 +6238,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/drivers/{id}": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet. Document files are not linked here: they are reviewed by AGORA.",
                 "produces": [
                     "application/json"
@@ -6125,11 +6273,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/drivers/{id}/vehicle": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6137,7 +6281,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/drivers/{id}/vehicle": {
+            "put": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Replaces the current vehicle. The vehicle must suit the service of the driver and be free.",
                 "consumes": [
                     "application/json"
@@ -6192,9 +6340,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6202,7 +6348,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. The driver goes offline and cannot go online until another vehicle is associated.",
                 "tags": [
                     "Partner fleet"
@@ -6233,11 +6381,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/requests": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6245,7 +6389,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/requests": {
+            "get": {
                 "description": "Requires partner.requests:read. Only requests served by drivers of the partner of the token, whatever organization_id says.",
                 "produces": [
                     "application/json"
@@ -6311,11 +6459,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.AdminRequestList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/requests/summary": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6323,7 +6467,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/requests/summary": {
+            "get": {
                 "description": "Requires partner.requests:read.",
                 "produces": [
                     "application/json"
@@ -6365,11 +6513,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.RequestSummary"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/requests/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6377,7 +6521,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/requests/{id}": {
+            "get": {
                 "description": "Requires partner.requests:read. The customer's phone is not included.",
                 "produces": [
                     "application/json"
@@ -6408,11 +6556,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/requests/{id}/team": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6420,7 +6564,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/requests/{id}/team": {
+            "put": {
                 "description": "For the partner of the driver assigned to the request.",
                 "consumes": [
                     "application/json"
@@ -6463,11 +6611,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/vehicles": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6475,7 +6619,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/vehicles": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
                 "produces": [
                     "application/json"
@@ -6517,9 +6665,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.VehicleList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6527,7 +6673,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Send driver_id to associate it at once. Tow trucks serve towing; vans and trucks serve removals.",
                 "consumes": [
                     "application/json"
@@ -6569,11 +6717,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/vehicles/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6581,7 +6725,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/vehicles/{id}": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
                 "produces": [
                     "application/json"
@@ -6612,9 +6760,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6622,7 +6768,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "consumes": [
                     "application/json"
@@ -6677,9 +6825,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6687,7 +6833,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Also releases it from its driver.",
                 "tags": [
                     "Partner fleet"
@@ -6718,11 +6866,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6730,7 +6874,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet. Maintenance.",
                 "produces": [
                     "application/json"
@@ -6760,9 +6908,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.WorkshopList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6770,7 +6916,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Maintenance.",
                 "consumes": [
                     "application/json"
@@ -6800,11 +6948,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.WorkshopView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6812,7 +6956,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
                 "produces": [
                     "application/json"
@@ -6843,9 +6991,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6853,7 +6999,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "consumes": [
                     "application/json"
@@ -6896,9 +7044,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6906,7 +7052,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "tags": [
                     "Partner fleet"
@@ -6931,11 +7079,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}/bookings": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6943,7 +7087,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/bookings": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -6979,11 +7127,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}/closures": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -6991,7 +7135,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/closures": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -7036,11 +7184,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}/closures/{date}": {
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7048,7 +7192,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/closures/{date}": {
+            "delete": {
                 "produces": [
                     "application/json"
                 ],
@@ -7088,11 +7236,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}/mechanics": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7100,7 +7244,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/mechanics": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -7130,9 +7278,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7140,7 +7286,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "A mechanic is a record of the workshop, without an account.",
                 "consumes": [
                     "application/json"
@@ -7189,11 +7337,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}/mechanics/{mechanicId}": {
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7201,7 +7345,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/mechanics/{mechanicId}": {
+            "delete": {
                 "produces": [
                     "application/json"
                 ],
@@ -7235,11 +7383,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}/photos": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7247,7 +7391,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/photos": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -7277,9 +7425,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7287,7 +7433,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "Upload each photo with POST /api/v1/media/photos, then send the full gallery in order: the first photo is the cover shown in GET /api/v1/workshops. Photos left out are removed from the gallery and photos already in it may stay. At most max_workshop_photos photos.",
                 "consumes": [
                     "application/json"
@@ -7336,11 +7484,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}/schedule": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7348,7 +7492,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/schedule": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -7393,11 +7541,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}/services": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7405,7 +7549,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/services": {
+            "post": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "consumes": [
                     "application/json"
@@ -7448,11 +7596,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/fleet/workshops/{id}/services/{serviceId}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7460,7 +7604,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/fleet/workshops/{id}/services/{serviceId}": {
+            "put": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "consumes": [
                     "application/json"
@@ -7510,9 +7658,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7520,7 +7666,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "tags": [
                     "Partner fleet"
@@ -7552,11 +7700,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/help": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7564,7 +7708,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/help": {
+            "get": {
                 "description": "Topics with search, the support line and the most recent request, to open a ticket about it.",
                 "produces": [
                     "application/json"
@@ -7588,16 +7736,19 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.HelpView"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/invitations/accept": {
             "post": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "description": "Sets the password (or confirms the current one when the person already has an account) and activates the membership. Sign in afterwards.",
                 "consumes": [
                     "application/json"
@@ -7627,16 +7778,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/invitations/verification-code": {
-            "post": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/invitations/verification-code": {
+            "post": {
                 "description": "Sends an SMS code to the phone of the invited person. Use the client of the invitation (agora-backoffice or agora-partner-panel).",
                 "consumes": [
                     "application/json"
@@ -7672,19 +7823,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/media/photos": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "description": "The type and the size are checked against the settings of the backoffice. The app sends the file directly to the storage and then uses the id.",
                 "consumes": [
                     "application/json"
@@ -7726,11 +7874,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/members": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7738,7 +7882,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/members": {
+            "get": {
                 "description": "Requires members:read. The organization is always the one of the session.",
                 "produces": [
                     "application/json"
@@ -7810,11 +7958,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/members/invitations": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7822,7 +7966,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/members/invitations": {
+            "post": {
                 "description": "Requires members:invite. The invitation goes by SMS, lasts 48 h and is accepted at POST /api/v1/invitations/accept. You can only grant roles whose permissions you hold.",
                 "consumes": [
                     "application/json"
@@ -7882,11 +8030,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/members/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7894,7 +8038,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/members/{id}": {
+            "get": {
                 "description": "Requires members:read. A member of another organization answers 404.",
                 "produces": [
                     "application/json"
@@ -7937,9 +8085,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "patch": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -7947,7 +8093,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "patch": {
                 "description": "Requires members:update.",
                 "consumes": [
                     "application/json"
@@ -8008,11 +8156,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/members/{id}/deactivate": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8020,7 +8164,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/members/{id}/deactivate": {
+            "post": {
                 "description": "Requires members:deactivate. Final: the membership cannot be reactivated. Ends sessions and pending invitations.",
                 "produces": [
                     "application/json"
@@ -8069,11 +8217,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/members/{id}/invitations/resend": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8081,7 +8225,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/members/{id}/invitations/resend": {
+            "post": {
                 "description": "Requires members:invite. The previous invitation stops working.",
                 "tags": [
                     "Members"
@@ -8124,11 +8272,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/members/{id}/reactivate": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8136,7 +8280,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/members/{id}/reactivate": {
+            "post": {
                 "description": "Requires members:suspend.",
                 "produces": [
                     "application/json"
@@ -8185,11 +8333,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/members/{id}/roles": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8197,7 +8341,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/members/{id}/roles": {
+            "put": {
                 "description": "Requires roles:assign. The list replaces the current roles and takes effect on the next request. You cannot change your own roles, grant permissions you do not hold, or remove the last active owner.",
                 "consumes": [
                     "application/json"
@@ -8264,11 +8412,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/members/{id}/suspend": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8276,7 +8420,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/members/{id}/suspend": {
+            "post": {
                 "description": "Requires members:suspend. Ends every session of the person at once.",
                 "produces": [
                     "application/json"
@@ -8325,11 +8473,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/nearby": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8337,7 +8481,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/nearby": {
+            "get": {
                 "description": "Customers only. Aggregates by H3 cell, without identity or exact position, and only above a minimum per cell.",
                 "produces": [
                     "application/json"
@@ -8382,11 +8530,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/notifications": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8394,7 +8538,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
                 "description": "Read and unread items, each with a link_type and link_id to open the order, offer, booking or ticket.",
                 "produces": [
                     "application/json"
@@ -8430,11 +8578,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.InboxList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/notifications/read-all": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8442,7 +8586,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/notifications/read-all": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -8457,11 +8605,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.MarkedView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/notifications/{id}/read": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8469,7 +8613,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/notifications/{id}/read": {
+            "post": {
                 "tags": [
                     "Account"
                 ],
@@ -8493,11 +8641,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/offers/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8505,7 +8649,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/offers/{id}": {
+            "get": {
                 "description": "The event only carries the essentials; the rest comes from here.",
                 "produces": [
                     "application/json"
@@ -8536,11 +8684,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/offers/{id}/accept": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8548,7 +8692,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/offers/{id}/accept": {
+            "post": {
                 "description": "Send the version received with the offer. Only one provider wins; the others get 409.",
                 "consumes": [
                     "application/json"
@@ -8591,11 +8739,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/offers/{id}/delivered": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8603,7 +8747,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/offers/{id}/delivered": {
+            "post": {
                 "description": "Tells the server the offer reached the phone, and through which channel. Without it the watcher moves to the next channel or provider.",
                 "consumes": [
                     "application/json"
@@ -8640,11 +8788,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/offers/{id}/quote": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8652,7 +8796,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/offers/{id}/quote": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -8688,11 +8836,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/offers/{id}/reject": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8700,7 +8844,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/offers/{id}/reject": {
+            "post": {
                 "description": "The reason comes from GET /cancellation-reasons?actor=offer and is kept for the reports.",
                 "consumes": [
                     "application/json"
@@ -8743,11 +8891,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8755,7 +8899,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners": {
+            "get": {
                 "description": "Requires partners:read (AGORA only).",
                 "produces": [
                     "application/json"
@@ -8803,9 +8951,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8813,7 +8959,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires partners:manage (AGORA only). The NIF is optional: 10 digits, or the BI number for a sole trader; spaces are ignored. Invite its first owner at POST /api/v1/partners/{orgId}/members/invitations.",
                 "consumes": [
                     "application/json"
@@ -8867,11 +9015,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8879,7 +9023,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}": {
+            "get": {
                 "description": "Requires partners:read (AGORA only).",
                 "produces": [
                     "application/json"
@@ -8922,9 +9070,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "patch": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -8932,7 +9078,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "patch": {
                 "description": "Requires partners:manage (AGORA only). Changes only the fields sent; an empty nif removes it. Spaces in the NIF are ignored.",
                 "consumes": [
                     "application/json"
@@ -8999,11 +9147,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/fleet/drivers": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9011,7 +9155,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/drivers": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
                 "produces": [
                     "application/json"
@@ -9054,9 +9202,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.DriverList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9064,7 +9210,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Creates the account as a draft and sends an SMS code; the driver validates it with /auth/recovery/verify, sets the password with /auth/recovery/confirm and sends the documents in the app. AGORA still reviews and approves. vehicle_id is optional and can be associated later.",
                 "consumes": [
                     "application/json"
@@ -9113,11 +9261,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/fleet/drivers/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9125,7 +9269,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/drivers/{id}": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet. Document files are not linked here: they are reviewed by AGORA.",
                 "produces": [
                     "application/json"
@@ -9163,11 +9311,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/fleet/drivers/{id}/vehicle": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9175,7 +9319,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/drivers/{id}/vehicle": {
+            "put": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Replaces the current vehicle. The vehicle must suit the service of the driver and be free.",
                 "consumes": [
                     "application/json"
@@ -9237,9 +9385,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9247,7 +9393,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. The driver goes offline and cannot go online until another vehicle is associated.",
                 "tags": [
                     "Partner fleet"
@@ -9285,11 +9433,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/fleet/vehicles": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9297,7 +9441,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/vehicles": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
                 "produces": [
                     "application/json"
@@ -9346,9 +9494,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.VehicleList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9356,7 +9502,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Send driver_id to associate it at once. Tow trucks serve towing; vans and trucks serve removals.",
                 "consumes": [
                     "application/json"
@@ -9405,11 +9553,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/fleet/vehicles/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9417,7 +9561,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/vehicles/{id}": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
                 "produces": [
                     "application/json"
@@ -9455,9 +9603,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9465,7 +9611,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "consumes": [
                     "application/json"
@@ -9527,9 +9675,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9537,7 +9683,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Also releases it from its driver.",
                 "tags": [
                     "Partner fleet"
@@ -9575,11 +9723,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/fleet/workshops": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9587,7 +9731,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/workshops": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet. Maintenance.",
                 "produces": [
                     "application/json"
@@ -9624,9 +9772,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.WorkshopList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9634,7 +9780,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet. Maintenance.",
                 "consumes": [
                     "application/json"
@@ -9671,11 +9819,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.WorkshopView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/fleet/workshops/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9683,7 +9827,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/workshops/{id}": {
+            "get": {
                 "description": "Requires partner.providers:read on /fleet, for the partner of the token, or partners:read on /partners/{orgId}/fleet.",
                 "produces": [
                     "application/json"
@@ -9721,9 +9869,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9731,7 +9877,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "consumes": [
                     "application/json"
@@ -9781,9 +9929,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9791,7 +9937,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "tags": [
                     "Partner fleet"
@@ -9823,11 +9971,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/fleet/workshops/{id}/services": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9835,7 +9979,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/workshops/{id}/services": {
+            "post": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "consumes": [
                     "application/json"
@@ -9885,11 +10033,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/fleet/workshops/{id}/services/{serviceId}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9897,7 +10041,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/fleet/workshops/{id}/services/{serviceId}": {
+            "put": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "consumes": [
                     "application/json"
@@ -9954,9 +10102,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -9964,7 +10110,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Requires partner.providers:manage on /fleet, for the partner of the token, or partners:manage on /partners/{orgId}/fleet.",
                 "tags": [
                     "Partner fleet"
@@ -10003,11 +10151,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/members": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10015,7 +10159,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/members": {
+            "get": {
                 "description": "Requires partners:read (AGORA only).",
                 "produces": [
                     "application/json"
@@ -10094,11 +10242,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/members/invitations": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10106,7 +10250,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/members/invitations": {
+            "post": {
                 "description": "Requires partners:manage (AGORA only), for example to invite the first owner. Roles must be of the partner scope.",
                 "consumes": [
                     "application/json"
@@ -10173,11 +10321,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/partners/{orgId}/roles": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10185,7 +10329,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/partners/{orgId}/roles": {
+            "get": {
                 "description": "Requires partners:read (AGORA only). Use them to invite the members of the partner.",
                 "produces": [
                     "application/json"
@@ -10228,11 +10376,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/payment-methods": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10240,7 +10384,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/payment-methods": {
+            "get": {
                 "description": "Only what can be used now. Fills the method selector before and after a request.",
                 "produces": [
                     "application/json"
@@ -10264,11 +10412,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.MethodList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/permissions": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10276,7 +10420,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/permissions": {
+            "get": {
                 "description": "Requires roles:read.",
                 "produces": [
                     "application/json"
@@ -10304,11 +10452,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/catalogs/banks": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10316,7 +10460,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/catalogs/banks": {
+            "get": {
                 "description": "Search by name, short name or the four-digit IBAN code.",
                 "produces": [
                     "application/json"
@@ -10340,11 +10488,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CatalogList-dtos_BankView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/catalogs/company-types": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10352,7 +10496,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/catalogs/company-types": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -10367,11 +10515,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CatalogList-dtos_OptionView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/catalogs/driving-categories": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10379,7 +10523,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/catalogs/driving-categories": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -10394,11 +10542,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CatalogList-dtos_OptionView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/catalogs/insurers": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10406,7 +10550,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/catalogs/insurers": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -10429,11 +10577,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CatalogList-dtos_InsurerView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/catalogs/workshop-services": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10441,7 +10585,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/catalogs/workshop-services": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -10456,11 +10604,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CatalogList-github_com_Agora-Mobility_atlas_usecases_verification_dtos_WorkshopServiceView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/coverage": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10468,7 +10612,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/coverage": {
+            "put": {
                 "description": "Recomputes the H3 coverage cells of the categories dispatched by coverage. Without radius_km the default of the policy applies.",
                 "consumes": [
                     "application/json"
@@ -10498,11 +10646,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CoverageView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/demand": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10510,7 +10654,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/demand": {
+            "get": {
                 "description": "Resolution 8 hexagons within 10 km of the provider with requests of its category in the last hour, as levels 1 to 3 against the busiest cell of the city. Cells with a single request are left out. The position comes from lat and lng, or else from the last one reported. boundary lists the vertices as [lat, lng]. Ask again after expires_at.",
                 "produces": [
                     "application/json"
@@ -10558,11 +10706,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/documents": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10570,7 +10714,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/documents": {
+            "post": {
                 "description": "Confirms that the file exists and that its content really is an accepted type. A new file replaces the previous one of that type, which is how a rejected document is sent again.",
                 "consumes": [
                     "application/json"
@@ -10612,11 +10760,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/documents/upload-url": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10624,7 +10768,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/documents/upload-url": {
+            "post": {
                 "description": "Validates the type and the size. Then PUT the file directly to upload_url with the returned headers, and register it with POST /api/v1/providers/me/documents.",
                 "consumes": [
                     "application/json"
@@ -10672,11 +10820,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/documents/{type}/url": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10684,7 +10828,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/documents/{type}/url": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -10714,11 +10862,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/ledger": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10726,7 +10870,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/ledger": {
+            "get": {
                 "description": "A positive balance is what AGORA owes the provider. A negative balance is the commission the provider owes for cash jobs.",
                 "produces": [
                     "application/json"
@@ -10756,11 +10904,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.AccountStatement"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/locations": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10768,7 +10912,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/locations": {
+            "post": {
                 "description": "Points use age_s, seconds before now, so a wrong phone clock does not matter. Implausible points are dropped. The answer carries the next cadence.",
                 "consumes": [
                     "application/json"
@@ -10798,11 +10946,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CadenceView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/offline": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10810,7 +10954,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/offline": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -10825,11 +10973,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CadenceView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/online": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10837,7 +10981,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/online": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -10871,11 +11019,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/profile": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10883,7 +11027,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/profile": {
+            "get": {
                 "description": "Status, data, documents, what the requested service requires and what is still missing.",
                 "produces": [
                     "application/json"
@@ -10899,9 +11047,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.ProviderView"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10909,7 +11055,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "One step for the service and the personal data. A provider offers a single service: choosing again replaces the requested one. service_id comes from GET /api/v1/providers/services; the service a provider really takes comes from the approval. A fleet driver keeps the service the fleet chose. id_number is the BI: 9 digits, 2 letters and 3 digits. email is optional and must not belong to another account; sending it empty removes it. Only in draft or rejected.",
                 "consumes": [
                     "application/json"
@@ -10951,11 +11099,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/ratings": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -10963,7 +11107,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/ratings": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -10992,11 +11140,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.RatingList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/submit": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11004,7 +11148,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/submit": {
+            "post": {
                 "description": "Answers 422 PROFILE_INCOMPLETE with the list of what is missing in details.",
                 "produces": [
                     "application/json"
@@ -11032,11 +11180,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/vehicle": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11044,7 +11188,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/vehicle": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -11085,11 +11233,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11097,7 +11241,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification": {
+            "get": {
                 "description": "Everything the step list needs (PK01, PK15, PK16, PK01-B): status, driver or workshop, progress computed by the server, minutes left, next step and the groups with the status of each step. The first call creates the verification for the service chosen in the profile.",
                 "produces": [
                     "application/json"
@@ -11119,11 +11267,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/bank-account": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11131,7 +11275,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/bank-account": {
+            "put": {
                 "description": "AO06 with 21 digits and mod-97. Digits five to eight name the bank: another bank answers IBAN_BANK_MISMATCH with the detected bank. The holder must be the person on the card. The proof is the main slot of bank_account. The IBAN is always masked in answers.",
                 "consumes": [
                     "application/json"
@@ -11167,11 +11315,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/criminal-record": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11179,7 +11323,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/criminal-record": {
+            "put": {
                 "description": "The file is the main slot of criminal_record (photo or PDF). Issued at most 90 days ago and not in the future.",
                 "consumes": [
                     "application/json"
@@ -11215,11 +11363,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/criminal-record/reminder": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11227,7 +11371,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/criminal-record/reminder": {
+            "post": {
                 "description": "Schedules a push in 24 hours. The progress stays saved.",
                 "produces": [
                     "application/json"
@@ -11243,11 +11391,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.ReminderView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/driving-license": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11255,7 +11399,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/driving-license": {
+            "put": {
                 "description": "The photos are the front and back slots of driving_license. The license must not be expired and must have a category the service needs (taxi B, towing and removals C1 or C).",
                 "consumes": [
                     "application/json"
@@ -11291,11 +11439,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/identity-card/data": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11303,7 +11447,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/identity-card/data": {
+            "put": {
                 "description": "Every field can be edited. Fields that differ from the reading are kept in manually_edited_fields and go to review; source manual (after three failed readings) also goes to review. An expired card answers IDENTITY_CARD_EXPIRED unless the SIAC renewal receipt was sent (BI-E5). From here on the card name is the reference for the IBAN holder and the logbook.",
                 "consumes": [
                     "application/json"
@@ -11345,11 +11493,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/identity-card/extraction": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11357,7 +11501,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/identity-card/extraction": {
+            "get": {
                 "description": "processing, completed with the fields and their confidence, or failed. manual_entry_allowed tells when to show the manual form.",
                 "produces": [
                     "application/json"
@@ -11381,9 +11529,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.ExtractionView"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11391,7 +11537,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Needs the front and the back accepted. The reading runs in the queue: poll GET with the same path. At most three attempts; after that EXTRACTION_MAX_ATTEMPTS and the app moves to manual entry (BI-E6).",
                 "consumes": [
                     "application/json"
@@ -11426,11 +11574,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/review": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11438,7 +11582,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/review": {
+            "get": {
                 "description": "Summary by section with the step to edit, the documents sent out of the total, the masked IBAN, the declaration to accept and the missing steps.",
                 "produces": [
                     "application/json"
@@ -11454,11 +11602,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_Agora-Mobility_atlas_usecases_verification_dtos.ReviewView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/selfie": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11466,7 +11610,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/selfie": {
+            "post": {
                 "description": "Upload the final photo as slot main of selfie, then send the session and the upload id. accepted, or LIVENESS_FAILED with attempts and max_attempts. On the third failure the selfie goes to manual review and the step counts as sent.",
                 "consumes": [
                     "application/json"
@@ -11502,11 +11650,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/selfie/session": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11514,7 +11658,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/selfie/session": {
+            "post": {
                 "description": "Liveness only: the face is not compared with the card photo. The challenge is BLINK.",
                 "consumes": [
                     "application/json"
@@ -11543,11 +11691,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.LivenessSessionView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/submit": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11555,7 +11699,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/submit": {
+            "post": {
                 "description": "Needs the declaration and every step. Moves to review, locks the changes (409 VERIFICATION_LOCKED), tells the backoffice and sends a push to the provider. Submitting again answers the same review.",
                 "consumes": [
                     "application/json"
@@ -11603,11 +11751,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/uploads": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11615,7 +11759,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/uploads": {
+            "post": {
                 "description": "Checks the document type, slot, subject, content type and size, and returns a pre-signed PUT to R2 with the headers to send. Then PUT the file and call the confirm endpoint. A new file for the same slot replaces the old one once it is accepted; the old one is kept as superseded. The identity card sides are slots front and back of id_card; the SIAC renewal receipt is the renewal_receipt slot.",
                 "consumes": [
                     "application/json"
@@ -11663,11 +11811,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/uploads/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11675,7 +11819,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/uploads/{id}": {
+            "get": {
                 "description": "processing, accepted or quality_failed, with each quality check and the reasons (TEXT_NOT_LEGIBLE, SHADOW_ON_DATA, CORNERS_NOT_VISIBLE, GLARE, BLURRY, TOO_DARK).",
                 "produces": [
                     "application/json"
@@ -11706,11 +11854,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/uploads/{id}/confirm": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11718,7 +11862,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/uploads/{id}/confirm": {
+            "post": {
                 "description": "Checks with HeadObject that the file exists and fits the size, and checks the magic bytes. The file then goes to processing: EXIF and GPS are removed and the quality is checked in the queue. Poll GET /uploads/{id} for accepted or quality_failed with the reasons (BI-E4). Confirming twice answers the same file.",
                 "produces": [
                     "application/json"
@@ -11755,11 +11903,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/uploads/{id}/url": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11767,7 +11911,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/uploads/{id}/url": {
+            "get": {
                 "description": "A pre-signed GET of a few minutes, only for the owner. Files are never public.",
                 "produces": [
                     "application/json"
@@ -11798,11 +11946,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/vehicle": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11810,7 +11954,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/vehicle": {
+            "put": {
                 "description": "Angolan plate AA-00-00-AA, accepted without hyphens. The five photos are the front, rear, side, interior and plate slots of vehicle_photo.",
                 "consumes": [
                     "application/json"
@@ -11846,11 +11994,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/vehicle/insurance": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11858,7 +12002,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/vehicle/insurance": {
+            "put": {
                 "description": "The certificates are the main slot of vehicle_insurance and vehicle_inspection. Both dates must be in the future. Another insurer goes to review.",
                 "consumes": [
                     "application/json"
@@ -11894,11 +12042,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/vehicle/registration": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11906,7 +12050,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/vehicle/registration": {
+            "put": {
                 "description": "The photos are page_1 and page_2 of vehicle_registration. When the owner is not the person on the card, the owner declaration (vehicle_owner_declaration) and the owner's card (id_card with subject vehicle_owner) are needed and the step goes to review.",
                 "consumes": [
                     "application/json"
@@ -11942,11 +12090,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/workshop/bank-account": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -11954,7 +12098,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/bank-account": {
+            "put": {
                 "description": "Same rules as the driver, but the holder must be the company name given with the NIF. A personal account is refused on the holder field.",
                 "consumes": [
                     "application/json"
@@ -11990,11 +12138,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/workshop/business-license": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12002,7 +12146,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/business-license": {
+            "put": {
                 "description": "The file is the main slot of business_license. The validity must be in the future; a notice goes out 30 days before. The repair activity is checked by the team.",
                 "consumes": [
                     "application/json"
@@ -12038,11 +12186,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/workshop/commercial-certificate": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12050,7 +12194,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/commercial-certificate": {
+            "put": {
                 "description": "The file is the main slot of commercial_certificate. Issued less than six months ago.",
                 "consumes": [
                     "application/json"
@@ -12086,11 +12234,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/workshop/location": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12098,7 +12242,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/location": {
+            "put": {
                 "description": "Days 0 (Sunday) to 6 (Saturday), times HH:MM with open before close, at least one open day. Bookings only happen inside these hours.",
                 "consumes": [
                     "application/json"
@@ -12128,11 +12276,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.LocationView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/workshop/services": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12140,7 +12284,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/services": {
+            "put": {
                 "description": "Base price \"from\", in whole Kz without VAT, above zero. These services show up in the customer search once the workshop is approved.",
                 "consumes": [
                     "application/json"
@@ -12173,11 +12321,7 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/me/verification/workshop/tax-id": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12185,7 +12329,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/me/verification/workshop/tax-id": {
+            "put": {
                 "description": "Ten digits. A company name that differs from the business license goes to review without blocking.",
                 "consumes": [
                     "application/json"
@@ -12221,16 +12369,19 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/providers/register": {
             "post": {
-                "security": [
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "description": "Only through agora-provider-app: the account type comes from the client, never from the payload. Takes only the phone, creates the account and a draft profile, and sends an SMS code. Calling it again for an unverified number sends a new code. Confirm it with POST /api/v1/auth/phone/verify to get a session. A registered number answers PHONE_ALREADY_EXISTS: the app moves to the sign-in by SMS code. The name and the other data are filled in later in the profile.",
                 "consumes": [
                     "application/json"
@@ -12278,16 +12429,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/providers/services": {
-            "get": {
+                },
                 "security": [
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/providers/services": {
+            "get": {
                 "description": "By category, for example Táxi with Económico, Conforto and XL. A service only appears once its requirements are configured.",
                 "produces": [
                     "application/json"
@@ -12303,7 +12454,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.OpenServices"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/public/trips/{token}": {
@@ -12343,14 +12499,6 @@ const docTemplate = `{
         },
         "/api/v1/quick-replies": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -12365,11 +12513,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.QuickReplyList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/rating-options": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12377,7 +12521,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/rating-options": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -12401,11 +12549,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.RatingOptions"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/removals/availability": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12413,7 +12557,12 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/removals/availability": {
+            "get": {
+                "description": "Only windows that have not started yet come back. A day with none left, such as a past day or today after the last window, is closed. lat and lng of the pickup choose the time zone; without them, or outside every zone, the first active zone decides.",
                 "produces": [
                     "application/json"
                 ],
@@ -12441,6 +12590,18 @@ const docTemplate = `{
                         "description": "Number of days, default 1, at most 62",
                         "name": "days",
                         "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Pickup latitude",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Pickup longitude",
+                        "name": "lng",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -12462,11 +12623,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/removals/options": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12474,8 +12631,12 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
-                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type. custom_sizes holds the volume of each size of an item the customer adds by hand.",
+                ]
+            }
+        },
+        "/api/v1/removals/options": {
+            "get": {
+                "description": "Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. Every item lists in properties the types of property it fits; an item that fits every type lists them all. With property, only the items of that type come back. custom_sizes holds the volume of each size of an item the customer adds by hand.",
                 "produces": [
                     "application/json"
                 ],
@@ -12504,11 +12665,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12516,7 +12673,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests": {
+            "get": {
                 "description": "Customers only, most recent first.",
                 "produces": [
                     "application/json"
@@ -12558,9 +12719,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.RequestList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12568,7 +12727,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires Idempotency-Key, so the app can resend on a bad network without creating a second request. The pin is the truth; reference and address only help. A fare estimate serves one request: sent again while that request is active, the answer is 200 with it. When the estimate expired, or its request already ended, the answer is 409 with new quotes and no request is created.",
                 "consumes": [
                     "application/json"
@@ -12623,11 +12784,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/active": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12635,7 +12792,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/active": {
+            "get": {
                 "description": "What the app reloads after a resync: the active request and, for providers, the open offers.",
                 "produces": [
                     "application/json"
@@ -12651,11 +12812,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.ActiveState"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12663,7 +12820,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -12693,11 +12854,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/arrive": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12705,7 +12862,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/arrive": {
+            "post": {
                 "description": "Starts counting the waiting time.",
                 "produces": [
                     "application/json"
@@ -12736,11 +12897,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/boost": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12748,7 +12905,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/boost": {
+            "post": {
                 "description": "10 or 20 percent over the original price, all of it for the provider. Starts a new search round.",
                 "consumes": [
                     "application/json"
@@ -12791,11 +12952,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/call": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12803,7 +12960,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/call": {
+            "post": {
                 "description": "Customer or provider of the request, from accepted until in progress. With a masked call provider (CALLS_BASE_URL) number is a temporary proxy and masked is true; without one it is the phone of the other side (the passenger for the driver when someone else rides). The app dials number. 503 CALLS_UNAVAILABLE when the provider fails or the other side has no phone.",
                 "produces": [
                     "application/json"
@@ -12846,11 +13007,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/cancel": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12858,7 +13015,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/cancel": {
+            "post": {
                 "description": "Customer or provider of the request. The reason comes from GET /cancellation-reasons, and a reason that needs a note needs the note. When the customer owes a fee, expected_fee_cents must be the fee shown by GET /requests/{id}/cancellation, or the answer is 409 CANCEL_FEE_CHANGED with the current fee. A provider who cancels never makes the customer pay.",
                 "consumes": [
                     "application/json"
@@ -12907,11 +13068,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/cancellation": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12919,7 +13076,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/cancellation": {
+            "get": {
                 "description": "The fee the customer would pay at this moment, until when it is free, and the reasons to choose from. A provider sees the provider reasons and fee 0.",
                 "produces": [
                     "application/json"
@@ -12950,11 +13111,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/complete": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -12962,7 +13119,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/complete": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -13000,11 +13161,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/en-route": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13012,7 +13169,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/en-route": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -13042,11 +13203,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/eta": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13054,7 +13211,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/eta": {
+            "get": {
                 "description": "From the last position of the provider, by route: to the pickup until the trip starts (target pickup), then to the destination (target destination). route_geometry is that route as a Google encoded polyline (precision 5), the same format as the route_geometry of the request, to draw on the map. source tells whether it came from Google Maps or from the fallback; the fallback has no route_geometry.",
                 "produces": [
                     "application/json"
@@ -13091,11 +13252,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/messages": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13103,7 +13260,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/messages": {
+            "get": {
                 "description": "Marks the messages of the other side as read.",
                 "produces": [
                     "application/json"
@@ -13146,9 +13307,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13156,7 +13315,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Customer or provider of the request, while it has a provider and is not finished. A quick reply replaces the text. The other side gets it by SSE as request.message. Phone numbers are never shared.",
                 "consumes": [
                     "application/json"
@@ -13211,11 +13372,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/payment-method": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13223,7 +13380,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/payment-method": {
+            "put": {
                 "description": "Customer only. After the request is completed it cannot change to cash, and it cannot change while a payment is pending.",
                 "consumes": [
                     "application/json"
@@ -13278,11 +13439,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/payments": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13290,7 +13447,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/payments": {
+            "get": {
                 "description": "The customer or the provider of the request. The provider does not see the phone or the reference.",
                 "produces": [
                     "application/json"
@@ -13321,9 +13482,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13331,7 +13490,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Customer only. gpo asks for approval in the Multicaixa Express app of phone_number, or of the phone of the account when empty. reference returns the number and entity to pay with. The amount always comes from the request. Follow the result with the request.payment event or GET /requests/{id}/payments. Sending the same method again returns the pending payment.",
                 "consumes": [
                     "application/json"
@@ -13398,11 +13559,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/payments/cash": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13410,7 +13567,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/payments/cash": {
+            "post": {
                 "description": "The provider of the completed request only. Repeating it returns the same payment.",
                 "produces": [
                     "application/json"
@@ -13447,11 +13608,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/photos": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13459,7 +13616,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/photos": {
+            "get": {
                 "description": "Customer or provider of the request, with temporary links.",
                 "produces": [
                     "application/json"
@@ -13490,9 +13651,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13500,7 +13659,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Customer of the request. The limit is in the settings of the backoffice, and each photo has to be uploaded with the announced type and size.",
                 "consumes": [
                     "application/json"
@@ -13549,11 +13710,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/rating": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13561,7 +13718,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/rating": {
+            "post": {
                 "description": "Customer of the request, once. The stars count for the average of the provider.",
                 "consumes": [
                     "application/json"
@@ -13616,11 +13777,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/receipt": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13628,7 +13785,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/receipt": {
+            "get": {
                 "description": "Customer of the request. The values are the ones of the breakdown in GET /requests/{id}.",
                 "produces": [
                     "application/pdf"
@@ -13665,11 +13826,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/repeat": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13677,7 +13834,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/repeat": {
+            "post": {
                 "description": "Creates a new request with the same route and the current prices. Send {\"preview\": true} to only get the route and prices, without creating it.",
                 "consumes": [
                     "application/json"
@@ -13731,11 +13892,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/route": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13743,7 +13900,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/route": {
+            "post": {
                 "description": "Reprices with the same tariff and records the difference as a fare adjustment.",
                 "consumes": [
                     "application/json"
@@ -13786,11 +13947,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/select-quote": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13798,7 +13955,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/select-quote": {
+            "post": {
                 "description": "The transaction checks that the quote is still valid. The other providers get their offer cancelled.",
                 "consumes": [
                     "application/json"
@@ -13841,11 +14002,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/share": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13853,7 +14010,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/share": {
+            "post": {
                 "description": "Customer of an active request. The link shows the state, the provider and the position, never a phone number, and it expires.",
                 "produces": [
                     "application/json"
@@ -13890,9 +14051,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13900,7 +14059,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "tags": [
                     "Live request"
                 ],
@@ -13924,11 +14085,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/sos": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13936,7 +14093,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/sos": {
+            "post": {
                 "description": "Customer or provider of the request. The operator is alerted and the alert stays in the backoffice. A second press returns the open alert.",
                 "consumes": [
                     "application/json"
@@ -13985,11 +14146,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/start": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -13997,7 +14154,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/start": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -14027,11 +14188,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/stops/{position}/arrive": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14039,7 +14196,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/stops/{position}/arrive": {
+            "post": {
                 "description": "Provider of the request, while it is in progress. The first time counts.",
                 "produces": [
                     "application/json"
@@ -14083,11 +14244,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/team": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14095,7 +14252,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/team": {
+            "put": {
                 "description": "For the provider of the request. Nobody is marked as verified from here: that is up to the partner.",
                 "consumes": [
                     "application/json"
@@ -14144,11 +14305,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/tickets": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14156,7 +14313,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/tickets": {
+            "post": {
                 "description": "Only by the customer or the provider of the request.",
                 "consumes": [
                     "application/json"
@@ -14205,11 +14366,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/requests/{id}/tips": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14217,7 +14374,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/tips": {
+            "post": {
                 "description": "Customer of a completed request, once. All of it goes to the provider, without commission. Paid digitally even when the request was paid in cash. The amount cannot pass the maximum in GET /rating-options.",
                 "consumes": [
                     "application/json"
@@ -14272,11 +14433,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/roles": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14284,7 +14441,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/roles": {
+            "get": {
                 "description": "Requires roles:read. System roles of the scope and the roles of the organization.",
                 "produces": [
                     "application/json"
@@ -14312,9 +14473,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14322,7 +14481,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Requires roles:manage. The role belongs to the organization of the session; it can only hold permissions of its scope that you hold yourself.",
                 "consumes": [
                     "application/json"
@@ -14376,11 +14537,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/roles/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14388,7 +14545,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/roles/{id}": {
+            "get": {
                 "description": "Requires roles:read. A role of another organization answers 404.",
                 "produces": [
                     "application/json"
@@ -14431,9 +14592,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14441,7 +14600,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Requires roles:manage. Only roles no member holds.",
                 "tags": [
                     "Roles"
@@ -14484,9 +14645,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "patch": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14494,7 +14653,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "patch": {
                 "description": "Requires roles:manage. New permissions apply to every member with the role on their next request.",
                 "consumes": [
                     "application/json"
@@ -14561,11 +14722,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/support/tickets": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14573,7 +14730,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/support/tickets": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -14602,9 +14763,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.TicketList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14612,7 +14771,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -14647,11 +14808,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/support/tickets/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14659,7 +14816,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/support/tickets/{id}": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -14689,11 +14850,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/support/tickets/{id}/messages": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14701,7 +14858,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/support/tickets/{id}/messages": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -14749,11 +14910,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/towing/options": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14761,7 +14918,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/towing/options": {
+            "get": {
                 "description": "Vehicle types with their price, incidents, and the nearest partner workshop as the default destination when lat and lng are given.",
                 "produces": [
                     "application/json"
@@ -14797,11 +14958,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14809,7 +14966,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -14848,9 +15009,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14858,7 +15017,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "description": "Customers and providers only. Confirm with password or, without a password, with a code from /users/me/verification-code. Ends every session at once; the phone and e-mail can be registered again.",
                 "consumes": [
                     "application/json"
@@ -14921,9 +15082,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "patch": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -14931,7 +15090,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "patch": {
                 "description": "Changes only the fields sent. Changing or removing the e-mail requires current_password or a code from /users/me/verification-code. The phone number changes through /users/me/phone.",
                 "consumes": [
                     "application/json"
@@ -14997,11 +15158,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/addresses": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15009,7 +15166,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/addresses": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -15024,9 +15185,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.UserAddressList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15034,7 +15193,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "lat and lng are mandatory; the rest only helps. kind is home, work or other, with one home and one work per user.",
                 "consumes": [
                     "application/json"
@@ -15076,11 +15237,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/addresses/{id}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15088,7 +15245,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/addresses/{id}": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -15142,9 +15303,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15152,7 +15311,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "tags": [
                     "Addresses"
                 ],
@@ -15176,11 +15337,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/avatar": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15188,7 +15345,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/avatar": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -15203,9 +15364,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.AvatarView"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15213,7 +15372,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "The photo is uploaded first through POST /media/photos and must belong to the user.",
                 "consumes": [
                     "application/json"
@@ -15255,11 +15416,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/permissions": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15267,7 +15424,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/permissions": {
+            "get": {
                 "description": "For the UI only: every endpoint checks its own permission.",
                 "produces": [
                     "application/json"
@@ -15295,11 +15456,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/phone": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15307,7 +15464,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/phone": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -15372,11 +15533,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/phone/verification-code": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15384,7 +15541,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/phone/verification-code": {
+            "post": {
                 "description": "Sends an SMS code to the new number. Only the signed-in user who asked for it can use the code.",
                 "consumes": [
                     "application/json"
@@ -15450,11 +15611,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/preferences": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15462,7 +15619,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/preferences": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -15477,9 +15638,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.PreferencesView"
                         }
                     }
-                }
-            },
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15487,7 +15646,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "put": {
                 "description": "Status pushes and SMS respect these values when they are sent. The code sent to confirm an identity is not affected.",
                 "consumes": [
                     "application/json"
@@ -15523,11 +15684,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/recent-destinations": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15535,7 +15692,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/recent-destinations": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -15558,11 +15719,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.RecentDestinationList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/referral": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15570,7 +15727,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/referral": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -15585,11 +15746,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.ReferralView"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/referral/redeem": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15597,7 +15754,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/referral/redeem": {
+            "post": {
                 "description": "Once per account and before the first paid request. The reward goes to the wallet of the friend when this account completes and pays its first request.",
                 "consumes": [
                     "application/json"
@@ -15639,11 +15800,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/vehicles": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15651,7 +15808,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/vehicles": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -15666,9 +15827,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.CustomerVehicleList"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15676,7 +15835,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -15717,11 +15878,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/vehicles/{id}": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15729,7 +15886,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/vehicles/{id}": {
+            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -15777,9 +15938,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15787,7 +15946,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "tags": [
                     "Customer vehicles"
                 ],
@@ -15811,11 +15972,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/me/verification-code": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15823,7 +15980,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/me/verification-code": {
+            "post": {
                 "description": "The code confirms an e-mail change or the account deletion when the user has no password. Customers and providers only.",
                 "produces": [
                     "application/json"
@@ -15863,11 +16024,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/users/password": {
-            "put": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15875,7 +16032,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/users/password": {
+            "put": {
                 "description": "Ends every session of the user. Accounts without a password get 409 PASSWORD_NOT_SET and use POST /users/password instead.",
                 "consumes": [
                     "application/json"
@@ -15938,9 +16099,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -15948,7 +16107,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Accounts created by phone have no password and sign in with an SMS code. This sets the first password and keeps the current sessions. Use PUT /users/password to change an existing one.",
                 "consumes": [
                     "application/json"
@@ -16011,11 +16172,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/vouchers": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -16023,7 +16180,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/vouchers": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -16046,11 +16207,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.VoucherList"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/vouchers/preview": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -16058,7 +16215,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/vouchers/preview": {
+            "post": {
                 "description": "Same rules as the request: validity, service and use per customer. Nothing is reserved.",
                 "consumes": [
                     "application/json"
@@ -16100,11 +16261,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/wallet": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -16112,7 +16269,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/wallet": {
+            "get": {
                 "description": "Balance and movements: refunds of references, payments from the wallet and invite rewards.",
                 "produces": [
                     "application/json"
@@ -16142,7 +16303,15 @@ const docTemplate = `{
                             "$ref": "#/definitions/dtos.AccountStatement"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/api/v1/webhooks/appypay": {
@@ -16181,14 +16350,6 @@ const docTemplate = `{
         },
         "/api/v1/workshops": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    },
-                    {
-                        "ClientId": []
-                    }
-                ],
                 "description": "Search by name, filter by category code, distance, rating, favorites and home service. Each card has the calculated open state and the promotions the customer can still use.",
                 "produces": [
                     "application/json"
@@ -16266,11 +16427,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/workshops/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -16278,7 +16435,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/workshops/{id}": {
+            "get": {
                 "description": "About, warranty, structured hours and active services with price and duration.",
                 "produces": [
                     "application/json"
@@ -16321,11 +16482,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/workshops/{id}/availability": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -16333,7 +16490,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/workshops/{id}/availability": {
+            "get": {
                 "description": "Status free, closed or full per day, with the slots where the whole duration of the chosen services fits within the capacity.",
                 "produces": [
                     "application/json"
@@ -16396,11 +16557,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/workshops/{id}/favorite": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -16408,7 +16565,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/workshops/{id}/favorite": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -16435,9 +16596,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -16445,7 +16604,9 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "produces": [
                     "application/json"
                 ],
@@ -16472,11 +16633,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/v1/workshops/{id}/reviews": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -16484,7 +16641,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/v1/workshops/{id}/reviews": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -16514,11 +16675,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/events": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
@@ -16526,7 +16683,11 @@ const docTemplate = `{
                     {
                         "ClientId": []
                     }
-                ],
+                ]
+            }
+        },
+        "/events": {
+            "get": {
                 "description": "Server-Sent Events of the signed-in customer or provider. Send Last-Event-ID to replay what was missed. Offers carry expires_in_s, relative to the moment of delivery. When the cursor is older than the mailbox a resync event asks the app to reload through GET /api/v1/requests/active.",
                 "produces": [
                     "text/event-stream"
@@ -16562,7 +16723,15 @@ const docTemplate = `{
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
             }
         },
         "/live": {
@@ -17008,6 +17177,10 @@ const docTemplate = `{
                 "category_name": {
                     "type": "string"
                 },
+                "code": {
+                    "type": "string",
+                    "example": "TX-10001"
+                },
                 "completed_at": {
                     "type": "string"
                 },
@@ -17178,6 +17351,89 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "dtos.AuditActorView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "staff",
+                        "customer",
+                        "provider",
+                        "system"
+                    ]
+                }
+            }
+        },
+        "dtos.AuditEntryView": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "example": "service_tariff.publish"
+                },
+                "actor": {
+                    "$ref": "#/definitions/dtos.AuditActorView"
+                },
+                "after": {
+                    "type": "object"
+                },
+                "before": {
+                    "type": "object"
+                },
+                "correlation_id": {
+                    "type": "string"
+                },
+                "entity": {
+                    "type": "string",
+                    "example": "service_tariff"
+                },
+                "entity_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "occurred_at": {
+                    "type": "string"
+                },
+                "organization_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.AuditPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.AuditEntryView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
                 }
             }
         },
@@ -22375,7 +22631,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "free",
-                        "full"
+                        "full",
+                        "closed"
                     ]
                 },
                 "windows": {

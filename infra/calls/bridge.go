@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Agora-Mobility/atlas/domain/services"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 )
 
 type Direct struct{}
@@ -31,7 +32,7 @@ type Bridge struct {
 }
 
 func NewBridge(baseURL, apiKey string, timeout time.Duration) *Bridge {
-	return &Bridge{baseURL: strings.TrimRight(baseURL, "/"), apiKey: apiKey, client: &http.Client{Timeout: timeout}}
+	return &Bridge{baseURL: strings.TrimRight(baseURL, "/"), apiKey: apiKey, client: tracing.HTTPClient(timeout)}
 }
 
 func (b *Bridge) Connect(ctx context.Context, fromPhone, toPhone, reference string) (*services.Call, error) {

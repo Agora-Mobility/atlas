@@ -11,11 +11,15 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/infra/observability/prometheus"
+	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 	"github.com/Agora-Mobility/atlas/utils"
 )
 
@@ -204,6 +208,22 @@ func (c *Consumer) handle(ctx context.Context, ch *amqp.Channel, d amqp.Delivery
 		return
 	}
 
+	// Continue the trace of the code that raised the event.
+	ctx, span := tracing.Tracer().Start(tracing.Extract(ctx, env.Trace), "process "+c.cfg.Queue,
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "rabbitmq"),
+			attribute.String("messaging.operation.type", "process"),
+			attribute.String("messaging.destination.name", c.cfg.Queue),
+			attribute.String("messaging.message.id", env.EventID.String()),
+			attribute.String("messaging.rabbitmq.destination.routing_key", d.RoutingKey),
+			attribute.String("event.type", env.EventType),
+			attribute.Int("messaging.retry_count", retryCount(d.Headers)),
+			attribute.String(logger.CorrelationIDField, env.CorrelationID),
+		),
+	)
+	defer span.End()
+
 	ctx = logger.WithCorrelationID(ctx, env.CorrelationID)
 	log := logger.FromContext(ctx).With(
 		zap.String("queue", c.cfg.Queue),
@@ -216,6 +236,7 @@ func (c *Consumer) handle(ctx context.Context, ch *amqp.Channel, d amqp.Delivery
 	if err != nil {
 		// Without Redis we cannot guarantee idempotency: requeue and retry.
 		log.Error("dedup unavailable, requeueing", zap.Error(err))
+		span.SetStatus(codes.Error, "dedup unavailable")
 		_ = d.Nack(false, true)
 		return
 	}
@@ -227,6 +248,8 @@ func (c *Consumer) handle(ctx context.Context, ch *amqp.Channel, d amqp.Delivery
 	}
 
 	if err := c.cfg.Handler(ctx, env); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		c.retryOrDeadLetter(ctx, ch, d, err)
 		return
 	}

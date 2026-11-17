@@ -39,4 +39,10 @@ var (
 		Name:      "outbox_pending_events",
 		Help:      "Outbox events not yet published.",
 	})
+
+	OutboxOldestPendingAge = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "outbox_oldest_pending_age_seconds",
+		Help:      "Age of the oldest unpublished outbox event; 0 when none is pending.",
+	})
 )
