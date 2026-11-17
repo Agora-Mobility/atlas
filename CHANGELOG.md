@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.8.0](https://github.com/Agora-Mobility/atlas/compare/v3.7.0...v3.8.0) (2026-11-17)
+
+
+### Features
+
+* **admin:** GET /admin/audit ([b213c56](https://github.com/Agora-Mobility/atlas/commit/b213c56ad4f49dedc0ea709a7580b802063325b9))
+* **admin:** read the audit log ([cf91e4f](https://github.com/Agora-Mobility/atlas/commit/cf91e4fe4f0dfdf410f4acddc6ca3c1a9c1cfe6d))
+* **admin:** real-time alerts for the backoffice ([4f99e2f](https://github.com/Agora-Mobility/atlas/commit/4f99e2f847d43c856ead13267ef726c17337fdfe))
+* **admin:** search, code and sort in GET /admin/requests ([89c9b23](https://github.com/Agora-Mobility/atlas/commit/89c9b23fd15d551ae86b662f61e858df69d90c7f))
+* **admin:** stream SOS, operator queue and new tickets to the backoffice ([58a6f9c](https://github.com/Agora-Mobility/atlas/commit/58a6f9ce64b629f8d9d6d59aecda9725a9e39f84))
+* **observability:** trace requests and events with OpenTelemetry ([708ea49](https://github.com/Agora-Mobility/atlas/commit/708ea495b3b7f78289bfc6c7bcb2d2d38ef3daf2))
+* **observability:** trace requests and events with OpenTelemetry ([71f6a0a](https://github.com/Agora-Mobility/atlas/commit/71f6a0ae7afe25193bb23de0035be1b238bc0961))
+
+
+### Bug Fixes
+
+* **removals:** no past windows in the calendar and properties on every item ([21f5b9c](https://github.com/Agora-Mobility/atlas/commit/21f5b9c96100d676342d2e52b7ca643bcc50ca36))
+
 ## [3.7.0](https://github.com/Agora-Mobility/atlas/compare/v3.6.0...v3.7.0) (2026-11-17)
 
 
