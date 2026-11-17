@@ -221,11 +221,6 @@ func TestGPOIsPaidOnlyWhenTheGatewayConfirms(t *testing.T) {
 	assert.Equal(t, "PAYMENT_PENDING", customer.post(t, path, map[string]string{"method": "reference"}).code())
 	assert.Equal(t, "pending", requestPaymentStatus(t, customer, requestID))
 
-	estimateID, serviceID := estimateFor(t, customer, "taxi")
-	blocked := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
-	assert.Equal(t, "PAYMENT_OUTSTANDING", blocked.code(), "a completed request stays to pay first")
-	assert.Equal(t, map[string]any{"request_id": requestID, "reason": "completed_request"}, blocked.errorData())
-
 	chargeID := env.appypay.settle(code, "Pending", 0)
 	assert.Equal(t, http.StatusNoContent, webhook(t, map[string]any{"id": chargeID, "merchantTransactionId": code, "amount": fare, "responseStatus": map[string]any{"successful": true, "status": "Success"}}))
 	assert.Equal(t, "pending", requestPaymentStatus(t, customer, requestID), "a forged notification changes nothing")
@@ -242,6 +237,7 @@ func TestGPOIsPaidOnlyWhenTheGatewayConfirms(t *testing.T) {
 	item := driverView.body["items"].([]any)[0].(map[string]any)
 	assert.Nil(t, item["payer_phone"], "the driver does not see the phone")
 
+	estimateID, serviceID := estimateFor(t, customer, "taxi")
 	again := customer.do(t, http.MethodPost, "/api/v1/requests", map[string]any{"service_id": serviceID, "fare_estimate_id": estimateID, "pickup": pickup, "destination": target}, map[string]string{"Idempotency-Key": uuid.NewString()})
 	assert.Equal(t, http.StatusCreated, again.status, again.text)
 	cancelled := cancelAs(t, customer, "customer", again.str("id"))

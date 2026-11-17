@@ -1304,6 +1304,21 @@ func (mr *MockIDeviceRepositoryMockRecorder) Contact(ctx, userID any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Contact", reflect.TypeOf((*MockIDeviceRepository)(nil).Contact), ctx, userID)
 }
 
+// Delivered mocks base method.
+func (m *MockIDeviceRepository) Delivered(ctx context.Context, deliveryKey string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delivered", ctx, deliveryKey)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Delivered indicates an expected call of Delivered.
+func (mr *MockIDeviceRepositoryMockRecorder) Delivered(ctx, deliveryKey any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delivered", reflect.TypeOf((*MockIDeviceRepository)(nil).Delivered), ctx, deliveryKey)
+}
+
 // RecordNotification mocks base method.
 func (m *MockIDeviceRepository) RecordNotification(ctx context.Context, record repository.NotificationRecord) error {
 	m.ctrl.T.Helper()

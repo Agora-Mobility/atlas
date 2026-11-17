@@ -340,6 +340,7 @@ type Querier interface {
 	NextDocumentFileVersion(ctx context.Context, arg NextDocumentFileVersionParams) (int32, error)
 	NextRequestCode(ctx context.Context, id uuid.UUID) (string, error)
 	NextTicketCode(ctx context.Context) (string, error)
+	NotificationDelivered(ctx context.Context, deliveryKey *string) (bool, error)
 	OfferRejectionReport(ctx context.Context, arg OfferRejectionReportParams) ([]OfferRejectionReportRow, error)
 	PendingCustomersByCell(ctx context.Context, arg PendingCustomersByCellParams) ([]PendingCustomersByCellRow, error)
 	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)

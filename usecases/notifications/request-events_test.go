@@ -3,6 +3,7 @@ package notifications_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/domain/repository"
 	"github.com/Agora-Mobility/atlas/domain/services"
@@ -52,6 +54,16 @@ func (d *fakeDevices) RecordNotification(_ context.Context, record repository.No
 	d.records = append(d.records, record)
 	return nil
 }
+func (d *fakeDevices) Delivered(_ context.Context, key string) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, record := range d.records {
+		if key != "" && record.DeliveryKey == key && record.Status == "sent" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 type fakePush struct {
 	sent []services.PushMessage
@@ -66,10 +78,14 @@ func (p *fakePush) Send(_ context.Context, message services.PushMessage) (string
 	return "msg-1", nil
 }
 
-type fakeSMS struct{ sent map[string]string }
+type fakeSMS struct {
+	sent  map[string]string
+	count int
+}
 
 func (s *fakeSMS) Send(_ context.Context, phone, message string) error {
 	s.sent[phone] = message
+	s.count++
 	return nil
 }
 
@@ -261,4 +277,149 @@ func TestALongChatMessageIsCutInThePush(t *testing.T) {
 
 func TestAChatMessageListensOnTheNotificationQueue(t *testing.T) {
 	assert.Contains(t, notifications.RequestBindingKeys(), events.RoutingKey(events.RequestMessage, 1))
+}
+
+func TestARetriedApprovalSendsTheSMSOnce(t *testing.T) {
+	provider := uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}, phones: map[uuid.UUID]string{provider: "+244900000000"}}
+	push, sms := &fakePush{err: errors.New("fcm down")}, &fakeSMS{sent: map[string]string{}}
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, push, sms, "", "")
+	env := requestEnvelope(t, events.ProviderReviewV1{Type: events.ProviderApproved, ProviderID: provider})
+
+	for range 5 {
+		require.Error(t, notifier.OnEvent(context.Background(), env), "the push is still owed")
+	}
+	push.err = nil
+	require.NoError(t, notifier.OnEvent(context.Background(), env))
+	require.NoError(t, notifier.OnEvent(context.Background(), env))
+
+	assert.Equal(t, 1, sms.count, "each retry only sends what is still missing")
+	assert.Len(t, push.sent, 1)
+}
+
+func TestAPushRejectedForGoodIsNotRetried(t *testing.T) {
+	provider := uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{provider: {"device"}}, phones: map[uuid.UUID]string{provider: "+244900000000"}}
+	sms := &fakeSMS{sent: map[string]string{}}
+	notifier := notifications.NewRequestNotifier(devices, fakeNotices{}, &fakePush{err: fmt.Errorf("%w: THIRD_PARTY_AUTH_ERROR", services.ErrPushRejected)}, sms, "", "")
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, events.ProviderReviewV1{Type: events.ProviderApproved, ProviderID: provider})))
+
+	assert.Equal(t, 1, sms.count)
+	assert.Empty(t, devices.removed, "the token is fine, the app setup is not")
+	require.NotEmpty(t, devices.records)
+	assert.Contains(t, devices.records[0].Error, "THIRD_PARTY_AUTH_ERROR")
+}
+
+type fakeAccount struct {
+	repository.IAccountRepository
+	items []*entities.InboxItem
+}
+
+func (a *fakeAccount) AddInboxItem(_ context.Context, item *entities.InboxItem) error {
+	a.items = append(a.items, item)
+	return nil
+}
+
+func (a *fakeAccount) Preferences(context.Context, uuid.UUID) (*entities.Preferences, error) {
+	return &entities.Preferences{NotifyStatus: true, NotifySMS: true}, nil
+}
+
+func (a *fakeAccount) itemsOf(userID uuid.UUID) []*entities.InboxItem {
+	var out []*entities.InboxItem
+	for _, item := range a.items {
+		if item.UserID == userID {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func driverSetup() (customer, driver uuid.UUID, push *fakePush, account *fakeAccount, notifier *notifications.RequestNotifier) {
+	customer, driver = uuid.New(), uuid.New()
+	devices := &fakeDevices{tokens: map[uuid.UUID][]string{customer: {"customer-phone"}, driver: {"driver-phone"}}}
+	push, account = &fakePush{}, &fakeAccount{}
+	notifier = notifications.NewRequestNotifier(devices, fakeNotices{}, push, &fakeSMS{sent: map[string]string{}}, "", "")
+	notifier.UseAccount(account)
+	return customer, driver, push, account, notifier
+}
+
+func pushesTo(push *fakePush, token string) []services.PushMessage {
+	var out []services.PushMessage
+	for _, message := range push.sent {
+		if message.Token == token {
+			out = append(out, message)
+		}
+	}
+	return out
+}
+
+func TestTheDriverHearsWhenSomeoneElseCancels(t *testing.T) {
+	for actor, body := range map[string]string{"customer": "O cliente cancelou o pedido.", "operator": "A operação cancelou o pedido.", "system": "O pedido foi cancelado."} {
+		customer, driver, push, account, notifier := driverSetup()
+		event := events.RequestTransitionV1{Type: events.RequestCancelled, RequestID: uuid.New(), CustomerID: customer, ProviderID: &driver, To: "cancelled", ActorType: actor}
+
+		require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
+
+		toDriver := pushesTo(push, "driver-phone")
+		require.Len(t, toDriver, 1, actor)
+		assert.Equal(t, body, toDriver[0].Body, actor)
+		assert.Equal(t, "request.status", toDriver[0].Data["type"])
+		assert.Equal(t, "cancelled", toDriver[0].Data["status"])
+		assert.Len(t, account.itemsOf(driver), 1, actor)
+		assert.Len(t, pushesTo(push, "customer-phone"), 1, "the customer still hears it")
+	}
+}
+
+func TestTheDriverIsNotToldWhatTheDriverDid(t *testing.T) {
+	customer, driver, push, account, notifier := driverSetup()
+	event := events.RequestTransitionV1{Type: events.RequestCancelled, RequestID: uuid.New(), CustomerID: customer, ProviderID: &driver, To: "cancelled", ActorType: "provider"}
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
+
+	assert.Empty(t, pushesTo(push, "driver-phone"))
+	assert.Empty(t, account.itemsOf(driver))
+}
+
+func TestTheDriverHearsAManualAssignment(t *testing.T) {
+	customer, driver, push, account, notifier := driverSetup()
+	event := events.RequestTransitionV1{Type: events.RequestAccepted, RequestID: uuid.New(), CustomerID: customer, ProviderID: &driver, To: "accepted", ActorType: "operator"}
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
+
+	toDriver := pushesTo(push, "driver-phone")
+	require.Len(t, toDriver, 1)
+	assert.Equal(t, "Pedido atribuído", toDriver[0].Title)
+	assert.True(t, toDriver[0].HighPriority)
+	require.Len(t, account.itemsOf(driver), 1)
+	assert.Equal(t, event.RequestID, *account.itemsOf(driver)[0].LinkID)
+}
+
+func TestTheDriverHearsANewDestination(t *testing.T) {
+	customer, driver, push, account, notifier := driverSetup()
+	event := events.RouteChangedV1{RequestID: uuid.New(), CustomerID: customer, ProviderID: &driver, Version: 7}
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, event)))
+
+	toDriver := pushesTo(push, "driver-phone")
+	require.Len(t, toDriver, 1)
+	assert.Equal(t, "request.route_changed", toDriver[0].Data["type"])
+	assert.Equal(t, "7", toDriver[0].Data["version"])
+	assert.Empty(t, pushesTo(push, "customer-phone"), "the customer made the change")
+	assert.Len(t, account.itemsOf(driver), 1)
+	assert.Contains(t, notifications.RequestBindingKeys(), events.RoutingKey(events.RouteChanged, 1))
+}
+
+func TestTheDriverKeepsAccountNoticesInTheInbox(t *testing.T) {
+	_, driver, push, account, notifier := driverSetup()
+	expires := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, events.ProviderReviewV1{Type: events.ProviderApproved, ProviderID: driver})))
+	require.NoError(t, notifier.OnEvent(context.Background(), requestEnvelope(t, events.ProviderVerificationReminderV1{ProviderID: driver, Kind: entities.ReminderDocumentExpiry, DocumentType: "driver_license", ExpiresOn: &expires})))
+
+	items := account.itemsOf(driver)
+	require.Len(t, items, 2)
+	assert.Equal(t, "Conta aprovada", items[0].Title)
+	assert.Contains(t, items[1].Body, "01/12/2026")
+	assert.Len(t, pushesTo(push, "driver-phone"), 2)
 }

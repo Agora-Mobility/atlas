@@ -309,10 +309,28 @@ func (r *DeviceRepository) Contact(ctx context.Context, userID uuid.UUID) (name,
 func (r *DeviceRepository) RecordNotification(ctx context.Context, record repository.NotificationRecord) error {
 	err := postgres.Queries(ctx, r.pool).RecordNotification(ctx, gen.RecordNotificationParams{
 		UserID: record.UserID, Channel: record.Channel, Template: record.Template, Status: record.Status,
-		ProviderMessageID: record.ProviderMessageID, Error: record.Error,
+		ProviderMessageID: record.ProviderMessageID, Error: record.Error, DeliveryKey: optionalText(record.DeliveryKey),
 	})
 	if err != nil {
 		return fmt.Errorf("record notification: %w", err)
 	}
 	return nil
+}
+
+func (r *DeviceRepository) Delivered(ctx context.Context, deliveryKey string) (bool, error) {
+	if deliveryKey == "" {
+		return false, nil
+	}
+	delivered, err := postgres.Queries(ctx, r.pool).NotificationDelivered(ctx, &deliveryKey)
+	if err != nil {
+		return false, fmt.Errorf("check notification delivery: %w", err)
+	}
+	return delivered, nil
+}
+
+func optionalText(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }

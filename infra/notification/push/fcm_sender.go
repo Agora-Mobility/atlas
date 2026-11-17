@@ -75,7 +75,36 @@ type fcmResponse struct {
 	Error struct {
 		Status  string `json:"status"`
 		Message string `json:"message"`
+		Details []struct {
+			ErrorCode string `json:"errorCode"`
+		} `json:"details"`
 	} `json:"error"`
+}
+
+func (r fcmResponse) errorCode() string {
+	for _, detail := range r.Error.Details {
+		if detail.ErrorCode != "" {
+			return detail.ErrorCode
+		}
+	}
+	return r.Error.Status
+}
+
+var (
+	deadTokenCodes = map[string]bool{"UNREGISTERED": true, "SENDER_ID_MISMATCH": true}
+	rejectedCodes  = map[string]bool{"INVALID_ARGUMENT": true, "THIRD_PARTY_AUTH_ERROR": true, "PERMISSION_DENIED": true}
+)
+
+func failureOf(status int, parsed fcmResponse) error {
+	code := parsed.errorCode()
+	switch {
+	case deadTokenCodes[code] || status == http.StatusNotFound:
+		return fmt.Errorf("%w: %s", services.ErrPushTokenInvalid, code)
+	case rejectedCodes[code]:
+		return fmt.Errorf("%w: fcm answered %d %s: %s", services.ErrPushRejected, status, code, parsed.Error.Message)
+	default:
+		return fmt.Errorf("fcm answered %d %s: %s", status, code, parsed.Error.Message)
+	}
 }
 
 func (s *FCMSender) Send(ctx context.Context, message services.PushMessage) (string, error) {
@@ -106,10 +135,7 @@ func (s *FCMSender) Send(ctx context.Context, message services.PushMessage) (str
 		return "", fmt.Errorf("decode fcm response: %w", err)
 	}
 	if res.StatusCode >= http.StatusBadRequest {
-		if parsed.Error.Status == "UNREGISTERED" || res.StatusCode == http.StatusNotFound {
-			return "", services.ErrPushTokenInvalid
-		}
-		return "", fmt.Errorf("fcm answered %d %s", res.StatusCode, parsed.Error.Status)
+		return "", failureOf(res.StatusCode, parsed)
 	}
 	return parsed.Name, nil
 }
