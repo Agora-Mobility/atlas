@@ -184,3 +184,18 @@ func TestSOSReachesTheOperatorAndStaysUntilResolved(t *testing.T) {
 	assert.Equal(t, "SOS_NOT_FOUND", admin.post(t, "/api/v1/admin/sos/"+raised.str("id")+"/resolve", nil).code())
 	assert.NotContains(t, admin.get(t, "/api/v1/admin/sos?status=open").text, raised.str("id"))
 }
+
+func TestTheCustomerSeesTheAvatarOfTheDriver(t *testing.T) {
+	customer, driver, id := assignedTaxi(t)
+	path := "/api/v1/requests/" + id
+	before := customer.get(t, path)
+	require.Equal(t, http.StatusOK, before.status, before.text)
+	assert.NotContains(t, before.body["provider"], "avatar_url", "no avatar yet")
+
+	set := driver.do(t, http.MethodPut, "/api/v1/users/me/avatar", map[string]string{"photo_id": uploadPhoto(t, driver)}, nil)
+	require.Equal(t, http.StatusOK, set.status, set.text)
+
+	after := customer.get(t, path)
+	require.Equal(t, http.StatusOK, after.status, after.text)
+	assert.NotEmpty(t, after.body["provider"].(map[string]any)["avatar_url"])
+}
