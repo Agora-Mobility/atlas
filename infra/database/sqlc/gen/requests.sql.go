@@ -163,7 +163,9 @@ func (q *Queries) ActiveRequestOfProvider(ctx context.Context, providerID *uuid.
 
 const countAdminRequests = `-- name: CountAdminRequests :one
 SELECT count(*) FROM service_requests r
+JOIN users cu ON cu.id = r.customer_id
 LEFT JOIN request_trip_metrics tm ON tm.request_id = r.id
+LEFT JOIN vehicles v ON v.provider_id = r.provider_id
 WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($2::text = '' OR r.category_slug = $2::text)
   AND ($3::uuid IS NULL OR r.service_id = $3)
@@ -173,6 +175,11 @@ WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($7::timestamptz IS NULL OR r.created_at >= $7)
   AND ($8::timestamptz IS NULL OR r.created_at < $8)
   AND (NOT $9::boolean OR tm.needs_review)
+  AND ($10::text = ''
+       OR r.public_code ILIKE $10::text
+       OR cu.name ILIKE $10::text
+       OR ($11::text <> '' AND cu.phone LIKE $11::text)
+       OR ($12::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $12::text))
 `
 
 type CountAdminRequestsParams struct {
@@ -185,6 +192,9 @@ type CountAdminRequestsParams struct {
 	CreatedFrom    *time.Time `json:"created_from"`
 	CreatedTo      *time.Time `json:"created_to"`
 	RouteReview    bool       `json:"route_review"`
+	Search         string     `json:"search"`
+	SearchDigits   string     `json:"search_digits"`
+	SearchPlate    string     `json:"search_plate"`
 }
 
 func (q *Queries) CountAdminRequests(ctx context.Context, arg CountAdminRequestsParams) (int64, error) {
@@ -198,6 +208,9 @@ func (q *Queries) CountAdminRequests(ctx context.Context, arg CountAdminRequests
 		arg.CreatedFrom,
 		arg.CreatedTo,
 		arg.RouteReview,
+		arg.Search,
+		arg.SearchDigits,
+		arg.SearchPlate,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -1017,7 +1030,7 @@ func (q *Queries) ListActiveRequestsOfCustomerService(ctx context.Context, arg L
 }
 
 const listAdminRequests = `-- name: ListAdminRequests :many
-SELECT r.id, r.status, r.version, r.category_slug, c.name AS category_name, r.service_id, s.name AS service_name, r.customer_id, cu.name AS customer_name,
+SELECT r.id, r.public_code, r.status, r.version, r.category_slug, c.name AS category_name, r.service_id, s.name AS service_name, r.customer_id, cu.name AS customer_name,
        r.provider_id, pu.name AS provider_name, r.organization_id, o.name AS organization_name, r.zone_id, z.name AS zone_name, r.fare_cents, r.currency,
        r.needs_operator, r.scheduled_for, r.created_at, r.completed_at, pa.line AS pickup_line, pa.lat AS pickup_lat, pa.lng AS pickup_lng, da.line AS destination_line,
        tm.distance_deviation_bps, COALESCE(tm.needs_review, false)::boolean AS route_review
@@ -1031,6 +1044,7 @@ LEFT JOIN addresses da ON da.id = r.destination_address_id
 LEFT JOIN users pu ON pu.id = r.provider_id
 LEFT JOIN organizations o ON o.id = r.organization_id
 LEFT JOIN request_trip_metrics tm ON tm.request_id = r.id
+LEFT JOIN vehicles v ON v.provider_id = r.provider_id
 WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($2::text = '' OR r.category_slug = $2::text)
   AND ($3::uuid IS NULL OR r.service_id = $3)
@@ -1040,8 +1054,19 @@ WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($7::timestamptz IS NULL OR r.created_at >= $7)
   AND ($8::timestamptz IS NULL OR r.created_at < $8)
   AND (NOT $9::boolean OR tm.needs_review)
-ORDER BY r.created_at DESC
-LIMIT $11 OFFSET $10
+  AND ($10::text = ''
+       OR r.public_code ILIKE $10::text
+       OR cu.name ILIKE $10::text
+       OR ($11::text <> '' AND cu.phone LIKE $11::text)
+       OR ($12::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $12::text))
+ORDER BY
+  CASE WHEN $13::text = 'created_at' THEN r.created_at END ASC,
+  CASE WHEN $13::text = 'scheduled_for' THEN r.scheduled_for END ASC NULLS LAST,
+  CASE WHEN $13::text = '-scheduled_for' THEN r.scheduled_for END DESC NULLS LAST,
+  CASE WHEN $13::text = 'fare_cents' THEN r.fare_cents END ASC NULLS LAST,
+  CASE WHEN $13::text = '-fare_cents' THEN r.fare_cents END DESC NULLS LAST,
+  r.created_at DESC, r.id DESC
+LIMIT $15 OFFSET $14
 `
 
 type ListAdminRequestsParams struct {
@@ -1054,12 +1079,17 @@ type ListAdminRequestsParams struct {
 	CreatedFrom    *time.Time `json:"created_from"`
 	CreatedTo      *time.Time `json:"created_to"`
 	RouteReview    bool       `json:"route_review"`
+	Search         string     `json:"search"`
+	SearchDigits   string     `json:"search_digits"`
+	SearchPlate    string     `json:"search_plate"`
+	Sort           string     `json:"sort"`
 	PageOffset     int32      `json:"page_offset"`
 	PageLimit      int32      `json:"page_limit"`
 }
 
 type ListAdminRequestsRow struct {
 	ID                   uuid.UUID  `json:"id"`
+	PublicCode           string     `json:"public_code"`
 	Status               string     `json:"status"`
 	Version              int32      `json:"version"`
 	CategorySlug         string     `json:"category_slug"`
@@ -1099,6 +1129,10 @@ func (q *Queries) ListAdminRequests(ctx context.Context, arg ListAdminRequestsPa
 		arg.CreatedFrom,
 		arg.CreatedTo,
 		arg.RouteReview,
+		arg.Search,
+		arg.SearchDigits,
+		arg.SearchPlate,
+		arg.Sort,
 		arg.PageOffset,
 		arg.PageLimit,
 	)
@@ -1111,6 +1145,7 @@ func (q *Queries) ListAdminRequests(ctx context.Context, arg ListAdminRequestsPa
 		var i ListAdminRequestsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.PublicCode,
 			&i.Status,
 			&i.Version,
 			&i.CategorySlug,

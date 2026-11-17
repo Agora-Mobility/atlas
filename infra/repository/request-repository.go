@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -264,16 +266,17 @@ func emptyStatuses(statuses []string) []string {
 func (r *RequestRepository) AdminList(ctx context.Context, f repository.AdminRequestFilter) ([]repository.AdminRequest, int64, error) {
 	queries := postgres.Queries(ctx, r.pool)
 	statuses := emptyStatuses(f.Statuses)
+	search := newRequestSearch(f.Search)
 	rows, err := queries.ListAdminRequests(ctx, gen.ListAdminRequestsParams{
 		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
-		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
+		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview, Search: search.text, SearchDigits: search.digits, SearchPlate: search.plate, Sort: f.Sort, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list admin requests: %w", err)
 	}
 	total, err := queries.CountAdminRequests(ctx, gen.CountAdminRequestsParams{
 		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
-		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview,
+		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview, Search: search.text, SearchDigits: search.digits, SearchPlate: search.plate,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count admin requests: %w", err)
@@ -282,7 +285,7 @@ func (r *RequestRepository) AdminList(ctx context.Context, f repository.AdminReq
 	for i := range rows {
 		row := &rows[i]
 		item := repository.AdminRequest{
-			ID: row.ID, Status: row.Status, Version: int(row.Version), Category: row.CategorySlug, CategoryName: row.CategoryName, ServiceID: row.ServiceID, ServiceName: row.ServiceName,
+			ID: row.ID, Code: row.PublicCode, Status: row.Status, Version: int(row.Version), Category: row.CategorySlug, CategoryName: row.CategoryName, ServiceID: row.ServiceID, ServiceName: row.ServiceName,
 			CustomerID: row.CustomerID, CustomerName: row.CustomerName, ProviderID: row.ProviderID, OrganizationID: row.OrganizationID, ZoneID: row.ZoneID, ZoneName: row.ZoneName,
 			FareCents: row.FareCents, Currency: row.Currency, NeedsOperator: row.NeedsOperator, ScheduledFor: row.ScheduledFor, CreatedAt: row.CreatedAt, CompletedAt: row.CompletedAt,
 			PickupLine: row.PickupLine, PickupLat: row.PickupLat, PickupLng: row.PickupLng, RouteReview: row.RouteReview,
@@ -597,4 +600,38 @@ func cellOrZero(cell *int64) int64 {
 		return 0
 	}
 	return *cell
+}
+
+type requestSearch struct {
+	text, digits, plate string
+}
+
+func newRequestSearch(raw string) requestSearch {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return requestSearch{}
+	}
+	keep := func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return unicode.ToUpper(r)
+		}
+		return -1
+	}
+	search := requestSearch{text: "%" + escapeLike(raw) + "%"}
+	if digits := strings.Map(func(r rune) rune {
+		if unicode.IsDigit(r) {
+			return r
+		}
+		return -1
+	}, raw); digits != "" {
+		search.digits = "%" + digits + "%"
+	}
+	if plate := strings.Map(keep, raw); plate != "" {
+		search.plate = "%" + plate + "%"
+	}
+	return search
+}
+
+func escapeLike(text string) string {
+	return strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(text)
 }

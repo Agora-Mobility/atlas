@@ -266,6 +266,9 @@ definitions:
         type: string
       category_name:
         type: string
+      code:
+        example: TX-10001
+        type: string
       completed_at:
         type: string
       created_at:
@@ -8020,8 +8023,10 @@ paths:
   /api/v1/admin/requests:
     get:
       description: Requires requests:read. Every category is here; filter by category
-        to see one segment, such as taxi, towing, removals or maintenance. Newest
-        first.
+        to see one segment, such as taxi, towing, removals or maintenance. search
+        finds a request by its code (TX-10001), the name or phone of the customer,
+        or the plate of the provider, ignoring case, spaces and dashes. Newest first
+        unless sort says otherwise.
       parameters:
       - description: One status or several separated by commas
         in: query
@@ -8060,6 +8065,15 @@ paths:
         in: query
         name: route_review
         type: boolean
+      - description: Code, customer name or phone, provider plate
+        in: query
+        name: search
+        type: string
+      - description: created_at, -created_at (default), scheduled_for, -scheduled_for,
+          fare_cents or -fare_cents
+        in: query
+        name: sort
+        type: string
       - description: Page
         in: query
         name: page
