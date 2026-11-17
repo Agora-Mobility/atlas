@@ -259,6 +259,18 @@ func itemsForProperty(items, properties []dtos.RemovalOption, property string) (
 	return out, nil
 }
 
+func withEveryProperty(items, properties []dtos.RemovalOption) {
+	every := make([]string, 0, len(properties))
+	for i := range properties {
+		every = append(every, properties[i].Code)
+	}
+	for i := range items {
+		if len(items[i].Properties) == 0 {
+			items[i].Properties = every
+		}
+	}
+}
+
 func (u *Usecase) removalList(ctx context.Context, kind entities.CatalogKind) ([]dtos.RemovalOption, error) {
 	items, err := u.Reference.Items(ctx, kind, removalsSlug, false)
 	if err != nil {
@@ -292,6 +304,7 @@ func (u *Usecase) RemovalOptions(ctx context.Context, property string) (*dtos.Re
 	if view.Items, err = itemsForProperty(view.Items, view.Properties, property); err != nil {
 		return nil, err
 	}
+	withEveryProperty(view.Items, view.Properties)
 	if view.CustomSizes, err = u.customSizes(ctx); err != nil {
 		return nil, err
 	}

@@ -310,7 +310,7 @@ func (c *DispatchController) ResolveSOS(ctx *gin.Context) {
 // RemovalOptions godoc
 //
 //	@Summary		Catalog of a removal
-//	@Description	Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. With property, only the items of that type of property come back; an item without properties fits every type. custom_sizes holds the volume of each size of an item the customer adds by hand.
+//	@Description	Items by room with volume, vehicles, extras, arrival windows, property types, helper price and informative insurance. Everything is managed in the backoffice. Every item lists in properties the types of property it fits; an item that fits every type lists them all. With property, only the items of that type come back. custom_sizes holds the volume of each size of an item the customer adds by hand.
 //	@Tags			Removals
 //	@Produce		json
 //	@Param			property	query		string	false	"Code of a removal_property, such as home or office"
@@ -335,12 +335,12 @@ func (c *DispatchController) RemovalOptions(ctx *gin.Context) {
 //	@Param			days		query		int		false	"Number of days, default 1, at most 62"
 //	@Param			lat			query		number	false	"Pickup latitude"
 //	@Param			lng			query		number	false	"Pickup longitude"
-//	@Success	200			{object}	dtos.RemovalCalendar
-//	@Failure	400			{object}	shared.ErrorResponse
-//	@Failure	404			{object}	shared.ErrorResponse
-//	@Security	BearerAuth
-//	@Security	ClientId
-//	@Router		/api/v1/removals/availability [get]
+//	@Success		200			{object}	dtos.RemovalCalendar
+//	@Failure		400			{object}	shared.ErrorResponse
+//	@Failure		404			{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/removals/availability [get]
 func (c *DispatchController) RemovalCalendar(ctx *gin.Context) {
 	vehicleID, err := uuid.Parse(ctx.Query("vehicle_id"))
 	if err != nil {

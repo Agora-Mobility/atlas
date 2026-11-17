@@ -170,6 +170,18 @@ func TestRemovalItemsAreFilteredByTheTypeOfProperty(t *testing.T) {
 	assert.NotContains(t, office, "bed", "a bed belongs to a home")
 	assert.Equal(t, "REMOVAL_PROPERTY_NOT_FOUND", customer.get(t, "/api/v1/removals/options?property=castelo").code())
 
+	properties := map[string][]any{}
+	for _, item := range customer.get(t, "/api/v1/removals/options").body["items"].([]any) {
+		entry := item.(map[string]any)
+		list, _ := entry["properties"].([]any)
+		properties[entry["code"].(string)] = list
+	}
+	for code, list := range properties {
+		assert.NotEmpty(t, list, "item %s says the types it fits", code)
+	}
+	assert.ElementsMatch(t, []any{"home", "office"}, properties["box"], "an item of every type lists them all")
+	assert.Equal(t, []any{"home"}, properties["bed"])
+
 	admin := staffToken(t)
 	backoffice := removalItemCodes(t, admin.get(t, "/api/v1/admin/catalog/removal_item?property=office"))
 	assert.NotContains(t, backoffice, "bed", "the backoffice filters on the server too")

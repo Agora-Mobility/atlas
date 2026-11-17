@@ -3986,6 +3986,7 @@ definitions:
         enum:
         - free
         - full
+        - closed
         type: string
       windows:
         items:
@@ -14429,6 +14430,10 @@ paths:
       - Ratings
   /api/v1/removals/availability:
     get:
+      description: Only windows that have not started yet come back. A day with none
+        left, such as a past day or today after the last window, is closed. lat and
+        lng of the pickup choose the time zone; without them, or outside every zone,
+        the first active zone decides.
       parameters:
       - description: Vehicle of the catalog
         in: query
@@ -14444,6 +14449,14 @@ paths:
         in: query
         name: days
         type: integer
+      - description: Pickup latitude
+        in: query
+        name: lat
+        type: number
+      - description: Pickup longitude
+        in: query
+        name: lng
+        type: number
       produces:
       - application/json
       responses:
@@ -14469,9 +14482,10 @@ paths:
     get:
       description: Items by room with volume, vehicles, extras, arrival windows, property
         types, helper price and informative insurance. Everything is managed in the
-        backoffice. With property, only the items of that type of property come back;
-        an item without properties fits every type. custom_sizes holds the volume
-        of each size of an item the customer adds by hand.
+        backoffice. Every item lists in properties the types of property it fits;
+        an item that fits every type lists them all. With property, only the items
+        of that type come back. custom_sizes holds the volume of each size of an item
+        the customer adds by hand.
       parameters:
       - description: Code of a removal_property, such as home or office
         in: query
