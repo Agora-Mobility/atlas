@@ -58,7 +58,7 @@ func (u *Usecase) SendMessage(ctx context.Context, userID, requestID uuid.UUID, 
 		if err != nil {
 			return nil, err
 		}
-		if reply == nil || reply.Kind != entities.CatalogQuickReply || !reply.IsActive {
+		if reply == nil || !reply.IsQuickReplyOf(sender) {
 			return nil, entities.ErrCatalogItemNotFound
 		}
 		body = reply.Label
@@ -114,7 +114,7 @@ func (u *Usecase) QuickReplies(ctx context.Context, actor string) (*dtos.QuickRe
 	}
 	list := &dtos.QuickReplyList{Items: []dtos.QuickReplyView{}}
 	for i := range items {
-		if strings.Contains(string(items[i].Attrs), `"`+actor+`"`) {
+		if items[i].IsQuickReplyOf(actor) {
 			list.Items = append(list.Items, dtos.QuickReplyView{ID: items[i].ID, Label: items[i].Label})
 		}
 	}
