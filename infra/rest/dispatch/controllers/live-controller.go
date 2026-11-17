@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/rest/binding"
 	"github.com/Agora-Mobility/atlas/shared"
@@ -325,12 +326,15 @@ func (c *DispatchController) RemovalOptions(ctx *gin.Context) {
 
 // RemovalCalendar godoc
 //
-//	@Summary	Free and full days of a vehicle
-//	@Tags		Removals
-//	@Produce	json
-//	@Param		vehicle_id	query		string	true	"Vehicle of the catalog"
-//	@Param		from		query		string	true	"First day, YYYY-MM-DD"
-//	@Param		days		query		int		false	"Number of days, default 1, at most 62"
+//	@Summary		Free and full days of a vehicle
+//	@Description	Only windows that have not started yet come back. A day with none left, such as a past day or today after the last window, is closed. lat and lng of the pickup choose the time zone; without them, or outside every zone, the first active zone decides.
+//	@Tags			Removals
+//	@Produce		json
+//	@Param			vehicle_id	query		string	true	"Vehicle of the catalog"
+//	@Param			from		query		string	true	"First day, YYYY-MM-DD"
+//	@Param			days		query		int		false	"Number of days, default 1, at most 62"
+//	@Param			lat			query		number	false	"Pickup latitude"
+//	@Param			lng			query		number	false	"Pickup longitude"
 //	@Success	200			{object}	dtos.RemovalCalendar
 //	@Failure	400			{object}	shared.ErrorResponse
 //	@Failure	404			{object}	shared.ErrorResponse
@@ -350,7 +354,11 @@ func (c *DispatchController) RemovalCalendar(ctx *gin.Context) {
 			return
 		}
 	}
-	view, err := c.dispatch.RemovalCalendar(ctx.Request.Context(), vehicleID, ctx.Query("from"), days)
+	near, ok := optionalPoint(ctx)
+	if !ok {
+		return
+	}
+	view, err := c.dispatch.RemovalCalendar(ctx.Request.Context(), vehicleID, ctx.Query("from"), days, near)
 	respond(ctx, http.StatusOK, view, err)
 }
 
@@ -418,4 +426,17 @@ func (c *DispatchController) SetTeamAsPartner(ctx *gin.Context) {
 	}
 	view, err := c.dispatch.SetTeamAsPartner(ctx.Request.Context(), access.OrganizationID, id, in)
 	respond(ctx, http.StatusOK, view, err)
+}
+
+func optionalPoint(ctx *gin.Context) (*entities.GeoPoint, bool) {
+	if ctx.Query("lat") == "" && ctx.Query("lng") == "" {
+		return nil, true
+	}
+	lat, latErr := strconv.ParseFloat(ctx.Query("lat"), 64)
+	lng, lngErr := strconv.ParseFloat(ctx.Query("lng"), 64)
+	if latErr != nil || lngErr != nil {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "lat and lng go together.")
+		return nil, false
+	}
+	return &entities.GeoPoint{Lat: lat, Lng: lng}, true
 }
