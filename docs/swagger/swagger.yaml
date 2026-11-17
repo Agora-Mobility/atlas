@@ -3385,6 +3385,9 @@ definitions:
     type: object
   dtos.ProviderSummary:
     properties:
+      avatar_url:
+        example: https://files.agora.ao/avatars/1.jpg?X-Amz-Signature=...
+        type: string
       completed_requests:
         type: integer
       id:

@@ -191,6 +191,7 @@ type FareEstimateList struct {
 type ProviderSummary struct {
 	ID                 uuid.UUID `json:"id"`
 	Name               string    `json:"name"`
+	AvatarURL          string    `json:"avatar_url,omitempty" example:"https://files.agora.ao/avatars/1.jpg?X-Amz-Signature=..."`
 	VehiclePlate       string    `json:"vehicle_plate,omitempty"`
 	VehicleDescription string    `json:"vehicle_description,omitempty"`
 	Rating             float64   `json:"rating"`
