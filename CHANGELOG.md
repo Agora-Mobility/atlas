@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.5.0](https://github.com/Agora-Mobility/atlas/compare/v3.4.0...v3.5.0) (2026-11-17)
+
+
+### Features
+
+* **notifications:** tell the driver about cancellations, assignments and route changes ([28271f2](https://github.com/Agora-Mobility/atlas/commit/28271f243149a377e9aedd6dc0a3cb4edebff96d))
+* **payments:** turn off digital payments and cancellation fees for customers ([b853bea](https://github.com/Agora-Mobility/atlas/commit/b853bea7a3986e918c4e68c9c4d27dca0d8f6533))
+
+
+### Bug Fixes
+
+* **bookings:** default the payment method to cash ([24c8d44](https://github.com/Agora-Mobility/atlas/commit/24c8d44310fd90403f0fff0e2c031095e694691a))
+* **deps:** restore go.sum after the aws-sdk dependabot merges ([49f91b0](https://github.com/Agora-Mobility/atlas/commit/49f91b0fbf9f566e0f74888dd5231874ca6b1e9c))
+* **notifications:** no repeated SMS, and the driver notifications that were missing ([a0227b3](https://github.com/Agora-Mobility/atlas/commit/a0227b3d4c6a24295d9658f616abe29cb05f879a))
+* **notifications:** send each push and SMS once per event ([3475a8d](https://github.com/Agora-Mobility/atlas/commit/3475a8d0380334caac89e4296fe5e9d52fb108bf))
+* **payments:** stop blocking new requests on unpaid ones ([dd47c88](https://github.com/Agora-Mobility/atlas/commit/dd47c883e3ffee7e24bda3668381ae8017831f4e))
+* **push:** stop retrying pushes that FCM rejects for good ([1fc3b4d](https://github.com/Agora-Mobility/atlas/commit/1fc3b4d7250d16a6faffee1672f9036cff7e2aed))
+
 ## [3.4.0](https://github.com/Agora-Mobility/atlas/compare/v3.3.0...v3.4.0) (2026-11-16)
 
 
