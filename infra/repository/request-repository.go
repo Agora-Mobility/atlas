@@ -268,14 +268,14 @@ func (r *RequestRepository) AdminList(ctx context.Context, f repository.AdminReq
 	statuses := emptyStatuses(f.Statuses)
 	search := newRequestSearch(f.Search)
 	rows, err := queries.ListAdminRequests(ctx, gen.ListAdminRequestsParams{
-		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
+		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID, CustomerID: f.CustomerID,
 		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview, Search: search.text, SearchDigits: search.digits, SearchPlate: search.plate, Sort: f.Sort, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list admin requests: %w", err)
 	}
 	total, err := queries.CountAdminRequests(ctx, gen.CountAdminRequestsParams{
-		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
+		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID, CustomerID: f.CustomerID,
 		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview, Search: search.text, SearchDigits: search.digits, SearchPlate: search.plate,
 	})
 	if err != nil {

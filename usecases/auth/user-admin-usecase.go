@@ -38,6 +38,7 @@ type UserAdminUsecase struct {
 	outboxRepo repository.IOutboxRepository
 	auditRepo  repository.IAuditLogRepository
 	reasonRepo repository.IBlockReasonRepository
+	activity   repository.IActivityRepository
 	txManager  repository.ITransactionManager
 	revoker    *SessionRevoker
 	passwords  passwordReplacer
@@ -48,6 +49,7 @@ func NewUserAdminUsecase(
 	outboxRepo repository.IOutboxRepository,
 	auditRepo repository.IAuditLogRepository,
 	reasonRepo repository.IBlockReasonRepository,
+	activity repository.IActivityRepository,
 	txManager repository.ITransactionManager,
 	hasher services.IPasswordHasher,
 	revoker *SessionRevoker,
@@ -57,6 +59,7 @@ func NewUserAdminUsecase(
 		outboxRepo: outboxRepo,
 		auditRepo:  auditRepo,
 		reasonRepo: reasonRepo,
+		activity:   activity,
 		txManager:  txManager,
 		revoker:    revoker,
 		passwords:  passwordReplacer{userRepo: userRepo, revoker: revoker, txManager: txManager, hasher: hasher},
@@ -70,29 +73,56 @@ func (uc *UserAdminUsecase) List(ctx context.Context, query dtos.UserListQuery) 
 	}
 	params := pagination.Params{Page: query.Page, Size: query.Size}
 	users, total, err := uc.userRepo.List(ctx, repository.UserFilter{
-		Roles:  roles,
-		Status: query.Status,
-		Search: query.Search,
+		Roles:    roles,
+		Status:   query.Status,
+		Search:   query.Search,
+		Category: query.Category,
 	}, params)
 	if err != nil {
 		return nil, err
 	}
 
-	views := make([]dtos.UserView, 0, len(users))
-	for _, u := range users {
-		views = append(views, dtos.ToUserView(u))
+	views, err := uc.accountViews(ctx, users)
+	if err != nil {
+		return nil, err
 	}
 	page := pagination.NewPage(views, params, total)
 	return &dtos.UserPage{Items: page.Items, Page: page.Page, Size: page.Size, Total: page.Total, TotalPages: page.TotalPages}, nil
 }
 
-func (uc *UserAdminUsecase) Get(ctx context.Context, userID uuid.UUID) (*dtos.UserView, error) {
+func (uc *UserAdminUsecase) Get(ctx context.Context, userID uuid.UUID) (*dtos.AccountView, error) {
 	user, err := uc.appAccount(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	view := dtos.ToUserView(user)
-	return &view, nil
+	views, err := uc.accountViews(ctx, []*entities.User{user})
+	if err != nil {
+		return nil, err
+	}
+	return &views[0], nil
+}
+
+func (uc *UserAdminUsecase) accountViews(ctx context.Context, users []*entities.User) ([]dtos.AccountView, error) {
+	ids := make([]uuid.UUID, 0, len(users))
+	for _, u := range users {
+		ids = append(ids, u.ID)
+	}
+	activity, err := uc.activity.Activity(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]dtos.AccountView, 0, len(users))
+	for _, u := range users {
+		a := activity[u.ID]
+		view := dtos.AccountView{
+			UserView: dtos.ToUserView(u), CompletedRequests: a.CompletedRequests, CancelledRequests: a.CancelledRequests, LastRequestAt: a.LastRequestAt,
+		}
+		if u.Role == enums.RoleProvider {
+			view.ProviderCategory, view.ProviderCategoryName = a.CategorySlug, a.CategoryName
+		}
+		views = append(views, view)
+	}
+	return views, nil
 }
 
 func (uc *UserAdminUsecase) ListBlockReasons(ctx context.Context) (*dtos.BlockReasonList, error) {

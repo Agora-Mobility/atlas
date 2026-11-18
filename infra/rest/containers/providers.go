@@ -27,19 +27,20 @@ func newObjectStorage(cfg config.R2Config) services.IObjectStorage {
 
 func newProvidersModule(c *Container, storage services.IObjectStorage) *ProvidersModule {
 	uc := providers.NewUsecase(providers.Deps{
-		Users:     repository.NewUserRepository(c.Pool),
-		Providers: repository.NewProviderRepository(c.Pool),
-		Documents: repository.NewProviderDocumentRepository(c.Pool),
-		Requests:  repository.NewRequestRepository(c.Pool),
-		Locator:   c.Dispatch.Locator,
-		Outbox:    c.Outbox,
-		Audit:     repository.NewAuditLogRepository(c.Pool),
-		Tx:        c.TxManager,
-		Codes:     c.Auth.CodeSender,
-		Storage:   storage,
-		Approvals: c.Verification.Usecase,
-		Settings:  providers.Settings{MaxFileBytes: c.Config.Verify.MaxFileBytes},
-		Business:  c.Business,
+		Users:         repository.NewUserRepository(c.Pool),
+		Providers:     repository.NewProviderRepository(c.Pool),
+		Documents:     repository.NewProviderDocumentRepository(c.Pool),
+		Requests:      repository.NewRequestRepository(c.Pool),
+		Locator:       c.Dispatch.Locator,
+		Outbox:        c.Outbox,
+		Audit:         repository.NewAuditLogRepository(c.Pool),
+		Tx:            c.TxManager,
+		Codes:         c.Auth.CodeSender,
+		Storage:       storage,
+		Approvals:     c.Verification.Usecase,
+		Settings:      providers.Settings{MaxFileBytes: c.Config.Verify.MaxFileBytes},
+		Business:      c.Business,
+		ActivityStats: repository.NewActivityRepository(c.Pool),
 	})
 	return &ProvidersModule{
 		Usecase: uc,

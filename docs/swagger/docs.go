@@ -1819,7 +1819,7 @@ const docTemplate = `{
         },
         "/api/v1/admin/providers": {
             "get": {
-                "description": "Requires providers:read. Oldest submission first.",
+                "description": "Requires providers:read. Oldest submission first, or the one that earned the most with sort=earned_desc. Each provider has the requests assigned to them (completed and cancelled by anyone) and the rating; with finance:read also gross_cents, earned_cents and balance_cents since they joined.",
                 "produces": [
                     "application/json"
                 ],
@@ -1856,6 +1856,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Name, phone or plate",
                         "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "earned_desc (needs finance:read)",
+                        "name": "sort",
                         "in": "query"
                     },
                     {
@@ -1982,6 +1988,67 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Missing service_id or APPROVAL_REQUIREMENTS_NOT_MET",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/providers/{id}/activity": {
+            "get": {
+                "description": "Requires providers:read. The requests assigned to the provider (completed and cancelled by anyone), the last one and the rating. With finance:read also the money since they joined (total) and, when from or to is given, in [from, to) (period).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backoffice providers"
+                ],
+                "summary": "Get the activity of a provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User id of the provider",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "At or after, YYYY-MM-DD or RFC 3339",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Before, YYYY-MM-DD or RFC 3339",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderActivityView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -2466,6 +2533,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Provider",
                         "name": "provider_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Customer",
+                        "name": "customer_id",
                         "in": "query"
                     },
                     {
@@ -3336,7 +3409,7 @@ const docTemplate = `{
         },
         "/api/v1/admin/users": {
             "get": {
-                "description": "Requires users:read. Staff are managed as members.",
+                "description": "Requires users:read. Staff are managed as members. Each account has the category of the provider and its requests: completed and cancelled, made as a customer or done as a provider.",
                 "produces": [
                     "application/json"
                 ],
@@ -3364,6 +3437,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Status",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug of the provider (approved service, or the one asked for)",
+                        "name": "category",
                         "in": "query"
                     },
                     {
@@ -3429,7 +3508,7 @@ const docTemplate = `{
         },
         "/api/v1/admin/users/{id}": {
             "get": {
-                "description": "Requires users:read.",
+                "description": "Requires users:read. With the category of the provider and the requests of the account.",
                 "produces": [
                     "application/json"
                 ],
@@ -3450,7 +3529,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dtos.UserView"
+                            "$ref": "#/definitions/dtos.AccountView"
                         }
                     },
                     "400": {
@@ -16910,6 +16989,61 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.AccountView": {
+            "type": "object",
+            "properties": {
+                "cancelled_requests": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "completed_requests": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "has_password": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_verified": {
+                    "type": "boolean"
+                },
+                "last_login_at": {
+                    "type": "string"
+                },
+                "last_request_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "provider_category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "provider_category_name": {
+                    "type": "string",
+                    "example": "Táxi"
+                },
+                "role": {
+                    "$ref": "#/definitions/enums.Role"
+                },
+                "status": {
+                    "$ref": "#/definitions/enums.UserStatus"
+                }
+            }
+        },
         "dtos.ActiveState": {
             "type": "object",
             "properties": {
@@ -17292,6 +17426,29 @@ const docTemplate = `{
         "dtos.ApplicationView": {
             "type": "object",
             "properties": {
+                "balance_cents": {
+                    "type": "integer",
+                    "example": -120000
+                },
+                "cancelled_requests": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "completed_requests": {
+                    "type": "integer",
+                    "example": 40
+                },
+                "earned_cents": {
+                    "type": "integer",
+                    "example": 6800000
+                },
+                "gross_cents": {
+                    "type": "integer",
+                    "example": 8500000
+                },
+                "last_request_at": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -17303,6 +17460,14 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string"
+                },
+                "rating_avg": {
+                    "type": "number",
+                    "example": 4.8
+                },
+                "rating_count": {
+                    "type": "integer",
+                    "example": 31
                 },
                 "requested_service_id": {
                     "type": "string"
@@ -21732,6 +21897,36 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ProviderActivityView": {
+            "type": "object",
+            "properties": {
+                "cancelled_requests": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "completed_requests": {
+                    "type": "integer",
+                    "example": 40
+                },
+                "last_request_at": {
+                    "type": "string"
+                },
+                "period": {
+                    "$ref": "#/definitions/dtos.ProviderMoneyView"
+                },
+                "rating_avg": {
+                    "type": "number",
+                    "example": 4.8
+                },
+                "rating_count": {
+                    "type": "integer",
+                    "example": 31
+                },
+                "total": {
+                    "$ref": "#/definitions/dtos.ProviderMoneyView"
+                }
+            }
+        },
         "dtos.ProviderBalanceView": {
             "type": "object",
             "properties": {
@@ -21743,6 +21938,23 @@ const docTemplate = `{
                 },
                 "provider_id": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.ProviderMoneyView": {
+            "type": "object",
+            "properties": {
+                "balance_cents": {
+                    "type": "integer",
+                    "example": -120000
+                },
+                "earned_cents": {
+                    "type": "integer",
+                    "example": 6800000
+                },
+                "gross_cents": {
+                    "type": "integer",
+                    "example": 8500000
                 }
             }
         },
@@ -24786,7 +24998,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dtos.UserView"
+                        "$ref": "#/definitions/dtos.AccountView"
                     }
                 },
                 "page": {

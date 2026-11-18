@@ -36,7 +36,7 @@ var summaryKeys = map[string]summaryKey{
 func toRepositoryFilter(filter *dtos.AdminRequestFilter) repository.AdminRequestFilter {
 	return repository.AdminRequestFilter{
 		Statuses: filter.Statuses, Category: filter.Category, ServiceID: filter.ServiceID, ZoneID: filter.ZoneID, OrganizationID: filter.OrganizationID,
-		ProviderID: filter.ProviderID, From: filter.From, To: filter.To, RouteReview: filter.RouteReview, Search: filter.Search, Sort: filter.Sort,
+		ProviderID: filter.ProviderID, CustomerID: filter.CustomerID, From: filter.From, To: filter.To, RouteReview: filter.RouteReview, Search: filter.Search, Sort: filter.Sort,
 	}
 }
 

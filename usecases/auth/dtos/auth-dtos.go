@@ -148,11 +148,12 @@ type DeleteAccountInput struct {
 }
 
 type UserListQuery struct {
-	Role   enums.Role       `form:"role" binding:"omitempty,oneof=customer provider"`
-	Status enums.UserStatus `form:"status" binding:"omitempty,oneof=active inactive blocked"`
-	Search string           `form:"search" binding:"max=120"`
-	Page   int              `form:"page" binding:"omitempty,min=1"`
-	Size   int              `form:"size" binding:"omitempty,min=1,max=100"`
+	Role     enums.Role       `form:"role" binding:"omitempty,oneof=customer provider"`
+	Status   enums.UserStatus `form:"status" binding:"omitempty,oneof=active inactive blocked"`
+	Category string           `form:"category" binding:"max=40"`
+	Search   string           `form:"search" binding:"max=120"`
+	Page     int              `form:"page" binding:"omitempty,min=1"`
+	Size     int              `form:"size" binding:"omitempty,min=1,max=100"`
 }
 
 type BlockUserInput struct {
@@ -178,10 +179,22 @@ type ResetPasswordInput struct {
 	NewPassword string `json:"new_password" binding:"required" example:"N0vo!segredo"`
 }
 
+// AccountView is a customer or provider account as the backoffice shows it: the
+// account, the category of the provider and how much it uses the platform.
+// Requests count those made as a customer and those done as a provider.
+type AccountView struct {
+	UserView
+	ProviderCategory     string     `json:"provider_category,omitempty" example:"taxi"`
+	ProviderCategoryName string     `json:"provider_category_name,omitempty" example:"Táxi"`
+	CompletedRequests    int64      `json:"completed_requests" example:"12"`
+	CancelledRequests    int64      `json:"cancelled_requests" example:"1"`
+	LastRequestAt        *time.Time `json:"last_request_at,omitempty"`
+}
+
 type UserPage struct {
-	Items      []UserView `json:"items"`
-	Page       int        `json:"page"`
-	Size       int        `json:"size"`
-	Total      int64      `json:"total"`
-	TotalPages int64      `json:"total_pages"`
+	Items      []AccountView `json:"items"`
+	Page       int           `json:"page"`
+	Size       int           `json:"size"`
+	Total      int64         `json:"total"`
+	TotalPages int64         `json:"total_pages"`
 }

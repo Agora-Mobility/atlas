@@ -14,6 +14,7 @@ import (
 
 type Querier interface {
 	AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) error
+	AccountActivity(ctx context.Context, ids []uuid.UUID) ([]AccountActivityRow, error)
 	ActiveRequestOfCustomer(ctx context.Context, customerID uuid.UUID) (ServiceRequest, error)
 	ActiveRequestOfProvider(ctx context.Context, providerID *uuid.UUID) (ServiceRequest, error)
 	ActiveWorkshopVouchers(ctx context.Context, arg ActiveWorkshopVouchersParams) ([]Voucher, error)
@@ -347,6 +348,10 @@ type Querier interface {
 	// the age is the real delay the relay adds to every consumer.
 	OutboxPendingStats(ctx context.Context) (OutboxPendingStatsRow, error)
 	PendingCustomersByCell(ctx context.Context, arg PendingCustomersByCellParams) ([]PendingCustomersByCellRow, error)
+	ProviderCategories(ctx context.Context, ids []uuid.UUID) ([]ProviderCategoriesRow, error)
+	ProviderLedgerBalances(ctx context.Context, ids []uuid.UUID) ([]ProviderLedgerBalancesRow, error)
+	ProviderMoney(ctx context.Context, arg ProviderMoneyParams) ([]ProviderMoneyRow, error)
+	ProviderRatings(ctx context.Context, ids []uuid.UUID) ([]ProviderRatingsRow, error)
 	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)
 	ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithActiveJobParams) ([]uuid.UUID, error)
 	PurgeDemandSnapshots(ctx context.Context, recordedAt time.Time) (int64, error)
