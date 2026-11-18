@@ -39,6 +39,7 @@ func newProvidersModule(c *Container, storage services.IObjectStorage) *Provider
 		Storage:   storage,
 		Approvals: c.Verification.Usecase,
 		Settings:  providers.Settings{MaxFileBytes: c.Config.Verify.MaxFileBytes},
+		Business:  c.Business,
 	})
 	return &ProvidersModule{
 		Usecase: uc,

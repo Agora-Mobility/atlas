@@ -12,6 +12,7 @@ import (
 	"github.com/Agora-Mobility/atlas/domain/entities"
 	"github.com/Agora-Mobility/atlas/domain/events"
 	"github.com/Agora-Mobility/atlas/domain/repository"
+	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/shared/enums"
 	"github.com/Agora-Mobility/atlas/shared/pagination"
 	"github.com/Agora-Mobility/atlas/shared/phone"
@@ -53,6 +54,7 @@ type Deps struct {
 	Tx            repository.ITransactionManager
 	Codes         CodeSender
 	Profiles      *providers.Usecase
+	Business      services.IBusinessEvents
 }
 
 type Usecase struct {
@@ -200,6 +202,7 @@ func (u *Usecase) RegisterDriver(ctx context.Context, actor entities.Actor, orga
 		if err != nil {
 			return err
 		}
+		services.BusinessOrNoop(u.Business).UserRegistered(ctx, services.UserRegistration{UserID: user.ID, Role: string(user.Role), Channel: string(enums.ClientTypePartnerPanel)})
 		if err := u.Outbox.Save(ctx, envelope); err != nil {
 			return err
 		}

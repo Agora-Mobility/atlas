@@ -22,10 +22,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	promclient "github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel"
 
 	"github.com/Agora-Mobility/atlas/config"
 	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
+	"github.com/Agora-Mobility/atlas/infra/observability/business"
 	"github.com/Agora-Mobility/atlas/infra/observability/prometheus"
 	"github.com/Agora-Mobility/atlas/infra/observability/tracing"
 	"github.com/Agora-Mobility/atlas/infra/rest"
@@ -81,6 +84,21 @@ func run() error {
 	if cfg.Telemetry.TracingEnabled() {
 		logger.Info("tracing enabled")
 	}
+
+	// Business metrics use the OpenTelemetry Metrics API and are served on
+	// /metrics next to the client_golang metrics.
+	meterProvider, err := business.NewMeterProvider(promclient.DefaultRegisterer)
+	if err != nil {
+		return err
+	}
+	otel.SetMeterProvider(meterProvider)
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := meterProvider.Shutdown(flushCtx); err != nil {
+			logger.Error("failed to stop the meter provider", err)
+		}
+	}()
 
 	if cfg.Database.MigrateOnStart {
 		if err := postgres.Migrate(cfg.Database.URL, "up"); err != nil {

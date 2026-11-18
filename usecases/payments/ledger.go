@@ -345,6 +345,7 @@ func (u *Usecase) Tip(ctx context.Context, customerID, requestID uuid.UUID, in d
 		if payment, err = entities.NewPayment(entities.NewPaymentInput{Request: request, Method: method, Phone: phone, Now: now, TipCents: in.AmountCents}); err != nil {
 			return err
 		}
+		u.business().PaymentCreated(ctx, paymentEvent(ctx, request, payment, sourceAPI, now))
 		created = true
 		in.PhoneNumber = phone
 		if method == entities.PaymentWallet {

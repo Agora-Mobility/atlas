@@ -19,7 +19,7 @@ outbox → RabbitMQ), not network calls.
 | Migrations     | golang-migrate (embedded, `cmd/migrate` binary)    |
 | Cache          | Redis (go-redis v9)                                |
 | Messaging      | RabbitMQ 4 (amqp091-go), quorum queues             |
-| Observability  | Prometheus + Grafana                               |
+| Observability  | Prometheus + Grafana (business metrics: `docs/business-observability.md`) |
 
 ## Architecture
 

@@ -25,6 +25,7 @@ func newFleetModule(c *Container) *FleetModule {
 		Tx:            c.TxManager,
 		Codes:         c.Auth.CodeSender,
 		Profiles:      c.Providers.Usecase,
+		Business:      c.Business,
 	})
 	return &FleetModule{Router: fleetrouter.NewRouter(controllers.NewFleetController(uc), c.Authenticator, c.Auth.Authorizer, c.ClientAuthorizer)}
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Agora-Mobility/atlas/infra/database/sqlc/gen"
 	"github.com/Agora-Mobility/atlas/shared/tenant"
+	"github.com/Agora-Mobility/atlas/shared/txhook"
 )
 
 type txKey struct{}
@@ -48,13 +49,18 @@ func (m *TxManager) WithinTransaction(ctx context.Context, fn func(ctx context.C
 		}
 	}()
 
+	// Functions queued with txhook.AfterCommit run only once the commit
+	// succeeds; a rollback drops them.
+	txCtx, hooks := txhook.WithHooks(context.WithValue(ctx, txKey{}, tx))
+
 	// err is the named result read by the deferred rollback; do not use :=.
-	if err = fn(context.WithValue(ctx, txKey{}, tx)); err != nil { //nolint:gocritic // see above
+	if err = fn(txCtx); err != nil { //nolint:gocritic // see above
 		return err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
 	}
+	hooks.Run()
 	return nil
 }
 

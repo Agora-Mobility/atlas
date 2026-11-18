@@ -1,0 +1,1710 @@
+{
+  "uid": "atlas-business",
+  "title": "Atlas – Negócio",
+  "description": "Business observability: pedidos, receita, pagamentos, funil e SLOs. Catálogo: atlas/docs/business-observability.md.",
+  "tags": [
+    "atlas",
+    "business"
+  ],
+  "schemaVersion": 39,
+  "editable": false,
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "1m",
+  "timezone": "Africa/Luanda",
+  "links": [
+    {
+      "title": "Overview",
+      "type": "link",
+      "url": "/d/atlas-overview",
+      "icon": "dashboard"
+    },
+    {
+      "title": "Dispatch",
+      "type": "link",
+      "url": "/d/atlas-dispatch",
+      "icon": "dashboard"
+    },
+    {
+      "title": "Logs",
+      "type": "link",
+      "url": "/d/atlas-logs",
+      "icon": "doc"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "name": "Deploy / reinício da API",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds_prometheus}"
+        },
+        "enable": true,
+        "iconColor": "purple",
+        "expr": "changes(process_start_time_seconds{job=~\"$job\"}[2m]) > 0",
+        "step": "1m",
+        "titleFormat": "API reiniciada",
+        "textFormat": "{{instance}}"
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "ds_prometheus",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {
+          "text": "Prometheus",
+          "value": "prometheus"
+        },
+        "hide": 0
+      },
+      {
+        "name": "ds_loki",
+        "label": "Loki",
+        "type": "datasource",
+        "query": "loki",
+        "current": {
+          "text": "Loki",
+          "value": "loki"
+        },
+        "hide": 0
+      },
+      {
+        "name": "job",
+        "label": "Serviço",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds_prometheus}"
+        },
+        "definition": "label_values(atlas_http_requests_total, job)",
+        "query": {
+          "query": "label_values(atlas_http_requests_total, job)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "refresh": 2,
+        "includeAll": false,
+        "multi": false,
+        "allValue": ".*",
+        "current": {
+          "text": "atlas-api",
+          "value": "atlas-api"
+        },
+        "sort": 1
+      },
+      {
+        "name": "category",
+        "label": "Categoria",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds_prometheus}"
+        },
+        "definition": "label_values(atlas_business_requests_created_total, category)",
+        "query": {
+          "query": "label_values(atlas_business_requests_created_total, category)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1
+      },
+      {
+        "name": "payment_method",
+        "label": "Método de pagamento",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds_prometheus}"
+        },
+        "definition": "label_values(atlas_business_payments_settled_total, payment_method)",
+        "query": {
+          "query": "label_values(atlas_business_payments_settled_total, payment_method)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1
+      },
+      {
+        "name": "channel",
+        "label": "Canal",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds_prometheus}"
+        },
+        "definition": "label_values(atlas_business_users_registered_total, channel)",
+        "query": {
+          "query": "label_values(atlas_business_users_registered_total, channel)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1
+      },
+      {
+        "name": "event",
+        "label": "Evento (logs)",
+        "type": "custom",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "query": "request_created,request_accepted,request_completed,request_cancelled,request_expired,payment_created,payment_paid,payment_failed,payment_expired,payment_duplicate,payment_refunded,user_registered,provider_reviewed,booking_confirmed,booking_cancelled,booking_completed",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Visão geral",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Pedidos/min",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_requests_created_total{category=~\"$category\", payment_method=~\"$payment_method\"}[5m])) * 60",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Pedidos criados por minuto (média de 5 min).",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "vs. semana passada",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": -0.4
+              },
+              {
+                "color": "green",
+                "value": -0.1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_requests_created_total{category=~\"$category\", payment_method=~\"$payment_method\"}[1h])) / sum(rate(atlas_business_requests_created_total{category=~\"$category\", payment_method=~\"$payment_method\"}[1h] offset 1w)) - 1",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Pedidos da última hora comparados com a mesma hora da semana anterior.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Receita/hora",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyAOA"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_payments_amount_sum{category=~\"$category\", payment_method=~\"$payment_method\"}[1h])) * 3600",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Receita bruta (pagamentos pagos) da última hora, em kwanzas.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Valor médio por serviço",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyAOA"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_requests_fare_sum{category=~\"$category\", payment_method=~\"$payment_method\"}[1h])) / sum(rate(atlas_business_requests_fare_count{category=~\"$category\", payment_method=~\"$payment_method\"}[1h]))",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Tarifa média dos pedidos concluídos na última hora.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Sucesso dos pagamentos",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.95
+              },
+              {
+                "color": "green",
+                "value": 0.995
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_payments_settled_total{category=~\"$category\", payment_method=~\"$payment_method\", gateway!=\"none\", status=\"paid\"}[1h])) / sum(rate(atlas_business_payments_settled_total{category=~\"$category\", payment_method=~\"$payment_method\", gateway!=\"none\", status=~\"paid|failed\"}[1h]))",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Pagamentos por gateway pagos / (pagos + falhados) na última hora. Expirados e duplicados ficam de fora.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Cancelamentos",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.15
+              },
+              {
+                "color": "red",
+                "value": 0.3
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(increase(atlas_business_requests_cancelled_total{category=~\"$category\"}[1h])) / sum(increase(atlas_business_requests_created_total{category=~\"$category\"}[1h]))",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Pedidos cancelados / criados na última hora.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Pedidos/min — agora e semana passada",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*semana passada.*"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (category) (rate(atlas_business_requests_created_total{category=~\"$category\", payment_method=~\"$payment_method\"}[5m])) * 60",
+          "legendFormat": "{{category}}",
+          "refId": "A",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_requests_created_total{category=~\"$category\", payment_method=~\"$payment_method\"}[5m] offset 1w)) * 60",
+          "legendFormat": "total (semana passada)",
+          "refId": "B",
+          "exemplar": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Receita/hora — agora e semana passada",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyAOA"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*semana passada.*"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (category) (rate(atlas_business_payments_amount_sum{category=~\"$category\", payment_method=~\"$payment_method\"}[1h])) * 3600",
+          "legendFormat": "{{category}}",
+          "refId": "A",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_payments_amount_sum{category=~\"$category\", payment_method=~\"$payment_method\"}[1h] offset 1w)) * 3600",
+          "legendFormat": "total (semana passada)",
+          "refId": "B",
+          "exemplar": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Funil e pedidos",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "bargauge",
+      "title": "Funil no período",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(increase(atlas_business_fare_quotes_total{category=~\"$category\", stage=\"estimate\"}[$__range]))",
+          "legendFormat": "1. Estimativas",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(increase(atlas_business_requests_created_total{category=~\"$category\", payment_method=~\"$payment_method\"}[$__range]))",
+          "legendFormat": "2. Pedidos",
+          "refId": "B",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(increase(atlas_business_request_transitions_total{category=~\"$category\", status=\"offered\"}[$__range]))",
+          "legendFormat": "3. Com oferta",
+          "refId": "C",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(increase(atlas_business_request_transitions_total{category=~\"$category\", status=\"accepted\"}[$__range]))",
+          "legendFormat": "4. Aceites",
+          "refId": "D",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(increase(atlas_business_request_transitions_total{category=~\"$category\", status=\"completed\"}[$__range]))",
+          "legendFormat": "5. Concluídos",
+          "refId": "E",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(increase(atlas_business_payments_settled_total{category=~\"$category\", payment_method=~\"$payment_method\", kind=\"fare\", status=\"paid\"}[$__range]))",
+          "legendFormat": "6. Pagos",
+          "refId": "F",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Estimativa de tarifa → pedido → oferta → aceite → concluído → pago, no intervalo do dashboard. 'Com oferta' conta transições (um pedido pode voltar a procurar).",
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Tempo até um prestador aceitar (pedidos imediatos)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(atlas_business_requests_accept_duration_seconds_bucket{category=~\"$category\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "refId": "A",
+          "exemplar": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(atlas_business_requests_accept_duration_seconds_bucket{category=~\"$category\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "refId": "B",
+          "exemplar": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Cancelamentos por quem cancela e fase",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (actor_type, stage) (increase(atlas_business_requests_cancelled_total{category=~\"$category\"}[$__rate_interval]))",
+          "legendFormat": "{{actor_type}} / {{stage}}",
+          "refId": "A",
+          "exemplar": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Registos e marcações",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (role, channel) (increase(atlas_business_users_registered_total{channel=~\"$channel\"}[$__rate_interval]))",
+          "legendFormat": "registo {{role}} ({{channel}})",
+          "refId": "A",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (status) (increase(atlas_business_bookings_transitions_total{status=~\"confirmed|cancelled|completed\"}[$__rate_interval]))",
+          "legendFormat": "marcação {{status}}",
+          "refId": "B",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (outcome) (increase(atlas_business_providers_reviewed_total[$__rate_interval]))",
+          "legendFormat": "prestador {{outcome}}",
+          "refId": "C",
+          "exemplar": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Pagamentos",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "panels": []
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Taxa de sucesso por gateway e método",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (gateway, payment_method) (rate(atlas_business_payments_settled_total{category=~\"$category\", payment_method=~\"$payment_method\", status=\"paid\"}[$__rate_interval])) / sum by (gateway, payment_method) (rate(atlas_business_payments_settled_total{category=~\"$category\", payment_method=~\"$payment_method\", status=~\"paid|failed\"}[$__rate_interval]))",
+          "legendFormat": "{{gateway}} / {{payment_method}}",
+          "refId": "A",
+          "exemplar": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "links": [
+        {
+          "title": "Ver eventos de negócio no Loki",
+          "url": "/explore?left={\"datasource\":\"${ds_loki}\",\"queries\":[{\"refId\":\"A\",\"expr\":\"{service_name=\\\"atlas\\\"} | json | event=~\\\"payment_.*\\\"\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "bargauge",
+      "title": "Principais motivos de falha",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "topk(10, sum by (error_reason, payment_method) (increase(atlas_business_payments_settled_total{category=~\"$category\", payment_method=~\"$payment_method\", status=~\"failed|expired\"}[$__range])))",
+          "legendFormat": "{{error_reason}} ({{payment_method}})",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Pagamentos falhados ou expirados no período, por motivo. O código do gateway está nos logs (event=\"payment_failed\", failure_code).",
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "links": [
+        {
+          "title": "Ver eventos de negócio no Loki",
+          "url": "/explore?left={\"datasource\":\"${ds_loki}\",\"queries\":[{\"refId\":\"A\",\"expr\":\"{service_name=\\\"atlas\\\"} | json | event=~\\\"payment_.*\\\"\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Tempo até o pagamento ficar pago (p50, p95)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, payment_method) (rate(atlas_business_payments_settle_duration_seconds_bucket{payment_method=~\"$payment_method\", status=\"paid\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{payment_method}}",
+          "refId": "A",
+          "exemplar": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, payment_method) (rate(atlas_business_payments_settle_duration_seconds_bucket{payment_method=~\"$payment_method\", status=\"paid\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{payment_method}}",
+          "refId": "B",
+          "exemplar": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Receita e reembolsos por método",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyAOA"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (payment_method) (rate(atlas_business_payments_amount_sum{category=~\"$category\", payment_method=~\"$payment_method\"}[1h])) * 3600",
+          "legendFormat": "receita/h {{payment_method}}",
+          "refId": "A",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (payment_method) (rate(atlas_business_refunds_amount_sum{category=~\"$category\", payment_method=~\"$payment_method\"}[1h])) * 3600",
+          "legendFormat": "reembolsos/h {{payment_method}}",
+          "refId": "B",
+          "exemplar": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Correlação técnico ↔ negócio",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "panels": []
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Latência p95 das rotas críticas",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 49
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(atlas_http_request_duration_seconds_bucket{job=~\"$job\", route=~\"/api/v1/(requests|offers|fares|bookings|auth/register).*|.*/webhooks/appypay\"}[$__rate_interval])))",
+          "legendFormat": "{{route}}",
+          "refId": "A",
+          "exemplar": true
+        }
+      ],
+      "description": "Clique num exemplar para abrir o trace no Tempo; do trace chega aos logs do pedido.",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Erros 5xx das rotas críticas",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 49
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum by (route) (rate(atlas_http_requests_total{job=~\"$job\", route=~\"/api/v1/(requests|offers|fares|bookings|auth/register).*|.*/webhooks/appypay\", status=~\"5..\"}[$__rate_interval]))",
+          "legendFormat": "{{route}}",
+          "refId": "A",
+          "exemplar": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Pagamentos falhados e pedidos criados",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 49
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_payments_settled_total{category=~\"$category\", payment_method=~\"$payment_method\", status=\"failed\"}[$__rate_interval])) * 60",
+          "legendFormat": "pagamentos falhados/min",
+          "refId": "A",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_requests_created_total{category=~\"$category\", payment_method=~\"$payment_method\"}[$__rate_interval])) * 60",
+          "legendFormat": "pedidos/min",
+          "refId": "B",
+          "exemplar": false
+        }
+      ],
+      "description": "Lado a lado com os gráficos técnicos: um pico de 5xx que faz cair os pedidos ou subir as falhas tem impacto no negócio.",
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "type": "logs",
+      "title": "Eventos de negócio (Loki)",
+      "datasource": {
+        "type": "loki",
+        "uid": "${ds_loki}"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 57
+      },
+      "description": "Um log por evento, com trace_id: o botão 'Ver trace' abre o trace no Tempo.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "${ds_loki}"
+          },
+          "expr": "{service_name=\"atlas\"} | json | event=~\"$event\" | category=~\"$category\" | line_format \"{{.event}} {{.category}} {{.payment_method}} {{.status}} {{.error_reason}} request={{.request_id}} payment={{.payment_id}}\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 25,
+      "type": "row",
+      "title": "SLOs",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 67
+      },
+      "panels": []
+    },
+    {
+      "id": 26,
+      "type": "stat",
+      "title": "Pagamentos: orçamento restante (30 d)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 68
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.25
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "1 - (sum(rate(atlas_business_payments_settled_total{gateway!=\"none\", status=\"failed\"}[30d])) / sum(rate(atlas_business_payments_settled_total{gateway!=\"none\", status=~\"paid|failed\"}[30d]))) / 0.005",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "SLO: 99,5% dos pagamentos por gateway são pagos. 100% = nenhuma falha; 0% = orçamento esgotado.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Pagamentos: taxa de erro vs. objetivo",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 68
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_payments_settled_total{gateway!=\"none\", status=\"failed\"}[1h])) / sum(rate(atlas_business_payments_settled_total{gateway!=\"none\", status=~\"paid|failed\"}[1h]))",
+          "legendFormat": "1h",
+          "refId": "A",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "sum(rate(atlas_business_payments_settled_total{gateway!=\"none\", status=\"failed\"}[6h])) / sum(rate(atlas_business_payments_settled_total{gateway!=\"none\", status=~\"paid|failed\"}[6h]))",
+          "legendFormat": "6h",
+          "refId": "B",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "vector(0.005)",
+          "legendFormat": "orçamento (0,5%)",
+          "refId": "C",
+          "exemplar": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 28,
+      "type": "stat",
+      "title": "1.ª oferta ≤ 21 s: orçamento restante (30 d)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 68
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.25
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "1 - (1 - sum(rate(atlas_business_first_offer_delivered_seconds_bucket{le=\"21\"}[30d])) / sum(rate(atlas_business_first_offer_delivered_seconds_count[30d]))) / 0.05",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "exemplar": false,
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "SLO: 95% dos pedidos recebem a primeira oferta em 21 s.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "1.ª oferta: taxa de erro vs. objetivo",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds_prometheus}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 68
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "1 - sum(rate(atlas_business_first_offer_delivered_seconds_bucket{le=\"21\"}[1h])) / sum(rate(atlas_business_first_offer_delivered_seconds_count[1h]))",
+          "legendFormat": "1h",
+          "refId": "A",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "1 - sum(rate(atlas_business_first_offer_delivered_seconds_bucket{le=\"21\"}[6h])) / sum(rate(atlas_business_first_offer_delivered_seconds_count[6h]))",
+          "legendFormat": "6h",
+          "refId": "B",
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds_prometheus}"
+          },
+          "expr": "vector(0.05)",
+          "legendFormat": "orçamento (5%)",
+          "refId": "C",
+          "exemplar": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ]
+}
