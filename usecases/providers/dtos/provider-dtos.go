@@ -265,6 +265,32 @@ type ProviderActivityView struct {
 	Period *ProviderMoneyView `json:"period,omitempty"`
 }
 
+// ProviderEarningsView is the earnings screen of the provider app for a day, a
+// week (Monday to Sunday) or a month, in Africa/Luanda time. earned_cents is what
+// the provider earned after the commission of AGORA (with tips and the cash kept
+// in hand); gross_cents is what the customers paid. Days has every day of the
+// period, also the ones without work. balance_cents is the current balance with
+// AGORA: positive is owed to the provider, negative is commission they owe.
+type ProviderEarningsView struct {
+	Period            string                `json:"period" example:"week"`
+	From              time.Time             `json:"from" example:"2026-11-16T00:00:00+01:00"`
+	To                time.Time             `json:"to" example:"2026-11-23T00:00:00+01:00"`
+	GrossCents        int64                 `json:"gross_cents" example:"8500000"`
+	EarnedCents       int64                 `json:"earned_cents" example:"6800000"`
+	CompletedRequests int64                 `json:"completed_requests" example:"12"`
+	CancelledRequests int64                 `json:"cancelled_requests" example:"1"`
+	BalanceCents      int64                 `json:"balance_cents" example:"-120000"`
+	Days              []ProviderEarningsDay `json:"days"`
+}
+
+type ProviderEarningsDay struct {
+	Date              string `json:"date" example:"2026-11-18"`
+	GrossCents        int64  `json:"gross_cents" example:"1200000"`
+	EarnedCents       int64  `json:"earned_cents" example:"960000"`
+	CompletedRequests int64  `json:"completed_requests" example:"3"`
+	CancelledRequests int64  `json:"cancelled_requests" example:"0"`
+}
+
 type ApplicationList struct {
 	Items []ApplicationView `json:"items"`
 	Total int64             `json:"total"`

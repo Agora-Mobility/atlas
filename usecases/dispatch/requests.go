@@ -366,6 +366,32 @@ func (u *Usecase) ListRequests(ctx context.Context, customerID uuid.UUID, status
 	return &dtos.RequestList{Items: items, Total: total, Page: page.Page, Size: page.Size}, nil
 }
 
+// ListProviderRequests is the activity of a provider: the requests assigned to
+// them, completed or cancelled by anyone, with what they earned from each.
+func (u *Usecase) ListProviderRequests(ctx context.Context, providerID uuid.UUID, statuses []string, category string, page pagination.Params) (*dtos.RequestList, error) {
+	page = page.Normalize()
+	requests, total, err := u.Requests.ListOfProvider(ctx, repository.RequestFilter{
+		ProviderID: providerID, Statuses: statuses, Category: category, Limit: int(page.Limit()), Offset: int(page.Offset()),
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]dtos.RequestView, 0, len(requests))
+	for _, request := range requests {
+		view, err := u.providerView(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+		if service, err := u.Config.FindService(ctx, request.ServiceID); err != nil {
+			return nil, err
+		} else if service != nil {
+			view.ServiceName = service.Name
+		}
+		items = append(items, *view)
+	}
+	return &dtos.RequestList{Items: items, Total: total, Page: page.Page, Size: page.Size}, nil
+}
+
 func (u *Usecase) ActiveForCustomer(ctx context.Context, customerID uuid.UUID) (*dtos.ActiveState, error) {
 	request, err := u.Requests.ActiveOfCustomer(ctx, customerID)
 	if err != nil {

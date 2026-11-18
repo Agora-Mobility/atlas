@@ -177,3 +177,68 @@ func TestTheBackofficeListsShowWhoIsWhoAndHowMuchTheyUseThePlatform(t *testing.T
 	assert.Equal(t, http.StatusForbidden, support.get(t, "/api/v1/admin/providers?sort=earned_desc").status)
 	assert.Equal(t, http.StatusBadRequest, admin.get(t, "/api/v1/admin/providers?sort=nome").status)
 }
+
+func TestTheDriverSeesTheRidesTheyDidAndWhatTheyEarnedPerPeriod(t *testing.T) {
+	customer, driver, id, fare := completedTaxi(t, "gpo")
+	commission := commissionOf(t, id)
+	payExpress(t, customer, id)
+
+	done := driver.get(t, "/api/v1/providers/me/requests?status=completed,cancelled")
+	require.Equal(t, http.StatusOK, done.status, done.text)
+	assert.EqualValues(t, 1, done.num("total"))
+	item := done.body["items"].([]any)[0].(map[string]any)
+	assert.Equal(t, id, item["id"])
+	assert.Equal(t, "completed", item["status"])
+	assert.EqualValues(t, fare-commission, item["provider_net_cents"], "what the driver earned from the ride")
+	assert.NotEmpty(t, item["service_name"])
+	assert.EqualValues(t, 0, driver.get(t, "/api/v1/providers/me/requests?status=cancelled").num("total"))
+	assert.EqualValues(t, 0, driver.get(t, "/api/v1/providers/me/requests?category=towing").num("total"))
+
+	for _, period := range []string{"day", "week", "month"} {
+		earnings := driver.get(t, "/api/v1/providers/me/earnings?period="+period)
+		require.Equal(t, http.StatusOK, earnings.status, earnings.text)
+		assert.Equal(t, period, earnings.str("period"))
+		assert.EqualValues(t, fare-commission, earnings.num("earned_cents"), period)
+		assert.EqualValues(t, fare, earnings.num("gross_cents"), period)
+		assert.EqualValues(t, 1, earnings.num("completed_requests"), period)
+		assert.EqualValues(t, fare-commission, earnings.num("balance_cents"), period)
+		days := earnings.body["days"].([]any)
+		want := map[string]int{"day": 1, "week": 7}[period]
+		if want > 0 {
+			assert.Len(t, days, want, period)
+		}
+		var earned float64
+		for _, day := range days {
+			earned += day.(map[string]any)["earned_cents"].(float64)
+		}
+		assert.EqualValues(t, fare-commission, earned, "the days add up to the period")
+	}
+	past := driver.get(t, "/api/v1/providers/me/earnings?period=month&date=2000-01-15")
+	require.Equal(t, http.StatusOK, past.status, past.text)
+	assert.EqualValues(t, 0, past.num("earned_cents"))
+	assert.Len(t, past.body["days"].([]any), 31)
+	assert.Equal(t, "2000-01-01", past.body["days"].([]any)[0].(map[string]any)["date"])
+
+	assert.Equal(t, http.StatusBadRequest, driver.get(t, "/api/v1/providers/me/earnings?period=year").status)
+	assert.Equal(t, http.StatusBadRequest, driver.get(t, "/api/v1/providers/me/earnings?date=ontem").status)
+	assert.Equal(t, http.StatusForbidden, customer.get(t, "/api/v1/providers/me/earnings").status)
+	assert.Equal(t, http.StatusForbidden, customer.get(t, "/api/v1/providers/me/requests").status)
+}
+
+func TestTheDriverSeesTheRidesCancelledAfterTheyTookThem(t *testing.T) {
+	customer, driver, id := assignedTaxi(t)
+	cancel := customer.post(t, "/api/v1/requests/"+id+"/cancel", map[string]any{"reason_id": cancelReason(t, customer, "customer", "taxi", "changed_plans")})
+	require.Equal(t, http.StatusOK, cancel.status, cancel.text)
+
+	cancelled := driver.get(t, "/api/v1/providers/me/requests?status=cancelled")
+	require.Equal(t, http.StatusOK, cancelled.status, cancelled.text)
+	assert.EqualValues(t, 1, cancelled.num("total"))
+	assert.Equal(t, id, cancelled.body["items"].([]any)[0].(map[string]any)["id"])
+	assert.EqualValues(t, 0, driver.get(t, "/api/v1/providers/me/requests?status=completed").num("total"))
+
+	today := driver.get(t, "/api/v1/providers/me/earnings")
+	require.Equal(t, http.StatusOK, today.status, today.text)
+	assert.Equal(t, "day", today.str("period"), "day by default")
+	assert.EqualValues(t, 1, today.num("cancelled_requests"))
+	assert.EqualValues(t, 0, today.num("completed_requests"))
+}

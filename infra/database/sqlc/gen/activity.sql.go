@@ -91,6 +91,102 @@ func (q *Queries) ProviderCategories(ctx context.Context, ids []uuid.UUID) ([]Pr
 	return items, nil
 }
 
+const providerDailyMoney = `-- name: ProviderDailyMoney :many
+SELECT (m.occurred_at AT TIME ZONE $1::text)::date AS day,
+       COALESCE(sum(m.gross_cents), 0)::bigint AS gross_cents, COALESCE(sum(m.earned_cents), 0)::bigint AS earned_cents
+FROM provider_money_lines m
+WHERE m.provider_id = $2::uuid AND m.occurred_at >= $3::timestamptz AND m.occurred_at < $4::timestamptz
+GROUP BY 1
+`
+
+type ProviderDailyMoneyParams struct {
+	Timezone   string    `json:"timezone"`
+	ProviderID uuid.UUID `json:"provider_id"`
+	FromAt     time.Time `json:"from_at"`
+	ToAt       time.Time `json:"to_at"`
+}
+
+type ProviderDailyMoneyRow struct {
+	Day         time.Time `json:"day"`
+	GrossCents  int64     `json:"gross_cents"`
+	EarnedCents int64     `json:"earned_cents"`
+}
+
+func (q *Queries) ProviderDailyMoney(ctx context.Context, arg ProviderDailyMoneyParams) ([]ProviderDailyMoneyRow, error) {
+	rows, err := q.db.Query(ctx, providerDailyMoney,
+		arg.Timezone,
+		arg.ProviderID,
+		arg.FromAt,
+		arg.ToAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProviderDailyMoneyRow{}
+	for rows.Next() {
+		var i ProviderDailyMoneyRow
+		if err := rows.Scan(&i.Day, &i.GrossCents, &i.EarnedCents); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const providerDailyRequests = `-- name: ProviderDailyRequests :many
+SELECT (COALESCE(r.completed_at, r.updated_at) AT TIME ZONE $1::text)::date AS day,
+       count(*) FILTER (WHERE r.status = 'completed')::bigint AS completed_requests,
+       count(*) FILTER (WHERE r.status = 'cancelled')::bigint AS cancelled_requests
+FROM service_requests r
+WHERE r.provider_id = $2::uuid AND r.status IN ('completed', 'cancelled')
+  AND COALESCE(r.completed_at, r.updated_at) >= $3::timestamptz
+  AND COALESCE(r.completed_at, r.updated_at) < $4::timestamptz
+GROUP BY 1
+`
+
+type ProviderDailyRequestsParams struct {
+	Timezone   string    `json:"timezone"`
+	ProviderID uuid.UUID `json:"provider_id"`
+	FromAt     time.Time `json:"from_at"`
+	ToAt       time.Time `json:"to_at"`
+}
+
+type ProviderDailyRequestsRow struct {
+	Day               time.Time `json:"day"`
+	CompletedRequests int64     `json:"completed_requests"`
+	CancelledRequests int64     `json:"cancelled_requests"`
+}
+
+// A request is counted on the day it ended: completed_at, or the last update for a cancelled one.
+func (q *Queries) ProviderDailyRequests(ctx context.Context, arg ProviderDailyRequestsParams) ([]ProviderDailyRequestsRow, error) {
+	rows, err := q.db.Query(ctx, providerDailyRequests,
+		arg.Timezone,
+		arg.ProviderID,
+		arg.FromAt,
+		arg.ToAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProviderDailyRequestsRow{}
+	for rows.Next() {
+		var i ProviderDailyRequestsRow
+		if err := rows.Scan(&i.Day, &i.CompletedRequests, &i.CancelledRequests); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const providerLedgerBalances = `-- name: ProviderLedgerBalances :many
 SELECT e.account_id::uuid AS provider_id, COALESCE(sum(e.amount_cents), 0)::bigint AS balance_cents
 FROM ledger_entries e

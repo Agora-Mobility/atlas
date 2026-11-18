@@ -535,6 +535,40 @@ func (c *DispatchController) ListRequests(ctx *gin.Context) {
 	respond(ctx, http.StatusOK, list, err)
 }
 
+// ListProviderRequests godoc
+//
+//	@Summary		Activity of the provider
+//	@Description	Providers only, most recent first: the requests assigned to the provider, for the activity screen of the provider app. status=completed,cancelled keeps the finished ones; provider_net_cents is what the provider earned from each.
+//	@Tags			Provider work
+//	@Produce		json
+//	@Param			status		query		string	false	"Comma-separated statuses, e.g. completed,cancelled"
+//	@Param			category	query		string	false	"Category slug"
+//	@Param			page		query		int		false	"Page"
+//	@Param			size		query		int		false	"Page size"
+//	@Success		200			{object}	dtos.RequestList
+//	@Failure		400			{object}	shared.ErrorResponse
+//	@Failure		403			{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/providers/me/requests [get]
+func (c *DispatchController) ListProviderRequests(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	var page pagination.Params
+	if err := ctx.ShouldBindQuery(&page); err != nil {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid pagination.")
+		return
+	}
+	var statuses []string
+	if raw := ctx.Query("status"); raw != "" {
+		statuses = strings.Split(raw, ",")
+	}
+	list, err := c.dispatch.ListProviderRequests(ctx.Request.Context(), providerID, statuses, ctx.Query("category"), page)
+	respond(ctx, http.StatusOK, list, err)
+}
+
 // ActiveRequest godoc
 //
 //	@Summary		Current state

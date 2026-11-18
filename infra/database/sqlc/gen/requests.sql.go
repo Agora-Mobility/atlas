@@ -240,6 +240,26 @@ func (q *Queries) CountRequestsOfCustomer(ctx context.Context, arg CountRequests
 	return count, err
 }
 
+const countRequestsOfProvider = `-- name: CountRequestsOfProvider :one
+SELECT count(*) FROM service_requests
+WHERE provider_id = $1
+  AND ($2::text[] = '{}' OR status = ANY($2::text[]))
+  AND ($3::text = '' OR category_slug = $3)
+`
+
+type CountRequestsOfProviderParams struct {
+	ProviderID   *uuid.UUID `json:"provider_id"`
+	Statuses     []string   `json:"statuses"`
+	CategorySlug string     `json:"category_slug"`
+}
+
+func (q *Queries) CountRequestsOfProvider(ctx context.Context, arg CountRequestsOfProviderParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRequestsOfProvider, arg.ProviderID, arg.Statuses, arg.CategorySlug)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteServiceRequestStops = `-- name: DeleteServiceRequestStops :exec
 DELETE FROM service_request_stops WHERE request_id = $1
 `
@@ -1576,6 +1596,109 @@ type ListRequestsOfCustomerParams struct {
 func (q *Queries) ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOfCustomerParams) ([]ServiceRequest, error) {
 	rows, err := q.db.Query(ctx, listRequestsOfCustomer,
 		arg.CustomerID,
+		arg.Statuses,
+		arg.CategorySlug,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ServiceRequest{}
+	for rows.Next() {
+		var i ServiceRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.CategoryID,
+			&i.CategorySlug,
+			&i.ServiceID,
+			&i.ZoneID,
+			&i.PolicyID,
+			&i.Status,
+			&i.Version,
+			&i.PickupAddressID,
+			&i.ContactPhone,
+			&i.PickupH3R8,
+			&i.DestinationAddressID,
+			&i.DestinationH3R8,
+			&i.PassengerName,
+			&i.PassengerPhone,
+			&i.Details,
+			&i.ScheduledFor,
+			&i.SearchRound,
+			&i.SearchExtended,
+			&i.SearchDeadlineAt,
+			&i.NextActionAt,
+			&i.ReminderAt,
+			&i.ProviderID,
+			&i.OrganizationID,
+			&i.FareEstimateID,
+			&i.FareCents,
+			&i.CommissionCents,
+			&i.BoostBps,
+			&i.Currency,
+			&i.NeedsOperator,
+			&i.OperatorReason,
+			&i.IdempotencyKey,
+			&i.CancelReason,
+			&i.CancelledBy,
+			&i.AcceptedAt,
+			&i.ArrivedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PaymentMethod,
+			&i.PaymentStatus,
+			&i.CancelReasonID,
+			&i.CancelFeeCents,
+			&i.VoucherID,
+			&i.VoucherCode,
+			&i.DiscountCents,
+			&i.PublicCode,
+			&i.VehicleTypeID,
+			&i.CompletionCode,
+			&i.CompletionAttempts,
+			&i.WorkshopID,
+			&i.Prepay,
+			&i.ExtraDueCents,
+			&i.RemovalDay,
+			&i.RemovalWindowID,
+			&i.RouteGeometry,
+			&i.PickupH3R9,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRequestsOfProvider = `-- name: ListRequestsOfProvider :many
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code, vehicle_type_id, completion_code, completion_attempts, workshop_id, prepay, extra_due_cents, removal_day, removal_window_id, route_geometry, pickup_h3_r9 FROM service_requests
+WHERE provider_id = $1
+  AND ($2::text[] = '{}' OR status = ANY($2::text[]))
+  AND ($3::text = '' OR category_slug = $3)
+ORDER BY created_at DESC
+LIMIT $5 OFFSET $4
+`
+
+type ListRequestsOfProviderParams struct {
+	ProviderID   *uuid.UUID `json:"provider_id"`
+	Statuses     []string   `json:"statuses"`
+	CategorySlug string     `json:"category_slug"`
+	PageOffset   int32      `json:"page_offset"`
+	PageLimit    int32      `json:"page_limit"`
+}
+
+func (q *Queries) ListRequestsOfProvider(ctx context.Context, arg ListRequestsOfProviderParams) ([]ServiceRequest, error) {
+	rows, err := q.db.Query(ctx, listRequestsOfProvider,
+		arg.ProviderID,
 		arg.Statuses,
 		arg.CategorySlug,
 		arg.PageOffset,

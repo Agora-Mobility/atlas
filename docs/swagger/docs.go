@@ -10952,6 +10952,65 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v1/providers/me/earnings": {
+            "get": {
+                "description": "Providers only. What the provider earned in the day, week (Monday to Sunday) or month that holds date (today when not given), in Africa/Luanda time, with one entry per day for the chart and the completed and cancelled requests of each day.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider work"
+                ],
+                "summary": "My earnings",
+                "parameters": [
+                    {
+                        "enum": [
+                            "day",
+                            "week",
+                            "month"
+                        ],
+                        "type": "string",
+                        "description": "day, week or month (default day)",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "A day of the period, YYYY-MM-DD (default today)",
+                        "name": "date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ProviderEarningsView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
+            }
+        },
         "/api/v1/providers/me/ledger": {
             "get": {
                 "description": "A positive balance is what AGORA owes the provider. A negative balance is the commission the provider owes for cash jobs.",
@@ -11217,6 +11276,72 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.RatingList"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/providers/me/requests": {
+            "get": {
+                "description": "Providers only, most recent first: the requests assigned to the provider, for the activity screen of the provider app. status=completed,cancelled keeps the finished ones; provider_net_cents is what the provider earned from each.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider work"
+                ],
+                "summary": "Activity of the provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated statuses, e.g. completed,cancelled",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RequestList"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
                         }
                     }
                 },
@@ -21938,6 +22063,74 @@ const docTemplate = `{
                 },
                 "provider_id": {
                     "type": "string"
+                }
+            }
+        },
+        "dtos.ProviderEarningsDay": {
+            "type": "object",
+            "properties": {
+                "cancelled_requests": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "completed_requests": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "date": {
+                    "type": "string",
+                    "example": "2026-11-18"
+                },
+                "earned_cents": {
+                    "type": "integer",
+                    "example": 960000
+                },
+                "gross_cents": {
+                    "type": "integer",
+                    "example": 1200000
+                }
+            }
+        },
+        "dtos.ProviderEarningsView": {
+            "type": "object",
+            "properties": {
+                "balance_cents": {
+                    "type": "integer",
+                    "example": -120000
+                },
+                "cancelled_requests": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "completed_requests": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ProviderEarningsDay"
+                    }
+                },
+                "earned_cents": {
+                    "type": "integer",
+                    "example": 6800000
+                },
+                "from": {
+                    "type": "string",
+                    "example": "2026-11-16T00:00:00+01:00"
+                },
+                "gross_cents": {
+                    "type": "integer",
+                    "example": 8500000
+                },
+                "period": {
+                    "type": "string",
+                    "example": "week"
+                },
+                "to": {
+                    "type": "string",
+                    "example": "2026-11-23T00:00:00+01:00"
                 }
             }
         },

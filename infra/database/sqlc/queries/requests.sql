@@ -87,6 +87,20 @@ WHERE customer_id = sqlc.arg(customer_id)
   AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]))
   AND (sqlc.arg(category_slug)::text = '' OR category_slug = sqlc.arg(category_slug));
 
+-- name: ListRequestsOfProvider :many
+SELECT * FROM service_requests
+WHERE provider_id = sqlc.arg(provider_id)
+  AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]))
+  AND (sqlc.arg(category_slug)::text = '' OR category_slug = sqlc.arg(category_slug))
+ORDER BY created_at DESC
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
+
+-- name: CountRequestsOfProvider :one
+SELECT count(*) FROM service_requests
+WHERE provider_id = sqlc.arg(provider_id)
+  AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]))
+  AND (sqlc.arg(category_slug)::text = '' OR category_slug = sqlc.arg(category_slug));
+
 -- name: ListOperatorQueue :many
 SELECT * FROM service_requests
 WHERE needs_operator AND status IN ('searching', 'offered', 'awaiting_choice')

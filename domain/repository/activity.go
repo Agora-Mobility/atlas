@@ -28,10 +28,23 @@ type ProviderMoney struct {
 	BalanceCents int64
 }
 
+// DailyEarnings is what a provider earned on one local day and the requests that
+// ended on it. Day is the date at midnight UTC.
+type DailyEarnings struct {
+	Day               time.Time
+	GrossCents        int64
+	EarnedCents       int64
+	CompletedRequests int64
+	CancelledRequests int64
+}
+
 type IActivityRepository interface {
 	// Activity has an entry for every id, also for accounts without requests.
 	Activity(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]AccountActivity, error)
 	// Money counts the movements in [from, to) when given; the balance is always
 	// the current one. It has an entry for every id.
 	Money(ctx context.Context, ids []uuid.UUID, from, to *time.Time) (map[uuid.UUID]ProviderMoney, error)
+	// Daily has one entry per local day of timezone in [from, to) with money or
+	// ended requests, in no particular order.
+	Daily(ctx context.Context, providerID uuid.UUID, from, to time.Time, timezone string) ([]DailyEarnings, error)
 }

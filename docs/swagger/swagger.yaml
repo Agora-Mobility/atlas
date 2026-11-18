@@ -3524,6 +3524,55 @@ definitions:
       provider_id:
         type: string
     type: object
+  dtos.ProviderEarningsDay:
+    properties:
+      cancelled_requests:
+        example: 0
+        type: integer
+      completed_requests:
+        example: 3
+        type: integer
+      date:
+        example: "2026-11-18"
+        type: string
+      earned_cents:
+        example: 960000
+        type: integer
+      gross_cents:
+        example: 1200000
+        type: integer
+    type: object
+  dtos.ProviderEarningsView:
+    properties:
+      balance_cents:
+        example: -120000
+        type: integer
+      cancelled_requests:
+        example: 1
+        type: integer
+      completed_requests:
+        example: 12
+        type: integer
+      days:
+        items:
+          $ref: '#/definitions/dtos.ProviderEarningsDay'
+        type: array
+      earned_cents:
+        example: 6800000
+        type: integer
+      from:
+        example: "2026-11-16T00:00:00+01:00"
+        type: string
+      gross_cents:
+        example: 8500000
+        type: integer
+      period:
+        example: week
+        type: string
+      to:
+        example: "2026-11-23T00:00:00+01:00"
+        type: string
+    type: object
   dtos.ProviderMoneyView:
     properties:
       balance_cents:
@@ -13693,6 +13742,46 @@ paths:
       summary: Get a URL to upload a document
       tags:
       - Provider account
+  /api/v1/providers/me/earnings:
+    get:
+      description: Providers only. What the provider earned in the day, week (Monday
+        to Sunday) or month that holds date (today when not given), in Africa/Luanda
+        time, with one entry per day for the chart and the completed and cancelled
+        requests of each day.
+      parameters:
+      - description: day, week or month (default day)
+        enum:
+        - day
+        - week
+        - month
+        in: query
+        name: period
+        type: string
+      - description: A day of the period, YYYY-MM-DD (default today)
+        in: query
+        name: date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderEarningsView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: My earnings
+      tags:
+      - Provider work
   /api/v1/providers/me/ledger:
     get:
       description: A positive balance is what AGORA owes the provider. A negative
@@ -13863,6 +13952,50 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Ratings the provider received
+      tags:
+      - Provider work
+  /api/v1/providers/me/requests:
+    get:
+      description: 'Providers only, most recent first: the requests assigned to the
+        provider, for the activity screen of the provider app. status=completed,cancelled
+        keeps the finished ones; provider_net_cents is what the provider earned from
+        each.'
+      parameters:
+      - description: Comma-separated statuses, e.g. completed,cancelled
+        in: query
+        name: status
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestList'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Activity of the provider
       tags:
       - Provider work
   /api/v1/providers/me/submit:

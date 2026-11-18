@@ -79,6 +79,8 @@ type IRequestRepository interface {
 	ActiveOfCustomer(ctx context.Context, customerID uuid.UUID) (*entities.ServiceRequest, error)
 	ActiveOfProvider(ctx context.Context, providerID uuid.UUID) (*entities.ServiceRequest, error)
 	ListOfCustomer(ctx context.Context, filter RequestFilter) ([]*entities.ServiceRequest, int64, error)
+	// ListOfProvider lists the requests assigned to filter.ProviderID, most recent first.
+	ListOfProvider(ctx context.Context, filter RequestFilter) ([]*entities.ServiceRequest, int64, error)
 	OperatorQueue(ctx context.Context, limit, offset int) ([]*entities.ServiceRequest, error)
 	AddFareAdjustment(ctx context.Context, adjustment entities.FareAdjustment) error
 	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]entities.FareAdjustment, error)
@@ -198,6 +200,7 @@ type RequestHistoryEntry struct {
 
 type RequestFilter struct {
 	CustomerID uuid.UUID
+	ProviderID uuid.UUID
 	Statuses   []string
 	Category   string
 	Limit      int

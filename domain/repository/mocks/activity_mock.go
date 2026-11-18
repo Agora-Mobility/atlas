@@ -58,6 +58,21 @@ func (mr *MockIActivityRepositoryMockRecorder) Activity(ctx, ids any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Activity", reflect.TypeOf((*MockIActivityRepository)(nil).Activity), ctx, ids)
 }
 
+// Daily mocks base method.
+func (m *MockIActivityRepository) Daily(ctx context.Context, providerID uuid.UUID, from, to time.Time, timezone string) ([]repository.DailyEarnings, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Daily", ctx, providerID, from, to, timezone)
+	ret0, _ := ret[0].([]repository.DailyEarnings)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Daily indicates an expected call of Daily.
+func (mr *MockIActivityRepositoryMockRecorder) Daily(ctx, providerID, from, to, timezone any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Daily", reflect.TypeOf((*MockIActivityRepository)(nil).Daily), ctx, providerID, from, to, timezone)
+}
+
 // Money mocks base method.
 func (m *MockIActivityRepository) Money(ctx context.Context, ids []uuid.UUID, from, to *time.Time) (map[uuid.UUID]repository.ProviderMoney, error) {
 	m.ctrl.T.Helper()

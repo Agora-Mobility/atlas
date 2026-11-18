@@ -430,6 +430,45 @@ func (c *ProviderController) Activity(ctx *gin.Context) {
 	respond(ctx, http.StatusOK, view, err)
 }
 
+// MyEarnings godoc
+//
+//	@Summary		My earnings
+//	@Description	Providers only. What the provider earned in the day, week (Monday to Sunday) or month that holds date (today when not given), in Africa/Luanda time, with one entry per day for the chart and the completed and cancelled requests of each day.
+//	@Tags			Provider work
+//	@Produce		json
+//	@Param			period	query		string	false	"day, week or month (default day)"	Enums(day, week, month)
+//	@Param			date	query		string	false	"A day of the period, YYYY-MM-DD (default today)"
+//	@Success		200		{object}	dtos.ProviderEarningsView
+//	@Failure		400		{object}	shared.ErrorResponse
+//	@Failure		403		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/providers/me/earnings [get]
+func (c *ProviderController) MyEarnings(ctx *gin.Context) {
+	providerID, ok := currentProvider(ctx)
+	if !ok {
+		return
+	}
+	period := providers.EarningsPeriod(ctx.DefaultQuery("period", string(providers.EarningsDay)))
+	if !period.Valid() {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid period: use day, week or month.")
+		return
+	}
+	var date *time.Time
+	if raw := ctx.Query("date"); raw != "" {
+		parsed, err := time.ParseInLocation(time.DateOnly, raw, time.UTC)
+		if err != nil {
+			shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid date: use YYYY-MM-DD.")
+			return
+		}
+		// Noon keeps the date the same day in Africa/Luanda.
+		noon := parsed.Add(12 * time.Hour)
+		date = &noon
+	}
+	view, err := c.providers.Earnings(ctx.Request.Context(), providerID, period, date)
+	respond(ctx, http.StatusOK, view, err)
+}
+
 func queryTime(ctx *gin.Context, name string) (*time.Time, bool) {
 	raw := ctx.Query(name)
 	if raw == "" {

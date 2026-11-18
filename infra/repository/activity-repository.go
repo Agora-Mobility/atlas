@@ -92,3 +92,36 @@ func (r *ActivityRepository) Money(ctx context.Context, ids []uuid.UUID, from, t
 	}
 	return out, nil
 }
+
+func (r *ActivityRepository) Daily(ctx context.Context, providerID uuid.UUID, from, to time.Time, timezone string) ([]repository.DailyEarnings, error) {
+	queries := postgres.Queries(ctx, r.pool)
+	money, err := queries.ProviderDailyMoney(ctx, gen.ProviderDailyMoneyParams{Timezone: timezone, ProviderID: providerID, FromAt: from, ToAt: to})
+	if err != nil {
+		return nil, fmt.Errorf("provider daily money: %w", err)
+	}
+	requests, err := queries.ProviderDailyRequests(ctx, gen.ProviderDailyRequestsParams{Timezone: timezone, ProviderID: providerID, FromAt: from, ToAt: to})
+	if err != nil {
+		return nil, fmt.Errorf("provider daily requests: %w", err)
+	}
+	days := map[time.Time]*repository.DailyEarnings{}
+	day := func(at time.Time) *repository.DailyEarnings {
+		key := time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC)
+		if days[key] == nil {
+			days[key] = &repository.DailyEarnings{Day: key}
+		}
+		return days[key]
+	}
+	for _, row := range money {
+		d := day(row.Day)
+		d.GrossCents, d.EarnedCents = row.GrossCents, row.EarnedCents
+	}
+	for _, row := range requests {
+		d := day(row.Day)
+		d.CompletedRequests, d.CancelledRequests = row.CompletedRequests, row.CancelledRequests
+	}
+	out := make([]repository.DailyEarnings, 0, len(days))
+	for _, d := range days {
+		out = append(out, *d)
+	}
+	return out, nil
+}

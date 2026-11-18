@@ -192,6 +192,27 @@ func (r *RequestRepository) ListOfCustomer(ctx context.Context, f repository.Req
 	return requests, total, err
 }
 
+func (r *RequestRepository) ListOfProvider(ctx context.Context, f repository.RequestFilter) ([]*entities.ServiceRequest, int64, error) {
+	queries := postgres.Queries(ctx, r.pool)
+	statuses := f.Statuses
+	if statuses == nil {
+		statuses = []string{}
+	}
+	providerID := f.ProviderID
+	rows, err := queries.ListRequestsOfProvider(ctx, gen.ListRequestsOfProviderParams{
+		ProviderID: &providerID, Statuses: statuses, CategorySlug: f.Category, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("list requests of provider: %w", err)
+	}
+	total, err := queries.CountRequestsOfProvider(ctx, gen.CountRequestsOfProviderParams{ProviderID: &providerID, Statuses: statuses, CategorySlug: f.Category})
+	if err != nil {
+		return nil, 0, fmt.Errorf("count requests of provider: %w", err)
+	}
+	requests, err := toRequests(ctx, queries, rows)
+	return requests, total, err
+}
+
 func (r *RequestRepository) OperatorQueue(ctx context.Context, limit, offset int) ([]*entities.ServiceRequest, error) {
 	queries := postgres.Queries(ctx, r.pool)
 	rows, err := queries.ListOperatorQueue(ctx, gen.ListOperatorQueueParams{PageLimit: int32(limit), PageOffset: int32(offset)}) // #nosec G115 -- bounded by pagination

@@ -33,6 +33,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 
 	me := api.Group("/providers/me", clients, r.authenticator.RequireAuth())
 	me.GET("/profile", r.controller.MyProfile)
+	me.GET("/earnings", r.controller.MyEarnings)
 	me.PUT("/profile", r.controller.SetProfile)
 	me.PUT("/vehicle", r.controller.SetVehicle)
 	me.POST("/documents/upload-url", r.controller.UploadURL)
