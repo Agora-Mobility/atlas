@@ -13,6 +13,21 @@ on:
         type: string
         required: true
 
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Image name (docker.io/agoramobility/atlas)"
+        type: string
+        required: true
+      digest:
+        description: "Digest of the released image (sha256:...)"
+        type: string
+        required: true
+      version:
+        description: "Version being (re)deployed (e.g. 3.9.0)"
+        type: string
+        required: true
+
 permissions:
   contents: read
 
@@ -119,8 +134,8 @@ jobs:
                 --security-opt no-new-privileges \
                 --health-interval 5s \
                 --health-timeout 3s \
-                --health-start-period 30s \
-                --health-retries 3 \
+                --health-start-period 90s \
+                --health-retries 5 \
                 --stop-timeout 30 \
                 "$1"
               docker network connect atlas "$CONTAINER"
