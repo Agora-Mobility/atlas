@@ -55,6 +55,21 @@ func TestLoadDefaults(t *testing.T) {
 	assert.False(t, cfg.Email.Enabled())
 	assert.Equal(t, "https://api.resend.com", cfg.Email.BaseURL)
 	assert.Equal(t, 10*time.Second, cfg.Email.Timeout)
+	assert.Equal(t, 7*time.Second, cfg.Dispatch.CadenceApproachInterval)
+	assert.Equal(t, 30, cfg.Dispatch.CadenceApproachDistanceM)
+	assert.Equal(t, 10*time.Second, cfg.Dispatch.CadenceTripInterval)
+	assert.Equal(t, 2, cfg.Dispatch.CadenceSlowdownFactor)
+}
+
+func TestLoadRefusesACadenceTooFast(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("CADENCE_APPROACH_INTERVAL", "1s")
+
+	_, err := config.Load()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "CADENCE_APPROACH_INTERVAL")
 }
 
 func TestLoadProductionRequiresTheDocumentStorage(t *testing.T) {

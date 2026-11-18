@@ -38,13 +38,6 @@ const (
 	PhaseEnRoute          ProviderPhase = "en_route"
 	PhaseInTrip           ProviderPhase = "in_trip"
 	PhaseOnSite           ProviderPhase = "on_site"
-	onlineInterval                      = 30 * time.Second
-	onlineDistance                      = 150
-	approachInterval                    = 7 * time.Second
-	approachDistance                    = 30
-	tripInterval                        = 10 * time.Second
-	tripDistance                        = 50
-	cadenceSlowdownFactor               = 2
 	presenceTTLMultiplier               = 2.5
 )
 
@@ -54,22 +47,51 @@ type Cadence struct {
 	SendsGPS bool
 }
 
-func CadenceFor(phase ProviderPhase, batteryLow, networkWeak bool) Cadence {
+// CadencePolicy is how often the provider app reports its position in each
+// phase: every Interval or every Distance meters, whichever comes first. It is
+// configuration (CADENCE_*, ADR 0023); DefaultCadencePolicy holds the values
+// the API shipped with.
+type CadencePolicy struct {
+	IdleInterval     time.Duration
+	IdleDistance     int
+	ApproachInterval time.Duration
+	ApproachDistance int
+	TripInterval     time.Duration
+	TripDistance     int
+	// SlowdownFactor multiplies the interval when the battery is low or the network weak
+	SlowdownFactor int
+}
+
+func DefaultCadencePolicy() CadencePolicy {
+	return CadencePolicy{
+		IdleInterval: 30 * time.Second, IdleDistance: 150,
+		ApproachInterval: 7 * time.Second, ApproachDistance: 30,
+		TripInterval: 10 * time.Second, TripDistance: 50,
+		SlowdownFactor: 2,
+	}
+}
+
+func (p CadencePolicy) For(phase ProviderPhase, batteryLow, networkWeak bool) Cadence {
 	cadence := Cadence{SendsGPS: true}
 	switch phase {
 	case PhaseIdle:
-		cadence.Interval, cadence.Distance = onlineInterval, onlineDistance
+		cadence.Interval, cadence.Distance = p.IdleInterval, p.IdleDistance
 	case PhaseOffered, PhaseEnRoute:
-		cadence.Interval, cadence.Distance = approachInterval, approachDistance
+		cadence.Interval, cadence.Distance = p.ApproachInterval, p.ApproachDistance
 	case PhaseInTrip:
-		cadence.Interval, cadence.Distance = tripInterval, tripDistance
+		cadence.Interval, cadence.Distance = p.TripInterval, p.TripDistance
 	default:
 		return Cadence{}
 	}
-	if batteryLow || networkWeak {
-		cadence.Interval *= cadenceSlowdownFactor
+	if (batteryLow || networkWeak) && p.SlowdownFactor > 1 {
+		cadence.Interval *= time.Duration(p.SlowdownFactor)
 	}
 	return cadence
+}
+
+// CadenceFor is the cadence of the default policy.
+func CadenceFor(phase ProviderPhase, batteryLow, networkWeak bool) Cadence {
+	return DefaultCadencePolicy().For(phase, batteryLow, networkWeak)
 }
 
 func (c Cadence) PresenceTTL() time.Duration {

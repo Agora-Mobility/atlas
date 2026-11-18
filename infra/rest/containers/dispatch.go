@@ -84,7 +84,13 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 	}, dispatch.Settings{
 		WatcherInterval: cfg.Dispatch.WatcherInterval, WatcherBatch: cfg.Dispatch.WatcherBatch, FareEstimateTTL: cfg.Dispatch.FareEstimateTTL,
 		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout, ShareBaseURL: cfg.Dispatch.ShareBaseURL, Currency: cfg.AppyPay.LedgerCurrency,
-		Limits:     entities.PlausibilityLimits{MaxAccuracyM: cfg.Dispatch.MaxAccuracyM, MaxSpeedMps: cfg.Dispatch.MaxSpeedKmh * kmhToMps},
+		Limits: entities.PlausibilityLimits{MaxAccuracyM: cfg.Dispatch.MaxAccuracyM, MaxSpeedMps: cfg.Dispatch.MaxSpeedKmh * kmhToMps},
+		Cadence: entities.CadencePolicy{
+			IdleInterval: cfg.Dispatch.CadenceIdleInterval, IdleDistance: cfg.Dispatch.CadenceIdleDistanceM,
+			ApproachInterval: cfg.Dispatch.CadenceApproachInterval, ApproachDistance: cfg.Dispatch.CadenceApproachDistanceM,
+			TripInterval: cfg.Dispatch.CadenceTripInterval, TripDistance: cfg.Dispatch.CadenceTripDistanceM,
+			SlowdownFactor: cfg.Dispatch.CadenceSlowdownFactor,
+		},
 		RoadFactor: cfg.GoogleMaps.RoadFactor, AverageSpeedKmh: cfg.GoogleMaps.AverageSpeedKmh,
 		DemandAreaResolution: cfg.Dispatch.DemandAreaResolution, DemandQuoteWindow: cfg.Dispatch.DemandQuoteWindow, DemandFactorTTL: cfg.Dispatch.DemandFactorTTL,
 		DemandHistoryRetention: cfg.Dispatch.DemandHistoryRetention, RouteReviewAboveBps: cfg.Dispatch.RouteReviewAboveBps(),
