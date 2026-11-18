@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.10.0](https://github.com/Agora-Mobility/atlas/compare/v3.9.0...v3.10.0) (2026-11-18)
+
+
+### Features
+
+* **admin:** show the activity and earnings of accounts and providers ([3fee1fe](https://github.com/Agora-Mobility/atlas/commit/3fee1fe06a15e5f63969469872e4b51cddbfb3d2))
+* **admin:** show the activity and earnings of accounts and providers ([e823ac7](https://github.com/Agora-Mobility/atlas/commit/e823ac7da5b896f52c52b4aed74fe6cac2bbcacd))
+* **dispatch:** show the driver the offers they accepted, turned down or let pass ([759834c](https://github.com/Agora-Mobility/atlas/commit/759834c961ccf17d4faf2f2b2623e49d44a41ae7))
+* **providers:** show the driver their rides and earnings per day, week and month ([585401e](https://github.com/Agora-Mobility/atlas/commit/585401ee2f282c4aaebf70f5f47c9bb81e6f65a0))
+
+
+### Bug Fixes
+
+* **deploy:** say why the API cannot reach Postgres before the deploy gives up ([27d620e](https://github.com/Agora-Mobility/atlas/commit/27d620e8f9ef889ab5500dc72e5d62fafa70a090))
+
 ## [3.9.0](https://github.com/Agora-Mobility/atlas/compare/v3.8.0...v3.9.0) (2026-11-18)
 
 
