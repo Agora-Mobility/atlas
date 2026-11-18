@@ -473,3 +473,37 @@ func TestMe_UnknownUser(t *testing.T) {
 
 	require.ErrorIs(t, err, usecases.ErrUserNotFound)
 }
+
+type capturedRegistrations struct {
+	services.NoBusinessEvents
+	registrations []services.UserRegistration
+}
+
+func (c *capturedRegistrations) UserRegistered(_ context.Context, e services.UserRegistration) {
+	c.registrations = append(c.registrations, e)
+}
+
+func TestRegister_ReportsTheRegistrationWithItsChannel(t *testing.T) {
+	f := newFixture(t)
+	business := &capturedRegistrations{}
+	f.auth.WithBusinessEvents(business)
+	created := f.expectRegistration(t)
+	f.sms.EXPECT().Send(gomock.Any(), phone, gomock.Any()).Return(nil)
+
+	_, err := f.auth.Register(context.Background(), registerInput(), customerApp)
+
+	require.NoError(t, err)
+	require.Len(t, business.registrations, 1)
+	assert.Equal(t, services.UserRegistration{UserID: created.ID, Role: "customer", Channel: "customer_app"}, business.registrations[0])
+}
+
+func TestRegister_RefusedRegistrationReportsNothing(t *testing.T) {
+	f := newFixture(t)
+	business := &capturedRegistrations{}
+	f.auth.WithBusinessEvents(business)
+
+	_, err := f.auth.Register(context.Background(), registerInput(), providerApp)
+
+	require.Error(t, err)
+	assert.Empty(t, business.registrations)
+}

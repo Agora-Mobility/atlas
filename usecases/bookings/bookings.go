@@ -72,6 +72,7 @@ type Deps struct {
 	Refunds  Refunder
 	Storage  services.IObjectStorage
 	Photos   PhotoChecker
+	Business services.IBusinessEvents
 }
 
 type Usecase struct {
@@ -140,10 +141,22 @@ func (u *Usecase) publish(ctx context.Context, event events.Event) error {
 	return u.Outbox.Save(ctx, envelope)
 }
 
+// requestChanged reports a request state change driven by its booking.
+func (u *Usecase) requestChanged(ctx context.Context, request *entities.ServiceRequest, change *entities.RequestStatusChange) {
+	services.BusinessOrNoop(u.Business).RequestTransitioned(ctx, services.RequestTransition{
+		RequestID: request.ID, Category: request.CategorySlug, From: string(change.From), To: string(change.To), ActorType: string(change.Actor.Type),
+		Scheduled: request.ScheduledFor != nil, PaymentMethod: string(request.PaymentMethod), FareCents: request.Fare.Cents, Currency: request.Fare.Currency,
+		CreatedAt: request.CreatedAt, At: change.At,
+	})
+}
+
 func (u *Usecase) announce(ctx context.Context, booking *entities.Booking, code string, from entities.BookingStatus, actor string, actorID *uuid.UUID, now time.Time) error {
 	if err := u.Bookings.RecordMove(ctx, booking.ID, from, booking.Status, actor, actorID, now); err != nil {
 		return err
 	}
+	services.BusinessOrNoop(u.Business).BookingTransitioned(ctx, services.BookingTransition{
+		BookingID: booking.ID, RequestID: booking.RequestID, From: string(from), To: string(booking.Status), ActorType: actor,
+	})
 	return u.publish(ctx, events.BookingChangedV1{
 		BookingID: booking.ID, RequestID: booking.RequestID, CustomerID: booking.CustomerID, Code: code, WorkshopName: booking.WorkshopName, Status: string(booking.Status), StartsAt: booking.StartsAt, OccurredAt: now,
 	})
@@ -778,6 +791,7 @@ func (u *Usecase) cancelInside(ctx context.Context, booking *entities.Booking, r
 	if err := u.Requests.RecordChange(ctx, request.ID, change); err != nil {
 		return err
 	}
+	u.requestChanged(ctx, request, change)
 	if request.VoucherID != nil {
 		if err := u.Vouchers.Release(ctx, request.ID); err != nil {
 			return err
@@ -917,6 +931,7 @@ func (u *Usecase) Approve(ctx context.Context, customerID, id uuid.UUID) (*dtos.
 		if err := u.Requests.RecordChange(ctx, request.ID, change); err != nil {
 			return err
 		}
+		u.requestChanged(ctx, request, change)
 		if request.Prepay && request.ExtraDueCents > 0 {
 			if err := u.Payments.SetRequestPayment(ctx, request.ID, request.PaymentMethod, entities.RequestUnpaid); err != nil {
 				return err
@@ -1124,6 +1139,7 @@ func (u *Usecase) Move(ctx context.Context, actor entities.Actor, organizationID
 			if err := u.Requests.RecordChange(ctx, request.ID, change); err != nil {
 				return err
 			}
+			u.requestChanged(ctx, request, change)
 		}
 		return u.announce(ctx, booking, request.PublicCode, from, actorWorkshop, actor.ID, now)
 	})
