@@ -344,17 +344,29 @@ type ShareView struct {
 }
 
 type PublicTrip struct {
-	Code               string        `json:"code"`
-	Status             string        `json:"status"`
-	Category           string        `json:"category"`
-	ProviderName       string        `json:"provider_name,omitempty"`
-	VehiclePlate       string        `json:"vehicle_plate,omitempty"`
-	VehicleDescription string        `json:"vehicle_description,omitempty"`
-	PickupAddress      string        `json:"pickup_address,omitempty"`
-	DestinationAddress string        `json:"destination_address,omitempty"`
-	Position           *PositionView `json:"position,omitempty"`
-	ETASeconds         *int          `json:"eta_s,omitempty"`
-	ExpiresAt          time.Time     `json:"expires_at"`
+	Code               string `json:"code"`
+	Status             string `json:"status"`
+	Category           string `json:"category"`
+	ServiceName        string `json:"service_name,omitempty"`
+	ProviderName       string `json:"provider_name,omitempty"`
+	VehiclePlate       string `json:"vehicle_plate,omitempty"`
+	VehicleDescription string `json:"vehicle_description,omitempty"`
+	PickupAddress      string `json:"pickup_address,omitempty"`
+	DestinationAddress string `json:"destination_address,omitempty"`
+	// Pickup and destination as points, for the map of the shared trip; the
+	// addresses above are already public, these place them on the map
+	Pickup        *PublicPoint  `json:"pickup,omitempty"`
+	Destination   *PublicPoint  `json:"destination,omitempty"`
+	RouteGeometry string        `json:"route_geometry,omitempty" example:"zmrv@cbdpA..."` // Google encoded polyline, precision 5
+	Position      *PositionView `json:"position,omitempty"`
+	ETASeconds    *int          `json:"eta_s,omitempty"`
+	ExpiresAt     time.Time     `json:"expires_at"`
+}
+
+// PublicPoint is a place of the shared trip, without the address details.
+type PublicPoint struct {
+	Lat float64 `json:"lat"`
+	Lng float64 `json:"lng"`
 }
 
 type ETAView struct {

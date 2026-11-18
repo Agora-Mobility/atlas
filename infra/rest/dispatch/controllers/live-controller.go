@@ -161,7 +161,7 @@ func (c *DispatchController) RevokeShares(ctx *gin.Context) {
 // PublicTrip godoc
 //
 //	@Summary		A shared trip
-//	@Description	Public, the token is the permission. Without phone numbers, and with the position only while the trip is active.
+//	@Description	Public, the token is the permission. Without phone numbers, and with the position only while the trip is active. Pickup and destination come as points next to their addresses, with the planned route (route_geometry) and the service name, for the map of the shared trip page.
 //	@Tags			Live request
 //	@Produce		json
 //	@Param			token	path		string	true	"Token of the link"

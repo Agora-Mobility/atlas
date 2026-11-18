@@ -3513,23 +3513,44 @@ definitions:
       vehicle:
         $ref: '#/definitions/dtos.VehicleView'
     type: object
+  dtos.PublicPoint:
+    properties:
+      lat:
+        type: number
+      lng:
+        type: number
+    type: object
   dtos.PublicTrip:
     properties:
       category:
         type: string
       code:
         type: string
+      destination:
+        $ref: '#/definitions/dtos.PublicPoint'
       destination_address:
         type: string
       eta_s:
         type: integer
       expires_at:
         type: string
+      pickup:
+        allOf:
+        - $ref: '#/definitions/dtos.PublicPoint'
+        description: |-
+          Pickup and destination as points, for the map of the shared trip; the
+          addresses above are already public, these place them on the map
       pickup_address:
         type: string
       position:
         $ref: '#/definitions/dtos.PositionView'
       provider_name:
+        type: string
+      route_geometry:
+        description: Google encoded polyline, precision 5
+        example: zmrv@cbdpA...
+        type: string
+      service_name:
         type: string
       status:
         type: string
@@ -14540,7 +14561,9 @@ paths:
   /api/v1/public/trips/{token}:
     get:
       description: Public, the token is the permission. Without phone numbers, and
-        with the position only while the trip is active.
+        with the position only while the trip is active. Pickup and destination come
+        as points next to their addresses, with the planned route (route_geometry)
+        and the service name, for the map of the shared trip page.
       parameters:
       - description: Token of the link
         in: path
