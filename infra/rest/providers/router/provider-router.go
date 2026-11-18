@@ -44,6 +44,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	admin := api.Group("/admin/providers", clients, r.authenticator.RequireAuth())
 	admin.GET("", can(entities.PermProvidersRead), r.controller.ListApplications)
 	admin.GET("/:id", can(entities.PermProvidersRead), r.controller.GetApplication)
+	admin.GET("/:id/activity", can(entities.PermProvidersRead), r.controller.Activity)
 	admin.PUT("/:id", can(entities.PermProvidersApprove), r.controller.ReviewProvider)
 	admin.POST("/:id/documents/:type/review", can(entities.PermProvidersApprove), r.controller.ReviewDocument)
 

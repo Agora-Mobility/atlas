@@ -18,22 +18,34 @@ SELECT count(*) FROM users
 WHERE deleted_at IS NULL
   AND (cardinality($1::text[]) = 0 OR role::text = ANY ($1::text[]))
   AND ($2::user_status IS NULL OR status = $2::user_status)
+  AND ($3::text = '' OR EXISTS (
+      SELECT 1 FROM providers p
+      JOIN services s ON s.id = COALESCE(p.service_id, p.requested_service_id)
+      JOIN service_categories c ON c.id = s.category_id
+      WHERE p.user_id = users.id AND c.slug = $3::text
+  ))
   AND (
-      $3::text IS NULL
-      OR name ILIKE $3::text
-      OR email ILIKE $3::text
-      OR phone LIKE $3::text
+      $4::text IS NULL
+      OR name ILIKE $4::text
+      OR email ILIKE $4::text
+      OR phone LIKE $4::text
   )
 `
 
 type CountUsersParams struct {
-	Roles  []string          `json:"roles"`
-	Status *enums.UserStatus `json:"status"`
-	Search *string           `json:"search"`
+	Roles    []string          `json:"roles"`
+	Status   *enums.UserStatus `json:"status"`
+	Category string            `json:"category"`
+	Search   *string           `json:"search"`
 }
 
 func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countUsers, arg.Roles, arg.Status, arg.Search)
+	row := q.db.QueryRow(ctx, countUsers,
+		arg.Roles,
+		arg.Status,
+		arg.Category,
+		arg.Search,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -211,19 +223,26 @@ SELECT id, name, email, password, phone, is_verified, status, role, last_login_a
 WHERE deleted_at IS NULL
   AND (cardinality($1::text[]) = 0 OR role::text = ANY ($1::text[]))
   AND ($2::user_status IS NULL OR status = $2::user_status)
+  AND ($3::text = '' OR EXISTS (
+      SELECT 1 FROM providers p
+      JOIN services s ON s.id = COALESCE(p.service_id, p.requested_service_id)
+      JOIN service_categories c ON c.id = s.category_id
+      WHERE p.user_id = users.id AND c.slug = $3::text
+  ))
   AND (
-      $3::text IS NULL
-      OR name ILIKE $3::text
-      OR email ILIKE $3::text
-      OR phone LIKE $3::text
+      $4::text IS NULL
+      OR name ILIKE $4::text
+      OR email ILIKE $4::text
+      OR phone LIKE $4::text
   )
 ORDER BY created_at DESC
-LIMIT $5 OFFSET $4
+LIMIT $6 OFFSET $5
 `
 
 type ListUsersParams struct {
 	Roles      []string          `json:"roles"`
 	Status     *enums.UserStatus `json:"status"`
+	Category   string            `json:"category"`
 	Search     *string           `json:"search"`
 	PageOffset int32             `json:"page_offset"`
 	PageLimit  int32             `json:"page_limit"`
@@ -233,6 +252,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 	rows, err := q.db.Query(ctx, listUsers,
 		arg.Roles,
 		arg.Status,
+		arg.Category,
 		arg.Search,
 		arg.PageOffset,
 		arg.PageLimit,

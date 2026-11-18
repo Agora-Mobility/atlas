@@ -17,6 +17,9 @@ type UserFilter struct {
 	Status enums.UserStatus
 	// Search matches part of the name, e-mail or phone number.
 	Search string
+	// Category keeps the providers of a category (slug): the one of the service
+	// they were approved for or, before that, the one they asked for.
+	Category string
 }
 
 type IUserRepository interface {

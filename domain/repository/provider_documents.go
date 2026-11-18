@@ -70,6 +70,7 @@ type ProviderApplicationFilter struct {
 	ServiceID      *uuid.UUID
 	Category       string
 	Search         string
+	Sort           string
 	Limit          int
 	Offset         int
 }

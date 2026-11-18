@@ -22,19 +22,20 @@ func NewUserAdminController(userAdminUsecase *usecases.UserAdminUsecase) *UserAd
 // List godoc
 //
 //	@Summary		List customer and provider accounts
-//	@Description	Requires users:read. Staff are managed as members.
+//	@Description	Requires users:read. Staff are managed as members. Each account has the category of the provider and its requests: completed and cancelled, made as a customer or done as a provider.
 //	@Tags			Backoffice users
 //	@Produce		json
-//	@Param			role	query		string	false	"Role"		Enums(customer, provider)
-//	@Param			status	query		string	false	"Status"	Enums(active, inactive, blocked)
-//	@Param			search	query		string	false	"Part of the name, e-mail or phone"
-//	@Param			page	query		int		false	"Page (from 1)"
-//	@Param			size	query		int		false	"Page size (max 100)"
-//	@Success		200		{object}	dtos.UserPage
-//	@Failure		401		{object}	shared.ErrorResponse	"Unauthorized or session ended"
-//	@Failure		403		{object}	shared.ErrorResponse	"Missing permission"
-//	@Failure		422		{object}	shared.ErrorResponse	"Invalid filters"
-//	@Failure		500		{object}	shared.ErrorResponse	"Internal error"
+//	@Param			role		query		string	false	"Role"		Enums(customer, provider)
+//	@Param			status		query		string	false	"Status"	Enums(active, inactive, blocked)
+//	@Param			category	query		string	false	"Category slug of the provider (approved service, or the one asked for)"
+//	@Param			search		query		string	false	"Part of the name, e-mail or phone"
+//	@Param			page		query		int		false	"Page (from 1)"
+//	@Param			size		query		int		false	"Page size (max 100)"
+//	@Success		200			{object}	dtos.UserPage
+//	@Failure		401			{object}	shared.ErrorResponse	"Unauthorized or session ended"
+//	@Failure		403			{object}	shared.ErrorResponse	"Missing permission"
+//	@Failure		422			{object}	shared.ErrorResponse	"Invalid filters"
+//	@Failure		500			{object}	shared.ErrorResponse	"Internal error"
 //	@Security		BearerAuth
 //	@Security		ClientId
 //	@Router			/api/v1/admin/users [get]
@@ -57,11 +58,11 @@ func (c *UserAdminController) List(ctx *gin.Context) {
 // Get godoc
 //
 //	@Summary		Get a customer or provider account
-//	@Description	Requires users:read.
+//	@Description	Requires users:read. With the category of the provider and the requests of the account.
 //	@Tags			Backoffice users
 //	@Produce		json
 //	@Param			id	path		string	true	"User id"
-//	@Success		200	{object}	dtos.UserView
+//	@Success		200	{object}	dtos.AccountView
 //	@Failure		400	{object}	shared.ErrorResponse	"Invalid id"
 //	@Failure		401	{object}	shared.ErrorResponse	"Unauthorized or session ended"
 //	@Failure		403	{object}	shared.ErrorResponse	"Missing permission"

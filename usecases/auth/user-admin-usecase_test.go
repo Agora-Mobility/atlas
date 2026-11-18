@@ -200,6 +200,7 @@ func TestList_OnlyAppAccountsByDefault(t *testing.T) {
 		repository.UserFilter{Roles: []enums.Role{enums.RoleCustomer, enums.RoleProvider}},
 		pagination.Params{},
 	).Return(nil, int64(0), nil)
+	f.activity.EXPECT().Activity(gomock.Any(), []uuid.UUID{}).Return(map[uuid.UUID]repository.AccountActivity{}, nil)
 
 	page, err := f.userAdmin.List(context.Background(), dtos.UserListQuery{})
 
@@ -221,18 +222,57 @@ func TestList_PassesFiltersAndPages(t *testing.T) {
 	f := newFixture(t)
 	user := newUser(t, enums.RoleProvider, true)
 	f.users.EXPECT().List(gomock.Any(),
-		repository.UserFilter{Roles: []enums.Role{enums.RoleProvider}, Status: enums.UserStatusActive, Search: "ana"},
+		repository.UserFilter{Roles: []enums.Role{enums.RoleProvider}, Status: enums.UserStatusActive, Search: "ana", Category: "taxi"},
 		pagination.Params{Page: 2, Size: 1},
 	).Return([]*entities.User{user}, int64(3), nil)
+	f.activity.EXPECT().Activity(gomock.Any(), []uuid.UUID{user.ID}).Return(map[uuid.UUID]repository.AccountActivity{user.ID: {}}, nil)
 
 	page, err := f.userAdmin.List(context.Background(), dtos.UserListQuery{
-		Role: enums.RoleProvider, Status: enums.UserStatusActive, Search: "ana", Page: 2, Size: 1,
+		Role: enums.RoleProvider, Status: enums.UserStatusActive, Category: "taxi", Search: "ana", Page: 2, Size: 1,
 	})
 
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), page.TotalPages)
 	require.Len(t, page.Items, 1)
 	assert.Equal(t, user.ID, page.Items[0].ID)
+}
+
+func TestList_ShowsTheCategoryOfProvidersAndTheRequestsOfEveryone(t *testing.T) {
+	f := newFixture(t)
+	provider, customer := newUser(t, enums.RoleProvider, true), newUser(t, enums.RoleCustomer, true)
+	last := provider.CreatedAt
+	f.users.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any()).Return([]*entities.User{provider, customer}, int64(2), nil)
+	f.activity.EXPECT().Activity(gomock.Any(), []uuid.UUID{provider.ID, customer.ID}).Return(map[uuid.UUID]repository.AccountActivity{
+		provider.ID: {CompletedRequests: 40, CancelledRequests: 2, LastRequestAt: &last, CategorySlug: "taxi", CategoryName: "Táxi"},
+		// A customer is never shown with a category, even if the account once started a provider sign-up
+		customer.ID: {CompletedRequests: 12, CategorySlug: "taxi", CategoryName: "Táxi"},
+	}, nil)
+
+	page, err := f.userAdmin.List(context.Background(), dtos.UserListQuery{})
+
+	require.NoError(t, err)
+	require.Len(t, page.Items, 2)
+	assert.Equal(t, "taxi", page.Items[0].ProviderCategory)
+	assert.Equal(t, "Táxi", page.Items[0].ProviderCategoryName)
+	assert.Equal(t, int64(40), page.Items[0].CompletedRequests)
+	assert.Equal(t, int64(2), page.Items[0].CancelledRequests)
+	assert.Equal(t, &last, page.Items[0].LastRequestAt)
+	assert.Empty(t, page.Items[1].ProviderCategory)
+	assert.Equal(t, int64(12), page.Items[1].CompletedRequests)
+	assert.Nil(t, page.Items[1].LastRequestAt)
+}
+
+func TestGet_HasTheActivityOfTheAccount(t *testing.T) {
+	f := newFixture(t)
+	customer := newUser(t, enums.RoleCustomer, true)
+	f.users.EXPECT().FindByID(gomock.Any(), customer.ID).Return(customer, nil)
+	f.activity.EXPECT().Activity(gomock.Any(), []uuid.UUID{customer.ID}).Return(map[uuid.UUID]repository.AccountActivity{customer.ID: {CompletedRequests: 3}}, nil)
+
+	view, err := f.userAdmin.Get(context.Background(), customer.ID)
+
+	require.NoError(t, err)
+	assert.Equal(t, customer.ID, view.ID)
+	assert.Equal(t, int64(3), view.CompletedRequests)
 }
 
 func TestAdminBootstrap(t *testing.T) {

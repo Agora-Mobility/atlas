@@ -76,7 +76,7 @@ func newAuthModule(c *Container) (*AuthModule, error) {
 				usecases.NewProfileUsecase(userRepo, c.Outbox, c.TxManager, hasher, otpService, codeSender, revoker),
 			),
 			UserAdmin: controllers.NewUserAdminController(
-				usecases.NewUserAdminUsecase(userRepo, c.Outbox, auditRepo, blockReasonRepo, c.TxManager, hasher, revoker),
+				usecases.NewUserAdminUsecase(userRepo, c.Outbox, auditRepo, blockReasonRepo, repository.NewActivityRepository(c.Pool), c.TxManager, hasher, revoker),
 			),
 			Members:  controllers.NewMemberController(members, organizations),
 			Partners: controllers.NewPartnerController(members, organizations),

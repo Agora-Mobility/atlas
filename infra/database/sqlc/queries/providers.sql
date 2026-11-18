@@ -37,7 +37,8 @@ WHERE (sqlc.arg(status)::text = '' OR p.status = sqlc.arg(status)::text)
   AND (sqlc.narg(service_id)::uuid IS NULL OR COALESCE(p.service_id, p.requested_service_id) = sqlc.narg(service_id))
   AND (sqlc.arg(category)::text = '' OR c.slug = sqlc.arg(category)::text)
   AND (sqlc.arg(search)::text = '' OR u.name ILIKE sqlc.arg(search)::text OR u.phone ILIKE sqlc.arg(search)::text OR v.plate ILIKE sqlc.arg(search)::text)
-ORDER BY p.submitted_at NULLS LAST, p.created_at
+ORDER BY CASE WHEN sqlc.arg(sort)::text = 'earned_desc' THEN (SELECT COALESCE(sum(m.earned_cents), 0) FROM provider_money_lines m WHERE m.provider_id = p.user_id) END DESC NULLS LAST,
+         p.submitted_at NULLS LAST, p.created_at
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: CountProviderApplications :one

@@ -172,14 +172,15 @@ WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($4::uuid IS NULL OR r.zone_id = $4)
   AND ($5::uuid IS NULL OR r.organization_id = $5)
   AND ($6::uuid IS NULL OR r.provider_id = $6)
-  AND ($7::timestamptz IS NULL OR r.created_at >= $7)
-  AND ($8::timestamptz IS NULL OR r.created_at < $8)
-  AND (NOT $9::boolean OR tm.needs_review)
-  AND ($10::text = ''
-       OR r.public_code ILIKE $10::text
-       OR cu.name ILIKE $10::text
-       OR ($11::text <> '' AND cu.phone LIKE $11::text)
-       OR ($12::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $12::text))
+  AND ($7::uuid IS NULL OR r.customer_id = $7)
+  AND ($8::timestamptz IS NULL OR r.created_at >= $8)
+  AND ($9::timestamptz IS NULL OR r.created_at < $9)
+  AND (NOT $10::boolean OR tm.needs_review)
+  AND ($11::text = ''
+       OR r.public_code ILIKE $11::text
+       OR cu.name ILIKE $11::text
+       OR ($12::text <> '' AND cu.phone LIKE $12::text)
+       OR ($13::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $13::text))
 `
 
 type CountAdminRequestsParams struct {
@@ -189,6 +190,7 @@ type CountAdminRequestsParams struct {
 	ZoneID         *uuid.UUID `json:"zone_id"`
 	OrganizationID *uuid.UUID `json:"organization_id"`
 	ProviderID     *uuid.UUID `json:"provider_id"`
+	CustomerID     *uuid.UUID `json:"customer_id"`
 	CreatedFrom    *time.Time `json:"created_from"`
 	CreatedTo      *time.Time `json:"created_to"`
 	RouteReview    bool       `json:"route_review"`
@@ -205,6 +207,7 @@ func (q *Queries) CountAdminRequests(ctx context.Context, arg CountAdminRequests
 		arg.ZoneID,
 		arg.OrganizationID,
 		arg.ProviderID,
+		arg.CustomerID,
 		arg.CreatedFrom,
 		arg.CreatedTo,
 		arg.RouteReview,
@@ -1051,22 +1054,23 @@ WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($4::uuid IS NULL OR r.zone_id = $4)
   AND ($5::uuid IS NULL OR r.organization_id = $5)
   AND ($6::uuid IS NULL OR r.provider_id = $6)
-  AND ($7::timestamptz IS NULL OR r.created_at >= $7)
-  AND ($8::timestamptz IS NULL OR r.created_at < $8)
-  AND (NOT $9::boolean OR tm.needs_review)
-  AND ($10::text = ''
-       OR r.public_code ILIKE $10::text
-       OR cu.name ILIKE $10::text
-       OR ($11::text <> '' AND cu.phone LIKE $11::text)
-       OR ($12::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $12::text))
+  AND ($7::uuid IS NULL OR r.customer_id = $7)
+  AND ($8::timestamptz IS NULL OR r.created_at >= $8)
+  AND ($9::timestamptz IS NULL OR r.created_at < $9)
+  AND (NOT $10::boolean OR tm.needs_review)
+  AND ($11::text = ''
+       OR r.public_code ILIKE $11::text
+       OR cu.name ILIKE $11::text
+       OR ($12::text <> '' AND cu.phone LIKE $12::text)
+       OR ($13::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $13::text))
 ORDER BY
-  CASE WHEN $13::text = 'created_at' THEN r.created_at END ASC,
-  CASE WHEN $13::text = 'scheduled_for' THEN r.scheduled_for END ASC NULLS LAST,
-  CASE WHEN $13::text = '-scheduled_for' THEN r.scheduled_for END DESC NULLS LAST,
-  CASE WHEN $13::text = 'fare_cents' THEN r.fare_cents END ASC NULLS LAST,
-  CASE WHEN $13::text = '-fare_cents' THEN r.fare_cents END DESC NULLS LAST,
+  CASE WHEN $14::text = 'created_at' THEN r.created_at END ASC,
+  CASE WHEN $14::text = 'scheduled_for' THEN r.scheduled_for END ASC NULLS LAST,
+  CASE WHEN $14::text = '-scheduled_for' THEN r.scheduled_for END DESC NULLS LAST,
+  CASE WHEN $14::text = 'fare_cents' THEN r.fare_cents END ASC NULLS LAST,
+  CASE WHEN $14::text = '-fare_cents' THEN r.fare_cents END DESC NULLS LAST,
   r.created_at DESC, r.id DESC
-LIMIT $15 OFFSET $14
+LIMIT $16 OFFSET $15
 `
 
 type ListAdminRequestsParams struct {
@@ -1076,6 +1080,7 @@ type ListAdminRequestsParams struct {
 	ZoneID         *uuid.UUID `json:"zone_id"`
 	OrganizationID *uuid.UUID `json:"organization_id"`
 	ProviderID     *uuid.UUID `json:"provider_id"`
+	CustomerID     *uuid.UUID `json:"customer_id"`
 	CreatedFrom    *time.Time `json:"created_from"`
 	CreatedTo      *time.Time `json:"created_to"`
 	RouteReview    bool       `json:"route_review"`
@@ -1126,6 +1131,7 @@ func (q *Queries) ListAdminRequests(ctx context.Context, arg ListAdminRequestsPa
 		arg.ZoneID,
 		arg.OrganizationID,
 		arg.ProviderID,
+		arg.CustomerID,
 		arg.CreatedFrom,
 		arg.CreatedTo,
 		arg.RouteReview,

@@ -86,6 +86,44 @@ definitions:
       total:
         type: integer
     type: object
+  dtos.AccountView:
+    properties:
+      cancelled_requests:
+        example: 1
+        type: integer
+      completed_requests:
+        example: 12
+        type: integer
+      created_at:
+        type: string
+      email:
+        type: string
+      has_password:
+        example: false
+        type: boolean
+      id:
+        type: string
+      is_verified:
+        type: boolean
+      last_login_at:
+        type: string
+      last_request_at:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      provider_category:
+        example: taxi
+        type: string
+      provider_category_name:
+        example: Táxi
+        type: string
+      role:
+        $ref: '#/definitions/enums.Role'
+      status:
+        $ref: '#/definitions/enums.UserStatus'
+    type: object
   dtos.ActiveState:
     properties:
       offers:
@@ -342,6 +380,23 @@ definitions:
     type: object
   dtos.ApplicationView:
     properties:
+      balance_cents:
+        example: -120000
+        type: integer
+      cancelled_requests:
+        example: 2
+        type: integer
+      completed_requests:
+        example: 40
+        type: integer
+      earned_cents:
+        example: 6800000
+        type: integer
+      gross_cents:
+        example: 8500000
+        type: integer
+      last_request_at:
+        type: string
       name:
         type: string
       organization_id:
@@ -350,6 +405,12 @@ definitions:
         type: string
       phone:
         type: string
+      rating_avg:
+        example: 4.8
+        type: number
+      rating_count:
+        example: 31
+        type: integer
       requested_service_id:
         type: string
       requested_service_name:
@@ -3433,6 +3494,27 @@ definitions:
       valid_until:
         type: string
     type: object
+  dtos.ProviderActivityView:
+    properties:
+      cancelled_requests:
+        example: 2
+        type: integer
+      completed_requests:
+        example: 40
+        type: integer
+      last_request_at:
+        type: string
+      period:
+        $ref: '#/definitions/dtos.ProviderMoneyView'
+      rating_avg:
+        example: 4.8
+        type: number
+      rating_count:
+        example: 31
+        type: integer
+      total:
+        $ref: '#/definitions/dtos.ProviderMoneyView'
+    type: object
   dtos.ProviderBalanceView:
     properties:
       balance_cents:
@@ -3441,6 +3523,18 @@ definitions:
         type: string
       provider_id:
         type: string
+    type: object
+  dtos.ProviderMoneyView:
+    properties:
+      balance_cents:
+        example: -120000
+        type: integer
+      earned_cents:
+        example: 6800000
+        type: integer
+      gross_cents:
+        example: 8500000
+        type: integer
     type: object
   dtos.ProviderSummary:
     properties:
@@ -5543,7 +5637,7 @@ definitions:
     properties:
       items:
         items:
-          $ref: '#/definitions/dtos.UserView'
+          $ref: '#/definitions/dtos.AccountView'
         type: array
       page:
         type: integer
@@ -7777,7 +7871,10 @@ paths:
       - Backoffice payments
   /api/v1/admin/providers:
     get:
-      description: Requires providers:read. Oldest submission first.
+      description: Requires providers:read. Oldest submission first, or the one that
+        earned the most with sort=earned_desc. Each provider has the requests assigned
+        to them (completed and cancelled by anyone) and the rating; with finance:read
+        also gross_cents, earned_cents and balance_cents since they joined.
       parameters:
       - description: draft, pending, approved, rejected or suspended
         in: query
@@ -7798,6 +7895,10 @@ paths:
       - description: Name, phone or plate
         in: query
         name: search
+        type: string
+      - description: earned_desc (needs finance:read)
+        in: query
+        name: sort
         type: string
       - description: Page
         in: query
@@ -7891,6 +7992,47 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Decide on a provider
+      tags:
+      - Backoffice providers
+  /api/v1/admin/providers/{id}/activity:
+    get:
+      description: Requires providers:read. The requests assigned to the provider
+        (completed and cancelled by anyone), the last one and the rating. With finance:read
+        also the money since they joined (total) and, when from or to is given, in
+        [from, to) (period).
+      parameters:
+      - description: User id of the provider
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: At or after, YYYY-MM-DD or RFC 3339
+        in: query
+        name: from
+        type: string
+      - description: Before, YYYY-MM-DD or RFC 3339
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderActivityView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get the activity of a provider
       tags:
       - Backoffice providers
   /api/v1/admin/providers/{id}/documents/{type}/review:
@@ -8193,6 +8335,10 @@ paths:
       - description: Provider
         in: query
         name: provider_id
+        type: string
+      - description: Customer
+        in: query
+        name: customer_id
         type: string
       - description: Created at or after, YYYY-MM-DD or RFC 3339
         in: query
@@ -8736,7 +8882,9 @@ paths:
       - Backoffice dispatch
   /api/v1/admin/users:
     get:
-      description: Requires users:read. Staff are managed as members.
+      description: 'Requires users:read. Staff are managed as members. Each account
+        has the category of the provider and its requests: completed and cancelled,
+        made as a customer or done as a provider.'
       parameters:
       - description: Role
         enum:
@@ -8752,6 +8900,11 @@ paths:
         - blocked
         in: query
         name: status
+        type: string
+      - description: Category slug of the provider (approved service, or the one asked
+          for)
+        in: query
+        name: category
         type: string
       - description: Part of the name, e-mail or phone
         in: query
@@ -8796,7 +8949,8 @@ paths:
       - Backoffice users
   /api/v1/admin/users/{id}:
     get:
-      description: Requires users:read.
+      description: Requires users:read. With the category of the provider and the
+        requests of the account.
       parameters:
       - description: User id
         in: path
@@ -8809,7 +8963,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.UserView'
+            $ref: '#/definitions/dtos.AccountView'
         "400":
           description: Invalid id
           schema:
