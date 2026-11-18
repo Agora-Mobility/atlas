@@ -569,6 +569,39 @@ func (c *DispatchController) ListProviderRequests(ctx *gin.Context) {
 	respond(ctx, http.StatusOK, list, err)
 }
 
+// ListProviderOffers godoc
+//
+//	@Summary		Offers the provider received
+//	@Description	Providers only, most recent first: every offer sent to the provider and what happened to it. status=rejected for the ones they turned down, status=expired,no_response for the ones they let pass, status=cancelled for the ones taken by another provider or cancelled before the answer. request_status is where the request ended up.
+//	@Tags			Provider work
+//	@Produce		json
+//	@Param			status	query		string	false	"Comma-separated offer statuses: sent, delivered, accepted, rejected, expired, no_response, quoted, cancelled"
+//	@Param			page	query		int		false	"Page"
+//	@Param			size	query		int		false	"Page size"
+//	@Success		200		{object}	dtos.OfferHistoryList
+//	@Failure		400		{object}	shared.ErrorResponse
+//	@Failure		403		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/providers/me/offers [get]
+func (c *DispatchController) ListProviderOffers(ctx *gin.Context) {
+	providerID, ok := userWithRole(ctx, enums.RoleProvider)
+	if !ok {
+		return
+	}
+	var page pagination.Params
+	if err := ctx.ShouldBindQuery(&page); err != nil {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid pagination.")
+		return
+	}
+	var statuses []string
+	if raw := ctx.Query("status"); raw != "" {
+		statuses = strings.Split(raw, ",")
+	}
+	list, err := c.dispatch.ListProviderOffers(ctx.Request.Context(), providerID, statuses, page)
+	respond(ctx, http.StatusOK, list, err)
+}
+
 // ActiveRequest godoc
 //
 //	@Summary		Current state

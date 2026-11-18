@@ -2712,6 +2712,61 @@ definitions:
           $ref: '#/definitions/dtos.NearbyCell'
         type: array
     type: object
+  dtos.OfferHistoryList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.OfferHistoryView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.OfferHistoryView:
+    properties:
+      category:
+        example: taxi
+        type: string
+      currency:
+        example: AOA
+        type: string
+      destination:
+        $ref: '#/definitions/dtos.PlaceView'
+      distance_m:
+        type: integer
+      id:
+        type: string
+      net_cents:
+        type: integer
+      payment_method:
+        example: cash
+        type: string
+      pickup:
+        $ref: '#/definitions/dtos.PlaceView'
+      quote_cents:
+        type: integer
+      reject_note:
+        type: string
+      reject_reason_id:
+        type: string
+      request_id:
+        type: string
+      request_status:
+        example: completed
+        type: string
+      responded_at:
+        type: string
+      sent_at:
+        type: string
+      service_name:
+        type: string
+      status:
+        example: rejected
+        type: string
+    type: object
   dtos.OfferView:
     properties:
       category:
@@ -13832,6 +13887,48 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Send a batch of positions
+      tags:
+      - Provider work
+  /api/v1/providers/me/offers:
+    get:
+      description: 'Providers only, most recent first: every offer sent to the provider
+        and what happened to it. status=rejected for the ones they turned down, status=expired,no_response
+        for the ones they let pass, status=cancelled for the ones taken by another
+        provider or cancelled before the answer. request_status is where the request
+        ended up.'
+      parameters:
+      - description: 'Comma-separated offer statuses: sent, delivered, accepted, rejected,
+          expired, no_response, quoted, cancelled'
+        in: query
+        name: status
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OfferHistoryList'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Offers the provider received
       tags:
       - Provider work
   /api/v1/providers/me/offline:

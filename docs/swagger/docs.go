@@ -11095,6 +11095,66 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v1/providers/me/offers": {
+            "get": {
+                "description": "Providers only, most recent first: every offer sent to the provider and what happened to it. status=rejected for the ones they turned down, status=expired,no_response for the ones they let pass, status=cancelled for the ones taken by another provider or cancelled before the answer. request_status is where the request ended up.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Provider work"
+                ],
+                "summary": "Offers the provider received",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated offer statuses: sent, delivered, accepted, rejected, expired, no_response, quoted, cancelled",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OfferHistoryList"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
+            }
+        },
         "/api/v1/providers/me/offline": {
             "post": {
                 "produces": [
@@ -20912,6 +20972,87 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dtos.NearbyCell"
                     }
+                }
+            }
+        },
+        "dtos.OfferHistoryList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.OfferHistoryView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dtos.OfferHistoryView": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "example": "taxi"
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "AOA"
+                },
+                "destination": {
+                    "$ref": "#/definitions/dtos.PlaceView"
+                },
+                "distance_m": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "net_cents": {
+                    "type": "integer"
+                },
+                "payment_method": {
+                    "type": "string",
+                    "example": "cash"
+                },
+                "pickup": {
+                    "$ref": "#/definitions/dtos.PlaceView"
+                },
+                "quote_cents": {
+                    "type": "integer"
+                },
+                "reject_note": {
+                    "type": "string"
+                },
+                "reject_reason_id": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "request_status": {
+                    "type": "string",
+                    "example": "completed"
+                },
+                "responded_at": {
+                    "type": "string"
+                },
+                "sent_at": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "rejected"
                 }
             }
         },

@@ -463,6 +463,39 @@ type OfferView struct {
 	Details       json.RawMessage `json:"details,omitempty" swaggertype:"object"`
 }
 
+// OfferHistoryView is an offer the provider received, for the history of the
+// provider app. status is what happened to the offer: accepted, rejected (with
+// reject_reason_id and reject_note), expired or no_response (the provider did
+// not answer in time), quoted, or cancelled (the request was taken by another
+// provider or cancelled before the answer). request_status is where the request
+// itself ended up.
+type OfferHistoryView struct {
+	ID             uuid.UUID  `json:"id"`
+	RequestID      uuid.UUID  `json:"request_id"`
+	Status         string     `json:"status" example:"rejected"`
+	RequestStatus  string     `json:"request_status" example:"completed"`
+	Category       string     `json:"category" example:"taxi"`
+	ServiceName    string     `json:"service_name,omitempty"`
+	SentAt         time.Time  `json:"sent_at"`
+	RespondedAt    *time.Time `json:"responded_at,omitempty"`
+	Pickup         PlaceView  `json:"pickup"`
+	Destination    *PlaceView `json:"destination,omitempty"`
+	DistanceM      *int       `json:"distance_m,omitempty"`
+	NetCents       *int64     `json:"net_cents,omitempty"`
+	QuoteCents     *int64     `json:"quote_cents,omitempty"`
+	Currency       string     `json:"currency" example:"AOA"`
+	PaymentMethod  string     `json:"payment_method" example:"cash"`
+	RejectReasonID *uuid.UUID `json:"reject_reason_id,omitempty"`
+	RejectNote     string     `json:"reject_note,omitempty"`
+}
+
+type OfferHistoryList struct {
+	Items []OfferHistoryView `json:"items"`
+	Total int64              `json:"total"`
+	Page  int                `json:"page"`
+	Size  int                `json:"size"`
+}
+
 type ActiveState struct {
 	Request  *RequestView  `json:"request"`
 	Requests []RequestView `json:"requests"`

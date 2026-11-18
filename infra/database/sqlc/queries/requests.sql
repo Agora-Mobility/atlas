@@ -172,6 +172,18 @@ SELECT * FROM request_offers
 WHERE provider_id = $1 AND status IN ('sent', 'delivered') AND expires_at > sqlc.arg(now)::timestamptz
 ORDER BY sent_at DESC;
 
+-- name: ListOffersOfProvider :many
+SELECT * FROM request_offers
+WHERE provider_id = sqlc.arg(provider_id)
+  AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]))
+ORDER BY sent_at DESC
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
+
+-- name: CountOffersOfProvider :one
+SELECT count(*) FROM request_offers
+WHERE provider_id = sqlc.arg(provider_id)
+  AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]));
+
 -- name: InsertLocationSample :exec
 INSERT INTO provider_location_samples (provider_id, request_id, lat, lng, recorded_at) VALUES ($1, $2, $3, $4, $5);
 

@@ -392,6 +392,45 @@ func (u *Usecase) ListProviderRequests(ctx context.Context, providerID uuid.UUID
 	return &dtos.RequestList{Items: items, Total: total, Page: page.Page, Size: page.Size}, nil
 }
 
+// ListProviderOffers is the history of the offers sent to a provider: the ones
+// they accepted, turned down or let expire, most recent first.
+func (u *Usecase) ListProviderOffers(ctx context.Context, providerID uuid.UUID, statuses []string, page pagination.Params) (*dtos.OfferHistoryList, error) {
+	page = page.Normalize()
+	offers, total, err := u.Offers.HistoryOfProvider(ctx, providerID, statuses, int(page.Limit()), int(page.Offset()))
+	if err != nil {
+		return nil, err
+	}
+	items := make([]dtos.OfferHistoryView, 0, len(offers))
+	for _, offer := range offers {
+		request, err := u.Requests.Find(ctx, offer.RequestID)
+		if err != nil {
+			return nil, err
+		}
+		if request == nil {
+			continue
+		}
+		view := dtos.OfferHistoryView{
+			ID: offer.ID, RequestID: offer.RequestID, Status: string(offer.Status), RequestStatus: string(request.Status),
+			Category: request.CategorySlug, SentAt: offer.SentAt, RespondedAt: offer.RespondedAt, Pickup: dtos.ToPlaceView(request.Pickup),
+			DistanceM: offer.DistanceM, NetCents: offer.NetCents, QuoteCents: offer.QuoteCents, Currency: request.Fare.Currency,
+			PaymentMethod: string(request.PaymentMethod), RejectReasonID: offer.RejectReason, RejectNote: offer.RejectNote,
+		}
+		if request.Destination != nil {
+			destination := dtos.ToPlaceView(*request.Destination)
+			view.Destination = &destination
+		}
+		service, err := u.Config.FindService(ctx, request.ServiceID)
+		if err != nil {
+			return nil, err
+		}
+		if service != nil {
+			view.ServiceName = service.Name
+		}
+		items = append(items, view)
+	}
+	return &dtos.OfferHistoryList{Items: items, Total: total, Page: page.Page, Size: page.Size}, nil
+}
+
 func (u *Usecase) ActiveForCustomer(ctx context.Context, customerID uuid.UUID) (*dtos.ActiveState, error) {
 	request, err := u.Requests.ActiveOfCustomer(ctx, customerID)
 	if err != nil {

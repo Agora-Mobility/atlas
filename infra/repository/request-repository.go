@@ -575,6 +575,24 @@ func (r *OfferRepository) OpenOfProvider(ctx context.Context, providerID uuid.UU
 	return toOffers(rows), nil
 }
 
+func (r *OfferRepository) HistoryOfProvider(ctx context.Context, providerID uuid.UUID, statuses []string, limit, offset int) ([]*entities.RequestOffer, int64, error) {
+	if statuses == nil {
+		statuses = []string{}
+	}
+	queries := postgres.Queries(ctx, r.pool)
+	rows, err := queries.ListOffersOfProvider(ctx, gen.ListOffersOfProviderParams{
+		ProviderID: providerID, Statuses: statuses, PageLimit: int32(limit), PageOffset: int32(offset), // #nosec G115 -- bounded by pagination
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("offers of provider: %w", err)
+	}
+	total, err := queries.CountOffersOfProvider(ctx, gen.CountOffersOfProviderParams{ProviderID: providerID, Statuses: statuses})
+	if err != nil {
+		return nil, 0, fmt.Errorf("count offers of provider: %w", err)
+	}
+	return toOffers(rows), total, nil
+}
+
 func offerOrNil(row *gen.RequestOffer, err error, action string) (*entities.RequestOffer, error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -597,7 +615,7 @@ func toOffer(row *gen.RequestOffer) *entities.RequestOffer {
 	offer := &entities.RequestOffer{
 		ID: row.ID, RequestID: row.RequestID, ProviderID: row.ProviderID, Status: entities.OfferStatus(row.Status), SentAt: row.SentAt, DeliveredAt: row.DeliveredAt,
 		ExpiresAt: row.ExpiresAt, RespondedAt: row.RespondedAt, NextActionAt: row.NextActionAt, FallbackStep: int(row.FallbackStep), QuoteCents: row.QuoteCents,
-		QuoteNote: row.QuoteNote, NetCents: row.NetCents, BoostBps: int(row.BoostBps),
+		QuoteNote: row.QuoteNote, NetCents: row.NetCents, BoostBps: int(row.BoostBps), RejectReason: row.RejectReasonID, RejectNote: row.RejectNote,
 	}
 	if row.DeliveredVia != nil {
 		offer.DeliveredVia = *row.DeliveredVia

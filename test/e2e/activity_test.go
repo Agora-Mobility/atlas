@@ -242,3 +242,44 @@ func TestTheDriverSeesTheRidesCancelledAfterTheyTookThem(t *testing.T) {
 	assert.EqualValues(t, 1, today.num("cancelled_requests"))
 	assert.EqualValues(t, 0, today.num("completed_requests"))
 }
+
+func TestTheDriverSeesTheOffersTheyAcceptedAndTurnedDown(t *testing.T) {
+	clearOnlineProviders(t)
+	driver := newProvider(t, "taxi", point{-8.84, 13.235})
+	stream := driver.listen(t, "")
+	customer := newCustomer(t)
+
+	refused := requestTaxi(t, customer).str("id")
+	first := stream.waitFor(t, "request.offer", nil)
+	reason := cancelReason(t, driver, "offer", "taxi", "too_far")
+	reject := driver.post(t, "/api/v1/offers/"+first.Data["offer_id"].(string)+"/reject", map[string]any{"reason_id": reason})
+	require.Equal(t, http.StatusNoContent, reject.status, reject.text)
+	require.Equal(t, http.StatusOK, customer.post(t, "/api/v1/requests/"+refused+"/cancel", map[string]any{"reason_id": cancelReason(t, customer, "customer", "taxi", "changed_plans")}).status)
+
+	taken := requestTaxi(t, customer).str("id")
+	second := stream.waitFor(t, "request.offer", func(e sseEvent) bool { return e.Data["request_id"] == taken })
+	require.Equal(t, http.StatusOK, acceptOffer(t, driver, second).status)
+
+	all := driver.get(t, "/api/v1/providers/me/offers")
+	require.Equal(t, http.StatusOK, all.status, all.text)
+	assert.EqualValues(t, 2, all.num("total"))
+	items := all.body["items"].([]any)
+	latest := items[0].(map[string]any)
+	assert.Equal(t, taken, latest["request_id"], "most recent first")
+	assert.Equal(t, "accepted", latest["status"])
+	assert.Equal(t, "accepted", latest["request_status"])
+	assert.NotEmpty(t, latest["pickup"])
+	assert.NotEmpty(t, latest["service_name"])
+
+	rejected := driver.get(t, "/api/v1/providers/me/offers?status=rejected")
+	require.Equal(t, http.StatusOK, rejected.status, rejected.text)
+	assert.EqualValues(t, 1, rejected.num("total"))
+	offer := rejected.body["items"].([]any)[0].(map[string]any)
+	assert.Equal(t, refused, offer["request_id"])
+	assert.Equal(t, reason, offer["reject_reason_id"])
+	assert.Equal(t, "cancelled", offer["request_status"])
+	assert.NotEmpty(t, offer["responded_at"])
+
+	assert.EqualValues(t, 0, driver.get(t, "/api/v1/providers/me/offers?status=expired,no_response").num("total"))
+	assert.Equal(t, http.StatusForbidden, customer.get(t, "/api/v1/providers/me/offers").status)
+}

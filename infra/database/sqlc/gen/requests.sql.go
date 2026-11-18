@@ -220,6 +220,24 @@ func (q *Queries) CountAdminRequests(ctx context.Context, arg CountAdminRequests
 	return count, err
 }
 
+const countOffersOfProvider = `-- name: CountOffersOfProvider :one
+SELECT count(*) FROM request_offers
+WHERE provider_id = $1
+  AND ($2::text[] = '{}' OR status = ANY($2::text[]))
+`
+
+type CountOffersOfProviderParams struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	Statuses   []string  `json:"statuses"`
+}
+
+func (q *Queries) CountOffersOfProvider(ctx context.Context, arg CountOffersOfProviderParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countOffersOfProvider, arg.ProviderID, arg.Statuses)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countRequestsOfCustomer = `-- name: CountRequestsOfCustomer :one
 SELECT count(*) FROM service_requests
 WHERE customer_id = $1
@@ -1229,6 +1247,65 @@ func (q *Queries) ListFareAdjustments(ctx context.Context, requestID uuid.UUID) 
 	for rows.Next() {
 		var i ListFareAdjustmentsRow
 		if err := rows.Scan(&i.Reason, &i.AmountCents, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOffersOfProvider = `-- name: ListOffersOfProvider :many
+SELECT id, request_id, provider_id, status, sent_at, delivered_at, delivered_via, expires_at, responded_at, next_action_at, fallback_step, quote_cents, quote_note, distance_m, net_cents, boost_bps, reject_reason_id, reject_note FROM request_offers
+WHERE provider_id = $1
+  AND ($2::text[] = '{}' OR status = ANY($2::text[]))
+ORDER BY sent_at DESC
+LIMIT $4 OFFSET $3
+`
+
+type ListOffersOfProviderParams struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	Statuses   []string  `json:"statuses"`
+	PageOffset int32     `json:"page_offset"`
+	PageLimit  int32     `json:"page_limit"`
+}
+
+func (q *Queries) ListOffersOfProvider(ctx context.Context, arg ListOffersOfProviderParams) ([]RequestOffer, error) {
+	rows, err := q.db.Query(ctx, listOffersOfProvider,
+		arg.ProviderID,
+		arg.Statuses,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RequestOffer{}
+	for rows.Next() {
+		var i RequestOffer
+		if err := rows.Scan(
+			&i.ID,
+			&i.RequestID,
+			&i.ProviderID,
+			&i.Status,
+			&i.SentAt,
+			&i.DeliveredAt,
+			&i.DeliveredVia,
+			&i.ExpiresAt,
+			&i.RespondedAt,
+			&i.NextActionAt,
+			&i.FallbackStep,
+			&i.QuoteCents,
+			&i.QuoteNote,
+			&i.DistanceM,
+			&i.NetCents,
+			&i.BoostBps,
+			&i.RejectReasonID,
+			&i.RejectNote,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

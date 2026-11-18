@@ -216,6 +216,8 @@ type IOfferRepository interface {
 	ListOfRequestForUpdate(ctx context.Context, requestID uuid.UUID) ([]*entities.RequestOffer, error)
 	Due(ctx context.Context, now time.Time, batch int) ([]uuid.UUID, error)
 	OpenOfProvider(ctx context.Context, providerID uuid.UUID, now time.Time) ([]*entities.RequestOffer, error)
+	// HistoryOfProvider lists every offer sent to the provider, most recent first.
+	HistoryOfProvider(ctx context.Context, providerID uuid.UUID, statuses []string, limit, offset int) ([]*entities.RequestOffer, int64, error)
 }
 
 type IDeviceRepository interface {

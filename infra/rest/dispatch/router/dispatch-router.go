@@ -55,6 +55,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	providers.PUT("/coverage", retryable, r.controller.SetCoverage)
 	providers.GET("/demand", r.controller.ProviderDemand)
 	providers.GET("/requests", r.controller.ListProviderRequests)
+	providers.GET("/offers", r.controller.ListProviderOffers)
 
 	requests := signedIn.Group("/requests")
 	signedIn.GET("/cancellation-reasons", r.controller.CancellationReasons)
