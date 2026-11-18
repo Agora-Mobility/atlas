@@ -12464,7 +12464,7 @@ const docTemplate = `{
         },
         "/api/v1/public/trips/{token}": {
             "get": {
-                "description": "Public, the token is the permission. Without phone numbers, and with the position only while the trip is active.",
+                "description": "Public, the token is the permission. Without phone numbers, and with the position only while the trip is active. Pickup and destination come as points next to their addresses, with the planned route (route_geometry) and the service name, for the map of the shared trip page.",
                 "produces": [
                     "application/json"
                 ],
@@ -21853,6 +21853,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.PublicPoint": {
+            "type": "object",
+            "properties": {
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                }
+            }
+        },
         "dtos.PublicTrip": {
             "type": "object",
             "properties": {
@@ -21861,6 +21872,9 @@ const docTemplate = `{
                 },
                 "code": {
                     "type": "string"
+                },
+                "destination": {
+                    "$ref": "#/definitions/dtos.PublicPoint"
                 },
                 "destination_address": {
                     "type": "string"
@@ -21871,6 +21885,14 @@ const docTemplate = `{
                 "expires_at": {
                     "type": "string"
                 },
+                "pickup": {
+                    "description": "Pickup and destination as points, for the map of the shared trip; the\naddresses above are already public, these place them on the map",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dtos.PublicPoint"
+                        }
+                    ]
+                },
                 "pickup_address": {
                     "type": "string"
                 },
@@ -21878,6 +21900,14 @@ const docTemplate = `{
                     "$ref": "#/definitions/dtos.PositionView"
                 },
                 "provider_name": {
+                    "type": "string"
+                },
+                "route_geometry": {
+                    "description": "Google encoded polyline, precision 5",
+                    "type": "string",
+                    "example": "zmrv@cbdpA..."
+                },
+                "service_name": {
                     "type": "string"
                 },
                 "status": {
