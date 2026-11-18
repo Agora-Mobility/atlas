@@ -80,11 +80,13 @@ const (
 )
 
 type Settings struct {
-	WatcherInterval  time.Duration
-	WatcherBatch     int
-	FareEstimateTTL  time.Duration
-	NearbyMinCount   int
-	Limits           entities.PlausibilityLimits
+	WatcherInterval time.Duration
+	WatcherBatch    int
+	FareEstimateTTL time.Duration
+	NearbyMinCount  int
+	Limits          entities.PlausibilityLimits
+	// Cadence of the provider app (ADR 0023); the zero value means the default policy
+	Cadence          entities.CadencePolicy
 	HistoryRetention time.Duration
 	RoadFactor       float64
 	AverageSpeedKmh  float64
