@@ -75,6 +75,7 @@ type Deps struct {
 	Storage   services.IObjectStorage
 	Approvals ApprovalHook
 	Settings  Settings
+	Business  services.IBusinessEvents
 }
 
 type Settings struct {
@@ -147,6 +148,7 @@ func (u *Usecase) createProviderAccount(ctx context.Context, phoneNumber string)
 		if err := u.publish(ctx, events.UserRegisteredV1{ID: user.ID, Role: user.Role, CreatedAt: user.CreatedAt}); err != nil {
 			return err
 		}
+		services.BusinessOrNoop(u.Business).UserRegistered(ctx, services.UserRegistration{UserID: user.ID, Role: string(user.Role), Channel: string(enums.ClientTypeProviderApp)})
 		return u.Providers.Create(ctx, user.ID)
 	})
 	if err != nil {
@@ -772,6 +774,7 @@ func (u *Usecase) ReviewProvider(ctx context.Context, actor entities.Actor, prov
 		if err := u.publish(ctx, events.ProviderReviewV1{Type: eventType, ProviderID: providerID, ServiceID: provider.ServiceID, Reason: provider.StatusReason, OccurredAt: now}); err != nil {
 			return err
 		}
+		services.BusinessOrNoop(u.Business).ProviderReviewed(ctx, services.ProviderReview{ProviderID: providerID, Outcome: string(provider.Status)})
 		return u.audit(ctx, actor, "provider.review", auditEntityProvider, providerID.String(), map[string]any{"status": in.Status, "service_id": provider.ServiceID, "reason": provider.StatusReason})
 	})
 	if err != nil {

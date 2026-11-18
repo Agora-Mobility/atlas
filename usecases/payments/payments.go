@@ -55,6 +55,7 @@ type Deps struct {
 	Rewards  RewardHook
 	Prepaid  PrepaidHook
 	Settings repository.IReferenceRepository
+	Business services.IBusinessEvents
 }
 
 type RewardHook interface {
@@ -76,6 +77,32 @@ type Usecase struct {
 
 func NewUsecase(deps Deps, settings Settings) *Usecase {
 	return &Usecase{Deps: deps, settings: settings, now: func() time.Time { return time.Now().UTC() }}
+}
+
+func (u *Usecase) business() services.IBusinessEvents {
+	return services.BusinessOrNoop(u.Business)
+}
+
+type declinedKey struct{}
+
+// withDeclined marks ctx as settling a charge the gateway refused when it was
+// made, so the payment counts as declined rather than failed later.
+func withDeclined(ctx context.Context, code string) context.Context {
+	return context.WithValue(ctx, declinedKey{}, code)
+}
+
+func paymentEvent(ctx context.Context, request *entities.ServiceRequest, p *entities.Payment, source string, now time.Time) services.PaymentEvent {
+	e := services.PaymentEvent{
+		PaymentID: p.ID, RequestID: p.RequestID, Method: string(p.Method), Kind: string(p.Kind), Status: string(p.Status),
+		AmountCents: p.AmountCents, Currency: p.Currency, Source: source, Duplicate: p.Duplicate, CreatedAt: p.CreatedAt, At: now,
+	}
+	if request != nil {
+		e.Category = request.CategorySlug
+	}
+	if code, ok := ctx.Value(declinedKey{}).(string); ok {
+		e.Declined, e.FailureCode = true, code
+	}
+	return e
 }
 
 func toView(p *entities.Payment) dtos.PaymentView {
@@ -255,6 +282,7 @@ func (u *Usecase) Pay(ctx context.Context, customerID, requestID uuid.UUID, in d
 		if payment, err = entities.NewPayment(entities.NewPaymentInput{Request: request, Method: method, Phone: phone, Now: now}); err != nil {
 			return err
 		}
+		u.business().PaymentCreated(ctx, paymentEvent(ctx, request, payment, sourceAPI, now))
 		if method == entities.PaymentWallet {
 			return u.payFromWallet(ctx, request, payment, now)
 		}
@@ -305,13 +333,15 @@ func (u *Usecase) checkEveryOf(method entities.PaymentMethod) time.Duration {
 	return u.settings.GPOCheckInterval
 }
 
-func (u *Usecase) charge(ctx context.Context, payment *entities.Payment, phone string) error {
+func (u *Usecase) charge(ctx context.Context, payment *entities.Payment, phone string) (err error) {
+	ctx, end := u.business().StartStep(ctx, "payment.charge")
+	defer func() { end(err) }()
 	charge, err := u.Gateway.CreateCharge(ctx, services.ChargeInput{
 		Method: payment.Method, MerchantID: payment.MerchantID, AmountCents: payment.AmountCents, Currency: payment.Currency, Description: "Pedido AGORA " + payment.MerchantID, PhoneNumber: phone,
 	})
 	var declined *services.PaymentDeclinedError
 	if errors.As(err, &declined) {
-		return u.close(ctx, payment.ID, sourceAPI, declined.Code, func(p *entities.Payment, now time.Time) {
+		return u.close(withDeclined(ctx, declined.Code), payment.ID, sourceAPI, declined.Code, func(p *entities.Payment, now time.Time) {
 			p.MarkFailed(declined.Message, now)
 		})
 	}
@@ -409,6 +439,9 @@ func (u *Usecase) persistChange(ctx context.Context, payment *entities.Payment, 
 	if err := u.notifyPrepaid(ctx, request, payment, now); err != nil {
 		return err
 	}
+	if payment.Status != entities.PaymentPending {
+		u.business().PaymentSettled(ctx, paymentEvent(ctx, request, payment, source, now))
+	}
 	return u.publish(ctx, request, payment, payment.Method, string(payment.Status), now)
 }
 
@@ -442,7 +475,9 @@ func (u *Usecase) lookup(ctx context.Context, payment *entities.Payment) (*servi
 	return u.Gateway.FindChargeByMerchantID(ctx, payment.MerchantID)
 }
 
-func (u *Usecase) Reconcile(ctx context.Context, paymentID uuid.UUID, source string) error {
+func (u *Usecase) Reconcile(ctx context.Context, paymentID uuid.UUID, source string) (err error) {
+	ctx, end := u.business().StartStep(ctx, "payment.reconcile")
+	defer func() { end(err) }()
 	payment, err := u.Payments.Find(ctx, paymentID)
 	if err != nil {
 		return err
@@ -518,7 +553,8 @@ func (u *Usecase) applySuccess(ctx context.Context, payment *entities.Payment, c
 	if payment.Status != entities.PaymentPending {
 		logger.FromContext(ctx).Warn("late payment after the deadline", zap.String("payment_id", payment.ID.String()))
 	}
-	if _, err := u.Requests.FindForUpdate(ctx, payment.RequestID); err != nil {
+	request, err := u.Requests.FindForUpdate(ctx, payment.RequestID)
+	if err != nil {
 		return err
 	}
 	other, err := u.Payments.PaidOfRequest(ctx, payment.RequestID, payment.Kind)
@@ -536,6 +572,7 @@ func (u *Usecase) applySuccess(ctx context.Context, payment *entities.Payment, c
 		if err := u.record(ctx, payment, source, "charge confirmed twice, credited to the wallet", now); err != nil {
 			return err
 		}
+		u.business().PaymentSettled(ctx, paymentEvent(ctx, request, payment, source, now))
 		return u.creditDuplicate(ctx, payment, now)
 	}
 	return u.persistChange(ctx, payment, source, "charge confirmed", now)
@@ -655,6 +692,8 @@ func (u *Usecase) ConfirmCash(ctx context.Context, providerID, requestID uuid.UU
 		if err := u.record(ctx, payment, sourceProvider, "cash received", now); err != nil {
 			return err
 		}
+		u.business().PaymentCreated(ctx, paymentEvent(ctx, request, payment, sourceProvider, now))
+		u.business().PaymentSettled(ctx, paymentEvent(ctx, request, payment, sourceProvider, now))
 		if err := u.Payments.SetRequestPayment(ctx, requestID, entities.PaymentCash, entities.RequestPaid); err != nil {
 			return err
 		}
@@ -753,6 +792,14 @@ func (u *Usecase) refund(ctx context.Context, actor entities.Actor, paymentID uu
 		if err := u.postRefund(ctx, request, payment, id, cents, keepingFee, now); err != nil {
 			return err
 		}
+		refundSource := "admin"
+		if keepingFee {
+			refundSource = "automatic"
+		}
+		u.business().PaymentRefunded(ctx, services.RefundEvent{
+			PaymentID: payment.ID, RequestID: request.ID, Category: request.CategorySlug, Method: string(payment.Method), Kind: string(payment.Kind),
+			AmountCents: cents, Currency: payment.Currency, Source: refundSource, Full: payment.RefundableCents() == 0,
+		})
 		status := request.PaymentStatus
 		if (status == entities.RequestPaid || status == entities.RequestFullyRefunded) && (payment.Kind == entities.PaymentKindFare || payment.Kind == entities.PaymentKindCancellationFee) {
 			status = entities.RequestPaid

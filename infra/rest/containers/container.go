@@ -7,8 +7,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	goredis "github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.uber.org/zap"
 
 	"github.com/Agora-Mobility/atlas/config"
+	"github.com/Agora-Mobility/atlas/config/logger"
 	"github.com/Agora-Mobility/atlas/domain/services"
 	"github.com/Agora-Mobility/atlas/infra/cache"
 	"github.com/Agora-Mobility/atlas/infra/database/postgres"
@@ -16,6 +19,7 @@ import (
 	"github.com/Agora-Mobility/atlas/infra/middleware"
 	"github.com/Agora-Mobility/atlas/infra/notification/email"
 	"github.com/Agora-Mobility/atlas/infra/notification/sms"
+	"github.com/Agora-Mobility/atlas/infra/observability/business"
 	"github.com/Agora-Mobility/atlas/infra/outbox"
 	"github.com/Agora-Mobility/atlas/infra/queue"
 	"github.com/Agora-Mobility/atlas/infra/repository"
@@ -44,6 +48,8 @@ type Container struct {
 	ClientAuthorizer   *middleware.ClientAuthorizer
 	SMS                services.ISMSSender
 	Email              services.IEmailSender
+	// Business records business events (metrics, span attributes, logs).
+	Business services.IBusinessEvents
 
 	Health        *HealthModule
 	Auth          *AuthModule
@@ -109,6 +115,7 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 		ClientAuthorizer:   middleware.NewClientAuthorizer(repository.NewClientRepository(conn.Pool)),
 		SMS:                newSMSSender(cfg.SMS),
 		Email:              emailSender,
+		Business:           newBusinessEvents(),
 	}
 	auth, err := newAuthModule(c)
 	if err != nil {
@@ -180,4 +187,15 @@ func (c *Container) Close() error {
 	}
 	c.Pool.Close()
 	return errors.Join(errs...)
+}
+
+// newBusinessEvents builds the recorder on the global meter provider, which
+// main installs. Without it (tests) the instruments are no-ops.
+func newBusinessEvents() services.IBusinessEvents {
+	rec, err := business.New(otel.GetMeterProvider())
+	if err != nil {
+		logger.Warn("business metrics disabled", zap.Error(err))
+		return services.NoBusinessEvents{}
+	}
+	return rec
 }

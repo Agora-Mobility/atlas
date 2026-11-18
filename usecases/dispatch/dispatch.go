@@ -80,11 +80,13 @@ const (
 )
 
 type Settings struct {
-	WatcherInterval  time.Duration
-	WatcherBatch     int
-	FareEstimateTTL  time.Duration
-	NearbyMinCount   int
-	Limits           entities.PlausibilityLimits
+	WatcherInterval time.Duration
+	WatcherBatch    int
+	FareEstimateTTL time.Duration
+	NearbyMinCount  int
+	Limits          entities.PlausibilityLimits
+	// Cadence of the provider app (ADR 0023); the zero value means the default policy
+	Cadence          entities.CadencePolicy
 	HistoryRetention time.Duration
 	RoadFactor       float64
 	AverageSpeedKmh  float64
@@ -145,6 +147,7 @@ type Deps struct {
 	Channels  OfferChannels
 	Heatmap   repository.IHeatmapRepository
 	Cache     Cache
+	Business  services.IBusinessEvents
 }
 
 type Cache interface {
@@ -205,6 +208,11 @@ func (u *Usecase) announceTransition(ctx context.Context, request *entities.Serv
 	if err := u.Requests.RecordChange(ctx, request.ID, change); err != nil {
 		return err
 	}
+	services.BusinessOrNoop(u.Business).RequestTransitioned(ctx, services.RequestTransition{
+		RequestID: request.ID, Category: request.CategorySlug, From: string(change.From), To: string(change.To), ActorType: string(change.Actor.Type),
+		Scheduled: request.ScheduledFor != nil, PaymentMethod: string(request.PaymentMethod), FareCents: request.Fare.Cents, Currency: request.Fare.Currency,
+		CreatedAt: request.CreatedAt, At: change.At,
+	})
 	return u.publish(ctx, events.RequestTransitionV1{
 		Type: events.TransitionEventType(string(change.To)), RequestID: request.ID, CustomerID: request.CustomerID, ProviderID: request.ProviderID,
 		Category: request.CategorySlug, Version: change.Version, From: string(change.From), To: string(change.To), ActorType: string(change.Actor.Type),

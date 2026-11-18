@@ -205,9 +205,20 @@ func (u *Usecase) PublicTrip(ctx context.Context, token string) (*dtos.PublicTri
 	if request == nil {
 		return nil, entities.ErrShareNotFound
 	}
-	view := &dtos.PublicTrip{Code: request.PublicCode, Status: string(request.Status), Category: request.CategorySlug, ExpiresAt: share.ExpiresAt, PickupAddress: request.Pickup.Address}
+	view := &dtos.PublicTrip{
+		Code: request.PublicCode, Status: string(request.Status), Category: request.CategorySlug, ExpiresAt: share.ExpiresAt,
+		PickupAddress: request.Pickup.Address, Pickup: publicPoint(request.Pickup.Point), RouteGeometry: request.Fare.RouteGeometry,
+	}
 	if request.Destination != nil {
 		view.DestinationAddress = request.Destination.Address
+		view.Destination = publicPoint(request.Destination.Point)
+	}
+	service, err := u.Config.FindService(ctx, request.ServiceID)
+	if err != nil {
+		return nil, err
+	}
+	if service != nil {
+		view.ServiceName = service.Name
 	}
 	if request.Status.IsTerminal() {
 		return view, nil
@@ -223,6 +234,13 @@ func (u *Usecase) PublicTrip(ctx context.Context, token string) (*dtos.PublicTri
 		view.Position, view.ETASeconds = eta.position, &eta.seconds
 	}
 	return view, nil
+}
+
+func publicPoint(point entities.GeoPoint) *dtos.PublicPoint {
+	if !point.IsValid() {
+		return nil
+	}
+	return &dtos.PublicPoint{Lat: point.Lat, Lng: point.Lng}
 }
 
 type liveETA struct {

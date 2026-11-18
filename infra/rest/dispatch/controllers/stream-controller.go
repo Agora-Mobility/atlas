@@ -28,7 +28,7 @@ func NewStreamController(streamer *sse.Streamer, uc *dispatch.Usecase) *StreamCo
 // Stream godoc
 //
 //	@Summary		Real-time events
-//	@Description	Server-Sent Events of the signed-in customer or provider. Send Last-Event-ID to replay what was missed. Offers carry expires_in_s, relative to the moment of delivery. When the cursor is older than the mailbox a resync event asks the app to reload through GET /api/v1/requests/active.
+//	@Description	Server-Sent Events of the signed-in customer or provider. Send Last-Event-ID to replay what was missed. Offers carry expires_in_s, relative to the moment of delivery. When the cursor is older than the mailbox a resync event asks the app to reload through GET /api/v1/requests/active. request.position carries lat, lng, heading and eta_s and, when known, next_in_s (seconds until the next point), speed_mps and points (the earlier points of the batch, oldest first, with dt_ms before the last one) so the app can move the car continuously (ADR 0023).
 //	@Tags			Real time
 //	@Produce		text/event-stream
 //	@Param			Last-Event-ID	header		string	false	"Id of the last event received"

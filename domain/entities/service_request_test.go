@@ -322,6 +322,21 @@ func TestCadenceTable(t *testing.T) {
 	assert.False(t, entities.CadenceFor(entities.PhaseOnSite, false, false).SendsGPS)
 }
 
+func TestCadencePolicyFromConfiguration(t *testing.T) {
+	policy := entities.DefaultCadencePolicy()
+	policy.ApproachInterval, policy.ApproachDistance = 4*time.Second, 15
+
+	approach := policy.For(entities.PhaseEnRoute, false, false)
+	assert.Equal(t, 4*time.Second, approach.Interval)
+	assert.Equal(t, 15, approach.Distance)
+	assert.Equal(t, 4*time.Second, policy.For(entities.PhaseOffered, false, false).Interval)
+	assert.Equal(t, 8*time.Second, policy.For(entities.PhaseEnRoute, true, false).Interval)
+
+	policy.SlowdownFactor = 1
+	assert.Equal(t, 4*time.Second, policy.For(entities.PhaseEnRoute, true, true).Interval)
+	assert.Equal(t, entities.DefaultCadencePolicy().For(entities.PhaseInTrip, false, false), entities.CadenceFor(entities.PhaseInTrip, false, false))
+}
+
 func TestPlausibilityRejectsBadPointsAndImpossibleJumps(t *testing.T) {
 	limits := entities.PlausibilityLimits{MaxAccuracyM: 100, MaxSpeedMps: 55}
 	first := entities.ProviderPosition{Point: entities.GeoPoint{Lat: -8.84, Lng: 13.23}, AccuracyM: 10, RecordedAt: requestNow}

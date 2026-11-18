@@ -40,6 +40,7 @@ func newBookingsModule(c *Container, storage services.IObjectStorage) *BookingsM
 		Refunds:  c.Payments.Usecase,
 		Storage:  storage,
 		Photos:   c.Experience.Usecase,
+		Business: c.Business,
 	})
 	c.Payments.Usecase.Prepaid = prepaidRoutes{bookings: uc, removals: c.Dispatch.Usecase}
 	c.Dispatch.Usecase.Refunds = c.Payments.Usecase

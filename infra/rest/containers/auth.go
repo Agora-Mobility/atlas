@@ -50,7 +50,7 @@ func newAuthModule(c *Container) (*AuthModule, error) {
 	staffSignIn := usecases.NewStaffSignIn(userRepo, membershipRepo, sessions)
 
 	controller := controllers.NewAuthController(
-		usecases.NewAuthUsecase(userRepo, c.Outbox, c.TxManager, hasher, codeSender, sessions, staffSignIn, revoker),
+		usecases.NewAuthUsecase(userRepo, c.Outbox, c.TxManager, hasher, codeSender, sessions, staffSignIn, revoker).WithBusinessEvents(c.Business),
 		usecases.NewRefreshUsecase(refreshTokenRepo, userRepo, accessResolver, c.TxManager, opaqueTokens, sessions, revoker, cfg.JWT.RefreshTTL),
 		usecases.NewPhoneVerificationUsecase(userRepo, c.Outbox, c.TxManager, otpService, codeSender, sessions),
 		usecases.NewRecoveryUsecase(userRepo, c.Outbox, c.TxManager, hasher, otpService, codeSender, revoker,

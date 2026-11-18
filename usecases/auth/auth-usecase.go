@@ -61,6 +61,13 @@ type AuthUsecase struct {
 	passwords     passwordReplacer
 	dummyHashOnce sync.Once
 	dummyHash     string
+	business      services.IBusinessEvents
+}
+
+// WithBusinessEvents sets the recorder of business events (registrations).
+func (uc *AuthUsecase) WithBusinessEvents(b services.IBusinessEvents) *AuthUsecase {
+	uc.business = b
+	return uc
 }
 
 func NewAuthUsecase(
@@ -119,6 +126,7 @@ func (uc *AuthUsecase) Register(ctx context.Context, req dtos.RegisterInput, cli
 		if err := uc.userRepo.Create(ctx, user); err != nil {
 			return err
 		}
+		services.BusinessOrNoop(uc.business).UserRegistered(ctx, services.UserRegistration{UserID: user.ID, Role: string(user.Role), Channel: string(client.Type)})
 		return uc.outboxRepo.Save(ctx, registered)
 	})
 	if err != nil {

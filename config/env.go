@@ -168,6 +168,15 @@ type DispatchConfig struct {
 	DemandFactorTTL        time.Duration `mapstructure:"DEMAND_FACTOR_TTL"`
 	DemandHistoryRetention time.Duration `mapstructure:"DEMAND_HISTORY_RETENTION"`
 	RouteReviewAbovePct    int           `mapstructure:"ROUTE_REVIEW_ABOVE_PERCENT"`
+
+	// Cadence of the provider app: every interval or every distance, per phase (ADR 0023)
+	CadenceIdleInterval      time.Duration `mapstructure:"CADENCE_IDLE_INTERVAL"`
+	CadenceIdleDistanceM     int           `mapstructure:"CADENCE_IDLE_DISTANCE_M"`
+	CadenceApproachInterval  time.Duration `mapstructure:"CADENCE_APPROACH_INTERVAL"`
+	CadenceApproachDistanceM int           `mapstructure:"CADENCE_APPROACH_DISTANCE_M"`
+	CadenceTripInterval      time.Duration `mapstructure:"CADENCE_TRIP_INTERVAL"`
+	CadenceTripDistanceM     int           `mapstructure:"CADENCE_TRIP_DISTANCE_M"`
+	CadenceSlowdownFactor    int           `mapstructure:"CADENCE_SLOWDOWN_FACTOR"`
 }
 
 type RealtimeConfig struct {
@@ -398,6 +407,13 @@ var defaults = map[string]any{
 	"DEMAND_FACTOR_TTL":                     "3m",
 	"DEMAND_HISTORY_RETENTION":              "720h",
 	"ROUTE_REVIEW_ABOVE_PERCENT":            30,
+	"CADENCE_IDLE_INTERVAL":                 "30s",
+	"CADENCE_IDLE_DISTANCE_M":               150,
+	"CADENCE_APPROACH_INTERVAL":             "7s",
+	"CADENCE_APPROACH_DISTANCE_M":           30,
+	"CADENCE_TRIP_INTERVAL":                 "10s",
+	"CADENCE_TRIP_DISTANCE_M":               50,
+	"CADENCE_SLOWDOWN_FACTOR":               2,
 	"HEATMAP_INTERVAL":                      "5m",
 	"HEATMAP_WINDOW":                        "15m",
 	"HEATMAP_LOOKBACK_WINDOWS":              2,
@@ -476,6 +492,9 @@ var defaults = map[string]any{
 }
 
 const cloudflareIdleLimit = 100 * time.Second
+
+// minCadenceInterval keeps the provider app from reporting more than every 2 s on the way and during the trip (ADR 0023)
+const minCadenceInterval = 2 * time.Second
 
 const (
 	minDemandAreaResolution = 5
@@ -640,6 +659,12 @@ func (c *Config) validateDispatch() []error {
 	}
 	if c.Dispatch.RouteReviewAbovePct < 0 {
 		errs = append(errs, errors.New("ROUTE_REVIEW_ABOVE_PERCENT cannot be negative"))
+	}
+	if c.Dispatch.CadenceIdleInterval <= 0 || c.Dispatch.CadenceApproachInterval < minCadenceInterval || c.Dispatch.CadenceTripInterval < minCadenceInterval {
+		errs = append(errs, fmt.Errorf("CADENCE_IDLE_INTERVAL must be positive, and CADENCE_APPROACH_INTERVAL and CADENCE_TRIP_INTERVAL at least %s", minCadenceInterval))
+	}
+	if c.Dispatch.CadenceIdleDistanceM <= 0 || c.Dispatch.CadenceApproachDistanceM <= 0 || c.Dispatch.CadenceTripDistanceM <= 0 || c.Dispatch.CadenceSlowdownFactor < 1 {
+		errs = append(errs, errors.New("CADENCE_*_DISTANCE_M must be positive and CADENCE_SLOWDOWN_FACTOR at least 1"))
 	}
 	if c.Realtime.Heartbeat <= 0 || c.Realtime.Heartbeat >= cloudflareIdleLimit {
 		errs = append(errs, errors.New("SSE_HEARTBEAT_INTERVAL must be positive and below the 100s Cloudflare idle limit"))

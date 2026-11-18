@@ -117,6 +117,7 @@ func TestASharedLinkIsPublicButLimited(t *testing.T) {
 	assert.Equal(t, "Pessoa Teste", public.str("provider_name"))
 	assert.Equal(t, "LD-45-21-AF", public.str("vehicle_plate"))
 	assert.NotContains(t, public.text, "+244923000321", "no phone")
+	assert.Contains(t, public.text, `"pickup":{"lat":`, "the map of the shared trip places the pickup")
 	assert.Equal(t, http.StatusNotFound, anonymous.get(t, "/api/v1/public/trips/"+uuid.NewString()).status)
 
 	var stored string
