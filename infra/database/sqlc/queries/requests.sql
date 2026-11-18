@@ -87,6 +87,20 @@ WHERE customer_id = sqlc.arg(customer_id)
   AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]))
   AND (sqlc.arg(category_slug)::text = '' OR category_slug = sqlc.arg(category_slug));
 
+-- name: ListRequestsOfProvider :many
+SELECT * FROM service_requests
+WHERE provider_id = sqlc.arg(provider_id)
+  AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]))
+  AND (sqlc.arg(category_slug)::text = '' OR category_slug = sqlc.arg(category_slug))
+ORDER BY created_at DESC
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
+
+-- name: CountRequestsOfProvider :one
+SELECT count(*) FROM service_requests
+WHERE provider_id = sqlc.arg(provider_id)
+  AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]))
+  AND (sqlc.arg(category_slug)::text = '' OR category_slug = sqlc.arg(category_slug));
+
 -- name: ListOperatorQueue :many
 SELECT * FROM service_requests
 WHERE needs_operator AND status IN ('searching', 'offered', 'awaiting_choice')
@@ -158,6 +172,18 @@ SELECT * FROM request_offers
 WHERE provider_id = $1 AND status IN ('sent', 'delivered') AND expires_at > sqlc.arg(now)::timestamptz
 ORDER BY sent_at DESC;
 
+-- name: ListOffersOfProvider :many
+SELECT * FROM request_offers
+WHERE provider_id = sqlc.arg(provider_id)
+  AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]))
+ORDER BY sent_at DESC
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
+
+-- name: CountOffersOfProvider :one
+SELECT count(*) FROM request_offers
+WHERE provider_id = sqlc.arg(provider_id)
+  AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]));
+
 -- name: InsertLocationSample :exec
 INSERT INTO provider_location_samples (provider_id, request_id, lat, lng, recorded_at) VALUES ($1, $2, $3, $4, $5);
 
@@ -193,6 +219,7 @@ WHERE (sqlc.arg(statuses)::text[] = '{}' OR r.status = ANY(sqlc.arg(statuses)::t
   AND (sqlc.narg(zone_id)::uuid IS NULL OR r.zone_id = sqlc.narg(zone_id))
   AND (sqlc.narg(organization_id)::uuid IS NULL OR r.organization_id = sqlc.narg(organization_id))
   AND (sqlc.narg(provider_id)::uuid IS NULL OR r.provider_id = sqlc.narg(provider_id))
+  AND (sqlc.narg(customer_id)::uuid IS NULL OR r.customer_id = sqlc.narg(customer_id))
   AND (sqlc.narg(created_from)::timestamptz IS NULL OR r.created_at >= sqlc.narg(created_from))
   AND (sqlc.narg(created_to)::timestamptz IS NULL OR r.created_at < sqlc.narg(created_to))
   AND (NOT sqlc.arg(route_review)::boolean OR tm.needs_review)
@@ -221,6 +248,7 @@ WHERE (sqlc.arg(statuses)::text[] = '{}' OR r.status = ANY(sqlc.arg(statuses)::t
   AND (sqlc.narg(zone_id)::uuid IS NULL OR r.zone_id = sqlc.narg(zone_id))
   AND (sqlc.narg(organization_id)::uuid IS NULL OR r.organization_id = sqlc.narg(organization_id))
   AND (sqlc.narg(provider_id)::uuid IS NULL OR r.provider_id = sqlc.narg(provider_id))
+  AND (sqlc.narg(customer_id)::uuid IS NULL OR r.customer_id = sqlc.narg(customer_id))
   AND (sqlc.narg(created_from)::timestamptz IS NULL OR r.created_at >= sqlc.narg(created_from))
   AND (sqlc.narg(created_to)::timestamptz IS NULL OR r.created_at < sqlc.narg(created_to))
   AND (NOT sqlc.arg(route_review)::boolean OR tm.needs_review)

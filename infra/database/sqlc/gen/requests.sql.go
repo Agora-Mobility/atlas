@@ -172,14 +172,15 @@ WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($4::uuid IS NULL OR r.zone_id = $4)
   AND ($5::uuid IS NULL OR r.organization_id = $5)
   AND ($6::uuid IS NULL OR r.provider_id = $6)
-  AND ($7::timestamptz IS NULL OR r.created_at >= $7)
-  AND ($8::timestamptz IS NULL OR r.created_at < $8)
-  AND (NOT $9::boolean OR tm.needs_review)
-  AND ($10::text = ''
-       OR r.public_code ILIKE $10::text
-       OR cu.name ILIKE $10::text
-       OR ($11::text <> '' AND cu.phone LIKE $11::text)
-       OR ($12::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $12::text))
+  AND ($7::uuid IS NULL OR r.customer_id = $7)
+  AND ($8::timestamptz IS NULL OR r.created_at >= $8)
+  AND ($9::timestamptz IS NULL OR r.created_at < $9)
+  AND (NOT $10::boolean OR tm.needs_review)
+  AND ($11::text = ''
+       OR r.public_code ILIKE $11::text
+       OR cu.name ILIKE $11::text
+       OR ($12::text <> '' AND cu.phone LIKE $12::text)
+       OR ($13::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $13::text))
 `
 
 type CountAdminRequestsParams struct {
@@ -189,6 +190,7 @@ type CountAdminRequestsParams struct {
 	ZoneID         *uuid.UUID `json:"zone_id"`
 	OrganizationID *uuid.UUID `json:"organization_id"`
 	ProviderID     *uuid.UUID `json:"provider_id"`
+	CustomerID     *uuid.UUID `json:"customer_id"`
 	CreatedFrom    *time.Time `json:"created_from"`
 	CreatedTo      *time.Time `json:"created_to"`
 	RouteReview    bool       `json:"route_review"`
@@ -205,6 +207,7 @@ func (q *Queries) CountAdminRequests(ctx context.Context, arg CountAdminRequests
 		arg.ZoneID,
 		arg.OrganizationID,
 		arg.ProviderID,
+		arg.CustomerID,
 		arg.CreatedFrom,
 		arg.CreatedTo,
 		arg.RouteReview,
@@ -212,6 +215,24 @@ func (q *Queries) CountAdminRequests(ctx context.Context, arg CountAdminRequests
 		arg.SearchDigits,
 		arg.SearchPlate,
 	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countOffersOfProvider = `-- name: CountOffersOfProvider :one
+SELECT count(*) FROM request_offers
+WHERE provider_id = $1
+  AND ($2::text[] = '{}' OR status = ANY($2::text[]))
+`
+
+type CountOffersOfProviderParams struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	Statuses   []string  `json:"statuses"`
+}
+
+func (q *Queries) CountOffersOfProvider(ctx context.Context, arg CountOffersOfProviderParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countOffersOfProvider, arg.ProviderID, arg.Statuses)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -232,6 +253,26 @@ type CountRequestsOfCustomerParams struct {
 
 func (q *Queries) CountRequestsOfCustomer(ctx context.Context, arg CountRequestsOfCustomerParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countRequestsOfCustomer, arg.CustomerID, arg.Statuses, arg.CategorySlug)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countRequestsOfProvider = `-- name: CountRequestsOfProvider :one
+SELECT count(*) FROM service_requests
+WHERE provider_id = $1
+  AND ($2::text[] = '{}' OR status = ANY($2::text[]))
+  AND ($3::text = '' OR category_slug = $3)
+`
+
+type CountRequestsOfProviderParams struct {
+	ProviderID   *uuid.UUID `json:"provider_id"`
+	Statuses     []string   `json:"statuses"`
+	CategorySlug string     `json:"category_slug"`
+}
+
+func (q *Queries) CountRequestsOfProvider(ctx context.Context, arg CountRequestsOfProviderParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRequestsOfProvider, arg.ProviderID, arg.Statuses, arg.CategorySlug)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -1051,22 +1092,23 @@ WHERE ($1::text[] = '{}' OR r.status = ANY($1::text[]))
   AND ($4::uuid IS NULL OR r.zone_id = $4)
   AND ($5::uuid IS NULL OR r.organization_id = $5)
   AND ($6::uuid IS NULL OR r.provider_id = $6)
-  AND ($7::timestamptz IS NULL OR r.created_at >= $7)
-  AND ($8::timestamptz IS NULL OR r.created_at < $8)
-  AND (NOT $9::boolean OR tm.needs_review)
-  AND ($10::text = ''
-       OR r.public_code ILIKE $10::text
-       OR cu.name ILIKE $10::text
-       OR ($11::text <> '' AND cu.phone LIKE $11::text)
-       OR ($12::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $12::text))
+  AND ($7::uuid IS NULL OR r.customer_id = $7)
+  AND ($8::timestamptz IS NULL OR r.created_at >= $8)
+  AND ($9::timestamptz IS NULL OR r.created_at < $9)
+  AND (NOT $10::boolean OR tm.needs_review)
+  AND ($11::text = ''
+       OR r.public_code ILIKE $11::text
+       OR cu.name ILIKE $11::text
+       OR ($12::text <> '' AND cu.phone LIKE $12::text)
+       OR ($13::text <> '' AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') LIKE $13::text))
 ORDER BY
-  CASE WHEN $13::text = 'created_at' THEN r.created_at END ASC,
-  CASE WHEN $13::text = 'scheduled_for' THEN r.scheduled_for END ASC NULLS LAST,
-  CASE WHEN $13::text = '-scheduled_for' THEN r.scheduled_for END DESC NULLS LAST,
-  CASE WHEN $13::text = 'fare_cents' THEN r.fare_cents END ASC NULLS LAST,
-  CASE WHEN $13::text = '-fare_cents' THEN r.fare_cents END DESC NULLS LAST,
+  CASE WHEN $14::text = 'created_at' THEN r.created_at END ASC,
+  CASE WHEN $14::text = 'scheduled_for' THEN r.scheduled_for END ASC NULLS LAST,
+  CASE WHEN $14::text = '-scheduled_for' THEN r.scheduled_for END DESC NULLS LAST,
+  CASE WHEN $14::text = 'fare_cents' THEN r.fare_cents END ASC NULLS LAST,
+  CASE WHEN $14::text = '-fare_cents' THEN r.fare_cents END DESC NULLS LAST,
   r.created_at DESC, r.id DESC
-LIMIT $15 OFFSET $14
+LIMIT $16 OFFSET $15
 `
 
 type ListAdminRequestsParams struct {
@@ -1076,6 +1118,7 @@ type ListAdminRequestsParams struct {
 	ZoneID         *uuid.UUID `json:"zone_id"`
 	OrganizationID *uuid.UUID `json:"organization_id"`
 	ProviderID     *uuid.UUID `json:"provider_id"`
+	CustomerID     *uuid.UUID `json:"customer_id"`
 	CreatedFrom    *time.Time `json:"created_from"`
 	CreatedTo      *time.Time `json:"created_to"`
 	RouteReview    bool       `json:"route_review"`
@@ -1126,6 +1169,7 @@ func (q *Queries) ListAdminRequests(ctx context.Context, arg ListAdminRequestsPa
 		arg.ZoneID,
 		arg.OrganizationID,
 		arg.ProviderID,
+		arg.CustomerID,
 		arg.CreatedFrom,
 		arg.CreatedTo,
 		arg.RouteReview,
@@ -1203,6 +1247,65 @@ func (q *Queries) ListFareAdjustments(ctx context.Context, requestID uuid.UUID) 
 	for rows.Next() {
 		var i ListFareAdjustmentsRow
 		if err := rows.Scan(&i.Reason, &i.AmountCents, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOffersOfProvider = `-- name: ListOffersOfProvider :many
+SELECT id, request_id, provider_id, status, sent_at, delivered_at, delivered_via, expires_at, responded_at, next_action_at, fallback_step, quote_cents, quote_note, distance_m, net_cents, boost_bps, reject_reason_id, reject_note FROM request_offers
+WHERE provider_id = $1
+  AND ($2::text[] = '{}' OR status = ANY($2::text[]))
+ORDER BY sent_at DESC
+LIMIT $4 OFFSET $3
+`
+
+type ListOffersOfProviderParams struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	Statuses   []string  `json:"statuses"`
+	PageOffset int32     `json:"page_offset"`
+	PageLimit  int32     `json:"page_limit"`
+}
+
+func (q *Queries) ListOffersOfProvider(ctx context.Context, arg ListOffersOfProviderParams) ([]RequestOffer, error) {
+	rows, err := q.db.Query(ctx, listOffersOfProvider,
+		arg.ProviderID,
+		arg.Statuses,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RequestOffer{}
+	for rows.Next() {
+		var i RequestOffer
+		if err := rows.Scan(
+			&i.ID,
+			&i.RequestID,
+			&i.ProviderID,
+			&i.Status,
+			&i.SentAt,
+			&i.DeliveredAt,
+			&i.DeliveredVia,
+			&i.ExpiresAt,
+			&i.RespondedAt,
+			&i.NextActionAt,
+			&i.FallbackStep,
+			&i.QuoteCents,
+			&i.QuoteNote,
+			&i.DistanceM,
+			&i.NetCents,
+			&i.BoostBps,
+			&i.RejectReasonID,
+			&i.RejectNote,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1570,6 +1673,109 @@ type ListRequestsOfCustomerParams struct {
 func (q *Queries) ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOfCustomerParams) ([]ServiceRequest, error) {
 	rows, err := q.db.Query(ctx, listRequestsOfCustomer,
 		arg.CustomerID,
+		arg.Statuses,
+		arg.CategorySlug,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ServiceRequest{}
+	for rows.Next() {
+		var i ServiceRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.CategoryID,
+			&i.CategorySlug,
+			&i.ServiceID,
+			&i.ZoneID,
+			&i.PolicyID,
+			&i.Status,
+			&i.Version,
+			&i.PickupAddressID,
+			&i.ContactPhone,
+			&i.PickupH3R8,
+			&i.DestinationAddressID,
+			&i.DestinationH3R8,
+			&i.PassengerName,
+			&i.PassengerPhone,
+			&i.Details,
+			&i.ScheduledFor,
+			&i.SearchRound,
+			&i.SearchExtended,
+			&i.SearchDeadlineAt,
+			&i.NextActionAt,
+			&i.ReminderAt,
+			&i.ProviderID,
+			&i.OrganizationID,
+			&i.FareEstimateID,
+			&i.FareCents,
+			&i.CommissionCents,
+			&i.BoostBps,
+			&i.Currency,
+			&i.NeedsOperator,
+			&i.OperatorReason,
+			&i.IdempotencyKey,
+			&i.CancelReason,
+			&i.CancelledBy,
+			&i.AcceptedAt,
+			&i.ArrivedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PaymentMethod,
+			&i.PaymentStatus,
+			&i.CancelReasonID,
+			&i.CancelFeeCents,
+			&i.VoucherID,
+			&i.VoucherCode,
+			&i.DiscountCents,
+			&i.PublicCode,
+			&i.VehicleTypeID,
+			&i.CompletionCode,
+			&i.CompletionAttempts,
+			&i.WorkshopID,
+			&i.Prepay,
+			&i.ExtraDueCents,
+			&i.RemovalDay,
+			&i.RemovalWindowID,
+			&i.RouteGeometry,
+			&i.PickupH3R9,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRequestsOfProvider = `-- name: ListRequestsOfProvider :many
+SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code, vehicle_type_id, completion_code, completion_attempts, workshop_id, prepay, extra_due_cents, removal_day, removal_window_id, route_geometry, pickup_h3_r9 FROM service_requests
+WHERE provider_id = $1
+  AND ($2::text[] = '{}' OR status = ANY($2::text[]))
+  AND ($3::text = '' OR category_slug = $3)
+ORDER BY created_at DESC
+LIMIT $5 OFFSET $4
+`
+
+type ListRequestsOfProviderParams struct {
+	ProviderID   *uuid.UUID `json:"provider_id"`
+	Statuses     []string   `json:"statuses"`
+	CategorySlug string     `json:"category_slug"`
+	PageOffset   int32      `json:"page_offset"`
+	PageLimit    int32      `json:"page_limit"`
+}
+
+func (q *Queries) ListRequestsOfProvider(ctx context.Context, arg ListRequestsOfProviderParams) ([]ServiceRequest, error) {
+	rows, err := q.db.Query(ctx, listRequestsOfProvider,
+		arg.ProviderID,
 		arg.Statuses,
 		arg.CategorySlug,
 		arg.PageOffset,

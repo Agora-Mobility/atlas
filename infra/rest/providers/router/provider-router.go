@@ -33,6 +33,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 
 	me := api.Group("/providers/me", clients, r.authenticator.RequireAuth())
 	me.GET("/profile", r.controller.MyProfile)
+	me.GET("/earnings", r.controller.MyEarnings)
 	me.PUT("/profile", r.controller.SetProfile)
 	me.PUT("/vehicle", r.controller.SetVehicle)
 	me.POST("/documents/upload-url", r.controller.UploadURL)
@@ -44,6 +45,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	admin := api.Group("/admin/providers", clients, r.authenticator.RequireAuth())
 	admin.GET("", can(entities.PermProvidersRead), r.controller.ListApplications)
 	admin.GET("/:id", can(entities.PermProvidersRead), r.controller.GetApplication)
+	admin.GET("/:id/activity", can(entities.PermProvidersRead), r.controller.Activity)
 	admin.PUT("/:id", can(entities.PermProvidersApprove), r.controller.ReviewProvider)
 	admin.POST("/:id/documents/:type/review", can(entities.PermProvidersApprove), r.controller.ReviewDocument)
 

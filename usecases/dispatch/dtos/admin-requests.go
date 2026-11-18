@@ -13,6 +13,7 @@ type AdminRequestFilter struct {
 	ZoneID         *uuid.UUID
 	OrganizationID *uuid.UUID
 	ProviderID     *uuid.UUID
+	CustomerID     *uuid.UUID
 	From           *time.Time
 	To             *time.Time
 	RouteReview    bool

@@ -79,6 +79,8 @@ type IRequestRepository interface {
 	ActiveOfCustomer(ctx context.Context, customerID uuid.UUID) (*entities.ServiceRequest, error)
 	ActiveOfProvider(ctx context.Context, providerID uuid.UUID) (*entities.ServiceRequest, error)
 	ListOfCustomer(ctx context.Context, filter RequestFilter) ([]*entities.ServiceRequest, int64, error)
+	// ListOfProvider lists the requests assigned to filter.ProviderID, most recent first.
+	ListOfProvider(ctx context.Context, filter RequestFilter) ([]*entities.ServiceRequest, int64, error)
 	OperatorQueue(ctx context.Context, limit, offset int) ([]*entities.ServiceRequest, error)
 	AddFareAdjustment(ctx context.Context, adjustment entities.FareAdjustment) error
 	ListFareAdjustments(ctx context.Context, requestID uuid.UUID) ([]entities.FareAdjustment, error)
@@ -130,6 +132,7 @@ type AdminRequestFilter struct {
 	ZoneID         *uuid.UUID
 	OrganizationID *uuid.UUID
 	ProviderID     *uuid.UUID
+	CustomerID     *uuid.UUID
 	From           *time.Time
 	To             *time.Time
 	RouteReview    bool
@@ -197,6 +200,7 @@ type RequestHistoryEntry struct {
 
 type RequestFilter struct {
 	CustomerID uuid.UUID
+	ProviderID uuid.UUID
 	Statuses   []string
 	Category   string
 	Limit      int
@@ -212,6 +216,8 @@ type IOfferRepository interface {
 	ListOfRequestForUpdate(ctx context.Context, requestID uuid.UUID) ([]*entities.RequestOffer, error)
 	Due(ctx context.Context, now time.Time, batch int) ([]uuid.UUID, error)
 	OpenOfProvider(ctx context.Context, providerID uuid.UUID, now time.Time) ([]*entities.RequestOffer, error)
+	// HistoryOfProvider lists every offer sent to the provider, most recent first.
+	HistoryOfProvider(ctx context.Context, providerID uuid.UUID, statuses []string, limit, offset int) ([]*entities.RequestOffer, int64, error)
 }
 
 type IDeviceRepository interface {

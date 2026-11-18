@@ -11,17 +11,29 @@ set -e
 DB_ADDRESS="${DATABASE_URL%%\?*}"
 DB_WAIT_SECONDS="${DB_WAIT_SECONDS:-60}"
 
-echo "Waiting for PostgreSQL to be ready..."
-waited=0
-until pg_isready -q -d "$DB_ADDRESS"; do
-  waited=$((waited + 1))
-  if [ "$waited" -ge "$DB_WAIT_SECONDS" ]; then
-    echo "PostgreSQL is not ready after ${DB_WAIT_SECONDS}s."
+# O prazo conta segundos reais: cada pg_isready pode demorar até 2s, e contar tentativas fazia a espera
+# passar do tempo que o deploy dá ao healthcheck, que matava o container antes de sabermos o motivo.
+# A saída do pg_isready ("host:porta - no response") diz para onde está a ligar, sem a senha.
+echo "Waiting for PostgreSQL to be ready (up to ${DB_WAIT_SECONDS}s)..."
+deadline=$(($(date +%s) + DB_WAIT_SECONDS))
+attempt=0
+while :; do
+  status=0
+  result=$(pg_isready -t 2 -d "$DB_ADDRESS" 2>&1) || status=$?
+  [ "$status" -eq 0 ] && break
+  if [ "$status" -eq 3 ]; then
+    echo "pg_isready cannot use DATABASE_URL (exit 3): check its format and percent-encode special characters in the password. ${result}"
+    exit 1
+  fi
+  attempt=$((attempt + 1))
+  [ $((attempt % 10)) -eq 1 ] && echo "PostgreSQL not ready yet (exit ${status}): ${result}"
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "PostgreSQL is not ready after ${DB_WAIT_SECONDS}s (exit ${status}): ${result}"
     exit 1
   fi
   sleep 1
 done
-echo "PostgreSQL is ready."
+echo "PostgreSQL is ready: ${result}"
 
 # O /migrate cria o schema atlas antes de aplicar as migrations. Qualquer erro derruba o arranque.
 echo "Running database migrations..."

@@ -119,12 +119,12 @@ func (r *UserRepository) List(ctx context.Context, filter repository.UserFilter,
 	q := postgres.Queries(ctx, r.pool)
 	roles, status, search := filterArgs(filter)
 
-	total, err := q.CountUsers(ctx, gen.CountUsersParams{Roles: roles, Status: status, Search: search})
+	total, err := q.CountUsers(ctx, gen.CountUsersParams{Roles: roles, Status: status, Category: filter.Category, Search: search})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count users: %w", err)
 	}
 	rows, err := q.ListUsers(ctx, gen.ListUsersParams{
-		Roles: roles, Status: status, Search: search,
+		Roles: roles, Status: status, Category: filter.Category, Search: search,
 		PageLimit: page.Limit(), PageOffset: page.Offset(),
 	})
 	if err != nil {

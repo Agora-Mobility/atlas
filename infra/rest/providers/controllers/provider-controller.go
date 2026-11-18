@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -344,7 +345,7 @@ func (c *ProviderController) Submit(ctx *gin.Context) {
 // ListApplications godoc
 //
 //	@Summary		List provider applications
-//	@Description	Requires providers:read. Oldest submission first.
+//	@Description	Requires providers:read. Oldest submission first, or the one that earned the most with sort=earned_desc. Each provider has the requests assigned to them (completed and cancelled by anyone) and the rating; with finance:read also gross_cents, earned_cents and balance_cents since they joined.
 //	@Tags			Backoffice providers
 //	@Produce		json
 //	@Param			status			query		string	false	"draft, pending, approved, rejected or suspended"
@@ -352,6 +353,7 @@ func (c *ProviderController) Submit(ctx *gin.Context) {
 //	@Param			service_id		query		string	false	"Active or requested service"
 //	@Param			category		query		string	false	"Category slug, such as taxi or towing"
 //	@Param			search			query		string	false	"Name, phone or plate"
+//	@Param			sort			query		string	false	"earned_desc (needs finance:read)"
 //	@Param			page			query		int		false	"Page"
 //	@Param			size			query		int		false	"Page size"
 //	@Success		200				{object}	dtos.ApplicationList
@@ -372,9 +374,113 @@ func (c *ProviderController) ListApplications(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	filter := dtos.ApplicationFilter{Status: ctx.Query("status"), OrganizationID: organizationID, ServiceID: serviceID, Category: ctx.Query("category"), Search: ctx.Query("search")}
+	filter := dtos.ApplicationFilter{
+		Status: ctx.Query("status"), OrganizationID: organizationID, ServiceID: serviceID, Category: ctx.Query("category"), Search: ctx.Query("search"),
+		Sort: ctx.Query("sort"), WithMoney: canSeeMoney(ctx),
+	}
+	if filter.Sort != "" && filter.Sort != sortEarned {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "sort is earned_desc or empty.")
+		return
+	}
+	if filter.Sort == sortEarned && !filter.WithMoney {
+		shared.Forbidden(ctx, middleware.CodePermissionDenied, "Sorting by what providers earned needs finance:read.")
+		return
+	}
 	list, err := c.providers.ListApplications(ctx.Request.Context(), filter, page)
 	respond(ctx, http.StatusOK, list, err)
+}
+
+const sortEarned = "earned_desc"
+
+// canSeeMoney says if the staff member may see what providers earned.
+func canSeeMoney(ctx *gin.Context) bool {
+	access, ok := middleware.AccessFromContext(ctx.Request.Context())
+	return ok && access.Has(entities.PermFinanceRead)
+}
+
+// Activity godoc
+//
+//	@Summary		Get the activity of a provider
+//	@Description	Requires providers:read. The requests assigned to the provider (completed and cancelled by anyone), the last one and the rating. With finance:read also the money since they joined (total) and, when from or to is given, in [from, to) (period).
+//	@Tags			Backoffice providers
+//	@Produce		json
+//	@Param			id		path		string	true	"User id of the provider"
+//	@Param			from	query		string	false	"At or after, YYYY-MM-DD or RFC 3339"
+//	@Param			to		query		string	false	"Before, YYYY-MM-DD or RFC 3339"
+//	@Success		200		{object}	dtos.ProviderActivityView
+//	@Failure		400		{object}	shared.ErrorResponse
+//	@Failure		404		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/admin/providers/{id}/activity [get]
+func (c *ProviderController) Activity(ctx *gin.Context) {
+	id, ok := providerParam(ctx)
+	if !ok {
+		return
+	}
+	from, ok := queryTime(ctx, "from")
+	if !ok {
+		return
+	}
+	to, ok := queryTime(ctx, "to")
+	if !ok {
+		return
+	}
+	view, err := c.providers.Activity(ctx.Request.Context(), id, canSeeMoney(ctx), from, to)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+// MyEarnings godoc
+//
+//	@Summary		My earnings
+//	@Description	Providers only. What the provider earned in the day, week (Monday to Sunday) or month that holds date (today when not given), in Africa/Luanda time, with one entry per day for the chart and the completed and cancelled requests of each day.
+//	@Tags			Provider work
+//	@Produce		json
+//	@Param			period	query		string	false	"day, week or month (default day)"	Enums(day, week, month)
+//	@Param			date	query		string	false	"A day of the period, YYYY-MM-DD (default today)"
+//	@Success		200		{object}	dtos.ProviderEarningsView
+//	@Failure		400		{object}	shared.ErrorResponse
+//	@Failure		403		{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/providers/me/earnings [get]
+func (c *ProviderController) MyEarnings(ctx *gin.Context) {
+	providerID, ok := currentProvider(ctx)
+	if !ok {
+		return
+	}
+	period := providers.EarningsPeriod(ctx.DefaultQuery("period", string(providers.EarningsDay)))
+	if !period.Valid() {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid period: use day, week or month.")
+		return
+	}
+	var date *time.Time
+	if raw := ctx.Query("date"); raw != "" {
+		parsed, err := time.ParseInLocation(time.DateOnly, raw, time.UTC)
+		if err != nil {
+			shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid date: use YYYY-MM-DD.")
+			return
+		}
+		// Noon keeps the date the same day in Africa/Luanda.
+		noon := parsed.Add(12 * time.Hour)
+		date = &noon
+	}
+	view, err := c.providers.Earnings(ctx.Request.Context(), providerID, period, date)
+	respond(ctx, http.StatusOK, view, err)
+}
+
+func queryTime(ctx *gin.Context, name string) (*time.Time, bool) {
+	raw := ctx.Query(name)
+	if raw == "" {
+		return nil, true
+	}
+	for _, layout := range []string{time.RFC3339, time.DateOnly} {
+		if parsed, err := time.Parse(layout, raw); err == nil {
+			return &parsed, true
+		}
+	}
+	shared.BadRequest(ctx, shared.CodeInvalidRequest, "Invalid "+name+": use YYYY-MM-DD or RFC 3339.")
+	return nil, false
 }
 
 // GetApplication godoc

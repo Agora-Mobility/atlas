@@ -295,8 +295,9 @@ WHERE ($1::text = '' OR p.status = $1::text)
   AND ($3::uuid IS NULL OR COALESCE(p.service_id, p.requested_service_id) = $3)
   AND ($4::text = '' OR c.slug = $4::text)
   AND ($5::text = '' OR u.name ILIKE $5::text OR u.phone ILIKE $5::text OR v.plate ILIKE $5::text)
-ORDER BY p.submitted_at NULLS LAST, p.created_at
-LIMIT $7 OFFSET $6
+ORDER BY CASE WHEN $6::text = 'earned_desc' THEN (SELECT COALESCE(sum(m.earned_cents), 0) FROM provider_money_lines m WHERE m.provider_id = p.user_id) END DESC NULLS LAST,
+         p.submitted_at NULLS LAST, p.created_at
+LIMIT $8 OFFSET $7
 `
 
 type ListProviderApplicationsParams struct {
@@ -305,6 +306,7 @@ type ListProviderApplicationsParams struct {
 	ServiceID      *uuid.UUID `json:"service_id"`
 	Category       string     `json:"category"`
 	Search         string     `json:"search"`
+	Sort           string     `json:"sort"`
 	PageOffset     int32      `json:"page_offset"`
 	PageLimit      int32      `json:"page_limit"`
 }
@@ -331,6 +333,7 @@ func (q *Queries) ListProviderApplications(ctx context.Context, arg ListProvider
 		arg.ServiceID,
 		arg.Category,
 		arg.Search,
+		arg.Sort,
 		arg.PageOffset,
 		arg.PageLimit,
 	)

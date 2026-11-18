@@ -51,6 +51,7 @@ type fixture struct {
 	revocations    *servicemocks.MockISessionRevocationStore
 	audit          *repomocks.MockIAuditLogRepository
 	blockReasons   *repomocks.MockIBlockReasonRepository
+	activity       *repomocks.MockIActivityRepository
 	orgs           *repomocks.MockIOrganizationRepository
 	roles          *repomocks.MockIRoleRepository
 	memberships    *repomocks.MockIMembershipRepository
@@ -91,6 +92,7 @@ func newFixture(t *testing.T) fixture {
 		revocations:    servicemocks.NewMockISessionRevocationStore(ctrl),
 		audit:          repomocks.NewMockIAuditLogRepository(ctrl),
 		blockReasons:   repomocks.NewMockIBlockReasonRepository(ctrl),
+		activity:       repomocks.NewMockIActivityRepository(ctrl),
 		orgs:           repomocks.NewMockIOrganizationRepository(ctrl),
 		roles:          repomocks.NewMockIRoleRepository(ctrl),
 		memberships:    repomocks.NewMockIMembershipRepository(ctrl),
@@ -110,7 +112,7 @@ func newFixture(t *testing.T) fixture {
 	f.phoneVerification = usecases.NewPhoneVerificationUsecase(f.users, f.outbox, f.tx, f.otp, codeSender, sessions)
 	f.recovery = usecases.NewRecoveryUsecase(f.users, f.outbox, f.tx, f.hasher, f.otp, codeSender, revoker, f.recoveryTicket, f.email, otpCooldown)
 	f.profile = usecases.NewProfileUsecase(f.users, f.outbox, f.tx, f.hasher, f.otp, codeSender, revoker)
-	f.userAdmin = usecases.NewUserAdminUsecase(f.users, f.outbox, f.audit, f.blockReasons, f.tx, f.hasher, revoker)
+	f.userAdmin = usecases.NewUserAdminUsecase(f.users, f.outbox, f.audit, f.blockReasons, f.activity, f.tx, f.hasher, revoker)
 	f.bootstrap = usecases.NewAdminBootstrap(f.users, f.orgs, f.roles, f.memberships, f.outbox, f.audit, f.tx, f.hasher)
 	f.members = usecases.NewMemberUsecase(usecases.MemberStores{
 		Users: f.users, Orgs: f.orgs, Roles: f.roles, Memberships: f.memberships, Invitations: f.invitations,

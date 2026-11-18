@@ -945,6 +945,22 @@ func (mr *MockIRequestRepositoryMockRecorder) ListOfCustomer(ctx, filter any) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOfCustomer", reflect.TypeOf((*MockIRequestRepository)(nil).ListOfCustomer), ctx, filter)
 }
 
+// ListOfProvider mocks base method.
+func (m *MockIRequestRepository) ListOfProvider(ctx context.Context, filter repository.RequestFilter) ([]*entities.ServiceRequest, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListOfProvider", ctx, filter)
+	ret0, _ := ret[0].([]*entities.ServiceRequest)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListOfProvider indicates an expected call of ListOfProvider.
+func (mr *MockIRequestRepositoryMockRecorder) ListOfProvider(ctx, filter any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOfProvider", reflect.TypeOf((*MockIRequestRepository)(nil).ListOfProvider), ctx, filter)
+}
+
 // ListWithProviderOnTheWay mocks base method.
 func (m *MockIRequestRepository) ListWithProviderOnTheWay(ctx context.Context, limit int) ([]*entities.ServiceRequest, error) {
 	m.ctrl.T.Helper()
@@ -1203,6 +1219,22 @@ func (m *MockIOfferRepository) FindForUpdate(ctx context.Context, id uuid.UUID) 
 func (mr *MockIOfferRepositoryMockRecorder) FindForUpdate(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindForUpdate", reflect.TypeOf((*MockIOfferRepository)(nil).FindForUpdate), ctx, id)
+}
+
+// HistoryOfProvider mocks base method.
+func (m *MockIOfferRepository) HistoryOfProvider(ctx context.Context, providerID uuid.UUID, statuses []string, limit, offset int) ([]*entities.RequestOffer, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HistoryOfProvider", ctx, providerID, statuses, limit, offset)
+	ret0, _ := ret[0].([]*entities.RequestOffer)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// HistoryOfProvider indicates an expected call of HistoryOfProvider.
+func (mr *MockIOfferRepositoryMockRecorder) HistoryOfProvider(ctx, providerID, statuses, limit, offset any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HistoryOfProvider", reflect.TypeOf((*MockIOfferRepository)(nil).HistoryOfProvider), ctx, providerID, statuses, limit, offset)
 }
 
 // ListOfRequest mocks base method.

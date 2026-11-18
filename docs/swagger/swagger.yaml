@@ -86,6 +86,44 @@ definitions:
       total:
         type: integer
     type: object
+  dtos.AccountView:
+    properties:
+      cancelled_requests:
+        example: 1
+        type: integer
+      completed_requests:
+        example: 12
+        type: integer
+      created_at:
+        type: string
+      email:
+        type: string
+      has_password:
+        example: false
+        type: boolean
+      id:
+        type: string
+      is_verified:
+        type: boolean
+      last_login_at:
+        type: string
+      last_request_at:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      provider_category:
+        example: taxi
+        type: string
+      provider_category_name:
+        example: Táxi
+        type: string
+      role:
+        $ref: '#/definitions/enums.Role'
+      status:
+        $ref: '#/definitions/enums.UserStatus'
+    type: object
   dtos.ActiveState:
     properties:
       offers:
@@ -342,6 +380,23 @@ definitions:
     type: object
   dtos.ApplicationView:
     properties:
+      balance_cents:
+        example: -120000
+        type: integer
+      cancelled_requests:
+        example: 2
+        type: integer
+      completed_requests:
+        example: 40
+        type: integer
+      earned_cents:
+        example: 6800000
+        type: integer
+      gross_cents:
+        example: 8500000
+        type: integer
+      last_request_at:
+        type: string
       name:
         type: string
       organization_id:
@@ -350,6 +405,12 @@ definitions:
         type: string
       phone:
         type: string
+      rating_avg:
+        example: 4.8
+        type: number
+      rating_count:
+        example: 31
+        type: integer
       requested_service_id:
         type: string
       requested_service_name:
@@ -2651,6 +2712,61 @@ definitions:
           $ref: '#/definitions/dtos.NearbyCell'
         type: array
     type: object
+  dtos.OfferHistoryList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.OfferHistoryView'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dtos.OfferHistoryView:
+    properties:
+      category:
+        example: taxi
+        type: string
+      currency:
+        example: AOA
+        type: string
+      destination:
+        $ref: '#/definitions/dtos.PlaceView'
+      distance_m:
+        type: integer
+      id:
+        type: string
+      net_cents:
+        type: integer
+      payment_method:
+        example: cash
+        type: string
+      pickup:
+        $ref: '#/definitions/dtos.PlaceView'
+      quote_cents:
+        type: integer
+      reject_note:
+        type: string
+      reject_reason_id:
+        type: string
+      request_id:
+        type: string
+      request_status:
+        example: completed
+        type: string
+      responded_at:
+        type: string
+      sent_at:
+        type: string
+      service_name:
+        type: string
+      status:
+        example: rejected
+        type: string
+    type: object
   dtos.OfferView:
     properties:
       category:
@@ -3433,6 +3549,27 @@ definitions:
       valid_until:
         type: string
     type: object
+  dtos.ProviderActivityView:
+    properties:
+      cancelled_requests:
+        example: 2
+        type: integer
+      completed_requests:
+        example: 40
+        type: integer
+      last_request_at:
+        type: string
+      period:
+        $ref: '#/definitions/dtos.ProviderMoneyView'
+      rating_avg:
+        example: 4.8
+        type: number
+      rating_count:
+        example: 31
+        type: integer
+      total:
+        $ref: '#/definitions/dtos.ProviderMoneyView'
+    type: object
   dtos.ProviderBalanceView:
     properties:
       balance_cents:
@@ -3441,6 +3578,67 @@ definitions:
         type: string
       provider_id:
         type: string
+    type: object
+  dtos.ProviderEarningsDay:
+    properties:
+      cancelled_requests:
+        example: 0
+        type: integer
+      completed_requests:
+        example: 3
+        type: integer
+      date:
+        example: "2026-11-18"
+        type: string
+      earned_cents:
+        example: 960000
+        type: integer
+      gross_cents:
+        example: 1200000
+        type: integer
+    type: object
+  dtos.ProviderEarningsView:
+    properties:
+      balance_cents:
+        example: -120000
+        type: integer
+      cancelled_requests:
+        example: 1
+        type: integer
+      completed_requests:
+        example: 12
+        type: integer
+      days:
+        items:
+          $ref: '#/definitions/dtos.ProviderEarningsDay'
+        type: array
+      earned_cents:
+        example: 6800000
+        type: integer
+      from:
+        example: "2026-11-16T00:00:00+01:00"
+        type: string
+      gross_cents:
+        example: 8500000
+        type: integer
+      period:
+        example: week
+        type: string
+      to:
+        example: "2026-11-23T00:00:00+01:00"
+        type: string
+    type: object
+  dtos.ProviderMoneyView:
+    properties:
+      balance_cents:
+        example: -120000
+        type: integer
+      earned_cents:
+        example: 6800000
+        type: integer
+      gross_cents:
+        example: 8500000
+        type: integer
     type: object
   dtos.ProviderSummary:
     properties:
@@ -5543,7 +5741,7 @@ definitions:
     properties:
       items:
         items:
-          $ref: '#/definitions/dtos.UserView'
+          $ref: '#/definitions/dtos.AccountView'
         type: array
       page:
         type: integer
@@ -7777,7 +7975,10 @@ paths:
       - Backoffice payments
   /api/v1/admin/providers:
     get:
-      description: Requires providers:read. Oldest submission first.
+      description: Requires providers:read. Oldest submission first, or the one that
+        earned the most with sort=earned_desc. Each provider has the requests assigned
+        to them (completed and cancelled by anyone) and the rating; with finance:read
+        also gross_cents, earned_cents and balance_cents since they joined.
       parameters:
       - description: draft, pending, approved, rejected or suspended
         in: query
@@ -7798,6 +7999,10 @@ paths:
       - description: Name, phone or plate
         in: query
         name: search
+        type: string
+      - description: earned_desc (needs finance:read)
+        in: query
+        name: sort
         type: string
       - description: Page
         in: query
@@ -7891,6 +8096,47 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Decide on a provider
+      tags:
+      - Backoffice providers
+  /api/v1/admin/providers/{id}/activity:
+    get:
+      description: Requires providers:read. The requests assigned to the provider
+        (completed and cancelled by anyone), the last one and the rating. With finance:read
+        also the money since they joined (total) and, when from or to is given, in
+        [from, to) (period).
+      parameters:
+      - description: User id of the provider
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: At or after, YYYY-MM-DD or RFC 3339
+        in: query
+        name: from
+        type: string
+      - description: Before, YYYY-MM-DD or RFC 3339
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderActivityView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Get the activity of a provider
       tags:
       - Backoffice providers
   /api/v1/admin/providers/{id}/documents/{type}/review:
@@ -8193,6 +8439,10 @@ paths:
       - description: Provider
         in: query
         name: provider_id
+        type: string
+      - description: Customer
+        in: query
+        name: customer_id
         type: string
       - description: Created at or after, YYYY-MM-DD or RFC 3339
         in: query
@@ -8736,7 +8986,9 @@ paths:
       - Backoffice dispatch
   /api/v1/admin/users:
     get:
-      description: Requires users:read. Staff are managed as members.
+      description: 'Requires users:read. Staff are managed as members. Each account
+        has the category of the provider and its requests: completed and cancelled,
+        made as a customer or done as a provider.'
       parameters:
       - description: Role
         enum:
@@ -8752,6 +9004,11 @@ paths:
         - blocked
         in: query
         name: status
+        type: string
+      - description: Category slug of the provider (approved service, or the one asked
+          for)
+        in: query
+        name: category
         type: string
       - description: Part of the name, e-mail or phone
         in: query
@@ -8796,7 +9053,8 @@ paths:
       - Backoffice users
   /api/v1/admin/users/{id}:
     get:
-      description: Requires users:read.
+      description: Requires users:read. With the category of the provider and the
+        requests of the account.
       parameters:
       - description: User id
         in: path
@@ -8809,7 +9067,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dtos.UserView'
+            $ref: '#/definitions/dtos.AccountView'
         "400":
           description: Invalid id
           schema:
@@ -13539,6 +13797,46 @@ paths:
       summary: Get a URL to upload a document
       tags:
       - Provider account
+  /api/v1/providers/me/earnings:
+    get:
+      description: Providers only. What the provider earned in the day, week (Monday
+        to Sunday) or month that holds date (today when not given), in Africa/Luanda
+        time, with one entry per day for the chart and the completed and cancelled
+        requests of each day.
+      parameters:
+      - description: day, week or month (default day)
+        enum:
+        - day
+        - week
+        - month
+        in: query
+        name: period
+        type: string
+      - description: A day of the period, YYYY-MM-DD (default today)
+        in: query
+        name: date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ProviderEarningsView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: My earnings
+      tags:
+      - Provider work
   /api/v1/providers/me/ledger:
     get:
       description: A positive balance is what AGORA owes the provider. A negative
@@ -13589,6 +13887,48 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Send a batch of positions
+      tags:
+      - Provider work
+  /api/v1/providers/me/offers:
+    get:
+      description: 'Providers only, most recent first: every offer sent to the provider
+        and what happened to it. status=rejected for the ones they turned down, status=expired,no_response
+        for the ones they let pass, status=cancelled for the ones taken by another
+        provider or cancelled before the answer. request_status is where the request
+        ended up.'
+      parameters:
+      - description: 'Comma-separated offer statuses: sent, delivered, accepted, rejected,
+          expired, no_response, quoted, cancelled'
+        in: query
+        name: status
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OfferHistoryList'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Offers the provider received
       tags:
       - Provider work
   /api/v1/providers/me/offline:
@@ -13709,6 +14049,50 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Ratings the provider received
+      tags:
+      - Provider work
+  /api/v1/providers/me/requests:
+    get:
+      description: 'Providers only, most recent first: the requests assigned to the
+        provider, for the activity screen of the provider app. status=completed,cancelled
+        keeps the finished ones; provider_net_cents is what the provider earned from
+        each.'
+      parameters:
+      - description: Comma-separated statuses, e.g. completed,cancelled
+        in: query
+        name: status
+        type: string
+      - description: Category slug
+        in: query
+        name: category
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.RequestList'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Activity of the provider
       tags:
       - Provider work
   /api/v1/providers/me/submit:

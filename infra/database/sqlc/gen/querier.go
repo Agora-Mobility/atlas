@@ -14,6 +14,7 @@ import (
 
 type Querier interface {
 	AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) error
+	AccountActivity(ctx context.Context, ids []uuid.UUID) ([]AccountActivityRow, error)
 	ActiveRequestOfCustomer(ctx context.Context, customerID uuid.UUID) (ServiceRequest, error)
 	ActiveRequestOfProvider(ctx context.Context, providerID *uuid.UUID) (ServiceRequest, error)
 	ActiveWorkshopVouchers(ctx context.Context, arg ActiveWorkshopVouchersParams) ([]Voucher, error)
@@ -41,6 +42,7 @@ type Querier interface {
 	CountInboxItems(ctx context.Context, userID uuid.UUID) (CountInboxItemsRow, error)
 	CountLedgerEntries(ctx context.Context, arg CountLedgerEntriesParams) (int64, error)
 	CountMembers(ctx context.Context, arg CountMembersParams) (int64, error)
+	CountOffersOfProvider(ctx context.Context, arg CountOffersOfProviderParams) (int64, error)
 	CountOrganizationsWithNIF(ctx context.Context, nif *string) (int64, error)
 	CountOtherActiveMembersWithRole(ctx context.Context, arg CountOtherActiveMembersWithRoleParams) (int64, error)
 	CountPartnerOrganizations(ctx context.Context, search *string) (int64, error)
@@ -50,6 +52,7 @@ type Querier interface {
 	CountRemovalsOfDay(ctx context.Context, arg CountRemovalsOfDayParams) (int64, error)
 	CountRequestsByHeatCell(ctx context.Context, arg CountRequestsByHeatCellParams) ([]CountRequestsByHeatCellRow, error)
 	CountRequestsOfCustomer(ctx context.Context, arg CountRequestsOfCustomerParams) (int64, error)
+	CountRequestsOfProvider(ctx context.Context, arg CountRequestsOfProviderParams) (int64, error)
 	CountSOSAlerts(ctx context.Context, status string) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
 	CountTickets(ctx context.Context, status string) (int64, error)
@@ -272,6 +275,7 @@ type Querier interface {
 	ListMembers(ctx context.Context, arg ListMembersParams) ([]ListMembersRow, error)
 	ListMembershipPermissions(ctx context.Context, membershipID uuid.UUID) ([]string, error)
 	ListMembershipRoles(ctx context.Context, membershipIds []uuid.UUID) ([]MembershipRole, error)
+	ListOffersOfProvider(ctx context.Context, arg ListOffersOfProviderParams) ([]RequestOffer, error)
 	ListOpenOffersOfProvider(ctx context.Context, arg ListOpenOffersOfProviderParams) ([]RequestOffer, error)
 	ListOperatorQueue(ctx context.Context, arg ListOperatorQueueParams) ([]ServiceRequest, error)
 	ListPartnerOrganizations(ctx context.Context, arg ListPartnerOrganizationsParams) ([]Organization, error)
@@ -295,6 +299,7 @@ type Querier interface {
 	ListRequestPlaces(ctx context.Context, requestIds []uuid.UUID) ([]ListRequestPlacesRow, error)
 	ListRequestTeam(ctx context.Context, requestID uuid.UUID) ([]RequestTeamMember, error)
 	ListRequestsOfCustomer(ctx context.Context, arg ListRequestsOfCustomerParams) ([]ServiceRequest, error)
+	ListRequestsOfProvider(ctx context.Context, arg ListRequestsOfProviderParams) ([]ServiceRequest, error)
 	ListRequestsWithProviderOnTheWay(ctx context.Context, limit int32) ([]ServiceRequest, error)
 	ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]enums.DocumentType, error)
 	ListRolePermissions(ctx context.Context, roleIds []uuid.UUID) ([]RolePermission, error)
@@ -347,6 +352,13 @@ type Querier interface {
 	// the age is the real delay the relay adds to every consumer.
 	OutboxPendingStats(ctx context.Context) (OutboxPendingStatsRow, error)
 	PendingCustomersByCell(ctx context.Context, arg PendingCustomersByCellParams) ([]PendingCustomersByCellRow, error)
+	ProviderCategories(ctx context.Context, ids []uuid.UUID) ([]ProviderCategoriesRow, error)
+	ProviderDailyMoney(ctx context.Context, arg ProviderDailyMoneyParams) ([]ProviderDailyMoneyRow, error)
+	// A request is counted on the day it ended: completed_at, or the last update for a cancelled one.
+	ProviderDailyRequests(ctx context.Context, arg ProviderDailyRequestsParams) ([]ProviderDailyRequestsRow, error)
+	ProviderLedgerBalances(ctx context.Context, ids []uuid.UUID) ([]ProviderLedgerBalancesRow, error)
+	ProviderMoney(ctx context.Context, arg ProviderMoneyParams) ([]ProviderMoneyRow, error)
+	ProviderRatings(ctx context.Context, ids []uuid.UUID) ([]ProviderRatingsRow, error)
 	ProvidersCoveringCell(ctx context.Context, arg ProvidersCoveringCellParams) ([]uuid.UUID, error)
 	ProvidersWithActiveJob(ctx context.Context, arg ProvidersWithActiveJobParams) ([]uuid.UUID, error)
 	PurgeDemandSnapshots(ctx context.Context, recordedAt time.Time) (int64, error)

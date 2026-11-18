@@ -966,6 +966,13 @@ type ProviderLocationSample struct {
 	RecordedAt time.Time `json:"recorded_at"`
 }
 
+type ProviderMoneyLine struct {
+	ProviderID  *uuid.UUID `json:"provider_id"`
+	OccurredAt  time.Time  `json:"occurred_at"`
+	GrossCents  int64      `json:"gross_cents"`
+	EarnedCents int64      `json:"earned_cents"`
+}
+
 type ProviderRejectionReason struct {
 	ProviderID uuid.UUID `json:"provider_id"`
 	ReasonID   uuid.UUID `json:"reason_id"`

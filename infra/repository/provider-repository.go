@@ -96,7 +96,7 @@ func (r *ProviderRepository) Applications(ctx context.Context, f repository.Prov
 	queries := postgres.Queries(ctx, r.pool)
 	search := likePattern(f.Search)
 	rows, err := queries.ListProviderApplications(ctx, gen.ListProviderApplicationsParams{
-		Status: f.Status, OrganizationID: f.OrganizationID, ServiceID: f.ServiceID, Category: f.Category, Search: search, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
+		Status: f.Status, OrganizationID: f.OrganizationID, ServiceID: f.ServiceID, Category: f.Category, Search: search, Sort: f.Sort, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list provider applications: %w", err)

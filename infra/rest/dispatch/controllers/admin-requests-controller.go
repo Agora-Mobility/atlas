@@ -63,6 +63,7 @@ func requestFilter(ctx *gin.Context) (*dtos.AdminRequestFilter, bool) {
 	var ok bool
 	for name, target := range map[string]**uuid.UUID{
 		"service_id": &filter.ServiceID, "zone_id": &filter.ZoneID, "organization_id": &filter.OrganizationID, "provider_id": &filter.ProviderID,
+		"customer_id": &filter.CustomerID,
 	} {
 		if *target, ok = queryUUID(ctx, name); !ok {
 			return nil, false
@@ -108,6 +109,7 @@ func (c *DispatchController) listRequests(ctx *gin.Context, filter *dtos.AdminRe
 //	@Param			zone_id			query		string	false	"Zone"
 //	@Param			organization_id	query		string	false	"Partner"
 //	@Param			provider_id		query		string	false	"Provider"
+//	@Param			customer_id		query		string	false	"Customer"
 //	@Param			from			query		string	false	"Created at or after, YYYY-MM-DD or RFC 3339"
 //	@Param			to				query		string	false	"Created before, YYYY-MM-DD or RFC 3339"
 //	@Param			route_review	query		bool	false	"Only completed rides whose real distance strayed from the quote beyond ROUTE_REVIEW_ABOVE_PERCENT"

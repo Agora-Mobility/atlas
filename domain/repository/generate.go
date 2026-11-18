@@ -26,3 +26,4 @@ package repository
 //go:generate go tool mockgen -source=workshops.go -destination=mocks/workshops_mock.go -package=mocks
 //go:generate go tool mockgen -source=ledger.go -destination=mocks/ledger_mock.go -package=mocks
 //go:generate go tool mockgen -source=demand.go -destination=mocks/demand_mock.go -package=mocks
+//go:generate go tool mockgen -source=activity.go -destination=mocks/activity_mock.go -package=mocks

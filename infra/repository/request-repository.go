@@ -192,6 +192,27 @@ func (r *RequestRepository) ListOfCustomer(ctx context.Context, f repository.Req
 	return requests, total, err
 }
 
+func (r *RequestRepository) ListOfProvider(ctx context.Context, f repository.RequestFilter) ([]*entities.ServiceRequest, int64, error) {
+	queries := postgres.Queries(ctx, r.pool)
+	statuses := f.Statuses
+	if statuses == nil {
+		statuses = []string{}
+	}
+	providerID := f.ProviderID
+	rows, err := queries.ListRequestsOfProvider(ctx, gen.ListRequestsOfProviderParams{
+		ProviderID: &providerID, Statuses: statuses, CategorySlug: f.Category, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("list requests of provider: %w", err)
+	}
+	total, err := queries.CountRequestsOfProvider(ctx, gen.CountRequestsOfProviderParams{ProviderID: &providerID, Statuses: statuses, CategorySlug: f.Category})
+	if err != nil {
+		return nil, 0, fmt.Errorf("count requests of provider: %w", err)
+	}
+	requests, err := toRequests(ctx, queries, rows)
+	return requests, total, err
+}
+
 func (r *RequestRepository) OperatorQueue(ctx context.Context, limit, offset int) ([]*entities.ServiceRequest, error) {
 	queries := postgres.Queries(ctx, r.pool)
 	rows, err := queries.ListOperatorQueue(ctx, gen.ListOperatorQueueParams{PageLimit: int32(limit), PageOffset: int32(offset)}) // #nosec G115 -- bounded by pagination
@@ -268,14 +289,14 @@ func (r *RequestRepository) AdminList(ctx context.Context, f repository.AdminReq
 	statuses := emptyStatuses(f.Statuses)
 	search := newRequestSearch(f.Search)
 	rows, err := queries.ListAdminRequests(ctx, gen.ListAdminRequestsParams{
-		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
+		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID, CustomerID: f.CustomerID,
 		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview, Search: search.text, SearchDigits: search.digits, SearchPlate: search.plate, Sort: f.Sort, PageLimit: int32(f.Limit), PageOffset: int32(f.Offset), // #nosec G115 -- bounded by pagination
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list admin requests: %w", err)
 	}
 	total, err := queries.CountAdminRequests(ctx, gen.CountAdminRequestsParams{
-		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID,
+		Statuses: statuses, Category: f.Category, ServiceID: f.ServiceID, ZoneID: f.ZoneID, OrganizationID: f.OrganizationID, ProviderID: f.ProviderID, CustomerID: f.CustomerID,
 		CreatedFrom: f.From, CreatedTo: f.To, RouteReview: f.RouteReview, Search: search.text, SearchDigits: search.digits, SearchPlate: search.plate,
 	})
 	if err != nil {
@@ -554,6 +575,24 @@ func (r *OfferRepository) OpenOfProvider(ctx context.Context, providerID uuid.UU
 	return toOffers(rows), nil
 }
 
+func (r *OfferRepository) HistoryOfProvider(ctx context.Context, providerID uuid.UUID, statuses []string, limit, offset int) ([]*entities.RequestOffer, int64, error) {
+	if statuses == nil {
+		statuses = []string{}
+	}
+	queries := postgres.Queries(ctx, r.pool)
+	rows, err := queries.ListOffersOfProvider(ctx, gen.ListOffersOfProviderParams{
+		ProviderID: providerID, Statuses: statuses, PageLimit: int32(limit), PageOffset: int32(offset), // #nosec G115 -- bounded by pagination
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("offers of provider: %w", err)
+	}
+	total, err := queries.CountOffersOfProvider(ctx, gen.CountOffersOfProviderParams{ProviderID: providerID, Statuses: statuses})
+	if err != nil {
+		return nil, 0, fmt.Errorf("count offers of provider: %w", err)
+	}
+	return toOffers(rows), total, nil
+}
+
 func offerOrNil(row *gen.RequestOffer, err error, action string) (*entities.RequestOffer, error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -576,7 +615,7 @@ func toOffer(row *gen.RequestOffer) *entities.RequestOffer {
 	offer := &entities.RequestOffer{
 		ID: row.ID, RequestID: row.RequestID, ProviderID: row.ProviderID, Status: entities.OfferStatus(row.Status), SentAt: row.SentAt, DeliveredAt: row.DeliveredAt,
 		ExpiresAt: row.ExpiresAt, RespondedAt: row.RespondedAt, NextActionAt: row.NextActionAt, FallbackStep: int(row.FallbackStep), QuoteCents: row.QuoteCents,
-		QuoteNote: row.QuoteNote, NetCents: row.NetCents, BoostBps: int(row.BoostBps),
+		QuoteNote: row.QuoteNote, NetCents: row.NetCents, BoostBps: int(row.BoostBps), RejectReason: row.RejectReasonID, RejectNote: row.RejectNote,
 	}
 	if row.DeliveredVia != nil {
 		offer.DeliveredVia = *row.DeliveredVia

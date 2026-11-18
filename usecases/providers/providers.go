@@ -63,19 +63,20 @@ type CodeSender interface {
 }
 
 type Deps struct {
-	Users     repository.IUserRepository
-	Providers repository.IProviderRepository
-	Documents repository.IProviderDocumentRepository
-	Requests  repository.IRequestRepository
-	Locator   repository.IProviderLocator
-	Outbox    repository.IOutboxRepository
-	Audit     repository.IAuditLogRepository
-	Tx        repository.ITransactionManager
-	Codes     CodeSender
-	Storage   services.IObjectStorage
-	Approvals ApprovalHook
-	Settings  Settings
-	Business  services.IBusinessEvents
+	Users         repository.IUserRepository
+	Providers     repository.IProviderRepository
+	Documents     repository.IProviderDocumentRepository
+	Requests      repository.IRequestRepository
+	Locator       repository.IProviderLocator
+	Outbox        repository.IOutboxRepository
+	Audit         repository.IAuditLogRepository
+	Tx            repository.ITransactionManager
+	Codes         CodeSender
+	Storage       services.IObjectStorage
+	Approvals     ApprovalHook
+	Settings      Settings
+	Business      services.IBusinessEvents
+	ActivityStats repository.IActivityRepository
 }
 
 type Settings struct {
@@ -625,10 +626,24 @@ func (u *Usecase) ListApplications(ctx context.Context, filter dtos.ApplicationF
 	page = page.Normalize()
 	applications, total, err := u.Providers.Applications(ctx, repository.ProviderApplicationFilter{
 		Status: filter.Status, OrganizationID: filter.OrganizationID, ServiceID: filter.ServiceID, Category: filter.Category, Search: filter.Search,
-		Limit: int(page.Limit()), Offset: int(page.Offset()),
+		Sort: filter.Sort, Limit: int(page.Limit()), Offset: int(page.Offset()),
 	})
 	if err != nil {
 		return nil, err
+	}
+	ids := make([]uuid.UUID, 0, len(applications))
+	for i := range applications {
+		ids = append(ids, applications[i].UserID)
+	}
+	activity, err := u.ActivityStats.Activity(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	var money map[uuid.UUID]repository.ProviderMoney
+	if filter.WithMoney {
+		if money, err = u.ActivityStats.Money(ctx, ids, nil, nil); err != nil {
+			return nil, err
+		}
 	}
 	list := &dtos.ApplicationList{Items: make([]dtos.ApplicationView, 0, len(applications)), Total: total, Page: page.Page, Size: page.Size}
 	for i := range applications {
@@ -637,9 +652,55 @@ func (u *Usecase) ListApplications(ctx context.Context, filter dtos.ApplicationF
 			UserID: application.UserID, Name: application.Name, Phone: application.Phone, Status: string(application.Status), RequestedServiceID: application.RequestedServiceID,
 			RequestedServiceName: application.RequestedServiceName, ServiceID: application.ServiceID, VehiclePlate: application.VehiclePlate,
 			OrganizationID: application.OrganizationID, OrganizationName: application.OrganizationName, SubmittedAt: application.SubmittedAt,
+			ProviderActivity: providerActivity(activity[application.UserID]), ProviderMoneyView: moneyView(money, application.UserID),
 		})
 	}
 	return list, nil
+}
+
+func providerActivity(a repository.AccountActivity) dtos.ProviderActivity {
+	return dtos.ProviderActivity{
+		CompletedRequests: a.CompletedRequests, CancelledRequests: a.CancelledRequests, LastRequestAt: a.LastRequestAt,
+		RatingAvg: entities.AverageRating(a.RatingSum, a.RatingCount), RatingCount: a.RatingCount,
+	}
+}
+
+func moneyView(money map[uuid.UUID]repository.ProviderMoney, id uuid.UUID) *dtos.ProviderMoneyView {
+	m, ok := money[id]
+	if !ok {
+		return nil
+	}
+	return &dtos.ProviderMoneyView{GrossCents: m.GrossCents, EarnedCents: m.EarnedCents, BalanceCents: m.BalanceCents}
+}
+
+// Activity is the summary of one provider for the backoffice. Money only when
+// withMoney (finance:read); the period [from, to) only when one of them is given.
+func (u *Usecase) Activity(ctx context.Context, providerID uuid.UUID, withMoney bool, from, to *time.Time) (*dtos.ProviderActivityView, error) {
+	if _, err := u.existingProvider(ctx, providerID); err != nil {
+		return nil, err
+	}
+	ids := []uuid.UUID{providerID}
+	activity, err := u.ActivityStats.Activity(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	view := &dtos.ProviderActivityView{ProviderActivity: providerActivity(activity[providerID])}
+	if !withMoney {
+		return view, nil
+	}
+	total, err := u.ActivityStats.Money(ctx, ids, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	view.Total = moneyView(total, providerID)
+	if from != nil || to != nil {
+		period, err := u.ActivityStats.Money(ctx, ids, from, to)
+		if err != nil {
+			return nil, err
+		}
+		view.Period = moneyView(period, providerID)
+	}
+	return view, nil
 }
 
 func (u *Usecase) existingProvider(ctx context.Context, providerID uuid.UUID) (*entities.Provider, error) {
