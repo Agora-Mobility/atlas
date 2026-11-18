@@ -16681,7 +16681,7 @@
         },
         "/events": {
             "get": {
-                "description": "Server-Sent Events of the signed-in customer or provider. Send Last-Event-ID to replay what was missed. Offers carry expires_in_s, relative to the moment of delivery. When the cursor is older than the mailbox a resync event asks the app to reload through GET /api/v1/requests/active.",
+                "description": "Server-Sent Events of the signed-in customer or provider. Send Last-Event-ID to replay what was missed. Offers carry expires_in_s, relative to the moment of delivery. When the cursor is older than the mailbox a resync event asks the app to reload through GET /api/v1/requests/active. request.position carries lat, lng, heading and eta_s and, when known, next_in_s (seconds until the next point), speed_mps and points (the earlier points of the batch, oldest first, with dt_ms before the last one) so the app can move the car continuously (ADR 0023).",
                 "produces": [
                     "text/event-stream"
                 ],

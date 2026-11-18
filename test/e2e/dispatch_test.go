@@ -112,6 +112,7 @@ func TestTaxiFullFlowWithFixedPriceTrackingAndHonoredFare(t *testing.T) {
 	position := customerStream.waitFor(t, "request.position", nil)
 	assert.Empty(t, position.ID, "positions are ephemeral and never move the cursor")
 	assert.NotNil(t, position.Data["eta_s"])
+	assert.NotNil(t, position.Data["next_in_s"], "ADR 0023: the app animates the car until the next point")
 
 	require.Equal(t, http.StatusOK, driver.post(t, "/api/v1/requests/"+requestID+"/arrive", nil).status)
 	time.Sleep(3100 * time.Millisecond)
