@@ -1,6 +1,6 @@
 # ADR 0023 – Smooth provider movement on the customer map
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-18
 - Extends: ADR 0010 (geospatial matching, cadence), ADR 0011 (real-time SSE)
 
@@ -50,8 +50,8 @@ keep working; nothing else in the payload changes.
   event is late.
 - `points`: the other accepted points of the batch, oldest first, without the
   last one (which stays in `lat`/`lng`). `dt_ms` is the time before the last
-  point, from `age_s`, so it does not depend on any clock. At most
-  `POSITION_SHARE_MAX_POINTS` (20) points; the oldest are dropped. Absent when
+  point, from `age_s`, so it does not depend on any clock. At most 20
+  points (`sharedPointsMax`); the oldest are dropped. Absent when
   the batch had a single point.
 
 The cadence moves from constants to configuration, with today's values as
