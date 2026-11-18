@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.9.0](https://github.com/Agora-Mobility/atlas/compare/v3.8.0...v3.9.0) (2026-11-18)
+
+
+### Features
+
+* **dispatch:** make the provider cadence configuration ([b6d083e](https://github.com/Agora-Mobility/atlas/commit/b6d083ef0240acb7a0140d9c68036f2c96490821))
+* **dispatch:** place the shared trip on the map of its public page ([01a8151](https://github.com/Agora-Mobility/atlas/commit/01a81510d27a7913a7689f0e615b9285ed619655))
+* **dispatch:** place the shared trip on the map of its public page ([1362515](https://github.com/Agora-Mobility/atlas/commit/136251529072d3dd4af2813456c671d352e6a51b))
+* **dispatch:** share the cadence, speed and batch points with the customer ([5bfc0ba](https://github.com/Agora-Mobility/atlas/commit/5bfc0ba7cb1998dc6f87aae775337ac063c0f51e))
+* **dispatch:** smooth provider movement on the customer map (ADR 0023) ([131a204](https://github.com/Agora-Mobility/atlas/commit/131a204cae17581f2033341772b45874b2e9ae69))
+* **observability:** business metrics, spans and logs ([e5cd963](https://github.com/Agora-Mobility/atlas/commit/e5cd963158d6abc8bb29a87a25a93b97cef5b509))
+* **observability:** record business events as metrics, spans and logs ([1448675](https://github.com/Agora-Mobility/atlas/commit/1448675f78cbdede6947ee0c30e6a9e889455aa2))
+
 ## [3.8.0](https://github.com/Agora-Mobility/atlas/compare/v3.7.0...v3.8.0) (2026-11-17)
 
 
