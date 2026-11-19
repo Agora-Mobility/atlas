@@ -2,6 +2,8 @@ package containers
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/Agora-Mobility/atlas/config"
@@ -32,6 +34,7 @@ type DispatchModule struct {
 	Usecase   *dispatch.Usecase
 	Projector *rtusecase.Projector
 	Notifier  *notifications.RequestNotifier
+	RideLive  *notifications.RideLiveNotifier
 	Locator   domainrepository.IProviderLocator
 
 	projectorWorkers    int
@@ -52,36 +55,46 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 	devices := repository.NewDeviceRepository(c.Pool)
 	locator := repository.NewProviderLocator(c.Redis, geo)
 	notifier := notifications.NewRequestNotifier(devices, repository.NewRequestRepository(c.Pool), pushSender, c.SMS, cfg.Dispatch.OfferDeepLink, cfg.Dispatch.OperatorPhone)
+	rideTokens := repository.NewRidePushTokenRepository(c.Pool)
+	liveActivity := c.LiveActivity
+	if liveActivity == nil {
+		liveActivity = push.LiveActivityLogSender{}
+	}
+	rideLive := notifications.NewRideLiveNotifier(rideTokens, repository.NewRequestRepository(c.Pool), locator, devices, pushSender, liveActivity, notifications.RideLiveSettings{
+		RoadFactor: cfg.GoogleMaps.RoadFactor, AverageSpeedKmh: cfg.GoogleMaps.AverageSpeedKmh, StaleAfter: cfg.APNS.StaleAfter, DismissAfter: cfg.APNS.DismissAfter,
+	})
 	uc := dispatch.NewUsecase(dispatch.Deps{
-		Config:    repository.NewDispatchConfigRepository(c.Pool),
-		Pricing:   repository.NewPricingRepository(c.Pool),
-		Demand:    repository.NewDemandRepository(c.Pool),
-		Signals:   repository.NewDemandSignals(c.Redis),
-		Providers: repository.NewProviderRepository(c.Pool),
-		Requests:  repository.NewRequestRepository(c.Pool),
-		Offers:    repository.NewOfferRepository(c.Pool),
-		Payments:  repository.NewPaymentRepository(c.Pool),
-		Cancels:   repository.NewCancellationRepository(c.Pool),
-		Ratings:   repository.NewRatingRepository(c.Pool),
-		Vouchers:  repository.NewVoucherRepository(c.Pool),
-		Live:      repository.NewLiveRepository(c.Pool),
-		Reference: repository.NewReferenceRepository(c.Pool),
-		Calls:     newCallBridge(cfg.Calls),
-		Removals:  repository.NewRemovalRepository(c.Pool),
-		Devices:   devices,
-		Account:   repository.NewAccountRepository(c.Pool),
-		Storage:   storage,
-		Locator:   locator,
-		Outbox:    c.Outbox,
-		Tx:        c.TxManager,
-		Audit:     repository.NewAuditLogRepository(c.Pool),
-		Geo:       geo,
-		Routing:   routingProvider,
-		Feed:      mailbox,
-		Channels:  notifier,
-		Heatmap:   repository.NewHeatmapRepository(c.Pool),
-		Cache:     c.Cache,
-		Business:  c.Business,
+		Config:     repository.NewDispatchConfigRepository(c.Pool),
+		Pricing:    repository.NewPricingRepository(c.Pool),
+		Demand:     repository.NewDemandRepository(c.Pool),
+		Signals:    repository.NewDemandSignals(c.Redis),
+		Providers:  repository.NewProviderRepository(c.Pool),
+		Requests:   repository.NewRequestRepository(c.Pool),
+		Offers:     repository.NewOfferRepository(c.Pool),
+		Payments:   repository.NewPaymentRepository(c.Pool),
+		Cancels:    repository.NewCancellationRepository(c.Pool),
+		Ratings:    repository.NewRatingRepository(c.Pool),
+		Vouchers:   repository.NewVoucherRepository(c.Pool),
+		Live:       repository.NewLiveRepository(c.Pool),
+		Reference:  repository.NewReferenceRepository(c.Pool),
+		Calls:      newCallBridge(cfg.Calls),
+		Removals:   repository.NewRemovalRepository(c.Pool),
+		Devices:    devices,
+		RideLive:   rideLive,
+		RideTokens: rideTokens,
+		Account:    repository.NewAccountRepository(c.Pool),
+		Storage:    storage,
+		Locator:    locator,
+		Outbox:     c.Outbox,
+		Tx:         c.TxManager,
+		Audit:      repository.NewAuditLogRepository(c.Pool),
+		Geo:        geo,
+		Routing:    routingProvider,
+		Feed:       mailbox,
+		Channels:   notifier,
+		Heatmap:    repository.NewHeatmapRepository(c.Pool),
+		Cache:      c.Cache,
+		Business:   c.Business,
 	}, dispatch.Settings{
 		WatcherInterval: cfg.Dispatch.WatcherInterval, WatcherBatch: cfg.Dispatch.WatcherBatch, FareEstimateTTL: cfg.Dispatch.FareEstimateTTL,
 		NearbyMinCount: cfg.Dispatch.NearbyMinCount, HistoryRetention: cfg.Dispatch.HistoryRetention, ChannelTimeout: cfg.Dispatch.ChannelTimeout, ShareBaseURL: cfg.Dispatch.ShareBaseURL, Currency: cfg.AppyPay.LedgerCurrency,
@@ -95,7 +108,8 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		RoadFactor: cfg.GoogleMaps.RoadFactor, AverageSpeedKmh: cfg.GoogleMaps.AverageSpeedKmh,
 		DemandAreaResolution: cfg.Dispatch.DemandAreaResolution, DemandQuoteWindow: cfg.Dispatch.DemandQuoteWindow, DemandFactorTTL: cfg.Dispatch.DemandFactorTTL,
 		DemandHistoryRetention: cfg.Dispatch.DemandHistoryRetention, RouteReviewAboveBps: cfg.Dispatch.RouteReviewAboveBps(),
-		Heatmap: HeatmapSettings(cfg.Heatmap),
+		Heatmap: HeatmapSettings(cfg.Heatmap), RideLiveInterval: cfg.APNS.Interval,
+		NearbyDriversMax: cfg.Dispatch.NearbyDriversMax, NearbyIDKey: nearbyIDKey(cfg.JWT.Secret),
 	})
 	notifier.UseSharer(uc)
 	notifier.UseAccount(repository.NewAccountRepository(c.Pool))
@@ -109,7 +123,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		middleware.NewIdempotency(c.Redis, cfg.Dispatch.IdempotencyTTL),
 	)
 	return &DispatchModule{
-		Router: router, Usecase: uc, Projector: rtusecase.NewProjector(mailbox), Notifier: notifier, Locator: locator,
+		Router: router, Usecase: uc, Projector: rtusecase.NewProjector(mailbox), Notifier: notifier, RideLive: rideLive, Locator: locator,
 		projectorWorkers: cfg.Realtime.ProjectorWorkers, notificationWorkers: cfg.Dispatch.NotificationWorkers,
 	}
 }
@@ -118,6 +132,7 @@ func (m *DispatchModule) Consumers() []queue.ConsumerConfig {
 	return []queue.ConsumerConfig{
 		{Queue: "realtime.projector", BindingKeys: rtusecase.BindingKeys(), Handler: m.Projector.Handle, Workers: m.projectorWorkers},
 		{Queue: "notifications.requests", BindingKeys: notifications.RequestBindingKeys(), Handler: m.Notifier.OnEvent, Workers: m.notificationWorkers},
+		{Queue: "notifications.ride-live", BindingKeys: notifications.RideLiveBindingKeys(), Handler: m.RideLive.OnEvent, Workers: m.notificationWorkers},
 	}
 }
 
@@ -139,6 +154,29 @@ func newPushSender(ctx context.Context, cfg config.FCMConfig) (services.IPushSen
 	sender, err := push.NewFCMSender(ctx, []byte(cfg.CredentialsJSON), cfg.ProjectID, cfg.BaseURL, cfg.Timeout)
 	if err != nil {
 		return nil, fmt.Errorf("fcm: %w", err)
+	}
+	return sender, nil
+}
+
+// nearbyIDKey derives the key of the opaque ids of the drivers on the map from
+// the JWT secret, so every instance gives a driver the same id.
+func nearbyIDKey(secret string) []byte {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte("atlas/nearby-driver-id"))
+	return mac.Sum(nil)
+}
+
+func newLiveActivitySender(cfg config.APNSConfig) (services.ILiveActivitySender, error) {
+	if !cfg.Enabled() {
+		return push.LiveActivityLogSender{}, nil
+	}
+	key, err := cfg.KeyPEM()
+	if err != nil {
+		return nil, err
+	}
+	sender, err := push.NewAPNSSender(key, cfg.KeyID, cfg.TeamID, cfg.BundleID, cfg.BaseURL, cfg.Timeout)
+	if err != nil {
+		return nil, fmt.Errorf("apns: %w", err)
 	}
 	return sender, nil
 }

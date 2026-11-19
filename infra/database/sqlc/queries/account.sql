@@ -1,8 +1,8 @@
 -- name: GetUserPreferences :one
-SELECT notify_status, notify_promotions, notify_sms, share_location, language, currency FROM users WHERE id = $1 AND deleted_at IS NULL;
+SELECT notify_status, notify_promotions, notify_sms, share_location, language, currency, navigation_app FROM users WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: UpdateUserPreferences :execrows
-UPDATE users SET notify_status = sqlc.arg(notify_status), notify_promotions = sqlc.arg(notify_promotions), notify_sms = sqlc.arg(notify_sms), share_location = sqlc.arg(share_location), language = sqlc.arg(language), currency = sqlc.arg(currency), updated_at = now()
+UPDATE users SET notify_status = sqlc.arg(notify_status), notify_promotions = sqlc.arg(notify_promotions), notify_sms = sqlc.arg(notify_sms), share_location = sqlc.arg(share_location), language = sqlc.arg(language), currency = sqlc.arg(currency), navigation_app = sqlc.arg(navigation_app), updated_at = now()
 WHERE id = sqlc.arg(id) AND deleted_at IS NULL;
 
 -- name: SetUserAvatar :exec

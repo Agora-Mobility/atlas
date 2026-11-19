@@ -107,6 +107,28 @@ jobs:
               FCM_ARGS="-v $HOME/atlas/secrets/firebase.json:$FCM_FILE:ro"
             fi
 
+            echo "🔑 Chave APNs (Live Activity iOS)"
+            APNS_FILE=$(env_value APNS_PRIVATE_KEY_FILE)
+            APNS_BASE64=$(env_value APNS_PRIVATE_KEY_BASE64)
+            sed -i '/^APNS_PRIVATE_KEY_BASE64=/d' .env
+            if [ -n "$APNS_BASE64" ]; then
+              printf '%s' "$APNS_BASE64" | base64 --decode > secrets/apns.p8.new
+              chmod 444 secrets/apns.p8.new
+              mv secrets/apns.p8.new secrets/apns.p8
+            fi
+            APNS_ARGS=""
+            if [ -n "$APNS_FILE" ]; then
+              case "$APNS_FILE" in
+                /*) ;;
+                *) echo "❌ APNS_PRIVATE_KEY_FILE tem de ser um caminho absoluto dentro do container"; exit 1 ;;
+              esac
+              if [ ! -s secrets/apns.p8 ]; then
+                echo "❌ APNS_PRIVATE_KEY_FILE=$APNS_FILE mas APNS_PRIVATE_KEY_BASE64 está vazio e não há secrets/apns.p8 no servidor"
+                exit 1
+              fi
+              APNS_ARGS="-v $HOME/atlas/secrets/apns.p8:$APNS_FILE:ro"
+            fi
+
             echo "🌐 Garantindo redes docker"
             if ! docker network inspect atlas >/dev/null 2>&1; then
               echo "❌ docker network 'atlas' not found: start infra-prod/applications first"
@@ -125,6 +147,7 @@ jobs:
                 --restart unless-stopped \
                 --env-file .env \
                 $FCM_ARGS \
+                $APNS_ARGS \
                 -e HTTP_PORT=8700 \
                 -e LOG_OUTPUT=stdout \
                 -e TRUSTED_PROXIES=172.30.3.1 \

@@ -245,6 +245,9 @@ type PreferencesView struct {
 	ShareLocation    bool   `json:"share_location"`
 	Language         string `json:"language" binding:"required,oneof=pt en fr" enums:"pt,en,fr"`
 	Currency         string `json:"currency" binding:"required,oneof=AOA USD EUR" enums:"AOA,USD,EUR"`
+	// NavigationApp is the app the driver opens to navigate a ride. Empty until chosen;
+	// left out of a save, it keeps its current value, and "" clears it.
+	NavigationApp *string `json:"navigation_app" enums:",google_maps,waze,apple_maps" example:"waze"`
 }
 
 type AvatarInput struct {

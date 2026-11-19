@@ -507,6 +507,21 @@ func (mr *MockIProviderRepositoryMockRecorder) Applications(ctx, filter any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Applications", reflect.TypeOf((*MockIProviderRepository)(nil).Applications), ctx, filter)
 }
 
+// AvailableDrivers mocks base method.
+func (m *MockIProviderRepository) AvailableDrivers(ctx context.Context, providerIDs []uuid.UUID) ([]entities.AvailableDriver, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AvailableDrivers", ctx, providerIDs)
+	ret0, _ := ret[0].([]entities.AvailableDriver)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AvailableDrivers indicates an expected call of AvailableDrivers.
+func (mr *MockIProviderRepositoryMockRecorder) AvailableDrivers(ctx, providerIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AvailableDrivers", reflect.TypeOf((*MockIProviderRepository)(nil).AvailableDrivers), ctx, providerIDs)
+}
+
 // CategoryOf mocks base method.
 func (m *MockIProviderRepository) CategoryOf(ctx context.Context, userID uuid.UUID) (*entities.LiveIndex, error) {
 	m.ctrl.T.Helper()
@@ -1422,6 +1437,87 @@ func (mr *MockIDeviceRepositoryMockRecorder) Unregister(ctx, userID, token any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unregister", reflect.TypeOf((*MockIDeviceRepository)(nil).Unregister), ctx, userID, token)
 }
 
+// MockIRidePushTokenRepository is a mock of IRidePushTokenRepository interface.
+type MockIRidePushTokenRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockIRidePushTokenRepositoryMockRecorder
+	isgomock struct{}
+}
+
+// MockIRidePushTokenRepositoryMockRecorder is the mock recorder for MockIRidePushTokenRepository.
+type MockIRidePushTokenRepositoryMockRecorder struct {
+	mock *MockIRidePushTokenRepository
+}
+
+// NewMockIRidePushTokenRepository creates a new mock instance.
+func NewMockIRidePushTokenRepository(ctrl *gomock.Controller) *MockIRidePushTokenRepository {
+	mock := &MockIRidePushTokenRepository{ctrl: ctrl}
+	mock.recorder = &MockIRidePushTokenRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIRidePushTokenRepository) EXPECT() *MockIRidePushTokenRepositoryMockRecorder {
+	return m.recorder
+}
+
+// DeleteOfRequest mocks base method.
+func (m *MockIRidePushTokenRepository) DeleteOfRequest(ctx context.Context, requestID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteOfRequest", ctx, requestID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteOfRequest indicates an expected call of DeleteOfRequest.
+func (mr *MockIRidePushTokenRepositoryMockRecorder) DeleteOfRequest(ctx, requestID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOfRequest", reflect.TypeOf((*MockIRidePushTokenRepository)(nil).DeleteOfRequest), ctx, requestID)
+}
+
+// OfRequest mocks base method.
+func (m *MockIRidePushTokenRepository) OfRequest(ctx context.Context, requestID uuid.UUID) ([]entities.RidePushToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OfRequest", ctx, requestID)
+	ret0, _ := ret[0].([]entities.RidePushToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// OfRequest indicates an expected call of OfRequest.
+func (mr *MockIRidePushTokenRepositoryMockRecorder) OfRequest(ctx, requestID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OfRequest", reflect.TypeOf((*MockIRidePushTokenRepository)(nil).OfRequest), ctx, requestID)
+}
+
+// Remove mocks base method.
+func (m *MockIRidePushTokenRepository) Remove(ctx context.Context, token string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Remove", ctx, token)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Remove indicates an expected call of Remove.
+func (mr *MockIRidePushTokenRepositoryMockRecorder) Remove(ctx, token any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockIRidePushTokenRepository)(nil).Remove), ctx, token)
+}
+
+// Save mocks base method.
+func (m *MockIRidePushTokenRepository) Save(ctx context.Context, token entities.RidePushToken) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Save", ctx, token)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Save indicates an expected call of Save.
+func (mr *MockIRidePushTokenRepositoryMockRecorder) Save(ctx, token any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockIRidePushTokenRepository)(nil).Save), ctx, token)
+}
+
 // MockIProviderLocator is a mock of IProviderLocator interface.
 type MockIProviderLocator struct {
 	ctrl     *gomock.Controller
@@ -1474,6 +1570,21 @@ func (m *MockIProviderLocator) ClaimLostAlert(ctx context.Context, requestID uui
 func (mr *MockIProviderLocatorMockRecorder) ClaimLostAlert(ctx, requestID, every any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClaimLostAlert", reflect.TypeOf((*MockIProviderLocator)(nil).ClaimLostAlert), ctx, requestID, every)
+}
+
+// ClaimRideLivePush mocks base method.
+func (m *MockIProviderLocator) ClaimRideLivePush(ctx context.Context, requestID uuid.UUID, every time.Duration) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClaimRideLivePush", ctx, requestID, every)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ClaimRideLivePush indicates an expected call of ClaimRideLivePush.
+func (mr *MockIProviderLocatorMockRecorder) ClaimRideLivePush(ctx, requestID, every any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClaimRideLivePush", reflect.TypeOf((*MockIProviderLocator)(nil).ClaimRideLivePush), ctx, requestID, every)
 }
 
 // ClaimSample mocks base method.

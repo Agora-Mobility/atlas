@@ -30,7 +30,12 @@ type Preferences struct {
 	ShareLocation    bool
 	Language         string
 	Currency         string
+	// NavigationApp is the app the driver opens to navigate a ride; empty until chosen
+	NavigationApp string
 }
+
+// NavigationApps are the values of Preferences.NavigationApp besides empty.
+var NavigationApps = []string{"google_maps", "waze", "apple_maps"}
 
 func (p *Preferences) Validate() error {
 	if !slices.Contains([]string{"pt", "en", "fr"}, p.Language) {
@@ -38,6 +43,9 @@ func (p *Preferences) Validate() error {
 	}
 	if !slices.Contains([]string{"AOA", "USD", "EUR"}, p.Currency) {
 		return validationError("currency", "A moeda não é válida.")
+	}
+	if p.NavigationApp != "" && !slices.Contains(NavigationApps, p.NavigationApp) {
+		return validationError("navigation_app", "A aplicação de navegação não é válida.")
 	}
 	return nil
 }

@@ -660,6 +660,44 @@ type NearbyView struct {
 	Cells     []NearbyCell `json:"cells"`
 }
 
+// RidePushTokenInput is the token of the lock screen of a ride: on Android the
+// FCM token, on iOS the push token of the Live Activity (not the APNs device token).
+type RidePushTokenInput struct {
+	Platform string `json:"platform" binding:"required,oneof=android ios" enums:"android,ios" example:"ios"`
+	Token    string `json:"token" binding:"required,max=4096" example:"80f6a1c3..."`
+}
+
+// NearbyDriver is a free driver near the pickup, for the car on the map.
+type NearbyDriver struct {
+	// ID is opaque and stable for the day, so the app can move the same car; it is not the id of the driver
+	ID          string    `json:"id" example:"q2Lr0d1mZ4cX8b9T"`
+	Lat         float64   `json:"lat" example:"-8.8395"`
+	Lng         float64   `json:"lng" example:"13.2345"`
+	Heading     *float64  `json:"heading,omitempty" example:"92"`
+	ServiceID   uuid.UUID `json:"service_id"`
+	ServiceSlug string    `json:"service_slug" example:"taxi-economico"`
+	VehicleKind string    `json:"vehicle_kind,omitempty" example:"car"`
+	DistanceM   int       `json:"distance_m" example:"850"`
+	ETASecond   int       `json:"eta_s" example:"170"`
+	// AgeS is how old the position is
+	AgeS int `json:"age_s" example:"4"`
+}
+
+// NearbyService sums up the drivers of one service, for the options of "Escolha a viatura".
+type NearbyService struct {
+	ServiceID   uuid.UUID `json:"service_id"`
+	ServiceSlug string    `json:"service_slug"`
+	Drivers     int       `json:"drivers" example:"3"`
+	// ETASecond is the estimate of the nearest driver to the pickup
+	ETASecond int `json:"eta_s" example:"170"`
+}
+
+type NearbyDriversView struct {
+	Available bool            `json:"available"`
+	Drivers   []NearbyDriver  `json:"drivers"`
+	Services  []NearbyService `json:"services"`
+}
+
 type DeviceInput struct {
 	Token    string `json:"token" binding:"required,max=4096"`
 	Platform string `json:"platform" binding:"required,oneof=android ios"`

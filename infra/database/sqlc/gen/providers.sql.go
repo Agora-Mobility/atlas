@@ -12,6 +12,56 @@ import (
 	"github.com/google/uuid"
 )
 
+const availableDriversAmong = `-- name: AvailableDriversAmong :many
+SELECT p.user_id, s.id AS service_id, s.slug AS service_slug, COALESCE(v.kind, '')::text AS vehicle_kind
+FROM providers p
+JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
+JOIN services s ON s.id = p.service_id AND s.is_active
+LEFT JOIN vehicles v ON v.provider_id = p.user_id AND v.is_active
+LEFT JOIN service_provider_requirements r ON r.service_id = p.service_id
+WHERE p.user_id = ANY($1::uuid[]) AND p.status = 'approved'
+  AND (NOT COALESCE(r.requires_vehicle, false) OR v.id IS NOT NULL)
+  AND NOT EXISTS (
+      SELECT 1 FROM service_requests q
+      WHERE q.provider_id = p.user_id AND q.status IN ('accepted', 'provider_en_route', 'in_progress')
+        AND (q.scheduled_for IS NULL OR q.scheduled_for <= now())
+  )
+`
+
+type AvailableDriversAmongRow struct {
+	UserID      uuid.UUID `json:"user_id"`
+	ServiceID   uuid.UUID `json:"service_id"`
+	ServiceSlug string    `json:"service_slug"`
+	VehicleKind string    `json:"vehicle_kind"`
+}
+
+// The approved drivers among these that are free to take a request now, with
+// their service and vehicle, for the map of the customer.
+func (q *Queries) AvailableDriversAmong(ctx context.Context, providerIds []uuid.UUID) ([]AvailableDriversAmongRow, error) {
+	rows, err := q.db.Query(ctx, availableDriversAmong, providerIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AvailableDriversAmongRow{}
+	for rows.Next() {
+		var i AvailableDriversAmongRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.ServiceID,
+			&i.ServiceSlug,
+			&i.VehicleKind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countProviderApplications = `-- name: CountProviderApplications :one
 SELECT count(*)
 FROM providers p
@@ -71,6 +121,24 @@ DELETE FROM provider_coverage WHERE provider_id = $1
 
 func (q *Queries) DeleteProviderCoverage(ctx context.Context, providerID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteProviderCoverage, providerID)
+	return err
+}
+
+const deleteRidePushToken = `-- name: DeleteRidePushToken :exec
+DELETE FROM ride_push_tokens WHERE token = $1
+`
+
+func (q *Queries) DeleteRidePushToken(ctx context.Context, token string) error {
+	_, err := q.db.Exec(ctx, deleteRidePushToken, token)
+	return err
+}
+
+const deleteRidePushTokens = `-- name: DeleteRidePushTokens :exec
+DELETE FROM ride_push_tokens WHERE request_id = $1
+`
+
+func (q *Queries) DeleteRidePushTokens(ctx context.Context, requestID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteRidePushTokens, requestID)
 	return err
 }
 
@@ -368,6 +436,42 @@ func (q *Queries) ListProviderApplications(ctx context.Context, arg ListProvider
 	return items, nil
 }
 
+const listRidePushTokens = `-- name: ListRidePushTokens :many
+SELECT request_id, platform, user_id, token FROM ride_push_tokens WHERE request_id = $1 ORDER BY platform
+`
+
+type ListRidePushTokensRow struct {
+	RequestID uuid.UUID `json:"request_id"`
+	Platform  string    `json:"platform"`
+	UserID    uuid.UUID `json:"user_id"`
+	Token     string    `json:"token"`
+}
+
+func (q *Queries) ListRidePushTokens(ctx context.Context, requestID uuid.UUID) ([]ListRidePushTokensRow, error) {
+	rows, err := q.db.Query(ctx, listRidePushTokens, requestID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRidePushTokensRow{}
+	for rows.Next() {
+		var i ListRidePushTokensRow
+		if err := rows.Scan(
+			&i.RequestID,
+			&i.Platform,
+			&i.UserID,
+			&i.Token,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const notificationDelivered = `-- name: NotificationDelivered :one
 SELECT EXISTS (SELECT 1 FROM notifications WHERE delivery_key = $1 AND status = 'sent')
 `
@@ -553,6 +657,28 @@ func (q *Queries) UpsertProvider(ctx context.Context, arg UpsertProviderParams) 
 		arg.SubmittedAt,
 		arg.ReviewedAt,
 		arg.OrganizationID,
+	)
+	return err
+}
+
+const upsertRidePushToken = `-- name: UpsertRidePushToken :exec
+INSERT INTO ride_push_tokens (request_id, platform, user_id, token) VALUES ($1, $2, $3, $4)
+ON CONFLICT (request_id, platform) DO UPDATE SET user_id = EXCLUDED.user_id, token = EXCLUDED.token, updated_at = now()
+`
+
+type UpsertRidePushTokenParams struct {
+	RequestID uuid.UUID `json:"request_id"`
+	Platform  string    `json:"platform"`
+	UserID    uuid.UUID `json:"user_id"`
+	Token     string    `json:"token"`
+}
+
+func (q *Queries) UpsertRidePushToken(ctx context.Context, arg UpsertRidePushTokenParams) error {
+	_, err := q.db.Exec(ctx, upsertRidePushToken,
+		arg.RequestID,
+		arg.Platform,
+		arg.UserID,
+		arg.Token,
 	)
 	return err
 }

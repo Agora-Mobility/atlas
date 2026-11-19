@@ -48,6 +48,8 @@ type Container struct {
 	ClientAuthorizer   *middleware.ClientAuthorizer
 	SMS                services.ISMSSender
 	Email              services.IEmailSender
+	// LiveActivity updates the Live Activity of a ride on iOS (APNs)
+	LiveActivity services.ILiveActivitySender
 	// Business records business events (metrics, span attributes, logs).
 	Business services.IBusinessEvents
 
@@ -127,6 +129,9 @@ func New(cfg *config.Config, version string, conn *Connections) (*Container, err
 	c.Notifications = newNotificationsModule(c)
 	pushSender, err := newPushSender(context.Background(), cfg.FCM)
 	if err != nil {
+		return nil, err
+	}
+	if c.LiveActivity, err = newLiveActivitySender(cfg.APNS); err != nil {
 		return nil, err
 	}
 	storage := newObjectStorage(cfg.R2)

@@ -8620,6 +8620,69 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v1/nearby/drivers": {
+            "get": {
+                "description": "Customers only. For the cars on the map of \"Escolha a viatura\" and the ETA of each option (services: drivers and the ETA of the nearest per service). Each driver has an opaque id that is stable for the day (not the id of the driver), a position rounded to about 11 m, the heading, the service and the kind of vehicle; never their identity. Drivers with an offer pending or a job are left out. service_id keeps only that service. Categories matched by coverage list no drivers; available still says whether someone covers the point. ETA and distance are estimates from the straight line.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Free drivers near the pickup, one by one",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude of the pickup",
+                        "name": "lat",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude of the pickup",
+                        "name": "lng",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this service",
+                        "name": "service_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.NearbyDriversView"
+                        }
+                    },
+                    "422": {
+                        "description": "Outside the service area",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
+            }
+        },
         "/api/v1/notifications": {
             "get": {
                 "description": "Read and unread items, each with a link_type and link_id to open the order, offer, booking or ticket.",
@@ -13970,6 +14033,67 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Over the limit, or not uploaded",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/requests/{id}/push-token": {
+            "post": {
+                "description": "Customer of the request only. Android sends its FCM token and gets data-only messages (type ride.live); iOS sends the push token of the Live Activity and gets APNs liveactivity pushes. Updates go out on every change of state and, while the ride is tracked, every few seconds with the position, ETA and distance of the driver. When the ride ends or is cancelled, iOS gets event end and the tokens are deleted. A new token of the same platform replaces the old one.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Follow the ride on the lock screen",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Platform and token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RidePushTokenInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "The ride has ended (RIDE_ENDED)",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }
@@ -20961,6 +21085,92 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.NearbyDriver": {
+            "type": "object",
+            "properties": {
+                "age_s": {
+                    "description": "AgeS is how old the position is",
+                    "type": "integer",
+                    "example": 4
+                },
+                "distance_m": {
+                    "type": "integer",
+                    "example": 850
+                },
+                "eta_s": {
+                    "type": "integer",
+                    "example": 170
+                },
+                "heading": {
+                    "type": "number",
+                    "example": 92
+                },
+                "id": {
+                    "description": "ID is opaque and stable for the day, so the app can move the same car; it is not the id of the driver",
+                    "type": "string",
+                    "example": "q2Lr0d1mZ4cX8b9T"
+                },
+                "lat": {
+                    "type": "number",
+                    "example": -8.8395
+                },
+                "lng": {
+                    "type": "number",
+                    "example": 13.2345
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_slug": {
+                    "type": "string",
+                    "example": "taxi-economico"
+                },
+                "vehicle_kind": {
+                    "type": "string",
+                    "example": "car"
+                }
+            }
+        },
+        "dtos.NearbyDriversView": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "drivers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.NearbyDriver"
+                    }
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.NearbyService"
+                    }
+                }
+            }
+        },
+        "dtos.NearbyService": {
+            "type": "object",
+            "properties": {
+                "drivers": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "eta_s": {
+                    "description": "ETASecond is the estimate of the nearest driver to the pickup",
+                    "type": "integer",
+                    "example": 170
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_slug": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.NearbyView": {
             "type": "object",
             "properties": {
@@ -22011,6 +22221,17 @@ const docTemplate = `{
                         "en",
                         "fr"
                     ]
+                },
+                "navigation_app": {
+                    "description": "NavigationApp is the app the driver opens to navigate a ride. Empty until chosen;\nleft out of a save, it keeps its current value, and \"\" clears it.",
+                    "type": "string",
+                    "enum": [
+                        "",
+                        "google_maps",
+                        "waze",
+                        "apple_maps"
+                    ],
+                    "example": "waze"
                 },
                 "notify_promotions": {
                     "type": "boolean"
@@ -23839,6 +24060,28 @@ const docTemplate = `{
                 "step": {
                     "type": "string",
                     "example": "identity_card"
+                }
+            }
+        },
+        "dtos.RidePushTokenInput": {
+            "type": "object",
+            "required": [
+                "platform",
+                "token"
+            ],
+            "properties": {
+                "platform": {
+                    "type": "string",
+                    "enum": [
+                        "android",
+                        "ios"
+                    ],
+                    "example": "ios"
+                },
+                "token": {
+                    "type": "string",
+                    "maxLength": 4096,
+                    "example": "80f6a1c3..."
                 }
             }
         },

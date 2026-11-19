@@ -1103,6 +1103,15 @@ type RequestTripMetric struct {
 	RecordedAt           time.Time `json:"recorded_at"`
 }
 
+type RidePushToken struct {
+	RequestID uuid.UUID `json:"request_id"`
+	Platform  string    `json:"platform"`
+	UserID    uuid.UUID `json:"user_id"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type Role struct {
 	ID             uuid.UUID              `json:"id"`
 	OrganizationID *uuid.UUID             `json:"organization_id"`
@@ -1335,6 +1344,7 @@ type User struct {
 	Currency         string           `json:"currency"`
 	AvatarUploadID   *uuid.UUID       `json:"avatar_upload_id"`
 	ReferralCode     *string          `json:"referral_code"`
+	NavigationApp    string           `json:"navigation_app"`
 }
 
 type UserAddress struct {

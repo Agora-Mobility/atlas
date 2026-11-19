@@ -4,6 +4,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -34,6 +35,7 @@ type Config struct {
 	Realtime   RealtimeConfig   `mapstructure:",squash"`
 	GoogleMaps GoogleMapsConfig `mapstructure:",squash"`
 	FCM        FCMConfig        `mapstructure:",squash"`
+	APNS       APNSConfig       `mapstructure:",squash"`
 	R2         R2Config         `mapstructure:",squash"`
 	Verify     VerifyConfig     `mapstructure:",squash"`
 	AppyPay    AppyPayConfig    `mapstructure:",squash"`
@@ -154,6 +156,7 @@ type DispatchConfig struct {
 	ChannelTimeout      time.Duration `mapstructure:"DISPATCH_CHANNEL_TIMEOUT"`
 	FareEstimateTTL     time.Duration `mapstructure:"FARE_ESTIMATE_TTL"`
 	NearbyMinCount      int           `mapstructure:"NEARBY_MIN_CELL_COUNT"`
+	NearbyDriversMax    int           `mapstructure:"NEARBY_DRIVERS_MAX"`
 	MaxAccuracyM        float64       `mapstructure:"LOCATION_MAX_ACCURACY_M"`
 	MaxSpeedKmh         float64       `mapstructure:"LOCATION_MAX_SPEED_KMH"`
 	HistoryRetention    time.Duration `mapstructure:"LOCATION_HISTORY_RETENTION"`
@@ -226,6 +229,73 @@ func (c *FCMConfig) readCredentialsFile() error {
 	}
 	c.CredentialsJSON = string(content)
 	return nil
+}
+
+// APNSConfig is the token-based (.p8) key the Live Activity of a ride is
+// updated with. Without it those pushes are written to the log.
+type APNSConfig struct {
+	KeyID        string        `mapstructure:"APNS_KEY_ID"`
+	TeamID       string        `mapstructure:"APNS_TEAM_ID"`
+	KeyBase64    string        `mapstructure:"APNS_PRIVATE_KEY_BASE64"`
+	KeyFile      string        `mapstructure:"APNS_PRIVATE_KEY_FILE"`
+	BundleID     string        `mapstructure:"APNS_BUNDLE_ID"`
+	BaseURL      string        `mapstructure:"APNS_BASE_URL"`
+	Timeout      time.Duration `mapstructure:"APNS_TIMEOUT"`
+	Interval     time.Duration `mapstructure:"RIDE_LIVE_INTERVAL"`
+	StaleAfter   time.Duration `mapstructure:"RIDE_LIVE_STALE_AFTER"`
+	DismissAfter time.Duration `mapstructure:"RIDE_LIVE_DISMISS_AFTER"`
+
+	// keyFromFile is the content of APNS_PRIVATE_KEY_FILE, read at load
+	keyFromFile []byte
+}
+
+func (c APNSConfig) Enabled() bool {
+	hasKey := len(c.keyFromFile) > 0 || strings.TrimSpace(c.KeyBase64) != ""
+	return strings.TrimSpace(c.KeyID) != "" && strings.TrimSpace(c.TeamID) != "" && hasKey && strings.TrimSpace(c.BundleID) != ""
+}
+
+// readKeyFile reads the .p8 file of APNS_PRIVATE_KEY_FILE, which wins over
+// APNS_PRIVATE_KEY_BASE64, like the Firebase credentials.
+func (c *APNSConfig) readKeyFile() error {
+	path := strings.TrimSpace(c.KeyFile)
+	if path == "" {
+		return nil
+	}
+	content, err := os.ReadFile(path) // #nosec G304 -- the path comes from the operator's environment
+	if err != nil {
+		return fmt.Errorf("read APNS_PRIVATE_KEY_FILE: %w", err)
+	}
+	c.keyFromFile = content
+	return nil
+}
+
+// KeyPEM is the .p8 key: the file of APNS_PRIVATE_KEY_FILE, or else
+// APNS_PRIVATE_KEY_BASE64 (base64 -w0 AuthKey.p8, so it fits on one line).
+func (c APNSConfig) KeyPEM() ([]byte, error) {
+	if len(c.keyFromFile) > 0 {
+		return c.keyFromFile, nil
+	}
+	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(c.KeyBase64))
+	if err != nil {
+		return nil, fmt.Errorf("APNS_PRIVATE_KEY_BASE64 is not base64: %w", err)
+	}
+	return key, nil
+}
+
+func (c APNSConfig) validate() []error {
+	var errs []error
+	if c.Timeout <= 0 || strings.TrimSpace(c.BaseURL) == "" {
+		errs = append(errs, errors.New("APNS_TIMEOUT must be positive and APNS_BASE_URL cannot be empty"))
+	}
+	if c.Interval < 0 || c.StaleAfter < 0 || c.DismissAfter < 0 {
+		errs = append(errs, errors.New("RIDE_LIVE_INTERVAL, RIDE_LIVE_STALE_AFTER and RIDE_LIVE_DISMISS_AFTER cannot be negative"))
+	}
+	if c.Enabled() {
+		if _, err := c.KeyPEM(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
 }
 
 type AppConfig struct {
@@ -399,6 +469,7 @@ var defaults = map[string]any{
 	"LOCATION_MAX_SPEED_KMH":                200,
 	"LOCATION_HISTORY_RETENTION":            "720h",
 	"OFFER_DEEP_LINK_BASE":                  "agoraprovider://app",
+	"NEARBY_DRIVERS_MAX":                    20,
 	"OPERATOR_ALERT_PHONE":                  "",
 	"IDEMPOTENCY_TTL":                       "24h",
 	"NOTIFICATION_WORKERS":                  8,
@@ -444,6 +515,16 @@ var defaults = map[string]any{
 	"FCM_CREDENTIALS_FILE":                  "",
 	"FCM_BASE_URL":                          "https://fcm.googleapis.com",
 	"FCM_TIMEOUT":                           "5s",
+	"APNS_KEY_ID":                           "",
+	"APNS_TEAM_ID":                          "",
+	"APNS_PRIVATE_KEY_BASE64":               "",
+	"APNS_PRIVATE_KEY_FILE":                 "",
+	"APNS_BUNDLE_ID":                        "",
+	"APNS_BASE_URL":                         "https://api.push.apple.com",
+	"APNS_TIMEOUT":                          "5s",
+	"RIDE_LIVE_INTERVAL":                    "5s",
+	"RIDE_LIVE_STALE_AFTER":                 "2m",
+	"RIDE_LIVE_DISMISS_AFTER":               "5m",
 	"APPYPAY_CLIENT_ID":                     "",
 	"APPYPAY_CLIENT_SECRET":                 "",
 	"APPYPAY_BASE_URL":                      "",
@@ -499,6 +580,7 @@ const minCadenceInterval = 2 * time.Second
 const (
 	minDemandAreaResolution = 5
 	maxDemandAreaResolution = 8
+	maxNearbyDrivers        = 100
 	percentToBps            = 100
 )
 
@@ -531,6 +613,9 @@ func Load() (*Config, error) {
 	cfg.HTTP.TrustedProxies = compact(cfg.HTTP.TrustedProxies)
 	cfg.Verify.FakeQualityReasons = compact(cfg.Verify.FakeQualityReasons)
 	if err := cfg.FCM.readCredentialsFile(); err != nil {
+		return nil, err
+	}
+	if err := cfg.APNS.readKeyFile(); err != nil {
 		return nil, err
 	}
 
@@ -645,6 +730,9 @@ func (c *Config) validateDispatch() []error {
 	if c.Dispatch.FareEstimateTTL <= 0 || c.Dispatch.NearbyMinCount <= 0 || c.Dispatch.IdempotencyTTL <= 0 {
 		errs = append(errs, errors.New("FARE_ESTIMATE_TTL, NEARBY_MIN_CELL_COUNT and IDEMPOTENCY_TTL must be positive"))
 	}
+	if c.Dispatch.NearbyDriversMax <= 0 || c.Dispatch.NearbyDriversMax > maxNearbyDrivers {
+		errs = append(errs, fmt.Errorf("NEARBY_DRIVERS_MAX must be between 1 and %d", maxNearbyDrivers))
+	}
 	if c.Dispatch.MaxAccuracyM <= 0 || c.Dispatch.MaxSpeedKmh <= 0 {
 		errs = append(errs, errors.New("LOCATION_MAX_ACCURACY_M and LOCATION_MAX_SPEED_KMH must be positive"))
 	}
@@ -691,6 +779,7 @@ func (c *Config) validateDispatch() []error {
 	if c.FCM.Timeout <= 0 || strings.TrimSpace(c.FCM.BaseURL) == "" {
 		errs = append(errs, errors.New("FCM_TIMEOUT must be positive and FCM_BASE_URL cannot be empty"))
 	}
+	errs = append(errs, c.APNS.validate()...)
 	return errs
 }
 

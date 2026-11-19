@@ -22,7 +22,11 @@ const (
 )
 
 func toPreferencesView(p *entities.Preferences) *dtos.PreferencesView {
-	return &dtos.PreferencesView{NotifyStatus: p.NotifyStatus, NotifyPromotions: p.NotifyPromotions, NotifySMS: p.NotifySMS, ShareLocation: p.ShareLocation, Language: p.Language, Currency: p.Currency}
+	navigation := p.NavigationApp
+	return &dtos.PreferencesView{
+		NotifyStatus: p.NotifyStatus, NotifyPromotions: p.NotifyPromotions, NotifySMS: p.NotifySMS, ShareLocation: p.ShareLocation,
+		Language: p.Language, Currency: p.Currency, NavigationApp: &navigation,
+	}
 }
 
 func (u *Usecase) Preferences(ctx context.Context, userID uuid.UUID) (*dtos.PreferencesView, error) {
@@ -38,6 +42,17 @@ func (u *Usecase) Preferences(ctx context.Context, userID uuid.UUID) (*dtos.Pref
 
 func (u *Usecase) SavePreferences(ctx context.Context, userID uuid.UUID, in dtos.PreferencesView) (*dtos.PreferencesView, error) {
 	preferences := &entities.Preferences{NotifyStatus: in.NotifyStatus, NotifyPromotions: in.NotifyPromotions, NotifySMS: in.NotifySMS, ShareLocation: in.ShareLocation, Language: in.Language, Currency: in.Currency}
+	if in.NavigationApp != nil {
+		preferences.NavigationApp = *in.NavigationApp
+	} else {
+		current, err := u.Account.Preferences(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if current != nil {
+			preferences.NavigationApp = current.NavigationApp
+		}
+	}
 	if err := preferences.Validate(); err != nil {
 		return nil, err
 	}
