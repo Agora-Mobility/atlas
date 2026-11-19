@@ -131,6 +131,7 @@ type ActiveTrip struct {
 	Status     RequestStatus `json:"status"`
 	Target     *GeoPoint     `json:"target,omitempty"`
 	Tracked    bool          `json:"tracked"`
+	Arrived    bool          `json:"arrived,omitempty"`
 }
 
 func (t ActiveTrip) Phase() ProviderPhase {

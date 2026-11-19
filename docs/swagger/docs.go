@@ -13985,6 +13985,67 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v1/requests/{id}/push-token": {
+            "post": {
+                "description": "Customer of the request only. Android sends its FCM token and gets data-only messages (type ride.live); iOS sends the push token of the Live Activity and gets APNs liveactivity pushes. Updates go out on every change of state and, while the ride is tracked, every few seconds with the position, ETA and distance of the driver. When the ride ends or is cancelled, iOS gets event end and the tokens are deleted. A new token of the same platform replaces the old one.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Live request"
+                ],
+                "summary": "Follow the ride on the lock screen",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Platform and token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.RidePushTokenInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "The ride has ended (RIDE_ENDED)",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
+            }
+        },
         "/api/v1/requests/{id}/rating": {
             "post": {
                 "description": "Customer of the request, once. The stars count for the average of the provider.",
@@ -23850,6 +23911,28 @@ const docTemplate = `{
                 "step": {
                     "type": "string",
                     "example": "identity_card"
+                }
+            }
+        },
+        "dtos.RidePushTokenInput": {
+            "type": "object",
+            "required": [
+                "platform",
+                "token"
+            ],
+            "properties": {
+                "platform": {
+                    "type": "string",
+                    "enum": [
+                        "android",
+                        "ios"
+                    ],
+                    "example": "ios"
+                },
+                "token": {
+                    "type": "string",
+                    "maxLength": 4096,
+                    "example": "80f6a1c3..."
                 }
             }
         },

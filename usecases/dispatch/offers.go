@@ -155,7 +155,7 @@ func tripFor(request *entities.ServiceRequest, policy *entities.DispatchPolicy) 
 	}
 	return entities.ActiveTrip{
 		RequestID: request.ID, CustomerID: request.CustomerID, Status: request.Status, Target: target,
-		Tracked: policy.Tracks(trackedStatus(request.Status)),
+		Tracked: policy.Tracks(trackedStatus(request.Status)), Arrived: request.ArrivedAt != nil,
 	}
 }
 
@@ -371,7 +371,24 @@ func (u *Usecase) Arrive(ctx context.Context, providerID, requestID uuid.UUID) (
 	if err != nil {
 		return nil, err
 	}
+	u.announceArrival(ctx, request)
 	return u.providerView(ctx, request)
+}
+
+// announceArrival marks the arrival on the live trip, so the position updates
+// say "arrived", and refreshes the lock screen of the customer.
+func (u *Usecase) announceArrival(ctx context.Context, request *entities.ServiceRequest) {
+	if request.ProviderID == nil {
+		return
+	}
+	policy, err := u.policyOf(ctx, request)
+	if err == nil {
+		err = u.Locator.SetTrip(ctx, *request.ProviderID, tripFor(request, policy))
+	}
+	if err != nil {
+		logger.FromContext(ctx).Warn("arrival not set on the live trip", zap.String("request_id", request.ID.String()), zap.Error(err))
+	}
+	u.refreshRideLive(ctx, request.ID)
 }
 
 func (u *Usecase) StartJob(ctx context.Context, providerID, requestID uuid.UUID) (*dtos.RequestView, error) {

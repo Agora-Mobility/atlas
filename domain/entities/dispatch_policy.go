@@ -54,6 +54,8 @@ const (
 	ChannelSSE = "sse"
 	ChannelFCM = "fcm"
 	ChannelSMS = "sms"
+	// ChannelAPNS is the Live Activity of a ride, sent straight to APNs
+	ChannelAPNS = "apns"
 
 	maxSearchCells  = 400
 	maxH3Resolution = 15

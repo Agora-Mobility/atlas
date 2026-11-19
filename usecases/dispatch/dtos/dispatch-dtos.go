@@ -660,6 +660,13 @@ type NearbyView struct {
 	Cells     []NearbyCell `json:"cells"`
 }
 
+// RidePushTokenInput is the token of the lock screen of a ride: on Android the
+// FCM token, on iOS the push token of the Live Activity (not the APNs device token).
+type RidePushTokenInput struct {
+	Platform string `json:"platform" binding:"required,oneof=android ios" enums:"android,ios" example:"ios"`
+	Token    string `json:"token" binding:"required,max=4096" example:"80f6a1c3..."`
+}
+
 type DeviceInput struct {
 	Token    string `json:"token" binding:"required,max=4096"`
 	Platform string `json:"platform" binding:"required,oneof=android ios"`

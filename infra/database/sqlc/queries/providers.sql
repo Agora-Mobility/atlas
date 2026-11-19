@@ -114,3 +114,16 @@ SELECT EXISTS (SELECT 1 FROM notifications WHERE delivery_key = $1 AND status = 
 
 -- name: GetUserContact :one
 SELECT name, phone FROM users WHERE id = $1;
+
+-- name: UpsertRidePushToken :exec
+INSERT INTO ride_push_tokens (request_id, platform, user_id, token) VALUES ($1, $2, $3, $4)
+ON CONFLICT (request_id, platform) DO UPDATE SET user_id = EXCLUDED.user_id, token = EXCLUDED.token, updated_at = now();
+
+-- name: ListRidePushTokens :many
+SELECT request_id, platform, user_id, token FROM ride_push_tokens WHERE request_id = $1 ORDER BY platform;
+
+-- name: DeleteRidePushTokens :exec
+DELETE FROM ride_push_tokens WHERE request_id = $1;
+
+-- name: DeleteRidePushToken :exec
+DELETE FROM ride_push_tokens WHERE token = $1;

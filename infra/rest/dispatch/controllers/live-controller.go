@@ -158,6 +158,38 @@ func (c *DispatchController) RevokeShares(ctx *gin.Context) {
 	respond(ctx, http.StatusNoContent, nil, c.dispatch.RevokeShares(ctx.Request.Context(), userID, id))
 }
 
+// RegisterRidePushToken godoc
+//
+//	@Summary		Follow the ride on the lock screen
+//	@Description	Customer of the request only. Android sends its FCM token and gets data-only messages (type ride.live); iOS sends the push token of the Live Activity and gets APNs liveactivity pushes. Updates go out on every change of state and, while the ride is tracked, every few seconds with the position, ETA and distance of the driver. When the ride ends or is cancelled, iOS gets event end and the tokens are deleted. A new token of the same platform replaces the old one.
+//	@Tags			Live request
+//	@Accept			json
+//	@Param			id		path	string					true	"Request id"
+//	@Param			body	body	dtos.RidePushTokenInput	true	"Platform and token"
+//	@Success		204
+//	@Failure		404	{object}	shared.ErrorResponse
+//	@Failure		409	{object}	shared.ErrorResponse	"The ride has ended (RIDE_ENDED)"
+//	@Failure		422	{object}	shared.ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/requests/{id}/push-token [post]
+func (c *DispatchController) RegisterRidePushToken(ctx *gin.Context) {
+	userID, ok := signedIn(ctx)
+	if !ok {
+		return
+	}
+	id, ok := requestParam(ctx)
+	if !ok {
+		return
+	}
+	var in dtos.RidePushTokenInput
+	if err := binding.JSON(ctx, &in); err != nil {
+		shared.InvalidRequest(ctx, err)
+		return
+	}
+	respond(ctx, http.StatusNoContent, nil, c.dispatch.RegisterRidePushToken(ctx.Request.Context(), userID, id, in))
+}
+
 // PublicTrip godoc
 //
 //	@Summary		A shared trip

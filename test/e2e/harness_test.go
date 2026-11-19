@@ -6,9 +6,12 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -70,6 +73,7 @@ type stack struct {
 	appypay     *appypayStub
 	calls       *callStub
 	fcm         *fcmStub
+	apns        *apnsStub
 	api         *instance
 }
 
@@ -153,6 +157,11 @@ func startStack() (func(), error) {
 		return cleanup, err
 	}
 	closers = append(closers, fcm.server.Close)
+	apns, err := newAPNSStub()
+	if err != nil {
+		return cleanup, err
+	}
+	closers = append(closers, apns.server.Close)
 
 	if err := postgres.Migrate(dbURL, "up"); err != nil {
 		return cleanup, err
@@ -168,6 +177,7 @@ func startStack() (func(), error) {
 		"CALLS_BASE_URL": calls.server.URL, "CALLS_API_KEY": "e2e", "SHARE_BASE_URL": "https://agora.test/v", "APPYPAY_CLIENT_ID": "e2e", "APPYPAY_CLIENT_SECRET": "e2e", "APPYPAY_BASE_URL": appypay.server.URL, "APPYPAY_TOKEN_URL": appypay.server.URL + "/token", "APPYPAY_RESOURCE": "e2e", "APPYPAY_GPO_METHOD": "GPO_e2e", "APPYPAY_REF_METHOD": "REF_e2e", "PAYMENT_RECONCILE_INTERVAL": "100ms", "PAYMENT_GPO_CHECK_INTERVAL": "100ms", "PAYMENT_REFERENCE_CHECK_INTERVAL": "100ms", "OTP_RESEND_COOLDOWN": "0s", "AUTH_RATE_LIMIT_REQUESTS": "100000", "R2_ENDPOINT": storage.server.URL, "R2_ACCESS_KEY_ID": "e2e", "R2_SECRET_ACCESS_KEY": "e2e", "R2_BUCKET_NAME": storageBucket,
 		"VERIFICATION_QUALITY_PROVIDER": "fake", "VERIFICATION_OCR_PROVIDER": "fake", "VERIFICATION_LIVENESS_PROVIDER": "fake",
 		"VERIFICATION_UPLOAD_RATE_LIMIT": "1000000", "VERIFICATION_CHECK_RATE_LIMIT": "1000000",
+		"APNS_KEY_ID": "KEYE2E", "APNS_TEAM_ID": "TEAME2E", "APNS_PRIVATE_KEY_BASE64": apns.key, "APNS_BUNDLE_ID": "ao.agora.cliente", "APNS_BASE_URL": apns.server.URL,
 	}
 	for key, value := range settings {
 		if err := os.Setenv(key, value); err != nil {
@@ -183,7 +193,7 @@ func startStack() (func(), error) {
 	direct := goredis.NewClient(&goredis.Options{Addr: redisEndpoint})
 	closers = append(closers, func() { _ = direct.Close() })
 
-	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, googleMaps: googleMaps, appypay: appypay, calls: calls, sms: sms, fcm: fcm}
+	env = &stack{owner: owner, redisDirect: direct, redisProxy: redisProxy, rabbitProxy: rabbitProxy, googleMaps: googleMaps, appypay: appypay, calls: calls, sms: sms, fcm: fcm, apns: apns}
 	if err := seedPlatform(ctx, owner); err != nil {
 		return cleanup, err
 	}
@@ -506,6 +516,8 @@ type fcmSeen struct {
 	OfferID   string
 	MessageID string
 	Type      string
+	Token     string
+	Data      map[string]string
 	At        time.Time
 }
 
@@ -523,12 +535,13 @@ func newFCMStub() (*fcmStub, error) {
 	mux.HandleFunc("/v1/projects/agora-e2e/messages:send", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Message struct {
-				Data map[string]string `json:"data"`
+				Token string            `json:"token"`
+				Data  map[string]string `json:"data"`
 			} `json:"message"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		stub.mu.Lock()
-		stub.messages = append(stub.messages, fcmSeen{OfferID: body.Message.Data["offer_id"], MessageID: body.Message.Data["message_id"], Type: body.Message.Data["type"], At: time.Now()})
+		stub.messages = append(stub.messages, fcmSeen{OfferID: body.Message.Data["offer_id"], MessageID: body.Message.Data["message_id"], Type: body.Message.Data["type"], Token: body.Message.Token, Data: body.Message.Data, At: time.Now()})
 		stub.mu.Unlock()
 		_ = json.NewEncoder(w).Encode(map[string]string{"name": "projects/agora-e2e/messages/1"})
 	})
@@ -550,6 +563,78 @@ func (f *fcmStub) forOffer(offerID string) []fcmSeen {
 	for _, message := range f.messages {
 		if message.OfferID == offerID {
 			out = append(out, message)
+		}
+	}
+	return out
+}
+
+func (f *fcmStub) forToken(token string) []fcmSeen {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []fcmSeen
+	for _, message := range f.messages {
+		if message.Token == token {
+			out = append(out, message)
+		}
+	}
+	return out
+}
+
+// apnsStub answers like APNs and keeps the Live Activity pushes it got.
+type apnsStub struct {
+	server *httptest.Server
+	key    string
+	mu     sync.Mutex
+	pushes []apnsSeen
+}
+
+type apnsSeen struct {
+	Token    string
+	PushType string
+	Topic    string
+	Priority string
+	Event    string
+	State    map[string]any
+	Dismiss  bool
+}
+
+func newAPNSStub() (*apnsStub, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	stub := &apnsStub{key: base64.StdEncoding.EncodeToString(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))}
+	stub.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			APS struct {
+				Event        string         `json:"event"`
+				ContentState map[string]any `json:"content-state"`
+				Dismissal    *int64         `json:"dismissal-date"`
+			} `json:"aps"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		stub.mu.Lock()
+		stub.pushes = append(stub.pushes, apnsSeen{
+			Token: strings.TrimPrefix(r.URL.Path, "/3/device/"), PushType: r.Header.Get("apns-push-type"), Topic: r.Header.Get("apns-topic"),
+			Priority: r.Header.Get("apns-priority"), Event: body.APS.Event, State: body.APS.ContentState, Dismiss: body.APS.Dismissal != nil,
+		})
+		stub.mu.Unlock()
+		w.Header().Set("apns-id", uuid.NewString())
+	}))
+	return stub, nil
+}
+
+func (a *apnsStub) forToken(token string) []apnsSeen {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	var out []apnsSeen
+	for _, push := range a.pushes {
+		if push.Token == token {
+			out = append(out, push)
 		}
 	}
 	return out

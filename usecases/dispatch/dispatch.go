@@ -101,10 +101,24 @@ type Settings struct {
 	RouteReviewAboveBps    int
 
 	Heatmap HeatmapSettings
+
+	// RideLiveInterval is the most often the lock screen of a ride gets a position
+	// update; zero turns the position updates off (status changes still go out)
+	RideLiveInterval time.Duration
 }
 
 type OfferChannels interface {
 	SendOffer(ctx context.Context, channel string, offer OfferNotice) error
+}
+
+// RideLiveChannel updates the lock screen of the customer during a ride
+// (Live Activity on iOS, notification on Android).
+type RideLiveChannel interface {
+	// Position sends a position update of a ride that is being tracked.
+	Position(ctx context.Context, state entities.RideLiveState) error
+	// Refresh sends the current state of a request, after a change that is not a
+	// transition event (the driver arrived).
+	Refresh(ctx context.Context, requestID uuid.UUID) error
 }
 
 type OfferNotice struct {
@@ -118,36 +132,38 @@ type OfferNotice struct {
 }
 
 type Deps struct {
-	Config    repository.IDispatchConfigRepository
-	Pricing   repository.IPricingRepository
-	Demand    repository.IDemandRepository
-	Signals   repository.IDemandSignals
-	Providers repository.IProviderRepository
-	Requests  repository.IRequestRepository
-	Offers    repository.IOfferRepository
-	Payments  repository.IPaymentRepository
-	Cancels   repository.ICancellationRepository
-	Ratings   repository.IRatingRepository
-	Vouchers  repository.IVoucherRepository
-	Live      repository.ILiveRepository
-	Reference repository.IReferenceRepository
-	Removals  repository.IRemovalRepository
-	Refunds   PrepaidRefunder
-	Calls     services.ICallBridge
-	Devices   repository.IDeviceRepository
-	Account   repository.IAccountRepository
-	Storage   services.IObjectStorage
-	Locator   repository.IProviderLocator
-	Outbox    repository.IOutboxRepository
-	Tx        repository.ITransactionManager
-	Audit     repository.IAuditLogRepository
-	Geo       services.IGeoIndex
-	Routing   services.IRoutingProvider
-	Feed      services.IPositionFeed
-	Channels  OfferChannels
-	Heatmap   repository.IHeatmapRepository
-	Cache     Cache
-	Business  services.IBusinessEvents
+	Config     repository.IDispatchConfigRepository
+	Pricing    repository.IPricingRepository
+	Demand     repository.IDemandRepository
+	Signals    repository.IDemandSignals
+	Providers  repository.IProviderRepository
+	Requests   repository.IRequestRepository
+	Offers     repository.IOfferRepository
+	Payments   repository.IPaymentRepository
+	Cancels    repository.ICancellationRepository
+	Ratings    repository.IRatingRepository
+	Vouchers   repository.IVoucherRepository
+	Live       repository.ILiveRepository
+	Reference  repository.IReferenceRepository
+	Removals   repository.IRemovalRepository
+	Refunds    PrepaidRefunder
+	Calls      services.ICallBridge
+	Devices    repository.IDeviceRepository
+	RideLive   RideLiveChannel
+	RideTokens repository.IRidePushTokenRepository
+	Account    repository.IAccountRepository
+	Storage    services.IObjectStorage
+	Locator    repository.IProviderLocator
+	Outbox     repository.IOutboxRepository
+	Tx         repository.ITransactionManager
+	Audit      repository.IAuditLogRepository
+	Geo        services.IGeoIndex
+	Routing    services.IRoutingProvider
+	Feed       services.IPositionFeed
+	Channels   OfferChannels
+	Heatmap    repository.IHeatmapRepository
+	Cache      Cache
+	Business   services.IBusinessEvents
 }
 
 type Cache interface {

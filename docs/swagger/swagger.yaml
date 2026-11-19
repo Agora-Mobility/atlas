@@ -4704,6 +4704,22 @@ definitions:
         example: identity_card
         type: string
     type: object
+  dtos.RidePushTokenInput:
+    properties:
+      platform:
+        enum:
+        - android
+        - ios
+        example: ios
+        type: string
+      token:
+        example: 80f6a1c3...
+        maxLength: 4096
+        type: string
+    required:
+    - platform
+    - token
+    type: object
   dtos.RoleList:
     properties:
       items:
@@ -15754,6 +15770,50 @@ paths:
       summary: Add uploaded photos to a request
       tags:
       - Photos
+  /api/v1/requests/{id}/push-token:
+    post:
+      consumes:
+      - application/json
+      description: Customer of the request only. Android sends its FCM token and gets
+        data-only messages (type ride.live); iOS sends the push token of the Live
+        Activity and gets APNs liveactivity pushes. Updates go out on every change
+        of state and, while the ride is tracked, every few seconds with the position,
+        ETA and distance of the driver. When the ride ends or is cancelled, iOS gets
+        event end and the tokens are deleted. A new token of the same platform replaces
+        the old one.
+      parameters:
+      - description: Request id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Platform and token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RidePushTokenInput'
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "409":
+          description: The ride has ended (RIDE_ENDED)
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Follow the ride on the lock screen
+      tags:
+      - Live request
   /api/v1/requests/{id}/rating:
     post:
       consumes:

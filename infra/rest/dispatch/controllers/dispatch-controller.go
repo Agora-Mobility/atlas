@@ -181,6 +181,7 @@ var errorTable = []struct {
 	{entities.ErrChatClosed, http.StatusConflict, "CHAT_CLOSED", "The chat only works while the request has a provider and is not finished."},
 	{entities.ErrCatalogItemNotFound, http.StatusUnprocessableEntity, "QUICK_REPLY_NOT_FOUND", "This quick reply does not exist."},
 	{entities.ErrShareNotAvailable, http.StatusConflict, "SHARE_NOT_AVAILABLE", "Only an active request can be shared."},
+	{entities.ErrRideLiveClosed, http.StatusConflict, "RIDE_ENDED", "The ride has ended."},
 	{entities.ErrShareNotFound, http.StatusNotFound, "SHARE_NOT_FOUND", "This link does not exist or expired."},
 	{entities.ErrSOSNotFound, http.StatusNotFound, "SOS_NOT_FOUND", "Alert not found."},
 	{entities.ErrNoETA, http.StatusConflict, "ETA_NOT_AVAILABLE", "There is no position to calculate the arrival."},

@@ -73,6 +73,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	requests.POST("/:id/messages", retryable, r.controller.SendMessage)
 	requests.POST("/:id/share", r.controller.ShareTrip)
 	requests.DELETE("/:id/share", r.controller.RevokeShares)
+	requests.POST("/:id/push-token", r.controller.RegisterRidePushToken)
 	requests.GET("/:id/eta", r.controller.ETA)
 	requests.POST("/:id/call", r.controller.Call)
 	requests.POST("/:id/sos", retryable, r.controller.RaiseSOS)

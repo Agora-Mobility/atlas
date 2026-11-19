@@ -91,6 +91,8 @@ type Querier interface {
 	DeleteMembershipRoles(ctx context.Context, membershipID uuid.UUID) error
 	DeleteProviderCoverage(ctx context.Context, providerID uuid.UUID) error
 	DeleteRequestTeam(ctx context.Context, requestID uuid.UUID) error
+	DeleteRidePushToken(ctx context.Context, token string) error
+	DeleteRidePushTokens(ctx context.Context, requestID uuid.UUID) error
 	DeleteRole(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteRolePermissions(ctx context.Context, roleID uuid.UUID) error
 	DeleteServiceRequestStops(ctx context.Context, requestID uuid.UUID) error
@@ -302,6 +304,7 @@ type Querier interface {
 	ListRequestsOfProvider(ctx context.Context, arg ListRequestsOfProviderParams) ([]ServiceRequest, error)
 	ListRequestsWithProviderOnTheWay(ctx context.Context, limit int32) ([]ServiceRequest, error)
 	ListRequiredDocuments(ctx context.Context, serviceID uuid.UUID) ([]enums.DocumentType, error)
+	ListRidePushTokens(ctx context.Context, requestID uuid.UUID) ([]ListRidePushTokensRow, error)
 	ListRolePermissions(ctx context.Context, roleIds []uuid.UUID) ([]RolePermission, error)
 	ListRolesForOrganization(ctx context.Context, arg ListRolesForOrganizationParams) ([]Role, error)
 	ListSOSAlerts(ctx context.Context, arg ListSOSAlertsParams) ([]SosAlert, error)
@@ -435,6 +438,7 @@ type Querier interface {
 	UpsertPlatformSetting(ctx context.Context, arg UpsertPlatformSettingParams) error
 	UpsertProvider(ctx context.Context, arg UpsertProviderParams) error
 	UpsertRequestOffer(ctx context.Context, arg UpsertRequestOfferParams) (int64, error)
+	UpsertRidePushToken(ctx context.Context, arg UpsertRidePushTokenParams) error
 	UpsertTripMetrics(ctx context.Context, arg UpsertTripMetricsParams) error
 	UpsertVehicle(ctx context.Context, arg UpsertVehicleParams) error
 	UpsertWorkshopClosure(ctx context.Context, arg UpsertWorkshopClosureParams) error

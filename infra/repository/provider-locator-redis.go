@@ -398,6 +398,17 @@ func (l *ProviderLocator) ClaimLostAlert(ctx context.Context, requestID uuid.UUI
 	return true, nil
 }
 
+func (l *ProviderLocator) ClaimRideLivePush(ctx context.Context, requestID uuid.UUID, every time.Duration) (bool, error) {
+	err := l.rdb.SetArgs(ctx, "live:ridepush:"+requestID.String(), "1", goredis.SetArgs{Mode: "NX", TTL: every}).Err()
+	if errors.Is(err, goredis.Nil) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("claim ride live push: %w", err)
+	}
+	return true, nil
+}
+
 func parsePosition(lat, lng, timestamp any) (entities.GeoPoint, time.Time, bool) {
 	latText, latOK := lat.(string)
 	lngText, lngOK := lng.(string)

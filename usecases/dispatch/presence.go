@@ -279,6 +279,7 @@ func (u *Usecase) shareWithCustomer(ctx context.Context, providerID uuid.UUID, t
 	if err := u.Feed.PublishPosition(ctx, trip.CustomerID.String(), trip.RequestID.String(), encoded); err != nil {
 		log.Warn("position not shared", zap.Error(err))
 	}
+	u.pushRideLivePosition(ctx, trip, position, payload.ETASecond)
 	claimed, err := u.Locator.ClaimSample(ctx, providerID, sampleEvery)
 	if err != nil || !claimed {
 		return
