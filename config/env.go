@@ -237,20 +237,44 @@ type APNSConfig struct {
 	KeyID        string        `mapstructure:"APNS_KEY_ID"`
 	TeamID       string        `mapstructure:"APNS_TEAM_ID"`
 	KeyBase64    string        `mapstructure:"APNS_PRIVATE_KEY_BASE64"`
+	KeyFile      string        `mapstructure:"APNS_PRIVATE_KEY_FILE"`
 	BundleID     string        `mapstructure:"APNS_BUNDLE_ID"`
 	BaseURL      string        `mapstructure:"APNS_BASE_URL"`
 	Timeout      time.Duration `mapstructure:"APNS_TIMEOUT"`
 	Interval     time.Duration `mapstructure:"RIDE_LIVE_INTERVAL"`
 	StaleAfter   time.Duration `mapstructure:"RIDE_LIVE_STALE_AFTER"`
 	DismissAfter time.Duration `mapstructure:"RIDE_LIVE_DISMISS_AFTER"`
+
+	// keyFromFile is the content of APNS_PRIVATE_KEY_FILE, read at load
+	keyFromFile []byte
 }
 
 func (c APNSConfig) Enabled() bool {
-	return strings.TrimSpace(c.KeyID) != "" && strings.TrimSpace(c.TeamID) != "" && strings.TrimSpace(c.KeyBase64) != "" && strings.TrimSpace(c.BundleID) != ""
+	hasKey := len(c.keyFromFile) > 0 || strings.TrimSpace(c.KeyBase64) != ""
+	return strings.TrimSpace(c.KeyID) != "" && strings.TrimSpace(c.TeamID) != "" && hasKey && strings.TrimSpace(c.BundleID) != ""
 }
 
-// KeyPEM is the .p8 file, kept base64 encoded (base64 -w0 AuthKey.p8) so it fits on one line.
+// readKeyFile reads the .p8 file of APNS_PRIVATE_KEY_FILE, which wins over
+// APNS_PRIVATE_KEY_BASE64, like the Firebase credentials.
+func (c *APNSConfig) readKeyFile() error {
+	path := strings.TrimSpace(c.KeyFile)
+	if path == "" {
+		return nil
+	}
+	content, err := os.ReadFile(path) // #nosec G304 -- the path comes from the operator's environment
+	if err != nil {
+		return fmt.Errorf("read APNS_PRIVATE_KEY_FILE: %w", err)
+	}
+	c.keyFromFile = content
+	return nil
+}
+
+// KeyPEM is the .p8 key: the file of APNS_PRIVATE_KEY_FILE, or else
+// APNS_PRIVATE_KEY_BASE64 (base64 -w0 AuthKey.p8, so it fits on one line).
 func (c APNSConfig) KeyPEM() ([]byte, error) {
+	if len(c.keyFromFile) > 0 {
+		return c.keyFromFile, nil
+	}
 	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(c.KeyBase64))
 	if err != nil {
 		return nil, fmt.Errorf("APNS_PRIVATE_KEY_BASE64 is not base64: %w", err)
@@ -494,6 +518,7 @@ var defaults = map[string]any{
 	"APNS_KEY_ID":                           "",
 	"APNS_TEAM_ID":                          "",
 	"APNS_PRIVATE_KEY_BASE64":               "",
+	"APNS_PRIVATE_KEY_FILE":                 "",
 	"APNS_BUNDLE_ID":                        "",
 	"APNS_BASE_URL":                         "https://api.push.apple.com",
 	"APNS_TIMEOUT":                          "5s",
@@ -588,6 +613,9 @@ func Load() (*Config, error) {
 	cfg.HTTP.TrustedProxies = compact(cfg.HTTP.TrustedProxies)
 	cfg.Verify.FakeQualityReasons = compact(cfg.Verify.FakeQualityReasons)
 	if err := cfg.FCM.readCredentialsFile(); err != nil {
+		return nil, err
+	}
+	if err := cfg.APNS.readKeyFile(); err != nil {
 		return nil, err
 	}
 

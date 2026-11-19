@@ -108,11 +108,14 @@ few seconds.
 
 ### Configuration
 
-`APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY_BASE64` (`base64 -w0 AuthKey.p8`),
-`APNS_BUNDLE_ID`, `APNS_BASE_URL` (sandbox for development builds),
+`APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY_BASE64` (`base64 -w0 AuthKey.p8`)
+or `APNS_PRIVATE_KEY_FILE` (the path of the `.p8`, which wins), `APNS_BUNDLE_ID`, `APNS_BASE_URL` (sandbox for development builds),
 `APNS_TIMEOUT`, `RIDE_LIVE_INTERVAL`, `RIDE_LIVE_STALE_AFTER`,
 `RIDE_LIVE_DISMISS_AFTER`. Without the APNs key, Live Activity pushes are
-written to the log, like FCM.
+written to the log, like FCM. In production the key follows the Firebase
+credentials: `APNS_PRIVATE_KEY_FILE=/run/secrets/apns.p8` with the base64 in
+the env secret; the deploy writes it to `secrets/apns.p8` on the server, mounts
+it read-only and removes the base64 from the env of the container.
 
 ## Consequences
 

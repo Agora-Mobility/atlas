@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"encoding/base64"
 	"os"
 	"strings"
 	"testing"
@@ -201,6 +202,62 @@ func TestLoadFailsWhenTheFCMCredentialsFileIsMissing(t *testing.T) {
 
 	_, err := config.Load()
 	require.ErrorContains(t, err, "FCM_CREDENTIALS_FILE")
+}
+
+func TestLoadReadsTheAPNsKeyFromAFile(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	path := t.TempDir() + "/apns.p8"
+	key := "contents of the p8 file"
+	require.NoError(t, os.WriteFile(path, []byte(key), 0o600))
+	t.Setenv("APNS_KEY_ID", "KEY")
+	t.Setenv("APNS_TEAM_ID", "TEAM")
+	t.Setenv("APNS_BUNDLE_ID", "com.agora.iris")
+	t.Setenv("APNS_PRIVATE_KEY_BASE64", base64.StdEncoding.EncodeToString([]byte("not this")))
+	t.Setenv("APNS_PRIVATE_KEY_FILE", path)
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.True(t, cfg.APNS.Enabled())
+	pem, err := cfg.APNS.KeyPEM()
+	require.NoError(t, err)
+	assert.Equal(t, key, string(pem), "the file wins over the base64")
+}
+
+func TestLoadReadsTheAPNsKeyFromBase64(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("APNS_KEY_ID", "KEY")
+	t.Setenv("APNS_TEAM_ID", "TEAM")
+	t.Setenv("APNS_BUNDLE_ID", "com.agora.iris")
+	t.Setenv("APNS_PRIVATE_KEY_BASE64", base64.StdEncoding.EncodeToString([]byte("key")))
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	pem, err := cfg.APNS.KeyPEM()
+	require.NoError(t, err)
+	assert.Equal(t, "key", string(pem))
+}
+
+func TestAPNsIsOffWithoutAKey(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("APNS_KEY_ID", "KEY")
+	t.Setenv("APNS_TEAM_ID", "TEAM")
+	t.Setenv("APNS_BUNDLE_ID", "com.agora.iris")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.False(t, cfg.APNS.Enabled())
+}
+
+func TestLoadFailsWhenTheAPNsKeyFileIsMissing(t *testing.T) {
+	isolateEnv(t)
+	setRequired(t)
+	t.Setenv("APNS_PRIVATE_KEY_FILE", "/nowhere/apns.p8")
+
+	_, err := config.Load()
+	require.ErrorContains(t, err, "APNS_PRIVATE_KEY_FILE")
 }
 
 func TestLoadHeatmapDefaults(t *testing.T) {
