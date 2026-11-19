@@ -2,6 +2,8 @@ package dispatch
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"time"
 
@@ -105,6 +107,11 @@ type Settings struct {
 	// RideLiveInterval is the most often the lock screen of a ride gets a position
 	// update; zero turns the position updates off (status changes still go out)
 	RideLiveInterval time.Duration
+
+	// NearbyDriversMax caps the drivers on the map of the customer; NearbyIDKey
+	// makes their opaque ids, the same on every instance
+	NearbyDriversMax int
+	NearbyIDKey      []byte
 }
 
 type OfferChannels interface {
@@ -188,6 +195,10 @@ type Usecase struct {
 const concurrentChannelSends = 32
 
 func NewUsecase(deps Deps, settings Settings) *Usecase {
+	if len(settings.NearbyIDKey) == 0 {
+		settings.NearbyIDKey = make([]byte, sha256.Size)
+		_, _ = rand.Read(settings.NearbyIDKey)
+	}
 	return &Usecase{
 		Deps: deps, settings: settings,
 		zones:    NewZoneCache(deps.Config, deps.Geo),

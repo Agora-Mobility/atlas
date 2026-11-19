@@ -346,32 +346,41 @@ func (u *Usecase) SetCoverage(ctx context.Context, providerID uuid.UUID, in dtos
 	return &dtos.CoverageView{Lat: in.Lat, Lng: in.Lng, RadiusKm: radiusKm, Categories: len(cellsByCategory), Cells: totalCells}, nil
 }
 
-func (u *Usecase) Nearby(ctx context.Context, point entities.GeoPoint, category string) (*dtos.NearbyView, error) {
+// nearbyPolicy is the dispatch policy of the category at the point.
+func (u *Usecase) nearbyPolicy(ctx context.Context, point entities.GeoPoint, category string) (uuid.UUID, *entities.DispatchPolicy, error) {
 	if err := point.Validate("point"); err != nil {
-		return nil, err
+		return uuid.Nil, nil, err
 	}
 	zone, err := u.zones.Resolve(ctx, point)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, nil, err
 	}
 	if zone == nil {
-		return nil, ErrOutsideServiceArea
+		return uuid.Nil, nil, ErrOutsideServiceArea
 	}
 	categoryID, err := u.Config.FindCategoryIDBySlug(ctx, category)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, nil, err
 	}
 	if categoryID == nil {
-		return nil, ErrServiceNotOffered
+		return uuid.Nil, nil, ErrServiceNotOffered
 	}
 	policy, err := u.Config.ResolvePolicy(ctx, *categoryID, zone.ID)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, nil, err
 	}
 	if policy == nil {
-		return nil, ErrServiceNotOffered
+		return uuid.Nil, nil, ErrServiceNotOffered
 	}
-	counts, err := u.nearbyCounts(ctx, point, category, *categoryID, policy)
+	return *categoryID, policy, nil
+}
+
+func (u *Usecase) Nearby(ctx context.Context, point entities.GeoPoint, category string) (*dtos.NearbyView, error) {
+	categoryID, policy, err := u.nearbyPolicy(ctx, point, category)
+	if err != nil {
+		return nil, err
+	}
+	counts, err := u.nearbyCounts(ctx, point, category, categoryID, policy)
 	if err != nil {
 		return nil, err
 	}

@@ -27,6 +27,9 @@ type Querier interface {
 	AddWorkshopRating(ctx context.Context, arg AddWorkshopRatingParams) error
 	AssignVehicleToProvider(ctx context.Context, arg AssignVehicleToProviderParams) (int64, error)
 	AttachMediaToRequest(ctx context.Context, arg AttachMediaToRequestParams) (int64, error)
+	// The approved drivers among these that are free to take a request now, with
+	// their service and vehicle, for the map of the customer.
+	AvailableDriversAmong(ctx context.Context, providerIds []uuid.UUID) ([]AvailableDriversAmongRow, error)
 	BumpMembershipsWithRole(ctx context.Context, arg BumpMembershipsWithRoleParams) ([]uuid.UUID, error)
 	CancellationReport(ctx context.Context, arg CancellationReportParams) ([]CancellationReportRow, error)
 	ClaimReferralReward(ctx context.Context, arg ClaimReferralRewardParams) (ClaimReferralRewardRow, error)

@@ -172,6 +172,18 @@ func (r *ProviderRepository) FilterEligible(ctx context.Context, serviceID uuid.
 	return out, nil
 }
 
+func (r *ProviderRepository) AvailableDrivers(ctx context.Context, providerIDs []uuid.UUID) ([]entities.AvailableDriver, error) {
+	rows, err := postgres.Queries(ctx, r.pool).AvailableDriversAmong(ctx, providerIDs)
+	if err != nil {
+		return nil, fmt.Errorf("available drivers: %w", err)
+	}
+	out := make([]entities.AvailableDriver, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, entities.AvailableDriver{ProviderID: row.UserID, ServiceID: row.ServiceID, ServiceSlug: row.ServiceSlug, VehicleKind: row.VehicleKind})
+	}
+	return out, nil
+}
+
 func (r *ProviderRepository) WithActiveJob(ctx context.Context, providerIDs []uuid.UUID, busyUntil time.Time) ([]uuid.UUID, error) {
 	ids, err := postgres.Queries(ctx, r.pool).ProvidersWithActiveJob(ctx, gen.ProvidersWithActiveJobParams{ProviderIds: providerIDs, BusyUntil: busyUntil})
 	if err != nil {

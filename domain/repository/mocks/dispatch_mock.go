@@ -507,6 +507,21 @@ func (mr *MockIProviderRepositoryMockRecorder) Applications(ctx, filter any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Applications", reflect.TypeOf((*MockIProviderRepository)(nil).Applications), ctx, filter)
 }
 
+// AvailableDrivers mocks base method.
+func (m *MockIProviderRepository) AvailableDrivers(ctx context.Context, providerIDs []uuid.UUID) ([]entities.AvailableDriver, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AvailableDrivers", ctx, providerIDs)
+	ret0, _ := ret[0].([]entities.AvailableDriver)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AvailableDrivers indicates an expected call of AvailableDrivers.
+func (mr *MockIProviderRepositoryMockRecorder) AvailableDrivers(ctx, providerIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AvailableDrivers", reflect.TypeOf((*MockIProviderRepository)(nil).AvailableDrivers), ctx, providerIDs)
+}
+
 // CategoryOf mocks base method.
 func (m *MockIProviderRepository) CategoryOf(ctx context.Context, userID uuid.UUID) (*entities.LiveIndex, error) {
 	m.ctrl.T.Helper()

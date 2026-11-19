@@ -156,6 +156,7 @@ type DispatchConfig struct {
 	ChannelTimeout      time.Duration `mapstructure:"DISPATCH_CHANNEL_TIMEOUT"`
 	FareEstimateTTL     time.Duration `mapstructure:"FARE_ESTIMATE_TTL"`
 	NearbyMinCount      int           `mapstructure:"NEARBY_MIN_CELL_COUNT"`
+	NearbyDriversMax    int           `mapstructure:"NEARBY_DRIVERS_MAX"`
 	MaxAccuracyM        float64       `mapstructure:"LOCATION_MAX_ACCURACY_M"`
 	MaxSpeedKmh         float64       `mapstructure:"LOCATION_MAX_SPEED_KMH"`
 	HistoryRetention    time.Duration `mapstructure:"LOCATION_HISTORY_RETENTION"`
@@ -444,6 +445,7 @@ var defaults = map[string]any{
 	"LOCATION_MAX_SPEED_KMH":                200,
 	"LOCATION_HISTORY_RETENTION":            "720h",
 	"OFFER_DEEP_LINK_BASE":                  "agoraprovider://app",
+	"NEARBY_DRIVERS_MAX":                    20,
 	"OPERATOR_ALERT_PHONE":                  "",
 	"IDEMPOTENCY_TTL":                       "24h",
 	"NOTIFICATION_WORKERS":                  8,
@@ -553,6 +555,7 @@ const minCadenceInterval = 2 * time.Second
 const (
 	minDemandAreaResolution = 5
 	maxDemandAreaResolution = 8
+	maxNearbyDrivers        = 100
 	percentToBps            = 100
 )
 
@@ -698,6 +701,9 @@ func (c *Config) validateDispatch() []error {
 	}
 	if c.Dispatch.FareEstimateTTL <= 0 || c.Dispatch.NearbyMinCount <= 0 || c.Dispatch.IdempotencyTTL <= 0 {
 		errs = append(errs, errors.New("FARE_ESTIMATE_TTL, NEARBY_MIN_CELL_COUNT and IDEMPOTENCY_TTL must be positive"))
+	}
+	if c.Dispatch.NearbyDriversMax <= 0 || c.Dispatch.NearbyDriversMax > maxNearbyDrivers {
+		errs = append(errs, fmt.Errorf("NEARBY_DRIVERS_MAX must be between 1 and %d", maxNearbyDrivers))
 	}
 	if c.Dispatch.MaxAccuracyM <= 0 || c.Dispatch.MaxSpeedKmh <= 0 {
 		errs = append(errs, errors.New("LOCATION_MAX_ACCURACY_M and LOCATION_MAX_SPEED_KMH must be positive"))

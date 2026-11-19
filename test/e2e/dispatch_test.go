@@ -1217,3 +1217,50 @@ func TestProviderSeesWhereItsCategoryIsAskedFor(t *testing.T) {
 	stranger := newPerson(t, "provider")
 	assert.Equal(t, "PROVIDER_NOT_APPROVED", stranger.get(t, "/api/v1/providers/me/demand?lat=-8.8&lng=13.2").code())
 }
+
+func TestTheCustomerSeesTheFreeDriversNearThePickupOneByOne(t *testing.T) {
+	ctx := context.Background()
+	_, busy, _ := assignedTaxi(t)
+	free := newProvider(t, "taxi", point{-8.8392, 13.23423})
+	reserved := newProvider(t, "taxi", point{-8.8393, 13.2343})
+	require.NoError(t, env.redisDirect.Set(ctx, "offer:lock:"+reserved.id.String(), uuid.NewString(), time.Minute).Err())
+	gone := newProvider(t, "taxi", point{-8.8391, 13.2341})
+	require.Equal(t, http.StatusOK, gone.post(t, "/api/v1/providers/me/offline", nil).status)
+	customer := newCustomer(t)
+	path := fmt.Sprintf("/api/v1/nearby/drivers?lat=%f&lng=%f&category=taxi", pickup.Lat, pickup.Lng)
+
+	nearby := customer.get(t, path)
+	require.Equal(t, http.StatusOK, nearby.status, nearby.text)
+	assert.Equal(t, true, nearby.body["available"])
+	drivers := nearby.body["drivers"].([]any)
+	require.Len(t, drivers, 1, "the driver with a job, the one with an offer pending and the offline one are left out")
+	driver := drivers[0].(map[string]any)
+	for _, id := range []string{free.id.String(), busy.id.String(), reserved.id.String()} {
+		assert.NotContains(t, nearby.text, id, "no identity of the driver")
+	}
+	assert.NotEmpty(t, driver["id"])
+	assert.InDelta(t, -8.8392, driver["lat"], 1e-9)
+	assert.InDelta(t, 13.2342, driver["lng"], 1e-9, "the position is rounded to about 11 m")
+	assert.NotEmpty(t, driver["service_id"])
+	assert.NotEmpty(t, driver["service_slug"])
+	assert.Equal(t, "car", driver["vehicle_kind"])
+	assert.Positive(t, driver["distance_m"])
+	services := nearby.body["services"].([]any)
+	require.Len(t, services, 1)
+	summary := services[0].(map[string]any)
+	assert.Equal(t, driver["service_id"], summary["service_id"])
+	assert.EqualValues(t, 1, summary["drivers"])
+	assert.Equal(t, driver["eta_s"], summary["eta_s"], "the option shows the ETA of the nearest driver")
+
+	again := customer.get(t, path)
+	assert.Equal(t, driver["id"], again.body["drivers"].([]any)[0].(map[string]any)["id"], "the same car keeps its id")
+
+	other := customer.get(t, path+"&service_id="+uuid.NewString())
+	require.Equal(t, http.StatusOK, other.status, other.text)
+	assert.Empty(t, other.body["drivers"])
+	assert.Equal(t, false, other.body["available"])
+	assert.Equal(t, http.StatusBadRequest, customer.get(t, path+"&service_id=x").status)
+
+	assert.Equal(t, "OUTSIDE_SERVICE_AREA", customer.get(t, "/api/v1/nearby/drivers?lat=-14.9&lng=13.5&category=taxi").code())
+	assert.Equal(t, http.StatusForbidden, free.get(t, path).status, "drivers do not see each other")
+}

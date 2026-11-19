@@ -127,3 +127,20 @@ DELETE FROM ride_push_tokens WHERE request_id = $1;
 
 -- name: DeleteRidePushToken :exec
 DELETE FROM ride_push_tokens WHERE token = $1;
+
+-- name: AvailableDriversAmong :many
+-- The approved drivers among these that are free to take a request now, with
+-- their service and vehicle, for the map of the customer.
+SELECT p.user_id, s.id AS service_id, s.slug AS service_slug, COALESCE(v.kind, '')::text AS vehicle_kind
+FROM providers p
+JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
+JOIN services s ON s.id = p.service_id AND s.is_active
+LEFT JOIN vehicles v ON v.provider_id = p.user_id AND v.is_active
+LEFT JOIN service_provider_requirements r ON r.service_id = p.service_id
+WHERE p.user_id = ANY(sqlc.arg(provider_ids)::uuid[]) AND p.status = 'approved'
+  AND (NOT COALESCE(r.requires_vehicle, false) OR v.id IS NOT NULL)
+  AND NOT EXISTS (
+      SELECT 1 FROM service_requests q
+      WHERE q.provider_id = p.user_id AND q.status IN ('accepted', 'provider_en_route', 'in_progress')
+        AND (q.scheduled_for IS NULL OR q.scheduled_for <= now())
+  );

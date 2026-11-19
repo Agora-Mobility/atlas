@@ -240,6 +240,44 @@ func (c *DispatchController) Nearby(ctx *gin.Context) {
 	respond(ctx, http.StatusOK, view, err)
 }
 
+// NearbyDrivers godoc
+//
+//	@Summary		Free drivers near the pickup, one by one
+//	@Description	Customers only. For the cars on the map of "Escolha a viatura" and the ETA of each option (services: drivers and the ETA of the nearest per service). Each driver has an opaque id that is stable for the day (not the id of the driver), a position rounded to about 11 m, the heading, the service and the kind of vehicle; never their identity. Drivers with an offer pending or a job are left out. service_id keeps only that service. Categories matched by coverage list no drivers; available still says whether someone covers the point. ETA and distance are estimates from the straight line.
+//	@Tags			Dispatch
+//	@Produce		json
+//	@Param			lat			query		number	true	"Latitude of the pickup"
+//	@Param			lng			query		number	true	"Longitude of the pickup"
+//	@Param			category	query		string	true	"Category slug"
+//	@Param			service_id	query		string	false	"Only this service"
+//	@Success		200			{object}	dtos.NearbyDriversView
+//	@Failure		422			{object}	shared.ErrorResponse	"Outside the service area"
+//	@Security		BearerAuth
+//	@Security		ClientId
+//	@Router			/api/v1/nearby/drivers [get]
+func (c *DispatchController) NearbyDrivers(ctx *gin.Context) {
+	if _, ok := userWithRole(ctx, enums.RoleCustomer); !ok {
+		return
+	}
+	lat, latErr := strconv.ParseFloat(ctx.Query("lat"), 64)
+	lng, lngErr := strconv.ParseFloat(ctx.Query("lng"), 64)
+	if latErr != nil || lngErr != nil || ctx.Query("category") == "" {
+		shared.BadRequest(ctx, shared.CodeInvalidRequest, "lat, lng and category are required.")
+		return
+	}
+	var serviceID *uuid.UUID
+	if raw := ctx.Query("service_id"); raw != "" {
+		parsed, err := uuid.Parse(raw)
+		if err != nil {
+			shared.BadRequest(ctx, shared.CodeInvalidRequest, "service_id must be a UUID.")
+			return
+		}
+		serviceID = &parsed
+	}
+	view, err := c.dispatch.NearbyDrivers(ctx.Request.Context(), entities.GeoPoint{Lat: lat, Lng: lng}, ctx.Query("category"), serviceID)
+	respond(ctx, http.StatusOK, view, err)
+}
+
 // PreviewVoucher godoc
 //
 //	@Summary		What a voucher takes off a price

@@ -2703,6 +2703,68 @@ definitions:
       lng:
         type: number
     type: object
+  dtos.NearbyDriver:
+    properties:
+      age_s:
+        description: AgeS is how old the position is
+        example: 4
+        type: integer
+      distance_m:
+        example: 850
+        type: integer
+      eta_s:
+        example: 170
+        type: integer
+      heading:
+        example: 92
+        type: number
+      id:
+        description: ID is opaque and stable for the day, so the app can move the
+          same car; it is not the id of the driver
+        example: q2Lr0d1mZ4cX8b9T
+        type: string
+      lat:
+        example: -8.8395
+        type: number
+      lng:
+        example: 13.2345
+        type: number
+      service_id:
+        type: string
+      service_slug:
+        example: taxi-economico
+        type: string
+      vehicle_kind:
+        example: car
+        type: string
+    type: object
+  dtos.NearbyDriversView:
+    properties:
+      available:
+        type: boolean
+      drivers:
+        items:
+          $ref: '#/definitions/dtos.NearbyDriver'
+        type: array
+      services:
+        items:
+          $ref: '#/definitions/dtos.NearbyService'
+        type: array
+    type: object
+  dtos.NearbyService:
+    properties:
+      drivers:
+        example: 3
+        type: integer
+      eta_s:
+        description: ETASecond is the estimate of the nearest driver to the pickup
+        example: 170
+        type: integer
+      service_id:
+        type: string
+      service_slug:
+        type: string
+    type: object
   dtos.NearbyView:
     properties:
       available:
@@ -12338,6 +12400,53 @@ paths:
       - BearerAuth: []
       - ClientId: []
       summary: Providers near a point
+      tags:
+      - Dispatch
+  /api/v1/nearby/drivers:
+    get:
+      description: 'Customers only. For the cars on the map of "Escolha a viatura"
+        and the ETA of each option (services: drivers and the ETA of the nearest per
+        service). Each driver has an opaque id that is stable for the day (not the
+        id of the driver), a position rounded to about 11 m, the heading, the service
+        and the kind of vehicle; never their identity. Drivers with an offer pending
+        or a job are left out. service_id keeps only that service. Categories matched
+        by coverage list no drivers; available still says whether someone covers the
+        point. ETA and distance are estimates from the straight line.'
+      parameters:
+      - description: Latitude of the pickup
+        in: query
+        name: lat
+        required: true
+        type: number
+      - description: Longitude of the pickup
+        in: query
+        name: lng
+        required: true
+        type: number
+      - description: Category slug
+        in: query
+        name: category
+        required: true
+        type: string
+      - description: Only this service
+        in: query
+        name: service_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.NearbyDriversView'
+        "422":
+          description: Outside the service area
+          schema:
+            $ref: '#/definitions/shared.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ClientId: []
+      summary: Free drivers near the pickup, one by one
       tags:
       - Dispatch
   /api/v1/notifications:

@@ -228,7 +228,7 @@ func (l *ProviderLocator) FindInCells(ctx context.Context, category string, reso
 	positions := l.rdb.Pipeline()
 	reads := make([]*goredis.SliceCmd, 0, len(ids))
 	for _, id := range ids {
-		reads = append(reads, positions.HMGet(ctx, "live:pos:"+id, fieldLat, fieldLng, fieldTimestamp))
+		reads = append(reads, positions.HMGet(ctx, "live:pos:"+id, fieldLat, fieldLng, fieldTimestamp, fieldHeading))
 	}
 	if _, err := positions.Exec(ctx); err != nil {
 		return nil, fmt.Errorf("read positions: %w", err)
@@ -246,7 +246,7 @@ func (l *ProviderLocator) FindInCells(ctx context.Context, category string, reso
 			stale++
 			continue
 		}
-		candidates = append(candidates, repository.LiveCandidate{ProviderID: providerID, Point: point, RecordedAt: recordedAt})
+		candidates = append(candidates, repository.LiveCandidate{ProviderID: providerID, Point: point, Heading: parseHeading(values[3]), RecordedAt: recordedAt})
 	}
 	if stale > 0 {
 		if _, err := cleanup.Exec(ctx); err != nil {
@@ -423,6 +423,18 @@ func parsePosition(lat, lng, timestamp any) (entities.GeoPoint, time.Time, bool)
 		return entities.GeoPoint{}, time.Time{}, false
 	}
 	return entities.GeoPoint{Lat: latValue, Lng: lngValue}, time.UnixMilli(millis).UTC(), true
+}
+
+func parseHeading(value any) *float64 {
+	text, ok := value.(string)
+	if !ok {
+		return nil
+	}
+	heading, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return nil
+	}
+	return &heading
 }
 
 func formatFloat(value float64) string {

@@ -12,6 +12,56 @@ import (
 	"github.com/google/uuid"
 )
 
+const availableDriversAmong = `-- name: AvailableDriversAmong :many
+SELECT p.user_id, s.id AS service_id, s.slug AS service_slug, COALESCE(v.kind, '')::text AS vehicle_kind
+FROM providers p
+JOIN users u ON u.id = p.user_id AND u.status = 'active' AND u.deleted_at IS NULL
+JOIN services s ON s.id = p.service_id AND s.is_active
+LEFT JOIN vehicles v ON v.provider_id = p.user_id AND v.is_active
+LEFT JOIN service_provider_requirements r ON r.service_id = p.service_id
+WHERE p.user_id = ANY($1::uuid[]) AND p.status = 'approved'
+  AND (NOT COALESCE(r.requires_vehicle, false) OR v.id IS NOT NULL)
+  AND NOT EXISTS (
+      SELECT 1 FROM service_requests q
+      WHERE q.provider_id = p.user_id AND q.status IN ('accepted', 'provider_en_route', 'in_progress')
+        AND (q.scheduled_for IS NULL OR q.scheduled_for <= now())
+  )
+`
+
+type AvailableDriversAmongRow struct {
+	UserID      uuid.UUID `json:"user_id"`
+	ServiceID   uuid.UUID `json:"service_id"`
+	ServiceSlug string    `json:"service_slug"`
+	VehicleKind string    `json:"vehicle_kind"`
+}
+
+// The approved drivers among these that are free to take a request now, with
+// their service and vehicle, for the map of the customer.
+func (q *Queries) AvailableDriversAmong(ctx context.Context, providerIds []uuid.UUID) ([]AvailableDriversAmongRow, error) {
+	rows, err := q.db.Query(ctx, availableDriversAmong, providerIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AvailableDriversAmongRow{}
+	for rows.Next() {
+		var i AvailableDriversAmongRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.ServiceID,
+			&i.ServiceSlug,
+			&i.VehicleKind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countProviderApplications = `-- name: CountProviderApplications :one
 SELECT count(*)
 FROM providers p

@@ -43,6 +43,7 @@ func (r *Router) Register(api *gin.RouterGroup) {
 	retryable := r.idempotency.Optional()
 
 	signedIn.GET("/nearby", r.controller.Nearby)
+	signedIn.GET("/nearby/drivers", r.controller.NearbyDrivers)
 	signedIn.POST("/fare-estimates", r.controller.CreateFareEstimates)
 	signedIn.POST("/vouchers/preview", r.controller.PreviewVoucher)
 	signedIn.PUT("/devices", r.controller.RegisterDevice)

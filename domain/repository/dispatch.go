@@ -59,6 +59,8 @@ type IProviderRepository interface {
 	ClearCoverage(ctx context.Context, providerID uuid.UUID) error
 	FilterEligible(ctx context.Context, serviceID uuid.UUID, providerIDs []uuid.UUID) ([]entities.EligibleProvider, error)
 	WithActiveJob(ctx context.Context, providerIDs []uuid.UUID, busyUntil time.Time) ([]uuid.UUID, error)
+	// AvailableDrivers keeps the approved providers among these with no job now, with their service and vehicle.
+	AvailableDrivers(ctx context.Context, providerIDs []uuid.UUID) ([]entities.AvailableDriver, error)
 	ReplaceCoverage(ctx context.Context, providerID uuid.UUID, base entities.GeoPoint, radiusKm float64, cellsByCategory map[uuid.UUID][]int64) error
 	CoveringCell(ctx context.Context, categoryID uuid.UUID, cell int64) ([]uuid.UUID, error)
 	TouchJobCompleted(ctx context.Context, providerID uuid.UUID, at time.Time) error
@@ -252,6 +254,7 @@ type NotificationRecord struct {
 type LiveCandidate struct {
 	ProviderID uuid.UUID
 	Point      entities.GeoPoint
+	Heading    *float64
 	RecordedAt time.Time
 	Categories []string
 }

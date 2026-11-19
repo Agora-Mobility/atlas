@@ -23,6 +23,14 @@ func (p *EligibleProvider) CanCarry(minimumKg int64) bool {
 	return p.CapacityKg != nil && int64(*p.CapacityKg) >= minimumKg
 }
 
+// AvailableDriver is an approved driver free to take a request now.
+type AvailableDriver struct {
+	ProviderID  uuid.UUID
+	ServiceID   uuid.UUID
+	ServiceSlug string
+	VehicleKind string
+}
+
 type LiveIndex struct {
 	CategoryID uuid.UUID
 	Slug       string

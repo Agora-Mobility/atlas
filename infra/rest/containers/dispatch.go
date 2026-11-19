@@ -2,6 +2,8 @@ package containers
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/Agora-Mobility/atlas/config"
@@ -107,6 +109,7 @@ func newDispatchModule(c *Container, pushSender services.IPushSender, routingPro
 		DemandAreaResolution: cfg.Dispatch.DemandAreaResolution, DemandQuoteWindow: cfg.Dispatch.DemandQuoteWindow, DemandFactorTTL: cfg.Dispatch.DemandFactorTTL,
 		DemandHistoryRetention: cfg.Dispatch.DemandHistoryRetention, RouteReviewAboveBps: cfg.Dispatch.RouteReviewAboveBps(),
 		Heatmap: HeatmapSettings(cfg.Heatmap), RideLiveInterval: cfg.APNS.Interval,
+		NearbyDriversMax: cfg.Dispatch.NearbyDriversMax, NearbyIDKey: nearbyIDKey(cfg.JWT.Secret),
 	})
 	notifier.UseSharer(uc)
 	notifier.UseAccount(repository.NewAccountRepository(c.Pool))
@@ -153,6 +156,14 @@ func newPushSender(ctx context.Context, cfg config.FCMConfig) (services.IPushSen
 		return nil, fmt.Errorf("fcm: %w", err)
 	}
 	return sender, nil
+}
+
+// nearbyIDKey derives the key of the opaque ids of the drivers on the map from
+// the JWT secret, so every instance gives a driver the same id.
+func nearbyIDKey(secret string) []byte {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte("atlas/nearby-driver-id"))
+	return mac.Sum(nil)
 }
 
 func newLiveActivitySender(cfg config.APNSConfig) (services.ILiveActivitySender, error) {

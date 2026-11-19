@@ -8620,6 +8620,69 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v1/nearby/drivers": {
+            "get": {
+                "description": "Customers only. For the cars on the map of \"Escolha a viatura\" and the ETA of each option (services: drivers and the ETA of the nearest per service). Each driver has an opaque id that is stable for the day (not the id of the driver), a position rounded to about 11 m, the heading, the service and the kind of vehicle; never their identity. Drivers with an offer pending or a job are left out. service_id keeps only that service. Categories matched by coverage list no drivers; available still says whether someone covers the point. ETA and distance are estimates from the straight line.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dispatch"
+                ],
+                "summary": "Free drivers near the pickup, one by one",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Latitude of the pickup",
+                        "name": "lat",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Longitude of the pickup",
+                        "name": "lng",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category slug",
+                        "name": "category",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this service",
+                        "name": "service_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.NearbyDriversView"
+                        }
+                    },
+                    "422": {
+                        "description": "Outside the service area",
+                        "schema": {
+                            "$ref": "#/definitions/shared.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ClientId": []
+                    }
+                ]
+            }
+        },
         "/api/v1/notifications": {
             "get": {
                 "description": "Read and unread items, each with a link_type and link_id to open the order, offer, booking or ticket.",
@@ -21019,6 +21082,92 @@ const docTemplate = `{
                 },
                 "lng": {
                     "type": "number"
+                }
+            }
+        },
+        "dtos.NearbyDriver": {
+            "type": "object",
+            "properties": {
+                "age_s": {
+                    "description": "AgeS is how old the position is",
+                    "type": "integer",
+                    "example": 4
+                },
+                "distance_m": {
+                    "type": "integer",
+                    "example": 850
+                },
+                "eta_s": {
+                    "type": "integer",
+                    "example": 170
+                },
+                "heading": {
+                    "type": "number",
+                    "example": 92
+                },
+                "id": {
+                    "description": "ID is opaque and stable for the day, so the app can move the same car; it is not the id of the driver",
+                    "type": "string",
+                    "example": "q2Lr0d1mZ4cX8b9T"
+                },
+                "lat": {
+                    "type": "number",
+                    "example": -8.8395
+                },
+                "lng": {
+                    "type": "number",
+                    "example": 13.2345
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_slug": {
+                    "type": "string",
+                    "example": "taxi-economico"
+                },
+                "vehicle_kind": {
+                    "type": "string",
+                    "example": "car"
+                }
+            }
+        },
+        "dtos.NearbyDriversView": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "drivers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.NearbyDriver"
+                    }
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.NearbyService"
+                    }
+                }
+            }
+        },
+        "dtos.NearbyService": {
+            "type": "object",
+            "properties": {
+                "drivers": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "eta_s": {
+                    "description": "ETASecond is the estimate of the nearest driver to the pickup",
+                    "type": "integer",
+                    "example": 170
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_slug": {
+                    "type": "string"
                 }
             }
         },
