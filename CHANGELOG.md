@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.11.0](https://github.com/Agora-Mobility/atlas/compare/v3.10.0...v3.11.0) (2026-11-19)
+
+
+### Features
+
+* **account:** keep the navigation app the driver chose ([38dad23](https://github.com/Agora-Mobility/atlas/commit/38dad23b4ffb79d7cf381a10653e97bcdf636f7d))
+* **deploy:** mount the APNs key on the server like the Firebase credentials ([e001e42](https://github.com/Agora-Mobility/atlas/commit/e001e423a4223070ae75d8c5c7d4cc643f96c090))
+* **dispatch:** follow the ride on the lock screen of the customer ([df291b3](https://github.com/Agora-Mobility/atlas/commit/df291b33950e08acafcff32b1ce543e323e72043))
+* **dispatch:** show the customer the free drivers near the pickup ([88c4c6c](https://github.com/Agora-Mobility/atlas/commit/88c4c6c1126a14196476840316c00a49323929e5))
+
 ## [3.10.0](https://github.com/Agora-Mobility/atlas/compare/v3.9.0...v3.10.0) (2026-11-18)
 
 
