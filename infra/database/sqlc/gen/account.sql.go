@@ -107,7 +107,7 @@ func (q *Queries) GetUserAvatar(ctx context.Context, id uuid.UUID) (GetUserAvata
 }
 
 const getUserPreferences = `-- name: GetUserPreferences :one
-SELECT notify_status, notify_promotions, notify_sms, share_location, language, currency FROM users WHERE id = $1 AND deleted_at IS NULL
+SELECT notify_status, notify_promotions, notify_sms, share_location, language, currency, navigation_app FROM users WHERE id = $1 AND deleted_at IS NULL
 `
 
 type GetUserPreferencesRow struct {
@@ -117,6 +117,7 @@ type GetUserPreferencesRow struct {
 	ShareLocation    bool   `json:"share_location"`
 	Language         string `json:"language"`
 	Currency         string `json:"currency"`
+	NavigationApp    string `json:"navigation_app"`
 }
 
 func (q *Queries) GetUserPreferences(ctx context.Context, id uuid.UUID) (GetUserPreferencesRow, error) {
@@ -129,6 +130,7 @@ func (q *Queries) GetUserPreferences(ctx context.Context, id uuid.UUID) (GetUser
 		&i.ShareLocation,
 		&i.Language,
 		&i.Currency,
+		&i.NavigationApp,
 	)
 	return i, err
 }
@@ -375,8 +377,8 @@ func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) er
 }
 
 const updateUserPreferences = `-- name: UpdateUserPreferences :execrows
-UPDATE users SET notify_status = $1, notify_promotions = $2, notify_sms = $3, share_location = $4, language = $5, currency = $6, updated_at = now()
-WHERE id = $7 AND deleted_at IS NULL
+UPDATE users SET notify_status = $1, notify_promotions = $2, notify_sms = $3, share_location = $4, language = $5, currency = $6, navigation_app = $7, updated_at = now()
+WHERE id = $8 AND deleted_at IS NULL
 `
 
 type UpdateUserPreferencesParams struct {
@@ -386,6 +388,7 @@ type UpdateUserPreferencesParams struct {
 	ShareLocation    bool      `json:"share_location"`
 	Language         string    `json:"language"`
 	Currency         string    `json:"currency"`
+	NavigationApp    string    `json:"navigation_app"`
 	ID               uuid.UUID `json:"id"`
 }
 
@@ -397,6 +400,7 @@ func (q *Queries) UpdateUserPreferences(ctx context.Context, arg UpdateUserPrefe
 		arg.ShareLocation,
 		arg.Language,
 		arg.Currency,
+		arg.NavigationApp,
 		arg.ID,
 	)
 	if err != nil {

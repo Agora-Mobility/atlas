@@ -3438,6 +3438,17 @@ definitions:
         - en
         - fr
         type: string
+      navigation_app:
+        description: |-
+          NavigationApp is the app the driver opens to navigate a ride. Empty until chosen;
+          left out of a save, it keeps its current value, and "" clears it.
+        enum:
+        - ""
+        - google_maps
+        - waze
+        - apple_maps
+        example: waze
+        type: string
       notify_promotions:
         type: boolean
       notify_sms:

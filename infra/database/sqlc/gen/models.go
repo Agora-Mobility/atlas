@@ -1335,6 +1335,7 @@ type User struct {
 	Currency         string           `json:"currency"`
 	AvatarUploadID   *uuid.UUID       `json:"avatar_upload_id"`
 	ReferralCode     *string          `json:"referral_code"`
+	NavigationApp    string           `json:"navigation_app"`
 }
 
 type UserAddress struct {

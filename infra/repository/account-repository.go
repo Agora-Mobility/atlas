@@ -34,11 +34,11 @@ func (r *AccountRepository) Preferences(ctx context.Context, userID uuid.UUID) (
 	if err != nil {
 		return nil, fmt.Errorf("get preferences: %w", err)
 	}
-	return &entities.Preferences{NotifyStatus: row.NotifyStatus, NotifyPromotions: row.NotifyPromotions, NotifySMS: row.NotifySms, ShareLocation: row.ShareLocation, Language: row.Language, Currency: row.Currency}, nil
+	return &entities.Preferences{NotifyStatus: row.NotifyStatus, NotifyPromotions: row.NotifyPromotions, NotifySMS: row.NotifySms, ShareLocation: row.ShareLocation, Language: row.Language, Currency: row.Currency, NavigationApp: row.NavigationApp}, nil
 }
 
 func (r *AccountRepository) SavePreferences(ctx context.Context, userID uuid.UUID, p *entities.Preferences) (bool, error) {
-	rows, err := postgres.Queries(ctx, r.pool).UpdateUserPreferences(ctx, gen.UpdateUserPreferencesParams{ID: userID, NotifyStatus: p.NotifyStatus, NotifyPromotions: p.NotifyPromotions, NotifySms: p.NotifySMS, ShareLocation: p.ShareLocation, Language: p.Language, Currency: p.Currency})
+	rows, err := postgres.Queries(ctx, r.pool).UpdateUserPreferences(ctx, gen.UpdateUserPreferencesParams{ID: userID, NotifyStatus: p.NotifyStatus, NotifyPromotions: p.NotifyPromotions, NotifySms: p.NotifySMS, ShareLocation: p.ShareLocation, Language: p.Language, Currency: p.Currency, NavigationApp: p.NavigationApp})
 	if err != nil {
 		return false, fmt.Errorf("save preferences: %w", err)
 	}

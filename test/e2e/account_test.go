@@ -109,3 +109,24 @@ func TestAvatarMustBeAPhotoOfTheUser(t *testing.T) {
 	require.Equal(t, http.StatusOK, set.status, set.text)
 	assert.NotEmpty(t, set.str("url"))
 }
+
+func TestTheDriverKeepsTheNavigationAppTheyChose(t *testing.T) {
+	driver := newProvider(t, "taxi", point{-8.84, 13.235})
+	path := "/api/v1/users/me/preferences"
+	assert.Equal(t, "", driver.get(t, path).str("navigation_app"), "nothing chosen yet")
+
+	saved := driver.do(t, http.MethodPut, path, map[string]any{"notify_status": true, "language": "pt", "currency": "AOA", "navigation_app": "waze"}, nil)
+	require.Equal(t, http.StatusOK, saved.status, saved.text)
+	assert.Equal(t, "waze", saved.str("navigation_app"))
+	assert.Equal(t, "waze", driver.get(t, path).str("navigation_app"))
+
+	kept := driver.do(t, http.MethodPut, path, map[string]any{"notify_status": false, "language": "pt", "currency": "AOA"}, nil)
+	require.Equal(t, http.StatusOK, kept.status, kept.text)
+	assert.Equal(t, "waze", kept.str("navigation_app"), "an app that does not send it keeps the choice")
+
+	assert.Equal(t, http.StatusUnprocessableEntity, driver.do(t, http.MethodPut, path, map[string]any{"language": "pt", "currency": "AOA", "navigation_app": "bussola"}, nil).status)
+
+	cleared := driver.do(t, http.MethodPut, path, map[string]any{"language": "pt", "currency": "AOA", "navigation_app": ""}, nil)
+	require.Equal(t, http.StatusOK, cleared.status, cleared.text)
+	assert.Equal(t, "", cleared.str("navigation_app"))
+}

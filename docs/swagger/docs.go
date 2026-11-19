@@ -22012,6 +22012,17 @@ const docTemplate = `{
                         "fr"
                     ]
                 },
+                "navigation_app": {
+                    "description": "NavigationApp is the app the driver opens to navigate a ride. Empty until chosen;\nleft out of a save, it keeps its current value, and \"\" clears it.",
+                    "type": "string",
+                    "enum": [
+                        "",
+                        "google_maps",
+                        "waze",
+                        "apple_maps"
+                    ],
+                    "example": "waze"
+                },
                 "notify_promotions": {
                     "type": "boolean"
                 },
