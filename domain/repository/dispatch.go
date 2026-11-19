@@ -65,6 +65,8 @@ type IProviderRepository interface {
 	CoveringCell(ctx context.Context, categoryID uuid.UUID, cell int64) ([]uuid.UUID, error)
 	TouchJobCompleted(ctx context.Context, providerID uuid.UUID, at time.Time) error
 	SaveLocationSample(ctx context.Context, providerID, requestID uuid.UUID, point entities.GeoPoint, at time.Time) error
+	// LastLocationSample is the newest position stored for the request, or nil.
+	LastLocationSample(ctx context.Context, requestID uuid.UUID) (*entities.ProviderPosition, error)
 	PurgeLocationSamples(ctx context.Context, before time.Time) (int64, error)
 }
 
