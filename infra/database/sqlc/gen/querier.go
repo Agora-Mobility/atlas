@@ -239,6 +239,7 @@ type Querier interface {
 	InsertWorkshopPhoto(ctx context.Context, arg InsertWorkshopPhotoParams) error
 	IsPaymentMethodEnabled(ctx context.Context, arg IsPaymentMethodEnabledParams) (bool, error)
 	IsValidZoneGeometry(ctx context.Context, geojson string) (bool, error)
+	LastLocationSample(ctx context.Context, requestID uuid.UUID) (LastLocationSampleRow, error)
 	LedgerBalance(ctx context.Context, arg LedgerBalanceParams) (int64, error)
 	LedgerProviderBalances(ctx context.Context, arg LedgerProviderBalancesParams) ([]LedgerProviderBalancesRow, error)
 	LedgerTotals(ctx context.Context) ([]LedgerTotalsRow, error)

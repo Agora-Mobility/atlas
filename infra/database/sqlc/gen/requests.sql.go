@@ -980,6 +980,29 @@ func (q *Queries) InsertServiceRequestStop(ctx context.Context, arg InsertServic
 	return err
 }
 
+const lastLocationSample = `-- name: LastLocationSample :one
+SELECT provider_id, lat, lng, recorded_at FROM provider_location_samples WHERE request_id = $1 ORDER BY recorded_at DESC LIMIT 1
+`
+
+type LastLocationSampleRow struct {
+	ProviderID uuid.UUID `json:"provider_id"`
+	Lat        float64   `json:"lat"`
+	Lng        float64   `json:"lng"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
+func (q *Queries) LastLocationSample(ctx context.Context, requestID uuid.UUID) (LastLocationSampleRow, error) {
+	row := q.db.QueryRow(ctx, lastLocationSample, requestID)
+	var i LastLocationSampleRow
+	err := row.Scan(
+		&i.ProviderID,
+		&i.Lat,
+		&i.Lng,
+		&i.RecordedAt,
+	)
+	return i, err
+}
+
 const listActiveRequestsOfCustomerService = `-- name: ListActiveRequestsOfCustomerService :many
 SELECT id, customer_id, category_id, category_slug, service_id, zone_id, policy_id, status, version, pickup_address_id, contact_phone, pickup_h3_r8, destination_address_id, destination_h3_r8, passenger_name, passenger_phone, details, scheduled_for, search_round, search_extended, search_deadline_at, next_action_at, reminder_at, provider_id, organization_id, fare_estimate_id, fare_cents, commission_cents, boost_bps, currency, needs_operator, operator_reason, idempotency_key, cancel_reason, cancelled_by, accepted_at, arrived_at, started_at, completed_at, created_at, updated_at, payment_method, payment_status, cancel_reason_id, cancel_fee_cents, voucher_id, voucher_code, discount_cents, public_code, vehicle_type_id, completion_code, completion_attempts, workshop_id, prepay, extra_due_cents, removal_day, removal_window_id, route_geometry, pickup_h3_r9 FROM service_requests
 WHERE customer_id = $1 AND service_id = $2 AND status NOT IN ('completed', 'cancelled', 'expired')

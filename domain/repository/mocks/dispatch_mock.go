@@ -610,6 +610,21 @@ func (mr *MockIProviderRepositoryMockRecorder) Find(ctx, userID any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockIProviderRepository)(nil).Find), ctx, userID)
 }
 
+// LastLocationSample mocks base method.
+func (m *MockIProviderRepository) LastLocationSample(ctx context.Context, requestID uuid.UUID) (*entities.ProviderPosition, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LastLocationSample", ctx, requestID)
+	ret0, _ := ret[0].(*entities.ProviderPosition)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LastLocationSample indicates an expected call of LastLocationSample.
+func (mr *MockIProviderRepositoryMockRecorder) LastLocationSample(ctx, requestID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastLocationSample", reflect.TypeOf((*MockIProviderRepository)(nil).LastLocationSample), ctx, requestID)
+}
+
 // PurgeLocationSamples mocks base method.
 func (m *MockIProviderRepository) PurgeLocationSamples(ctx context.Context, before time.Time) (int64, error) {
 	m.ctrl.T.Helper()

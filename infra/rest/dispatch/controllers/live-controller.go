@@ -193,12 +193,12 @@ func (c *DispatchController) RegisterRidePushToken(ctx *gin.Context) {
 // PublicTrip godoc
 //
 //	@Summary		A shared trip
-//	@Description	Public, the token is the permission. Without phone numbers, and with the position only while the trip is active. Pickup and destination come as points next to their addresses, with the planned route (route_geometry) and the service name, for the map of the shared trip page.
+//	@Description	Public, the token is the permission, and only while the trip is not over: a completed, cancelled or expired trip answers 404 like an unknown link. Without phone numbers. The position is the last one the provider reported or, when that has expired, the newest sample of the trip from the last 10 minutes (age_s says how old). Pickup and destination come as points next to their addresses, with the planned route (route_geometry) and the service name, for the map of the shared trip page.
 //	@Tags			Live request
 //	@Produce		json
 //	@Param			token	path		string	true	"Token of the link"
 //	@Success		200		{object}	dtos.PublicTrip
-//	@Failure		404		{object}	shared.ErrorResponse	"Unknown, revoked or expired"
+//	@Failure		404		{object}	shared.ErrorResponse	"Unknown, revoked, expired, or the trip is over"
 //	@Router			/api/v1/public/trips/{token} [get]
 func (c *DispatchController) PublicTrip(ctx *gin.Context) {
 	view, err := c.dispatch.PublicTrip(ctx.Request.Context(), ctx.Param("token"))
