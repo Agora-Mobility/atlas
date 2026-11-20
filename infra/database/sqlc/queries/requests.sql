@@ -184,6 +184,9 @@ SELECT count(*) FROM request_offers
 WHERE provider_id = sqlc.arg(provider_id)
   AND (sqlc.arg(statuses)::text[] = '{}' OR status = ANY(sqlc.arg(statuses)::text[]));
 
+-- name: LastLocationSample :one
+SELECT provider_id, lat, lng, recorded_at FROM provider_location_samples WHERE request_id = $1 ORDER BY recorded_at DESC LIMIT 1;
+
 -- name: InsertLocationSample :exec
 INSERT INTO provider_location_samples (provider_id, request_id, lat, lng, recorded_at) VALUES ($1, $2, $3, $4, $5);
 

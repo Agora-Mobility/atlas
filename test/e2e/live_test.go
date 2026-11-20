@@ -132,6 +132,13 @@ func TestASharedLinkIsPublicButLimited(t *testing.T) {
 	require.Equal(t, http.StatusCreated, again.status)
 	require.Equal(t, http.StatusNoContent, customer.do(t, http.MethodDelete, "/api/v1/requests/"+id+"/share", nil, nil).status)
 	assert.Equal(t, http.StatusNotFound, anonymous.get(t, "/api/v1/public/trips/"+again.str("token")).status, "it can be revoked")
+
+	last := customer.post(t, "/api/v1/requests/"+id+"/share", nil)
+	require.Equal(t, http.StatusCreated, last.status, last.text)
+	for _, step := range []string{"en-route", "arrive", "start", "complete"} {
+		require.Equal(t, http.StatusOK, driver.post(t, "/api/v1/requests/"+id+"/"+step, nil).status, step)
+	}
+	assert.Equal(t, http.StatusNotFound, anonymous.get(t, "/api/v1/public/trips/"+last.str("token")).status, "the link ends with the trip")
 }
 
 func TestETAComesFromTheRouteOfTheProvider(t *testing.T) {

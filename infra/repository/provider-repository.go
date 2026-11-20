@@ -255,6 +255,17 @@ func (r *ProviderRepository) SaveLocationSample(ctx context.Context, providerID,
 	return nil
 }
 
+func (r *ProviderRepository) LastLocationSample(ctx context.Context, requestID uuid.UUID) (*entities.ProviderPosition, error) {
+	row, err := postgres.Queries(ctx, r.pool).LastLocationSample(ctx, requestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("last location sample: %w", err)
+	}
+	return &entities.ProviderPosition{ProviderID: row.ProviderID, Point: entities.GeoPoint{Lat: row.Lat, Lng: row.Lng}, RecordedAt: row.RecordedAt}, nil
+}
+
 func (r *ProviderRepository) PurgeLocationSamples(ctx context.Context, before time.Time) (int64, error) {
 	rows, err := postgres.Queries(ctx, r.pool).PurgeLocationSamples(ctx, before)
 	if err != nil {

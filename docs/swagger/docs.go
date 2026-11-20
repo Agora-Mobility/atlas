@@ -12791,7 +12791,7 @@ const docTemplate = `{
         },
         "/api/v1/public/trips/{token}": {
             "get": {
-                "description": "Public, the token is the permission. Without phone numbers, and with the position only while the trip is active. Pickup and destination come as points next to their addresses, with the planned route (route_geometry) and the service name, for the map of the shared trip page.",
+                "description": "Public, the token is the permission, and only while the trip is not over: a completed, cancelled or expired trip answers 404 like an unknown link. Without phone numbers. The position is the last one the provider reported or, when that has expired, the newest sample of the trip from the last 10 minutes (age_s says how old). Pickup and destination come as points next to their addresses, with the planned route (route_geometry) and the service name, for the map of the shared trip page.",
                 "produces": [
                     "application/json"
                 ],
@@ -12816,7 +12816,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Unknown, revoked or expired",
+                        "description": "Unknown, revoked, expired, or the trip is over",
                         "schema": {
                             "$ref": "#/definitions/shared.ErrorResponse"
                         }

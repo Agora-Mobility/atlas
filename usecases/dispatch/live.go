@@ -202,7 +202,9 @@ func (u *Usecase) PublicTrip(ctx context.Context, token string) (*dtos.PublicTri
 	if err != nil {
 		return nil, err
 	}
-	if request == nil {
+	// The link is only for following the trip while it happens: once it ends
+	// the page says so, as for a link that never existed
+	if request == nil || request.Status.IsTerminal() {
 		return nil, entities.ErrShareNotFound
 	}
 	view := &dtos.PublicTrip{
@@ -219,9 +221,6 @@ func (u *Usecase) PublicTrip(ctx context.Context, token string) (*dtos.PublicTri
 	}
 	if service != nil {
 		view.ServiceName = service.Name
-	}
-	if request.Status.IsTerminal() {
-		return view, nil
 	}
 	provider, err := u.providerSummary(ctx, request.ProviderID)
 	if err != nil {
@@ -256,7 +255,7 @@ func (u *Usecase) etaOf(ctx context.Context, request *entities.ServiceRequest) (
 	if request.ProviderID == nil || !request.Status.HasLiveProvider() {
 		return nil, entities.ErrNoETA
 	}
-	position, err := u.Locator.LastPosition(ctx, *request.ProviderID)
+	position, err := u.livePosition(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -275,6 +274,26 @@ func (u *Usecase) etaOf(ctx context.Context, request *entities.ServiceRequest) (
 		position: &dtos.PositionView{Lat: position.Point.Lat, Lng: position.Point.Lng, AgeS: int(u.now().Sub(position.RecordedAt).Seconds())},
 		seconds:  int(route.Duration.Seconds()), meters: route.DistanceMeters, source: string(route.Source), target: name, geometry: route.Geometry,
 	}, nil
+}
+
+// lastSampleMaxAge is how old the stored sample of a trip may be to stand in
+// for the live position.
+const lastSampleMaxAge = 10 * time.Minute
+
+// livePosition is the last position of the provider in Redis. It expires a few
+// intervals after the last report (Cadence.PresenceTTL), so a late report of
+// the provider app leaves the trip without a position: the newest sample
+// stored for the trip stands in for it while it is recent, with its age.
+func (u *Usecase) livePosition(ctx context.Context, request *entities.ServiceRequest) (*entities.ProviderPosition, error) {
+	position, err := u.Locator.LastPosition(ctx, *request.ProviderID)
+	if err != nil || position != nil {
+		return position, err
+	}
+	sample, err := u.Providers.LastLocationSample(ctx, request.ID)
+	if err != nil || sample == nil || sample.ProviderID != *request.ProviderID || u.now().Sub(sample.RecordedAt) > lastSampleMaxAge {
+		return nil, err
+	}
+	return sample, nil
 }
 
 func (u *Usecase) ETA(ctx context.Context, userID, requestID uuid.UUID) (*dtos.ETAView, error) {
