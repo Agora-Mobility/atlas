@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.11.1](https://github.com/Agora-Mobility/atlas/compare/v3.11.0...v3.11.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **dispatch:** end the shared link with the trip and keep the car on its page ([4c7938b](https://github.com/Agora-Mobility/atlas/commit/4c7938b9b7ca82146943a1114ed49258f90c1466))
+* **dispatch:** end the shared link with the trip and keep the car on its page ([d772efa](https://github.com/Agora-Mobility/atlas/commit/d772efad581c05f117d82734a1b49b37a42e4bf7))
+
 ## [3.11.0](https://github.com/Agora-Mobility/atlas/compare/v3.10.0...v3.11.0) (2026-11-19)
 
 
