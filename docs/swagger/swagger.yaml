@@ -1971,6 +1971,13 @@ definitions:
     type: object
   dtos.FareEstimateView:
     properties:
+      arrival_at:
+        description: |-
+          ArrivalAt is when the customer reaches the destination: the pickup
+          (scheduled_for, or now plus pickup_eta_s) plus duration_s. Absent without
+          a destination, for removals and when pickup_eta_s is unknown.
+        example: "2026-11-21T14:05:00Z"
+        type: string
       currency:
         type: string
       demand_factor_bps:
@@ -1987,6 +1994,12 @@ definitions:
       high_demand:
         type: boolean
       included_km:
+        type: integer
+      pickup_eta_s:
+        description: |-
+          PickupETAS is the wait for the nearest free car of this service. Absent
+          for scheduled trips and when no free car of the service is near.
+        example: 240
         type: integer
       removal:
         $ref: '#/definitions/entities.RemovalQuote'

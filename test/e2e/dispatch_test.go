@@ -73,6 +73,12 @@ func TestTaxiFullFlowWithFixedPriceTrackingAndHonoredFare(t *testing.T) {
 	assert.Equal(t, "google", route["source"])
 	assert.EqualValues(t, 8000, route["distance_m"])
 	assert.NotContains(t, option, "route_geometry", "the route is given once for the list, not per service")
+	require.Contains(t, option, "pickup_eta_s", "the free driver near the pickup gives the wait for the car")
+	wait := time.Duration(option["pickup_eta_s"].(float64)) * time.Second
+	arrival, err := time.Parse(time.RFC3339, option["arrival_at"].(string))
+	require.NoError(t, err)
+	trip := time.Duration(option["duration_s"].(float64)) * time.Second
+	assert.WithinDuration(t, time.Now().Add(wait+trip), arrival, time.Minute, "arrival is the wait plus the trip")
 
 	key := uuid.NewString()
 	payload := map[string]any{"service_id": option["service_id"], "fare_estimate_id": option["fare_estimate_id"], "pickup": pickup, "destination": target}

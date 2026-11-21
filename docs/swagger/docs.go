@@ -20026,6 +20026,11 @@ const docTemplate = `{
         "dtos.FareEstimateView": {
             "type": "object",
             "properties": {
+                "arrival_at": {
+                    "description": "ArrivalAt is when the customer reaches the destination: the pickup\n(scheduled_for, or now plus pickup_eta_s) plus duration_s. Absent without\na destination, for removals and when pickup_eta_s is unknown.",
+                    "type": "string",
+                    "example": "2026-11-21T14:05:00Z"
+                },
                 "currency": {
                     "type": "string"
                 },
@@ -20050,6 +20055,11 @@ const docTemplate = `{
                 },
                 "included_km": {
                     "type": "integer"
+                },
+                "pickup_eta_s": {
+                    "description": "PickupETAS is the wait for the nearest free car of this service. Absent\nfor scheduled trips and when no free car of the service is near.",
+                    "type": "integer",
+                    "example": 240
                 },
                 "removal": {
                     "$ref": "#/definitions/entities.RemovalQuote"

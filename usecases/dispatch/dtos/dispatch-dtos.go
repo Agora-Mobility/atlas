@@ -179,6 +179,13 @@ type FareEstimateView struct {
 	Removal         *entities.RemovalQuote `json:"removal,omitempty"`
 	DemandFactorBps int                    `json:"demand_factor_bps" example:"10000"`
 	HighDemand      bool                   `json:"high_demand"`
+	// PickupETAS is the wait for the nearest free car of this service. Absent
+	// for scheduled trips and when no free car of the service is near.
+	PickupETAS *int `json:"pickup_eta_s,omitempty" example:"240"`
+	// ArrivalAt is when the customer reaches the destination: the pickup
+	// (scheduled_for, or now plus pickup_eta_s) plus duration_s. Absent without
+	// a destination, for removals and when pickup_eta_s is unknown.
+	ArrivalAt *time.Time `json:"arrival_at,omitempty" example:"2026-11-21T14:05:00Z"`
 }
 
 type FareEstimateList struct {
