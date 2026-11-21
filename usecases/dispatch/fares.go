@@ -136,7 +136,55 @@ func (u *Usecase) CreateEstimates(ctx context.Context, customerID uuid.UUID, in 
 	if len(list.Items) == 0 {
 		return nil, ErrNoTariff
 	}
+	u.addArrival(ctx, list, pickup, in, destination != nil, now)
 	return list, nil
+}
+
+// addArrival fills the pickup wait and the arrival time of each option for
+// "Escolhe a viagem". Best effort: a failure only leaves the fields out.
+func (u *Usecase) addArrival(ctx context.Context, list *dtos.FareEstimateList, pickup entities.GeoPoint, in dtos.FareEstimateInput, hasDestination bool, now time.Time) {
+	var waits map[uuid.UUID]int
+	if in.ScheduledFor == nil {
+		nearby, err := u.NearbyDrivers(ctx, pickup, in.Category, nil)
+		if err != nil {
+			logger.FromContext(ctx).Warn("pickup eta unavailable", zap.Error(err))
+			return
+		}
+		waits = make(map[uuid.UUID]int, len(nearby.Services))
+		for _, service := range nearby.Services {
+			waits[service.ServiceID] = service.ETASecond
+		}
+	}
+	applyArrival(list.Items, waits, in.ScheduledFor, hasDestination, now)
+}
+
+// applyArrival sets pickup_eta_s from the ETA of the nearest free car of the
+// service (as in /nearby/drivers) and arrival_at as the pickup plus the trip:
+// a scheduled trip starts at scheduled_for and has no wait. The arrival is
+// left out when the wait is unknown, never guessed, and for removals, whose
+// time is the loading and not the drive.
+func applyArrival(items []dtos.FareEstimateView, waits map[uuid.UUID]int, scheduledFor *time.Time, hasDestination bool, now time.Time) {
+	for i := range items {
+		item := &items[i]
+		if item.Removal != nil {
+			continue
+		}
+		start := now
+		if scheduledFor != nil {
+			start = *scheduledFor
+		} else {
+			wait, ok := waits[item.ServiceID]
+			if !ok {
+				continue
+			}
+			item.PickupETAS = &wait
+			start = now.Add(time.Duration(wait) * time.Second)
+		}
+		if hasDestination {
+			arrival := start.Add(time.Duration(item.DurationS) * time.Second).Truncate(time.Second).UTC()
+			item.ArrivalAt = &arrival
+		}
+	}
 }
 
 func (u *Usecase) towingEstimates(ctx context.Context, list *dtos.FareEstimateList, vehicleTypes []entities.CatalogItem, service *entities.DispatchService, tariff *entities.ServiceTariff, demand entities.DemandQuote, customerID uuid.UUID, pickup entities.GeoPoint, destination *entities.GeoPoint, stops []entities.GeoPoint, in dtos.FareEstimateInput, route services.Route, now, expiresAt time.Time) error {
